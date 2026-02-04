@@ -1,0 +1,91 @@
+{
+  "collectionId": "col-2026-02-04-083000",
+  "startTime": "2026-02-04T08:30:00Z",
+  "endTime": "2026-02-04T08:35:42Z",
+  "durationSeconds": 342,
+  "tenantId": "sample-tenant-id",
+  "collectedBy": "erik.hansen@modum.kommune.no",
+  "status": "completed",
+  "collectors": [
+    {
+      "name": "Get-UserData",
+      "success": true,
+      "count": 50,
+      "durationSeconds": 45,
+      "errors": []
+    },
+    {
+      "name": "Get-LicenseData",
+      "success": true,
+      "count": 10,
+      "durationSeconds": 12,
+      "errors": []
+    },
+    {
+      "name": "Get-GuestData",
+      "success": true,
+      "count": 20,
+      "durationSeconds": 18,
+      "errors": []
+    },
+    {
+      "name": "Get-MFAData",
+      "success": true,
+      "count": 44,
+      "durationSeconds": 35,
+      "errors": []
+    },
+    {
+      "name": "Get-AdminRoleData",
+      "success": true,
+      "count": 8,
+      "durationSeconds": 22,
+      "errors": []
+    },
+    {
+      "name": "Get-SignInData",
+      "success": true,
+      "count": 15,
+      "durationSeconds": 28,
+      "errors": []
+    },
+    {
+      "name": "Get-DeviceData",
+      "success": true,
+      "count": 30,
+      "durationSeconds": 42,
+      "errors": []
+    },
+    {
+      "name": "Get-AutopilotData",
+      "success": true,
+      "count": 15,
+      "durationSeconds": 15,
+      "errors": []
+    },
+    {
+      "name": "Get-DefenderData",
+      "success": true,
+      "count": 10,
+      "durationSeconds": 25,
+      "errors": []
+    }
+  ],
+  "summary": {
+    "totalUsers": 50,
+    "employeeCount": 30,
+    "studentCount": 15,
+    "otherCount": 5,
+    "disabledUsers": 5,
+    "inactiveUsers": 8,
+    "noMfaUsers": 6,
+    "adminCount": 3,
+    "guestCount": 20,
+    "staleGuests": 7,
+    "totalDevices": 30,
+    "compliantDevices": 22,
+    "staleDevices": 4,
+    "activeAlerts": 6
+  },
+  "version": "1.0.0"
+}

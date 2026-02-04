@@ -1,0 +1,354 @@
+[
+  {
+    "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+    "userPrincipalName": "erik.hansen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
+    "userPrincipalName": "ingrid.olsen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "email"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "c3d4e5f6-a7b8-9012-cdef-345678901234",
+    "userPrincipalName": "lars.johansen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "d4e5f6a7-b8c9-0123-def0-456789012345",
+    "userPrincipalName": "kari.andersen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone", "softwareOneTimePasscode"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "e5f6a7b8-c9d0-1234-ef01-567890123456",
+    "userPrincipalName": "magnus.nilsen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["mobilePhone"],
+    "defaultMethod": "mobilePhone"
+  },
+  {
+    "userId": "f6a7b8c9-d0e1-2345-f012-678901234567",
+    "userPrincipalName": "sofie.berg@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+    "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone", "hardwareOneTimePasscode"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "b8c9d0e1-f2a3-4567-1234-890123456789",
+    "userPrincipalName": "hanna.larsen@modum.kommune.no",
+    "isMfaRegistered": false,
+    "isMfaCapable": false,
+    "methods": [],
+    "defaultMethod": null
+  },
+  {
+    "userId": "c9d0e1f2-a3b4-5678-2345-901234567890",
+    "userPrincipalName": "ole.pedersen@modum.kommune.no",
+    "isMfaRegistered": false,
+    "isMfaCapable": false,
+    "methods": [],
+    "defaultMethod": null
+  },
+  {
+    "userId": "d0e1f2a3-b4c5-6789-3456-012345678901",
+    "userPrincipalName": "marte.eriksen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "e1f2a3b4-c5d6-7890-4567-123456789012",
+    "userPrincipalName": "thomas.svendsen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["mobilePhone"],
+    "defaultMethod": "mobilePhone"
+  },
+  {
+    "userId": "f2a3b4c5-d6e7-8901-5678-234567890123",
+    "userPrincipalName": "camilla.haugen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "email"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "a3b4c5d6-e7f8-9012-6789-345678901234",
+    "userPrincipalName": "fredrik.moen@modum.kommune.no",
+    "isMfaRegistered": false,
+    "isMfaCapable": false,
+    "methods": [],
+    "defaultMethod": null
+  },
+  {
+    "userId": "b4c5d6e7-f8a9-0123-7890-456789012345",
+    "userPrincipalName": "silje.gulbrandsen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "c5d6e7f8-a9b0-1234-8901-567890123456",
+    "userPrincipalName": "henrik.strand@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "d6e7f8a9-b0c1-2345-9012-678901234567",
+    "userPrincipalName": "kristin.aasen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["mobilePhone"],
+    "defaultMethod": "mobilePhone"
+  },
+  {
+    "userId": "e7f8a9b0-c1d2-3456-0123-789012345678",
+    "userPrincipalName": "martin.holter@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "f8a9b0c1-d2e3-4567-1234-890123456789",
+    "userPrincipalName": "lise.bakken@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "email"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "a9b0c1d2-e3f4-5678-2345-901234567890",
+    "userPrincipalName": "petter.nordby@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "b0c1d2e3-f4a5-6789-3456-012345678901",
+    "userPrincipalName": "anne.riise@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "c1d2e3f4-a5b6-7890-4567-123456789012",
+    "userPrincipalName": "jonas.aas@modum.kommune.no",
+    "isMfaRegistered": false,
+    "isMfaCapable": false,
+    "methods": [],
+    "defaultMethod": null
+  },
+  {
+    "userId": "d2e3f4a5-b6c7-8901-5678-234567890123",
+    "userPrincipalName": "marianne.dahl@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "e3f4a5b6-c7d8-9012-6789-345678901234",
+    "userPrincipalName": "simen.lund@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "f4a5b6c7-d8e9-0123-7890-456789012345",
+    "userPrincipalName": "tonje.haug@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "email"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "a5b6c7d8-e9f0-1234-8901-567890123456",
+    "userPrincipalName": "vegard.ellingsen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["mobilePhone"],
+    "defaultMethod": "mobilePhone"
+  },
+  {
+    "userId": "b6c7d8e9-f0a1-2345-9012-678901234567",
+    "userPrincipalName": "ida.engen@modum.kommune.no",
+    "isMfaRegistered": false,
+    "isMfaCapable": false,
+    "methods": [],
+    "defaultMethod": null
+  },
+  {
+    "userId": "c7d8e9f0-a1b2-3456-0123-789012345678",
+    "userPrincipalName": "ola.henriksen@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "d8e9f0a1-b2c3-4567-1234-890123456789",
+    "userPrincipalName": "grete.fossum@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush", "mobilePhone"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "e9f0a1b2-c3d4-5678-2345-901234567890",
+    "userPrincipalName": "rune.vik@modum.kommune.no",
+    "isMfaRegistered": false,
+    "isMfaCapable": false,
+    "methods": [],
+    "defaultMethod": null
+  },
+  {
+    "userId": "f0a1b2c3-d4e5-6789-3456-012345678901",
+    "userPrincipalName": "nina.odegard@modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "01a2b3c4-d5e6-7890-4567-123456789012",
+    "userPrincipalName": "elias.solberg@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "12b3c4d5-e6f7-8901-5678-234567890123",
+    "userPrincipalName": "emma.thorsen@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "23c4d5e6-f7a8-9012-6789-345678901234",
+    "userPrincipalName": "noah.brekke@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "34d5e6f7-a8b9-0123-7890-456789012345",
+    "userPrincipalName": "olivia.evensen@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "45e6f7a8-b9c0-1234-8901-567890123456",
+    "userPrincipalName": "william.nygard@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "56f7a8b9-c0d1-2345-9012-678901234567",
+    "userPrincipalName": "nora.heimdal@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "67a8b9c0-d1e2-3456-0123-789012345678",
+    "userPrincipalName": "jakob.berntsen@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["mobilePhone"],
+    "defaultMethod": "mobilePhone"
+  },
+  {
+    "userId": "78b9c0d1-e2f3-4567-1234-890123456789",
+    "userPrincipalName": "sofie.ruud@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "89c0d1e2-f3a4-5678-2345-901234567890",
+    "userPrincipalName": "lucas.stensrud@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "90d1e2f3-a4b5-6789-3456-012345678901",
+    "userPrincipalName": "maja.hagen@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "01e2f3a4-b5c6-7890-4567-123456789012",
+    "userPrincipalName": "oscar.lie@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "12f3a4b5-c6d7-8901-5678-234567890123",
+    "userPrincipalName": "leah.aune@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "23a4b5c6-d7e8-9012-6789-345678901234",
+    "userPrincipalName": "filip.myhre@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  },
+  {
+    "userId": "34b5c6d7-e8f9-0123-7890-456789012345",
+    "userPrincipalName": "ella.sorensen@skole.modum.kommune.no",
+    "isMfaRegistered": true,
+    "isMfaCapable": true,
+    "methods": ["microsoftAuthenticatorPush"],
+    "defaultMethod": "microsoftAuthenticatorPush"
+  }
+]

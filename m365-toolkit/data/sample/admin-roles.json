@@ -1,0 +1,162 @@
+[
+  {
+    "roleId": "62e90394-69f5-4237-9190-012177145e10",
+    "roleName": "Global Administrator",
+    "isHighPrivilege": true,
+    "members": [
+      {
+        "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "displayName": "Erik Hansen",
+        "userPrincipalName": "erik.hansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 1
+      },
+      {
+        "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+        "displayName": "Anders Kristiansen",
+        "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 0
+      }
+    ],
+    "memberCount": 2
+  },
+  {
+    "roleId": "29232cdf-9323-42fd-ade2-1d097af3e4de",
+    "roleName": "Exchange Administrator",
+    "isHighPrivilege": true,
+    "members": [
+      {
+        "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+        "displayName": "Anders Kristiansen",
+        "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 0
+      }
+    ],
+    "memberCount": 1
+  },
+  {
+    "roleId": "fe930be7-5e62-47db-91af-98c3a49a38b1",
+    "roleName": "User Administrator",
+    "isHighPrivilege": true,
+    "members": [
+      {
+        "userId": "d4e5f6a7-b8c9-0123-def0-456789012345",
+        "displayName": "Kari Andersen",
+        "userPrincipalName": "kari.andersen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 1
+      },
+      {
+        "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "displayName": "Erik Hansen",
+        "userPrincipalName": "erik.hansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 1
+      }
+    ],
+    "memberCount": 2
+  },
+  {
+    "roleId": "194ae4cb-b126-40b2-bd5b-6091b380977d",
+    "roleName": "Security Administrator",
+    "isHighPrivilege": true,
+    "members": [
+      {
+        "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "displayName": "Erik Hansen",
+        "userPrincipalName": "erik.hansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 1
+      },
+      {
+        "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+        "displayName": "Anders Kristiansen",
+        "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 0
+      }
+    ],
+    "memberCount": 2
+  },
+  {
+    "roleId": "f28a1f50-f6e7-4571-818b-6a12f2af6b6c",
+    "roleName": "SharePoint Administrator",
+    "isHighPrivilege": false,
+    "members": [
+      {
+        "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+        "displayName": "Anders Kristiansen",
+        "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 0
+      }
+    ],
+    "memberCount": 1
+  },
+  {
+    "roleId": "69091246-20e8-4a56-aa4d-066075b2a7a8",
+    "roleName": "Teams Administrator",
+    "isHighPrivilege": false,
+    "members": [
+      {
+        "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+        "displayName": "Anders Kristiansen",
+        "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 0
+      },
+      {
+        "userId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+        "displayName": "Erik Hansen",
+        "userPrincipalName": "erik.hansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 1
+      }
+    ],
+    "memberCount": 2
+  },
+  {
+    "roleId": "3a2c62db-5318-420d-8d74-23affee5d9d5",
+    "roleName": "Intune Administrator",
+    "isHighPrivilege": true,
+    "members": [
+      {
+        "userId": "a7b8c9d0-e1f2-3456-0123-789012345678",
+        "displayName": "Anders Kristiansen",
+        "userPrincipalName": "anders.kristiansen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 0
+      }
+    ],
+    "memberCount": 1
+  },
+  {
+    "roleId": "44367163-eba1-44c3-98af-f5787879f96a",
+    "roleName": "Helpdesk Administrator",
+    "isHighPrivilege": false,
+    "members": [
+      {
+        "userId": "d4e5f6a7-b8c9-0123-def0-456789012345",
+        "displayName": "Kari Andersen",
+        "userPrincipalName": "kari.andersen@modum.kommune.no",
+        "accountEnabled": true,
+        "isInactive": false,
+        "daysSinceLastSignIn": 1
+      }
+    ],
+    "memberCount": 1
+  }
+]
