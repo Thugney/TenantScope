@@ -1,16 +1,48 @@
-#Requires -Version 7.0
+# ============================================================================
+# M365 Tenant Toolkit
+# Author: Robe (https://github.com/Thugney)
+# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# License: MIT
+# ============================================================================
+
 <#
 .SYNOPSIS
     Installs prerequisites for the M365 Tenant Toolkit.
 
 .DESCRIPTION
     This script installs the Microsoft Graph PowerShell SDK module required
-    to run the M365 Tenant Toolkit data collectors.
+    to run the M365 Tenant Toolkit data collectors. It performs the following:
+
+    1. Verifies PowerShell 7.0 or later is installed
+    2. Installs or updates the Microsoft.Graph module from PSGallery
+    3. Verifies required sub-modules are available
+    4. Creates the data directory structure
+    5. Sets up a .gitignore for the data directory
+
+    The script uses CurrentUser scope for installation, which does not require
+    administrator privileges.
+
+.PARAMETER Force
+    If specified, reinstalls the Microsoft.Graph module even if already present.
+
+.OUTPUTS
+    Displays installation progress and status to the console.
+    Creates data/ directory and data/.gitignore if they don't exist.
+
+.EXAMPLE
+    .\Install-Prerequisites.ps1
+    Checks for and installs prerequisites if needed.
+
+.EXAMPLE
+    .\Install-Prerequisites.ps1 -Force
+    Forces reinstallation of the Microsoft.Graph module.
 
 .NOTES
-    Author: M365 Tenant Toolkit
     Requires: PowerShell 7.0 or later
+    Run this script before using Invoke-DataCollection.ps1
 #>
+
+#Requires -Version 7.0
 
 [CmdletBinding()]
 param(
