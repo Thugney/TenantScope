@@ -1,5 +1,40 @@
 # M365 Tenant Toolkit — Full Architecture Document
 
+## CRITICAL INSTRUCTIONS FOR AI CODING ASSISTANT
+
+**READ THIS BEFORE WRITING ANY CODE.**
+
+1. **EVERY FILE MUST CONTAIN COMPLETE, WORKING, PRODUCTION-READY CODE.** Do NOT create empty files, placeholder files, stub functions, skeleton code, or files with TODO/FIXME comments. If a file exists, it must be fully implemented and functional. If you cannot complete a file in one pass, continue until it is done.
+
+2. **EVERY FILE must start with this author header:**
+```
+# ============================================================================
+# M365 Tenant Toolkit
+# Author: Robe (https://github.com/Thugney)
+# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# License: MIT
+# ============================================================================
+```
+For HTML/CSS/JS files use comment syntax `<!-- -->` or `/* */` or `//` accordingly.
+
+3. **EVERY function must have detailed comments** explaining:
+   - What the function does (purpose)
+   - What parameters it accepts
+   - What it returns
+   - Any Graph API endpoints it calls
+   - Any error handling behavior
+   - Example usage where helpful
+
+4. **Inline comments are mandatory** on any logic that is not immediately obvious: API calls, data transformations, filtering logic, error handling, pagination, retry logic, etc.
+
+5. **DO NOT skip steps.** Build each file completely before moving to the next. When the build order says "Get-UserData.ps1", that means write the ENTIRE working collector with all Graph API calls, pagination, error handling, data transformation, and JSON output.
+
+6. **Generate sample data files** in `data/sample/` with realistic test data (~50 records each) so the dashboard can be tested without a live tenant.
+
+7. **Test your code mentally.** Before finishing a file, trace through the logic. Would this actually run? Would the Graph API calls work? Would the HTML render correctly? Would the JavaScript filter and sort properly?
+
+---
+
 ## Purpose
 
 This document is the complete blueprint for building an internal IT admin toolkit for a Norwegian municipality (modum.kommune.no) running Microsoft 365 with thousands of users across two domains: `@modum.kommune.no` (employees) and `@skole.modum.kommune.no` (students/education). The toolkit collects data from Microsoft Graph API and presents it in a local HTML dashboard.
@@ -36,7 +71,6 @@ m365-toolkit/
 │   ├── Get-MFAData.ps1                 # MFA registration status
 │   ├── Get-AdminRoleData.ps1           # Directory role assignments
 │   ├── Get-DeviceData.ps1              # Intune managed devices
-│   ├── Get-ComplianceData.ps1          # Device compliance status
 │   ├── Get-AutopilotData.ps1           # Autopilot device info
 │   ├── Get-DefenderData.ps1            # Defender alerts/incidents
 │   └── Get-StaleAccountData.ps1        # Computed: inactive users + guests
@@ -56,10 +90,22 @@ m365-toolkit/
 │   ├── defender-alerts.json
 │   └── collection-metadata.json         # Timestamp, duration, errors
 │
+├── data/sample/                         # Sample JSON data for testing dashboard
+│   ├── users.json                       # ~50 sample users across both domains
+│   ├── license-skus.json               # ~10 sample SKUs with realistic numbers
+│   ├── guests.json                     # ~20 sample guests, mix of active/stale
+│   ├── risky-signins.json             # ~15 sample risky sign-ins
+│   ├── mfa-status.json                # MFA status matching sample users
+│   ├── admin-roles.json               # ~5 roles with sample members
+│   ├── devices.json                   # ~30 sample devices
+│   ├── autopilot.json                 # ~15 sample Autopilot devices
+│   ├── defender-alerts.json           # ~10 sample alerts across severities
+│   └── collection-metadata.json       # Sample metadata with timestamp
+│
 ├── dashboard/                           # Static HTML dashboard
 │   ├── index.html                       # Main entry point + navigation shell
 │   ├── css/
-│   │   └── style.css                    # Single stylesheet
+│   │   └── style.css                    # Single stylesheet — ALL styles here
 │   ├── js/
 │   │   ├── app.js                       # App init, navigation, shared state
 │   │   ├── data-loader.js              # Loads JSON files into memory
@@ -73,7 +119,7 @@ m365-toolkit/
 │   │   ├── page-security.js          # Security posture page
 │   │   ├── page-devices.js           # Devices page
 │   │   └── page-lifecycle.js          # Lifecycle management page
-│   └── data/                           # Symlink or copy from ../data/
+│   └── data/                           # JSON files copied here by Build-Dashboard.ps1
 │
 └── scripts/
     ├── Build-Dashboard.ps1             # Copies JSON to dashboard/data/ and opens browser
@@ -144,6 +190,8 @@ RoleManagement.Read.Directory
 
 ### Get-UserData.ps1
 
+**This collector MUST be fully implemented with working Graph API calls.**
+
 **Graph endpoint:** `GET /users`
 
 **Select properties:**
@@ -155,13 +203,63 @@ onPremisesSyncEnabled, assignedLicenses, signInActivity
 
 **Important:** `signInActivity` requires `AuditLog.Read.All` scope and returns `lastSignInDateTime` and `lastNonInteractiveSignInDateTime`.
 
-**Processing:**
-- Classify each user by domain: employee (`@modum.kommune.no`), student (`@skole`), or other
-- Flag inactive: no sign-in within `thresholds.inactiveDays`
-- Flag disabled: `accountEnabled == false`
-- Compute account age from `createdDateTime`
+**Implementation requirements:**
+- Use `Get-MgUser -All -Property $selectProperties` for pagination
+- Handle null signInActivity gracefully (tenant may lack P1/P2)
+- Classify each user by domain: check UPN suffix against config.json domains
+- Calculate `daysSinceLastSignIn` from signInActivity.lastSignInDateTime
+- Flag inactive based on config threshold
+- Write progress to console: "Collecting users... [count] retrieved"
+- Wrap in try/catch, return error details if failed
+- Output clean JSON array to data/users.json
 
-**Pagination:** Use `-All` parameter on `Get-MgUser` to handle thousands of users. Process in batches if memory is a concern.
+**PowerShell implementation pattern (follow this pattern for ALL collectors):**
+```powershell
+# ============================================================================
+# M365 Tenant Toolkit
+# Author: Robe (https://github.com/Thugney)
+# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# License: MIT
+# ============================================================================
+
+<#
+.SYNOPSIS
+    Collects all user accounts from Microsoft Entra ID via Graph API.
+
+.DESCRIPTION
+    Retrieves every user in the tenant with key properties including sign-in
+    activity, license assignments, and account status. Classifies users by
+    domain (employee vs student) and flags inactive accounts.
+
+    Graph API endpoint: GET /users
+    Required scope: User.Read.All, AuditLog.Read.All
+
+.PARAMETER Config
+    The configuration hashtable loaded from config.json containing tenant
+    settings, domain mappings, and threshold values.
+
+.PARAMETER OutputPath
+    Full path where the resulting JSON file will be saved.
+
+.OUTPUTS
+    Writes users.json to the specified output path. Returns a hashtable with:
+    - Success: [bool] whether collection completed
+    - Count: [int] number of users collected
+    - Errors: [array] any errors encountered
+
+.EXAMPLE
+    $result = & .\collectors\Get-UserData.ps1 -Config $config -OutputPath ".\data\users.json"
+#>
+param(
+    [Parameter(Mandatory)]
+    [hashtable]$Config,
+
+    [Parameter(Mandatory)]
+    [string]$OutputPath
+)
+
+# ... FULL IMPLEMENTATION HERE — not stubs, not placeholders ...
+```
 
 **Output schema (users.json):**
 ```json
@@ -195,28 +293,58 @@ onPremisesSyncEnabled, assignedLicenses, signInActivity
 - `GET /subscribedSkus` — all available SKUs in tenant
 - User license data comes from Get-UserData (assignedLicenses property)
 
-**Processing:**
-- Map SKU GUIDs to friendly names (maintain a lookup table of common SKU IDs to names like "Microsoft 365 A3 for students", "Microsoft 365 E3", etc.)
-- For each SKU: count total purchased, total assigned, assigned to disabled users, assigned to inactive users
-- Calculate waste: licenses assigned to disabled + inactive users
-- Calculate cost waste: multiply waste count by approximate monthly cost per license
+**Implementation requirements:**
+- Call `Get-MgSubscribedSku -All` to get all SKUs
+- Map SKU GUIDs to friendly names using a built-in lookup hashtable
+- Cross-reference with users.json to count: assigned to enabled, assigned to disabled, assigned to inactive
+- Calculate waste counts and utilization percentage
+- The SKU name mapping hashtable MUST include at minimum these SKU part numbers with their friendly names:
 
-**SKU name mapping — include at minimum:**
-```
-Microsoft 365 E3, E5, F1, F3
-Microsoft 365 A1, A3, A5 (education)
-Office 365 E1, E3, E5
-Office 365 A1, A3 (education)
-Exchange Online Plan 1, Plan 2
-Power BI Pro, Power BI Premium Per User
-Microsoft Teams Phone, Teams Rooms
-Visio Plan 1, Plan 2
-Project Plan 1, 3, 5
-Windows 10/11 Enterprise E3, E5
-Microsoft Defender for Endpoint P1, P2
-Microsoft Defender for Office 365 P1, P2
-Microsoft Intune Plan 1
-Entra ID P1, P2
+```powershell
+# SKU friendly name mapping — MUST be included in the script
+$skuNameMap = @{
+    "SPE_E3"                    = "Microsoft 365 E3"
+    "SPE_E5"                    = "Microsoft 365 E5"
+    "SPE_F1"                    = "Microsoft 365 F1"
+    "ENTERPRISEPACK"            = "Office 365 E3"
+    "ENTERPRISEPREMIUM"         = "Office 365 E5"
+    "M365EDU_A1"                = "Microsoft 365 A1 for students"
+    "M365EDU_A3_STUUSEBNFT"     = "Microsoft 365 A3 for students"
+    "M365EDU_A3_FACULTY"        = "Microsoft 365 A3 for faculty"
+    "M365EDU_A5_STUUSEBNFT"     = "Microsoft 365 A5 for students"
+    "M365EDU_A5_FACULTY"        = "Microsoft 365 A5 for faculty"
+    "STANDARDWOFFPACK_STUDENT"  = "Office 365 A1 for students"
+    "STANDARDWOFFPACK_FACULTY"  = "Office 365 A1 for faculty"
+    "OFFICESUBSCRIPTION_STUDENT"= "Office 365 ProPlus for students"
+    "EXCHANGESTANDARD"          = "Exchange Online Plan 1"
+    "EXCHANGEENTERPRISE"        = "Exchange Online Plan 2"
+    "POWER_BI_PRO"              = "Power BI Pro"
+    "POWER_BI_PREMIUM_PER_USER" = "Power BI Premium Per User"
+    "TEAMS_EXPLORATORY"         = "Microsoft Teams Exploratory"
+    "FLOW_FREE"                 = "Power Automate Free"
+    "POWERAPPS_VIRAL"           = "Power Apps Trial"
+    "PROJECTPREMIUM"            = "Project Plan 5"
+    "PROJECTPROFESSIONAL"       = "Project Plan 3"
+    "VISIOCLIENT"               = "Visio Plan 2"
+    "WIN10_PRO_ENT_SUB"         = "Windows 10/11 Enterprise E3"
+    "WIN10_VDA_E5"              = "Windows 10/11 Enterprise E5"
+    "MDATP_XPLAT"               = "Microsoft Defender for Endpoint P2"
+    "ATP_ENTERPRISE"            = "Microsoft Defender for Office 365 P1"
+    "THREAT_INTELLIGENCE"       = "Microsoft Defender for Office 365 P2"
+    "INTUNE_A"                  = "Microsoft Intune Plan 1"
+    "AAD_PREMIUM"               = "Entra ID P1"
+    "AAD_PREMIUM_P2"            = "Entra ID P2"
+    "EMSPREMIUM"                = "Enterprise Mobility + Security E5"
+    "EMS"                       = "Enterprise Mobility + Security E3"
+    "DESKLESSPACK"              = "Office 365 F3"
+    "SMB_BUSINESS_PREMIUM"      = "Microsoft 365 Business Premium"
+    "SMB_BUSINESS"              = "Microsoft 365 Apps for Business"
+    "O365_BUSINESS_ESSENTIALS"  = "Microsoft 365 Business Basic"
+    "STREAM"                    = "Microsoft Stream"
+    "MCOEV"                     = "Microsoft Teams Phone Standard"
+    "PHONESYSTEM_VIRTUALUSER"   = "Microsoft Teams Phone Resource Account"
+    "MEETING_ROOM"              = "Microsoft Teams Rooms Standard"
+}
 ```
 
 **Output schema (license-skus.json):**
@@ -248,11 +376,13 @@ id, displayName, mail, userPrincipalName, createdDateTime,
 externalUserState, externalUserStateChangeDateTime, signInActivity
 ```
 
-**Processing:**
+**Implementation requirements:**
+- Use `Get-MgUser -Filter "userType eq 'Guest'" -All -Property $props`
 - Calculate days since last sign-in
 - Flag stale guests (no sign-in within `thresholds.staleGuestDays`)
 - Flag guests who never accepted invitation (`externalUserState != 'Accepted'`)
-- Extract source domain from mail/UPN
+- Extract source domain from mail address (split on @)
+- Handle null signInActivity gracefully
 
 **Output schema (guests.json):**
 ```json
@@ -276,10 +406,11 @@ externalUserState, externalUserStateChangeDateTime, signInActivity
 
 **Graph endpoint:** `GET /reports/authenticationMethods/userRegistrationDetails`
 
-**Processing:**
-- For each user, determine if they have registered MFA methods
-- Flag users with NO MFA registered
-- Track which methods are registered (Authenticator app, phone, FIDO2, etc.)
+**Implementation requirements:**
+- Use `Get-MgReportAuthenticationMethodUserRegistrationDetail -All`
+- For each user, extract: isMfaRegistered, isMfaCapable, methodsRegistered, defaultMfaMethod
+- This endpoint may require Reports.Read.All scope
+- Handle gracefully if endpoint is not available
 
 **Output schema (mfa-status.json):**
 ```json
@@ -299,10 +430,11 @@ externalUserState, externalUserStateChangeDateTime, signInActivity
 
 **Graph endpoint:** `GET /directoryRoles` then for each role `GET /directoryRoles/{id}/members`
 
-**Processing:**
-- List all active admin role assignments
-- Flag high-privilege roles: Global Admin, Privileged Role Admin, Exchange Admin, SharePoint Admin, Intune Admin, Security Admin
-- Cross-reference with user activity data to find inactive admins (highest risk)
+**Implementation requirements:**
+- Use `Get-MgDirectoryRole -All` to get active roles
+- For each role, use `Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -All`
+- Define high-privilege roles list in script
+- Cross-reference members with user data for activity status
 
 **Output schema (admin-roles.json):**
 ```json
@@ -329,19 +461,15 @@ externalUserState, externalUserStateChangeDateTime, signInActivity
 ### Get-SignInData.ps1
 
 **Graph endpoints:**
-- `GET /auditLogs/signIns` — recent sign-in logs (filtered by date range)
 - `GET /identityProtection/riskyUsers` — users flagged as risky
 - `GET /identityProtection/riskDetections` — individual risk events
 
-**Processing for sign-ins:**
-- Filter to last N days (from config)
-- Aggregate by user: count of sign-ins, unique locations, unique apps
-- Flag failures with error codes
-
-**Processing for risky sign-ins:**
+**Implementation requirements:**
+- Use `Get-MgRiskyUser -All` for risky users
+- Use `Get-MgRiskDetection -All -Filter "detectedDateTime ge $startDate"` for risk events
 - Categorize by risk level: high, medium, low
-- Include risk detail/detection type (unfamiliar sign-in, impossible travel, etc.)
-- Include location data (city, country) when available
+- Handle Entra ID P2 requirement gracefully
+- Filter risk detections to configured date range
 
 **Output schema (risky-signins.json):**
 ```json
@@ -372,20 +500,11 @@ externalUserState, externalUserStateChangeDateTime, signInActivity
 
 **Graph endpoint:** `GET /deviceManagement/managedDevices`
 
-**Select properties:**
-```
-id, deviceName, managedDeviceOwnerType, operatingSystem, osVersion,
-complianceState, lastSyncDateTime, enrolledDateTime, manufacturer,
-model, serialNumber, userPrincipalName, managementAgent,
-deviceEnrollmentType, isEncrypted, autopilotEnrolled
-```
-
-**Processing:**
-- Calculate days since last sync
-- Flag stale devices (no sync within `thresholds.staleDeviceDays`)
-- Categorize by OS (Windows, iOS, Android, macOS)
-- Categorize by ownership (corporate vs personal)
-- Group by compliance state
+**Implementation requirements:**
+- Use `Get-MgDeviceManagementManagedDevice -All`
+- Calculate days since last sync, flag stale devices
+- Categorize by OS, ownership, compliance
+- Handle missing Intune data gracefully
 
 **Output schema (devices.json):**
 ```json
@@ -411,27 +530,9 @@ deviceEnrollmentType, isEncrypted, autopilotEnrolled
 ]
 ```
 
-### Get-ComplianceData.ps1
-
-**Graph endpoint:** `GET /deviceManagement/deviceCompliancePolicyStates` or aggregate from device data
-
-**Processing:**
-- Summary counts: compliant, non-compliant, in-grace-period, not-evaluated
-- Break down non-compliance by reason/policy
-- Group by OS type
-
-**Output:** Aggregated into devices.json and summary in compliance.json
-
 ### Get-AutopilotData.ps1
 
 **Graph endpoint:** `GET /deviceManagement/windowsAutopilotDeviceIdentities`
-
-**Select properties:**
-```
-id, serialNumber, model, manufacturer, groupTag,
-enrollmentState, lastContactedDateTime, deploymentProfileAssignmentStatus,
-purchaseOrderIdentifier
-```
 
 **Output schema (autopilot.json):**
 ```json
@@ -456,15 +557,13 @@ purchaseOrderIdentifier
 
 ### Get-DefenderData.ps1
 
-**Graph endpoints:**
-- `GET /security/alerts_v2` — Defender alerts
-- Filter to last N days from config
+**Graph endpoints:** `GET /security/alerts_v2`
 
-**Processing:**
-- Categorize by severity: high, medium, low, informational
-- Group by category (malware, phishing, suspicious activity, etc.)
-- Group by status (new, inProgress, resolved)
-- Include affected entities (user, device, mailbox)
+**Implementation requirements:**
+- Try `Get-MgSecurityAlert` first, fall back to `Invoke-MgGraphRequest`
+- Categorize by severity and status
+- Filter to configured date range
+- Handle missing Defender license gracefully
 
 **Output schema (defender-alerts.json):**
 ```json
@@ -485,43 +584,81 @@ purchaseOrderIdentifier
 ]
 ```
 
-### Security Summary (computed in dashboard)
-
-The security page in the dashboard computes a summary from all collected data:
-
-- **Identity risks:** Users with no MFA, inactive admins, risky sign-ins by severity
-- **Device risks:** Non-compliant devices, stale devices, unencrypted devices
-- **Guest risks:** Stale guests, guests who never signed in
-- **License risks:** Licenses on disabled accounts (indicator of incomplete offboarding)
-- **Defender:** Active alerts grouped by severity
-
 ---
 
 ## Phase 4: Lifecycle Management
 
-This phase is **read-only reporting** — it identifies lifecycle issues but does not automate changes. The dashboard surfaces actionable lists the admin can act on manually or build runbooks for.
+Read-only reporting — computed in the dashboard from existing collected data. No additional collectors needed.
 
-### Lifecycle Views (computed in dashboard from existing data)
+**Offboarding issues:** Disabled accounts with licenses, disabled with admin roles, inactive > 90 days still enabled.
+**Onboarding gaps:** Created in last 30 days with no sign-in, no MFA, or no licenses.
+**Role hygiene:** Inactive admins, admins without MFA.
+**Guest cleanup:** Never accepted invitations, stale guests.
 
-**Potential offboarding issues:**
-- Disabled accounts that still have licenses assigned
-- Disabled accounts that still have admin roles
-- Accounts inactive > 90 days that are still enabled
+---
 
-**Onboarding gaps:**
-- Accounts created in last 30 days with no sign-in (never used)
-- Accounts created in last 30 days with no MFA registered
-- Accounts with no licenses assigned
+## Data Collection Flow
 
-**Role hygiene:**
-- Admin accounts that are inactive
-- Users with admin roles who don't need them (surfaced for review)
-- Accounts with admin roles but no MFA
+### Invoke-DataCollection.ps1
 
-**Guest lifecycle:**
-- Guests who never accepted invitation
-- Guests with no sign-in in 60+ days
-- Guests from domains with many stale accounts (pattern detection)
+**MUST be fully implemented as the main orchestrator.**
+
+```
+1. Load config.json, validate required fields
+2. Define all required Graph scopes
+3. Connect-MgGraph with scopes and TenantId
+4. Create data/ directory if not exists
+5. Initialize metadata object with start timestamp
+6. Run each collector in try/catch, track success/fail/count
+7. Cross-reference: merge MFA flags into users.json
+8. Cross-reference: merge admin role flags into users.json
+9. Write collection-metadata.json
+10. Disconnect-MgGraph
+11. Print summary table to console
+12. Offer to open dashboard
+```
+
+### Error Handling Pattern
+
+```powershell
+try {
+    Write-Host "  Collecting [data type]..." -ForegroundColor Cyan
+    # ... Graph API calls ...
+    $results | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    Write-Host "  ✓ Collected $($results.Count) [items]" -ForegroundColor Green
+    return @{ Success = $true; Count = $results.Count; Errors = @() }
+}
+catch {
+    Write-Host "  ✗ Failed: $($_.Exception.Message)" -ForegroundColor Red
+    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    return @{ Success = $false; Count = 0; Errors = @($_.Exception.Message) }
+}
+```
+
+### Graph API Retry Logic (MUST be included)
+
+```powershell
+function Invoke-GraphWithRetry {
+    param(
+        [scriptblock]$ScriptBlock,
+        [int]$MaxRetries = 3,
+        [int]$DefaultBackoffSeconds = 30
+    )
+    $attempt = 0
+    while ($attempt -le $MaxRetries) {
+        try { return & $ScriptBlock }
+        catch {
+            if ($_.Exception.Message -match "429|throttl") {
+                $attempt++
+                if ($attempt -gt $MaxRetries) { throw }
+                $wait = $DefaultBackoffSeconds * $attempt
+                Write-Host "    Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $wait
+            } else { throw }
+        }
+    }
+}
+```
 
 ---
 
@@ -535,393 +672,109 @@ This phase is **read-only reporting** — it identifies lifecycle issues but doe
 ├────────────┬─────────────────────────────────────────────┤
 │            │                                             │
 │  Overview  │   [Active Page Content]                     │
-│            │                                             │
 │  Users     │   ┌─ Filter Bar ─────────────────────────┐  │
-│            │   │ Search | Domain | Status | Flags     │  │
-│  Licenses  │   └──────────────────────────────────────┘  │
-│            │                                             │
-│  Guests    │   ┌─ Summary Cards ──────────────────────┐  │
-│            │   │ Card 1 │ Card 2 │ Card 3 │ Card 4   │  │
-│  Security  │   └──────────────────────────────────────┘  │
-│            │                                             │
-│  Devices   │   ┌─ Data Table ─────────────────────────┐  │
-│            │   │ Sortable columns, paginated           │  │
-│  Lifecycle │   │ Click-to-expand row details           │  │
+│  Licenses  │   │ Search | Domain | Status | Flags     │  │
+│  Guests    │   └──────────────────────────────────────┘  │
+│  Security  │   ┌─ Summary Cards ──────────────────────┐  │
+│  Devices   │   │ Card 1 │ Card 2 │ Card 3 │ Card 4   │  │
+│  Lifecycle │   └──────────────────────────────────────┘  │
+│            │   ┌─ Data Table ─────────────────────────┐  │
+│            │   │ Sortable, paginated, expandable rows  │  │
 │            │   │ CSV export button                     │  │
 │            │   └──────────────────────────────────────┘  │
-│            │                                             │
 └────────────┴─────────────────────────────────────────────┘
 ```
 
 ### Design Principles
 
 - **No CSS frameworks, no JS frameworks** — vanilla everything
-- **Light theme, high contrast** — this is a work tool, not a marketing site
-- **System font stack** — `font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
-- **Color palette:**
-  - Background: `#f5f5f5` (page), `#ffffff` (cards/tables)
-  - Text: `#1a1a1a` (primary), `#666666` (secondary)
-  - Sidebar: `#1e293b` (dark), `#f8fafc` (text on dark)
-  - Status colors: `#dc2626` (critical/high), `#f59e0b` (warning/medium), `#16a34a` (good/low), `#6b7280` (neutral)
-  - Accent: `#2563eb` (links, active states)
-- **No charts or graphs** — use numbers, cards, and tables. Data is the visualization.
-- **Every table is sortable** by clicking column headers
-- **Every table has CSV export**
-- **Every page has a filter bar** relevant to that page's data
-- **Pagination** on tables with 50 rows per page for performance with thousands of records
-- **Responsive** enough to work on a laptop screen but optimized for desktop
+- **Light theme, high contrast** — work tool, not marketing
+- **System font stack** — `-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif`
+- **Colors:** Background `#f5f5f5`/`#ffffff`, Text `#1a1a1a`/`#666`, Sidebar `#1e293b`, Critical `#dc2626`, Warning `#f59e0b`, Good `#16a34a`, Neutral `#6b7280`, Accent `#2563eb`
+- **No charts** — numbers, cards, tables
+- **Every table:** sortable, paginated (50 rows), CSV export, expandable rows
+- **Every page:** relevant filter bar
+- **Desktop optimized**
 
-### Page: Overview
+### Pages — Full Specifications
 
-Summary cards showing key numbers at a glance:
+**Overview:** Summary cards in 3 rows (users, risk, licenses/devices). Each card clickable to navigate to detail page.
 
-Row 1 — User counts:
-- Total users (split employee/student)
-- Enabled / Disabled
-- Inactive (no sign-in > 90 days)
-- No MFA registered
+**Users:** Filters: search, domain dropdown, status, flags checkboxes, department. Table: Name, UPN, Domain, Status, Dept, Last Sign-In, Days Inactive, MFA, Licenses, Flags. Row expansion shows full details.
 
-Row 2 — Risk indicators:
-- Risky sign-ins (count by severity: high/medium/low)
-- Stale guest accounts
-- Admin accounts count
-- Inactive admins (critical flag)
+**Licenses:** Filters: search, waste toggle. Summary cards: total SKUs, purchased, assigned, waste. Table: Name, Part Number, Purchased, Assigned, Available, Waste (disabled), Waste (inactive), Utilization %. Color-coded utilization. Row expansion shows assigned users.
 
-Row 3 — License & Devices:
-- Total license spend vs waste
-- Non-compliant devices
-- Stale devices
-- Active Defender alerts by severity
+**Guests:** Filters: search, status, source domain. Summary cards: total, active, stale, never signed in, pending. Table: Name, Email, Source Domain, Invited, Last Sign-In, Days Inactive, Status.
 
-Each card is clickable — navigates to the relevant detail page with appropriate filter pre-applied.
+**Security:** Four sections each with own table: (1) Risky Sign-ins by severity, (2) Admin Roles with member counts, (3) MFA Gaps showing users without MFA, (4) Defender Alerts by severity.
 
-### Page: Users
+**Devices:** Filters: search, OS, compliance, ownership, status. Summary cards: total, compliant/non-compliant, stale, unencrypted. Table: Device, User, OS, Version, Compliance, Last Sync, Days Since Sync, Ownership, Encrypted.
 
-**Filter bar:**
-- Text search (name, UPN, department)
-- Domain dropdown: All | Employees | Students
-- Status dropdown: All | Enabled | Disabled
-- Flags multi-select: Inactive | No MFA | Has Admin Role | No Licenses
-- Department dropdown (populated from data)
+**Lifecycle:** Four sections: (1) Offboarding Issues, (2) Onboarding Gaps, (3) Role Hygiene, (4) Guest Cleanup. Each with explanatory subtitle and action-oriented table.
 
-**Table columns:**
-Display Name | UPN | Domain | Status | Department | Last Sign-In | Days Inactive | MFA | Licenses | Flags
+### Dashboard Technical Details
 
-**Row expansion:** Click a row to see full detail: all assigned licenses, admin roles, sign-in history summary, account created date, on-prem sync status.
+**data-loader.js:** Loads all JSON from dashboard/data/ via fetch. Stores in global state object. Shows loading spinner. Handles missing files gracefully.
 
-### Page: Licenses
+**app.js:** Hash-based routing (#overview, #users, etc). Default #overview. Sidebar active state. Supports URL filter params.
 
-**Filter bar:**
-- Text search (SKU name)
-- Type dropdown: All | Employee SKUs | Student SKUs | Add-ons
-- Show waste: checkbox to highlight SKUs with waste > 0
+**filters.js:** Generic engine. Text search (debounced 300ms), dropdowns, multi-select. AND logic. Filter state in URL.
 
-**Top section — Summary cards:**
-- Total SKUs in tenant
-- Total licenses purchased
-- Total assigned
-- Total waste (disabled + inactive)
+**tables.js:** Generic renderer. Column definitions with formatters. Sort on header click. Pagination 50/page. Row expansion. Sticky header. Stripe rows.
 
-**Table columns:**
-License Name | Purchased | Assigned | Available | Waste (disabled) | Waste (inactive) | Utilization %
-
-**Row expansion:** Click to see list of users assigned this license, grouped by status (active, inactive, disabled). Each user row links to the Users page.
-
-### Page: Guests
-
-**Filter bar:**
-- Text search (name, email, source domain)
-- Status: All | Active | Stale | Never Signed In | Pending Invitation
-- Source domain dropdown (populated from data)
-
-**Summary cards:**
-- Total guests
-- Active guests
-- Stale guests (no sign-in > 60 days)
-- Never signed in
-- Pending invitations
-
-**Table columns:**
-Display Name | Email | Source Domain | Invited | Last Sign-In | Days Inactive | Status
-
-### Page: Security
-
-**Layout:** This page is divided into sections, not a single table.
-
-**Section: Risky Sign-ins**
-- Filter by severity: High | Medium | Low
-- Filter by risk state: At Risk | Confirmed Compromised | Remediated | Dismissed
-- Table: User | Risk Level | Risk Type | Date | Location | IP | App
-- Sorted by severity (high first) then date (newest first)
-
-**Section: Admin Roles**
-- Table: Role Name | Members | Inactive Members | Members Without MFA
-- Row expansion shows member list with their activity status
-- Critical highlight on rows where inactive members > 0 or members without MFA > 0
-
-**Section: MFA Gaps**
-- Filter by domain: All | Employees | Students
-- Table: User | Domain | Status | Account Created | Last Sign-In | MFA Methods
-- Only shows users WITHOUT MFA registered
-- Sorted by risk: enabled + active first (most urgent)
-
-**Section: Defender Alerts**
-- Filter by severity: High | Medium | Low | Informational
-- Filter by status: New | In Progress | Resolved
-- Table: Title | Severity | Status | Category | Date | Affected Entity
-- Sorted by severity then date
-- Color-coded severity badges
-
-### Page: Devices
-
-**Filter bar:**
-- Text search (device name, user, serial number)
-- OS: All | Windows | iOS | Android | macOS
-- Compliance: All | Compliant | Non-compliant | Unknown
-- Ownership: All | Corporate | Personal
-- Status: All | Active | Stale
-
-**Summary cards:**
-- Total managed devices
-- Compliant / Non-compliant / Unknown
-- Stale devices (no sync > 90 days)
-- Unencrypted devices
-
-**Table columns:**
-Device Name | User | OS | Version | Compliance | Last Sync | Days Since Sync | Ownership | Encrypted
-
-### Page: Lifecycle
-
-**Layout:** Four sections with tables, each representing an action list.
-
-**Section: Offboarding Issues**
-Subtitle: "These accounts may not have been properly offboarded"
-- Disabled accounts with licenses still assigned
-- Disabled accounts with admin roles
-- Accounts inactive > 90 days still enabled
-- Table: User | Issue Type | Details | Last Sign-In | Days Inactive
-
-**Section: Onboarding Gaps**
-Subtitle: "Recently created accounts that may need attention"
-- Created in last 30 days with no sign-in
-- Created in last 30 days with no MFA
-- Created with no licenses assigned
-- Table: User | Issue Type | Created Date | Days Since Creation | Has Signed In | MFA Status
-
-**Section: Role Hygiene**
-Subtitle: "Admin role assignments that need review"
-- Inactive admins
-- Admins without MFA
-- Table: User | Role | Last Sign-In | MFA Status | Risk Level
-
-**Section: Guest Cleanup**
-Subtitle: "Guest accounts that should be reviewed or removed"
-- Never accepted invitation (> 14 days old)
-- No sign-in in 60+ days
-- Table: Guest | Source Domain | Invited | Last Sign-In | Status | Recommended Action
+**export.js:** CSV export of current filtered view. Proper escaping. Auto-filename with date.
 
 ---
 
-## Data Collection Flow
+## Known Limitations
 
-### Invoke-DataCollection.ps1 (Main Entry Point)
-
-```
-1. Load config.json
-2. Connect-MgGraph with required scopes
-3. Create data/ directory if not exists
-4. Run each collector in sequence:
-   a. Get-UserData          → data/users.json
-   b. Get-LicenseData       → data/license-skus.json
-   c. Get-GuestData         → data/guests.json
-   d. Get-MFAData           → data/mfa-status.json
-   e. Get-AdminRoleData     → data/admin-roles.json
-   f. Get-SignInData         → data/risky-signins.json
-   g. Get-DeviceData         → data/devices.json
-   h. Get-ComplianceData     → data/compliance.json
-   i. Get-AutopilotData      → data/autopilot.json
-   j. Get-DefenderData       → data/defender-alerts.json
-5. Cross-reference: Merge MFA status into users.json
-6. Compute stale accounts data
-7. Write collection-metadata.json with timestamp and stats
-8. Disconnect-MgGraph
-9. Run Build-Dashboard.ps1 to update dashboard
-```
-
-### Error Handling
-
-Each collector should:
-- Wrap in try/catch
-- Log errors to collection-metadata.json (which collectors failed)
-- Continue to next collector on failure (don't stop entire collection)
-- Dashboard should show warning banner if any collector failed
-
-### Performance Considerations
-
-- Use `-All` pagination on Get-Mg* cmdlets for large result sets
-- Use `-Select` to only request needed properties (reduces payload)
-- Use `-Filter` server-side where possible instead of client-side Where-Object
-- Sign-in logs can be large — filter by date server-side: `$filter=createdDateTime ge {date}`
-- For thousands of users, the full collection may take 5-15 minutes — show progress in console
-- Write progress to console: "Collecting users... 1500/4200" etc.
-
-### Build-Dashboard.ps1
-
-```
-1. Copy all JSON files from data/ to dashboard/data/
-2. Write a manifest.json listing available data files and collection timestamp
-3. Open dashboard/index.html in default browser
-```
+1. Sign-in activity requires Entra ID P1/P2 — handle null gracefully
+2. Risky sign-ins require P2 — show info message if unavailable
+3. Sign-in logs retained 30 days only
+4. Graph throttling — retry logic mandatory
+5. Intune data only for managed devices
+6. Read-only — no tenant modifications
+7. Point-in-time snapshot — run regularly via scheduled task
+8. Unknown SKUs fall back to part number display
 
 ---
 
-## Dashboard Technical Details
+## Build Order
 
-### Data Loading (data-loader.js)
+**EVERY FILE = COMPLETE WORKING CODE. Author header + detailed comments on all.**
 
-```javascript
-// Load all JSON files listed in manifest
-// Store in global state object
-// Dashboard renders only after all data is loaded
-// Show loading spinner during load
+### Step 1: Scaffolding + sample data
+- Directory structure, config.json, Install-Prerequisites.ps1, .gitignore
+- ALL sample data files in data/sample/ with realistic Norwegian test data
 
-const state = {
-  users: [],
-  licenseSkus: [],
-  guests: [],
-  mfaStatus: [],
-  adminRoles: [],
-  riskySignins: [],
-  devices: [],
-  compliance: [],
-  autopilot: [],
-  defenderAlerts: [],
-  metadata: {}
-};
-```
-
-### Navigation (app.js)
-
-- Sidebar links swap which page-*.js renders into the main content area
-- Use hash-based routing: `#overview`, `#users`, `#licenses`, etc.
-- Active sidebar item highlighted
-- Support deep links: `#users?domain=employee&flags=inactive` to pre-apply filters
-
-### Filter System (filters.js)
-
-Generic filter engine that each page configures:
-- Text search: filters across multiple fields (case-insensitive, substring match)
-- Dropdown filters: exact match on a field value
-- Multi-select filters: match any selected value
-- All filters combine with AND logic
-- Filter state preserved in URL hash for shareability
-- Filter change triggers table re-render
-- Show active filter count badge
-
-### Table System (tables.js)
-
-Generic table renderer:
-- Accepts column definitions (label, field, sortable, formatter)
-- Sorts by clicking column header (toggle asc/desc, show arrow indicator)
-- Pagination: 50 rows per page, page controls at bottom
-- Row click expands detail panel below the row
-- Stripe alternate rows for readability
-- Sticky header when scrolling
-
-### Export (export.js)
-
-- CSV export button on every table
-- Exports current filtered/sorted view (not all data)
-- Filename includes page name and date: `users-2026-02-04.csv`
-- Handles commas and quotes in data properly
-
-### Status Badges
-
-Reusable CSS classes for status indicators:
-```css
-.badge { padding: 2px 8px; border-radius: 3px; font-size: 12px; font-weight: 600; }
-.badge-critical { background: #fef2f2; color: #dc2626; }
-.badge-warning { background: #fffbeb; color: #d97706; }
-.badge-good { background: #f0fdf4; color: #16a34a; }
-.badge-neutral { background: #f3f4f6; color: #6b7280; }
-.badge-info { background: #eff6ff; color: #2563eb; }
-```
-
----
-
-## Known Limitations & Honest Notes
-
-1. **Sign-in activity data** requires Entra ID P1 or P2 license. If the tenant doesn't have this, `signInActivity` on users will be null. The dashboard should handle this gracefully and show "N/A" instead of breaking.
-
-2. **Risky sign-ins** require Entra ID P2. If not available, that section will be empty. Dashboard should show "Requires Entra ID P2" message.
-
-3. **Sign-in logs** (`auditLogs/signIns`) are only retained for 30 days on P1 and 30 days on P2 (unless exported to Log Analytics). We can only see what Microsoft keeps.
-
-4. **Graph API throttling** — Microsoft will throttle at ~2000 requests per 10 minutes. With thousands of users, batch where possible and add retry logic with exponential backoff on 429 responses.
-
-5. **Device data** — Intune only reports on managed devices. BYOD devices not enrolled in Intune won't appear.
-
-6. **This is read-only** — the toolkit collects and displays data. It does not modify anything in the tenant. This is intentional for safety. Action is taken by the admin in the portals.
-
-7. **Data freshness** — this is a point-in-time snapshot, not a live dashboard. Run collection regularly (daily or weekly via scheduled task) for current data.
-
-8. **Education SKUs** — student license names can be confusing. The SKU mapping table needs to cover A1/A3/A5 variants properly.
-
----
-
-## Build Order for Claude CLI
-
-Build in this order, testing each piece before moving on:
-
-### Step 1: Project scaffolding
-- Create directory structure
-- Create config.json template
-- Create Install-Prerequisites.ps1 (installs Microsoft.Graph PowerShell module)
-
-### Step 2: Core collectors (Phase 1)
-- Invoke-DataCollection.ps1 (main runner)
-- Get-UserData.ps1
-- Get-LicenseData.ps1
-- Get-GuestData.ps1
-- Get-MFAData.ps1
-- Get-AdminRoleData.ps1
-- Get-SignInData.ps1
+### Step 2: PowerShell collectors
+- Invoke-DataCollection.ps1 (full orchestrator)
+- All collectors: Get-UserData, Get-LicenseData, Get-GuestData, Get-MFAData, Get-AdminRoleData, Get-SignInData, Get-DeviceData, Get-AutopilotData, Get-DefenderData
 
 ### Step 3: Dashboard shell
-- index.html with sidebar navigation
-- style.css with full styling
-- app.js with navigation routing
-- data-loader.js
-- filters.js (generic filter engine)
-- tables.js (generic table renderer)
-- export.js
+- index.html, style.css (ALL styles), app.js, data-loader.js, filters.js, tables.js, export.js
 
-### Step 4: Dashboard pages (Phase 1)
-- page-overview.js
-- page-users.js
-- page-licenses.js
-- page-guests.js
-- page-security.js
+### Step 4: Dashboard pages
+- page-overview.js, page-users.js, page-licenses.js, page-guests.js, page-security.js, page-devices.js, page-lifecycle.js
 
-### Step 5: Device collectors (Phase 2)
-- Get-DeviceData.ps1
-- Get-ComplianceData.ps1
-- Get-AutopilotData.ps1
+### Step 5: Finishing
+- Build-Dashboard.ps1 (with -UseSampleData switch), Schedule-Collection.ps1, README.md
 
-### Step 6: Dashboard pages (Phase 2+3+4)
-- page-devices.js
-- page-lifecycle.js
-
-### Step 7: Defender + finishing
-- Get-DefenderData.ps1
-- Build-Dashboard.ps1
-- Schedule-Collection.ps1
-- README.md with full usage docs
+### Step 6: Verify
+- Open dashboard with sample data, test every page, fix issues
 
 ---
 
-## Testing Without Live Tenant
+## Sample Data Requirements
 
-For development, create a `data/` folder with sample JSON files matching the schemas above. The dashboard should work entirely from static JSON files, so it can be developed and tested without any Graph API connection.
+**users.json (~50 users):** 30 employees, 15 students, 5 other. Norwegian names. Mix of departments. 5 disabled, 8 inactive, 6 no MFA, 3 admins, 2 new accounts.
 
-Claude CLI should generate realistic sample data files with ~50 records each for development. Include a mix of statuses, domains, and edge cases.
+**guests.json (~20):** 5 active, 7 stale, 4 never signed in, 4 pending invitation.
+
+**license-skus.json (~10):** Mix education + standard. 2+ with significant waste. Utilization 40%-95%.
+
+**devices.json (~30):** 20 Windows, 5 iOS, 3 Android, 2 macOS. 22 compliant, 5 non-compliant, 3 unknown. 4 stale.
+
+**defender-alerts.json (~10):** 2 high, 3 medium, 3 low, 2 informational. Mix of statuses.
+
+All dates relative to today. Realistic data that produces meaningful dashboard views.
