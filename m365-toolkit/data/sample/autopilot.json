@@ -1,0 +1,167 @@
+[
+  {
+    "id": "ap1a2b3c-d4e5-6789-abcd-ef1234567890",
+    "serialNumber": "PF3K7890",
+    "model": "ThinkPad T14 Gen 3",
+    "manufacturer": "Lenovo",
+    "groupTag": "IT-Department",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-04T08:30:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2023-001"
+  },
+  {
+    "id": "ap2b3c4d-e5f6-7890-bcde-f23456789012",
+    "serialNumber": "JKLM5678",
+    "model": "Latitude 5530",
+    "manufacturer": "Dell",
+    "groupTag": "Healthcare",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-03T14:15:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2022-045"
+  },
+  {
+    "id": "ap3c4d5e-f6a7-8901-cdef-345678901234",
+    "serialNumber": "5CG2345678",
+    "model": "EliteBook 840 G9",
+    "manufacturer": "HP",
+    "groupTag": "Finance",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-04T07:45:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2021-089"
+  },
+  {
+    "id": "ap4d5e6f-a7b8-9012-def0-456789012345",
+    "serialNumber": "PF4L8901",
+    "model": "ThinkPad X1 Carbon Gen 10",
+    "manufacturer": "Lenovo",
+    "groupTag": "Management",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-03T16:00:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2022-012"
+  },
+  {
+    "id": "ap5e6f7a-b8c9-0123-ef01-567890123456",
+    "serialNumber": "NEWDEV001",
+    "model": "Latitude 7450",
+    "manufacturer": "Dell",
+    "groupTag": "IT-Department",
+    "enrollmentState": "notContacted",
+    "lastContacted": null,
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2026-001"
+  },
+  {
+    "id": "ap6f7a8b-c9d0-1234-f012-678901234567",
+    "serialNumber": "NEWDEV002",
+    "model": "ThinkPad T14 Gen 5",
+    "manufacturer": "Lenovo",
+    "groupTag": "Education",
+    "enrollmentState": "notContacted",
+    "lastContacted": null,
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2026-001"
+  },
+  {
+    "id": "ap7a8b9c-d0e1-2345-0123-789012345678",
+    "serialNumber": "NEWDEV003",
+    "model": "EliteBook 860 G10",
+    "manufacturer": "HP",
+    "groupTag": "Healthcare",
+    "enrollmentState": "notContacted",
+    "lastContacted": null,
+    "profileAssigned": false,
+    "purchaseOrder": "PO-2026-002"
+  },
+  {
+    "id": "ap8b9c0d-e1f2-3456-1234-890123456789",
+    "serialNumber": "ABCD1234",
+    "model": "Latitude 5520",
+    "manufacturer": "Dell",
+    "groupTag": "Technical",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2025-10-15T10:30:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2020-156"
+  },
+  {
+    "id": "ap9c0d1e-f2a3-4567-2345-901234567890",
+    "serialNumber": "FAILDEV01",
+    "model": "Latitude 5540",
+    "manufacturer": "Dell",
+    "groupTag": "Finance",
+    "enrollmentState": "failed",
+    "lastContacted": "2026-01-10T09:00:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2025-089"
+  },
+  {
+    "id": "ap0d1e2f-a3b4-5678-3456-012345678901",
+    "serialNumber": "FAILDEV02",
+    "model": "ThinkPad E14 Gen 5",
+    "manufacturer": "Lenovo",
+    "groupTag": "Education",
+    "enrollmentState": "failed",
+    "lastContacted": "2026-01-15T11:30:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2025-095"
+  },
+  {
+    "id": "ap1e2f3a-b4c5-6789-4567-123456789012",
+    "serialNumber": "PF5M2345",
+    "model": "ThinkPad P14s Gen 3",
+    "manufacturer": "Lenovo",
+    "groupTag": "IT-Department",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-04T09:00:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2023-078"
+  },
+  {
+    "id": "ap2f3a4b-c5d6-7890-5678-234567890123",
+    "serialNumber": "5CG3456789",
+    "model": "ProBook 450 G9",
+    "manufacturer": "HP",
+    "groupTag": "Education",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-03T13:30:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2021-145"
+  },
+  {
+    "id": "ap3a4b5c-d6e7-8901-6789-345678901234",
+    "serialNumber": "QRST7890",
+    "model": "Latitude 7440",
+    "manufacturer": "Dell",
+    "groupTag": "HR",
+    "enrollmentState": "enrolled",
+    "lastContacted": "2026-02-04T10:15:00Z",
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2023-112"
+  },
+  {
+    "id": "ap4b5c6d-e7f8-9012-7890-456789012345",
+    "serialNumber": "NEWDEV004",
+    "model": "Surface Laptop 5",
+    "manufacturer": "Microsoft",
+    "groupTag": "Management",
+    "enrollmentState": "notContacted",
+    "lastContacted": null,
+    "profileAssigned": true,
+    "purchaseOrder": "PO-2026-003"
+  },
+  {
+    "id": "ap5c6d7e-f8a9-0123-8901-567890123456",
+    "serialNumber": "NEWDEV005",
+    "model": "Surface Pro 9",
+    "manufacturer": "Microsoft",
+    "groupTag": "Sales",
+    "enrollmentState": "notContacted",
+    "lastContacted": null,
+    "profileAssigned": false,
+    "purchaseOrder": "PO-2026-003"
+  }
+]

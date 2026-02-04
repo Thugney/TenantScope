@@ -1,3 +1,7 @@
 # Ignore all collected data files
 *.json
 !.gitignore
+
+# But include sample data for testing
+!sample/
+!sample/*.json

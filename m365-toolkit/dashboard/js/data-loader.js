@@ -1,0 +1,272 @@
+/**
+ * ============================================================================
+ * M365 Tenant Toolkit
+ * Author: Robe (https://github.com/Thugney)
+ * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+ * License: MIT
+ * ============================================================================
+ *
+ * DATA LOADER MODULE
+ *
+ * Loads all JSON data files from the dashboard/data/ directory into memory.
+ * Provides a central data store accessible by all page modules.
+ *
+ * Usage:
+ *   await DataLoader.loadAll();
+ *   const users = DataLoader.getData('users');
+ */
+
+const DataLoader = (function() {
+    'use strict';
+
+    // ========================================================================
+    // PRIVATE STATE
+    // ========================================================================
+
+    /**
+     * Central data store holding all loaded JSON data
+     * Key: data type name (e.g., 'users', 'devices')
+     * Value: parsed JSON array/object
+     */
+    const dataStore = {
+        users: [],
+        licenseSkus: [],
+        guests: [],
+        mfaStatus: [],
+        adminRoles: [],
+        riskySignins: [],
+        devices: [],
+        autopilot: [],
+        defenderAlerts: [],
+        metadata: null
+    };
+
+    /**
+     * Mapping of data types to their JSON file paths
+     */
+    const dataFiles = {
+        users: 'data/users.json',
+        licenseSkus: 'data/license-skus.json',
+        guests: 'data/guests.json',
+        mfaStatus: 'data/mfa-status.json',
+        adminRoles: 'data/admin-roles.json',
+        riskySignins: 'data/risky-signins.json',
+        devices: 'data/devices.json',
+        autopilot: 'data/autopilot.json',
+        defenderAlerts: 'data/defender-alerts.json',
+        metadata: 'data/collection-metadata.json'
+    };
+
+    /** Track loading state */
+    let isLoaded = false;
+    let loadError = null;
+
+    // ========================================================================
+    // PRIVATE METHODS
+    // ========================================================================
+
+    /**
+     * Fetches and parses a single JSON file.
+     *
+     * @param {string} url - Path to the JSON file
+     * @returns {Promise<any>} Parsed JSON data, or empty array if fetch fails
+     */
+    async function fetchJSON(url) {
+        try {
+            const response = await fetch(url);
+
+            if (!response.ok) {
+                console.warn(`Failed to load ${url}: HTTP ${response.status}`);
+                return null;
+            }
+
+            const text = await response.text();
+
+            // Handle empty files
+            if (!text || text.trim() === '') {
+                console.warn(`Empty file: ${url}`);
+                return null;
+            }
+
+            return JSON.parse(text);
+        } catch (error) {
+            console.warn(`Error loading ${url}:`, error.message);
+            return null;
+        }
+    }
+
+    /**
+     * Formats a date string into a readable format.
+     *
+     * @param {string|null} dateString - ISO 8601 date string
+     * @returns {string} Formatted date or '--' if null
+     */
+    function formatDate(dateString) {
+        if (!dateString) return '--';
+
+        try {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('en-GB', {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return '--';
+        }
+    }
+
+    // ========================================================================
+    // PUBLIC API
+    // ========================================================================
+
+    return {
+        /**
+         * Loads all data files into the data store.
+         * Shows loading overlay while fetching.
+         *
+         * @returns {Promise<boolean>} True if at least some data loaded
+         */
+        async loadAll() {
+            console.log('DataLoader: Starting data load...');
+
+            const loadingOverlay = document.getElementById('loading-overlay');
+            if (loadingOverlay) {
+                loadingOverlay.classList.remove('hidden');
+            }
+
+            try {
+                // Fetch all data files in parallel
+                const loadPromises = Object.entries(dataFiles).map(async ([key, path]) => {
+                    const data = await fetchJSON(path);
+                    dataStore[key] = data || (key === 'metadata' ? null : []);
+                    console.log(`DataLoader: Loaded ${key} (${Array.isArray(data) ? data.length : 'object'})`);
+                });
+
+                await Promise.all(loadPromises);
+
+                isLoaded = true;
+                loadError = null;
+
+                // Update header with last updated time
+                this.updateLastUpdated();
+
+                console.log('DataLoader: All data loaded successfully');
+                return true;
+
+            } catch (error) {
+                console.error('DataLoader: Failed to load data', error);
+                loadError = error;
+                return false;
+
+            } finally {
+                // Hide loading overlay with a slight delay for smooth transition
+                setTimeout(() => {
+                    if (loadingOverlay) {
+                        loadingOverlay.classList.add('hidden');
+                    }
+                }, 300);
+            }
+        },
+
+        /**
+         * Gets data from the store by type.
+         *
+         * @param {string} type - Data type key (e.g., 'users', 'devices')
+         * @returns {any} The requested data, or empty array if not found
+         */
+        getData(type) {
+            if (!isLoaded) {
+                console.warn('DataLoader: Data not yet loaded');
+            }
+            return dataStore[type] || [];
+        },
+
+        /**
+         * Gets the collection metadata.
+         *
+         * @returns {object|null} Metadata object or null if not available
+         */
+        getMetadata() {
+            return dataStore.metadata;
+        },
+
+        /**
+         * Checks if data has been loaded.
+         *
+         * @returns {boolean} True if loadAll() has completed
+         */
+        isDataLoaded() {
+            return isLoaded;
+        },
+
+        /**
+         * Gets the last load error, if any.
+         *
+         * @returns {Error|null} The error or null
+         */
+        getLoadError() {
+            return loadError;
+        },
+
+        /**
+         * Updates the "Last updated" display in the header.
+         */
+        updateLastUpdated() {
+            const lastUpdatedEl = document.getElementById('last-updated');
+            const metadata = dataStore.metadata;
+
+            if (lastUpdatedEl && metadata && metadata.endTime) {
+                lastUpdatedEl.textContent = `Last updated: ${formatDate(metadata.endTime)}`;
+            } else if (lastUpdatedEl) {
+                lastUpdatedEl.textContent = 'Last updated: --';
+            }
+        },
+
+        /**
+         * Gets summary statistics from metadata.
+         *
+         * @returns {object} Summary object with counts
+         */
+        getSummary() {
+            const metadata = dataStore.metadata;
+            if (metadata && metadata.summary) {
+                return metadata.summary;
+            }
+
+            // Calculate from raw data if metadata is missing
+            const users = dataStore.users || [];
+            const guests = dataStore.guests || [];
+            const devices = dataStore.devices || [];
+            const alerts = dataStore.defenderAlerts || [];
+
+            return {
+                totalUsers: users.length,
+                employeeCount: users.filter(u => u.domain === 'employee').length,
+                studentCount: users.filter(u => u.domain === 'student').length,
+                otherCount: users.filter(u => u.domain === 'other').length,
+                disabledUsers: users.filter(u => !u.accountEnabled).length,
+                inactiveUsers: users.filter(u => u.isInactive).length,
+                noMfaUsers: users.filter(u => !u.mfaRegistered).length,
+                adminCount: users.filter(u => u.flags && u.flags.includes('admin')).length,
+                guestCount: guests.length,
+                staleGuests: guests.filter(g => g.isStale).length,
+                totalDevices: devices.length,
+                compliantDevices: devices.filter(d => d.complianceState === 'compliant').length,
+                staleDevices: devices.filter(d => d.isStale).length,
+                activeAlerts: alerts.filter(a => a.status !== 'resolved').length
+            };
+        },
+
+        /**
+         * Utility: Format date for display
+         */
+        formatDate: formatDate
+    };
+
+})();
+
+// Export for use in other modules
+window.DataLoader = DataLoader;
