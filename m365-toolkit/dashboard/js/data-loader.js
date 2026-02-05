@@ -39,6 +39,8 @@ const DataLoader = (function() {
         autopilot: [],
         defenderAlerts: [],
         enterpriseApps: [],
+        auditLogs: [],
+        pimActivity: [],
         metadata: null
     };
 
@@ -56,6 +58,8 @@ const DataLoader = (function() {
         autopilot: 'data/autopilot.json',
         defenderAlerts: 'data/defender-alerts.json',
         enterpriseApps: 'data/enterprise-apps.json',
+        auditLogs: 'data/audit-logs.json',
+        pimActivity: 'data/pim-activity.json',
         metadata: 'data/collection-metadata.json'
     };
 

@@ -13,7 +13,13 @@
       "Bash(wc:*)",
       "WebFetch(domain:keepachangelog.com)",
       "Bash(git tag:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(Get-ChildItem -Path \"J:\\\\Projects\\\\New25\\\\M365\\\\-M365-TENANT-TOOLKIT\" -Recurse -Filter \"*feature*\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Get-ChildItem -Path \"J:\\\\Projects\\\\New25\\\\M365\\\\-M365-TENANT-TOOLKIT\" -Recurse -Include \"*.md\" -ErrorAction SilentlyContinue)",
+      "Bash(pwsh -NoProfile -Command \"& .\\\\scripts\\\\Build-Dashboard.ps1 -UseSampleData -NoBrowser\")",
+      "Bash(pwsh:*)",
+      "Bash(powershell -NoProfile -Command \"& .\\\\scripts\\\\Build-Dashboard.ps1 -UseSampleData -NoBrowser\")"
     ]
   }
 }

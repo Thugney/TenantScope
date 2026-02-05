@@ -8,8 +8,8 @@
  *
  * TABLES MODULE
  *
- * Provides generic table rendering with sorting, pagination, and row expansion.
- * All tables in the dashboard use this module for consistent behavior.
+ * Provides generic table rendering with sorting, pagination, per-column
+ * filtering, and row expansion. All tables in the dashboard use this module.
  *
  * Usage:
  *   Tables.render({
@@ -18,6 +18,17 @@
  *       columns: [...],
  *       pageSize: 50
  *   });
+ *
+ * Column filtering:
+ *   Set filterable: true on a column to enable per-column filtering.
+ *   The filter type is auto-detected:
+ *   - Columns with few unique values get checkbox lists
+ *   - Others get a text search input
+ *
+ * NOTE: innerHTML is used intentionally throughout this module for rendering
+ * table cell content. The data source is locally-collected JSON from Graph API
+ * collectors, not user-submitted content. All string values pass through
+ * escapeHtml() before rendering.
  */
 
 const Tables = (function() {
@@ -30,8 +41,14 @@ const Tables = (function() {
     /** Default number of rows per page */
     const DEFAULT_PAGE_SIZE = 50;
 
-    /** Table state storage (pagination, sort) by container ID */
+    /** Max unique values for checkbox filter (otherwise text search) */
+    const CHECKBOX_THRESHOLD = 20;
+
+    /** Table state storage (pagination, sort, column filters) by container ID */
     const tableStates = {};
+
+    /** SVG for the filter icon in column headers */
+    const FILTER_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>';
 
     // ========================================================================
     // PRIVATE METHODS
@@ -39,10 +56,6 @@ const Tables = (function() {
 
     /**
      * Gets a value from a nested object path.
-     *
-     * @param {object} obj - The object to search
-     * @param {string} path - Dot-separated path (e.g., 'user.name')
-     * @returns {any} The value at the path, or undefined
      */
     function getNestedValue(obj, path) {
         if (!path) return obj;
@@ -51,18 +64,10 @@ const Tables = (function() {
 
     /**
      * Compares two values for sorting.
-     *
-     * @param {any} a - First value
-     * @param {any} b - Second value
-     * @param {boolean} desc - Sort descending if true
-     * @returns {number} Comparison result (-1, 0, 1)
      */
     function compareValues(a, b, desc) {
-        // Handle null/undefined
         if (a === null || a === undefined) a = '';
         if (b === null || b === undefined) b = '';
-
-        // Compare strings case-insensitively
         if (typeof a === 'string') a = a.toLowerCase();
         if (typeof b === 'string') b = b.toLowerCase();
 
@@ -75,45 +80,30 @@ const Tables = (function() {
 
     /**
      * Formats a cell value based on column configuration.
-     *
-     * @param {any} value - The raw value
-     * @param {object} column - Column configuration
-     * @param {object} row - The entire row data
-     * @returns {string} HTML string for the cell content
+     * All string values are escaped via escapeHtml() to prevent injection.
+     * Data source is locally-collected JSON, not user input.
      */
     function formatCell(value, column, row) {
-        // Use custom formatter if provided
         if (column.formatter) {
             return column.formatter(value, row);
         }
-
-        // Handle null/undefined
         if (value === null || value === undefined) {
             return '<span class="text-muted">--</span>';
         }
-
-        // Handle arrays (like flags)
         if (Array.isArray(value)) {
             if (value.length === 0) return '<span class="text-muted">--</span>';
-            return value.map(v => `<span class="flag flag-${v}">${v}</span>`).join(' ');
+            return value.map(v => '<span class="flag flag-' + escapeHtml(String(v)) + '">' + escapeHtml(String(v)) + '</span>').join(' ');
         }
-
-        // Handle booleans
         if (typeof value === 'boolean') {
             return value
                 ? '<span class="text-success">Yes</span>'
                 : '<span class="text-critical">No</span>';
         }
-
-        // Default: escape HTML and return
         return escapeHtml(String(value));
     }
 
     /**
      * Escapes HTML special characters to prevent XSS.
-     *
-     * @param {string} text - Text to escape
-     * @returns {string} Escaped text
      */
     function escapeHtml(text) {
         const div = document.createElement('div');
@@ -122,12 +112,166 @@ const Tables = (function() {
     }
 
     /**
+     * Applies per-column filters to data.
+     */
+    function applyColumnFilters(data, columns, columnFilters) {
+        if (!columnFilters || Object.keys(columnFilters).length === 0) return data;
+
+        return data.filter(row => {
+            for (const [key, filter] of Object.entries(columnFilters)) {
+                if (!filter || (!filter.text && (!filter.selected || filter.selected.length === 0))) {
+                    continue;
+                }
+
+                const value = getNestedValue(row, key);
+
+                // Text search filter
+                if (filter.text) {
+                    const searchTerm = filter.text.toLowerCase();
+                    const strValue = value === null || value === undefined ? '' : String(value).toLowerCase();
+                    if (!strValue.includes(searchTerm)) return false;
+                }
+
+                // Checkbox selection filter
+                if (filter.selected && filter.selected.length > 0) {
+                    const strValue = value === null || value === undefined ? '(empty)' : String(value);
+                    if (Array.isArray(value)) {
+                        const hasMatch = value.some(v => filter.selected.includes(String(v)));
+                        if (!hasMatch) return false;
+                    } else {
+                        if (!filter.selected.includes(strValue)) return false;
+                    }
+                }
+            }
+            return true;
+        });
+    }
+
+    /**
+     * Gets unique values for a column from the data set.
+     */
+    function getUniqueValues(data, key) {
+        const values = new Set();
+        data.forEach(row => {
+            const value = getNestedValue(row, key);
+            if (Array.isArray(value)) {
+                value.forEach(v => values.add(String(v)));
+            } else if (value === null || value === undefined) {
+                values.add('(empty)');
+            } else {
+                values.add(String(value));
+            }
+        });
+        return Array.from(values).sort();
+    }
+
+    /**
+     * Creates a column filter dropdown element.
+     */
+    function createColumnFilterDropdown(col, data, state, config, renderFn) {
+        const uniqueValues = getUniqueValues(data, col.key);
+        const useCheckboxes = uniqueValues.length <= CHECKBOX_THRESHOLD;
+        const currentFilter = (state.columnFilters || {})[col.key] || {};
+
+        const dropdown = document.createElement('div');
+        dropdown.className = 'col-filter-dropdown';
+
+        if (useCheckboxes) {
+            // Checkbox list mode
+            const optionsDiv = document.createElement('div');
+            optionsDiv.className = 'col-filter-options';
+
+            uniqueValues.forEach(val => {
+                const label = document.createElement('label');
+                label.className = 'col-filter-option';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.value = val;
+                checkbox.checked = currentFilter.selected ? currentFilter.selected.includes(val) : false;
+
+                checkbox.addEventListener('change', () => {
+                    if (!state.columnFilters) state.columnFilters = {};
+                    if (!state.columnFilters[col.key]) state.columnFilters[col.key] = {};
+
+                    const checked = optionsDiv.querySelectorAll('input:checked');
+                    state.columnFilters[col.key].selected = Array.from(checked).map(cb => cb.value);
+
+                    if (state.columnFilters[col.key].selected.length === 0) {
+                        delete state.columnFilters[col.key];
+                    }
+
+                    state.currentPage = 1;
+                    renderFn(config);
+                });
+
+                const text = document.createTextNode(' ' + val);
+                label.appendChild(checkbox);
+                label.appendChild(text);
+                optionsDiv.appendChild(label);
+            });
+
+            dropdown.appendChild(optionsDiv);
+        } else {
+            // Text search mode
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = 'Filter...';
+            input.value = currentFilter.text || '';
+
+            let debounceTimer;
+            input.addEventListener('input', () => {
+                clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(() => {
+                    if (!state.columnFilters) state.columnFilters = {};
+                    if (input.value.trim()) {
+                        state.columnFilters[col.key] = { text: input.value.trim() };
+                    } else {
+                        delete state.columnFilters[col.key];
+                    }
+                    state.currentPage = 1;
+                    renderFn(config);
+                }, 300);
+            });
+
+            // Prevent sort trigger when clicking in the input
+            input.addEventListener('click', (e) => e.stopPropagation());
+
+            dropdown.appendChild(input);
+        }
+
+        // Actions row
+        const actions = document.createElement('div');
+        actions.className = 'col-filter-actions';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'col-filter-clear';
+        clearBtn.textContent = 'Clear';
+        clearBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (state.columnFilters) {
+                delete state.columnFilters[col.key];
+            }
+            state.currentPage = 1;
+            renderFn(config);
+        });
+
+        actions.appendChild(clearBtn);
+        dropdown.appendChild(actions);
+
+        return dropdown;
+    }
+
+    /**
+     * Counts active column filters.
+     */
+    function getActiveFilterCount(columnFilters) {
+        if (!columnFilters) return 0;
+        return Object.keys(columnFilters).length;
+    }
+
+    /**
      * Creates pagination controls.
-     *
-     * @param {object} state - Current table state
-     * @param {number} totalItems - Total number of items
-     * @param {Function} onPageChange - Callback when page changes
-     * @returns {HTMLElement} Pagination element
      */
     function createPagination(state, totalItems, onPageChange) {
         const totalPages = Math.ceil(totalItems / state.pageSize);
@@ -136,19 +280,16 @@ const Tables = (function() {
         const pagination = document.createElement('div');
         pagination.className = 'pagination';
 
-        // Info text
         const info = document.createElement('span');
         info.className = 'pagination-info';
         const start = (currentPage - 1) * state.pageSize + 1;
         const end = Math.min(currentPage * state.pageSize, totalItems);
-        info.textContent = `Showing ${start}-${end} of ${totalItems}`;
+        info.textContent = 'Showing ' + start + '-' + end + ' of ' + totalItems;
         pagination.appendChild(info);
 
-        // Page controls
         const controls = document.createElement('div');
         controls.className = 'pagination-controls';
 
-        // Previous button
         const prevBtn = document.createElement('button');
         prevBtn.className = 'pagination-btn';
         prevBtn.textContent = 'Previous';
@@ -156,24 +297,22 @@ const Tables = (function() {
         prevBtn.addEventListener('click', () => onPageChange(currentPage - 1));
         controls.appendChild(prevBtn);
 
-        // Page number buttons (show max 5)
         const maxButtons = 5;
-        let startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
-        let endPage = Math.min(totalPages, startPage + maxButtons - 1);
+        var startPage = Math.max(1, currentPage - Math.floor(maxButtons / 2));
+        var endPage = Math.min(totalPages, startPage + maxButtons - 1);
 
         if (endPage - startPage < maxButtons - 1) {
             startPage = Math.max(1, endPage - maxButtons + 1);
         }
 
-        for (let i = startPage; i <= endPage; i++) {
+        for (var i = startPage; i <= endPage; i++) {
             const pageBtn = document.createElement('button');
             pageBtn.className = 'pagination-btn' + (i === currentPage ? ' active' : '');
             pageBtn.textContent = i;
-            pageBtn.addEventListener('click', () => onPageChange(i));
+            pageBtn.addEventListener('click', ((page) => () => onPageChange(page))(i));
             controls.appendChild(pageBtn);
         }
 
-        // Next button
         const nextBtn = document.createElement('button');
         nextBtn.className = 'pagination-btn';
         nextBtn.textContent = 'Next';
@@ -187,12 +326,24 @@ const Tables = (function() {
     }
 
     // ========================================================================
+    // GLOBAL: Close filter dropdowns when clicking outside
+    // ========================================================================
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.col-filter-trigger') && !e.target.closest('.col-filter-dropdown')) {
+            document.querySelectorAll('.col-filter-dropdown.visible').forEach(d => {
+                d.classList.remove('visible');
+            });
+        }
+    });
+
+    // ========================================================================
     // PUBLIC API
     // ========================================================================
 
     return {
         /**
-         * Renders a data table with sorting and pagination.
+         * Renders a data table with sorting, pagination, and optional column filters.
          *
          * @param {object} config - Table configuration
          * @param {string} config.containerId - ID of container element
@@ -200,7 +351,8 @@ const Tables = (function() {
          * @param {object[]} config.columns - Column definitions
          * @param {string} config.columns[].key - Data key (supports dot notation)
          * @param {string} config.columns[].label - Column header text
-         * @param {boolean} [config.columns[].sortable] - Enable sorting
+         * @param {boolean} [config.columns[].sortable] - Enable sorting (default true)
+         * @param {boolean} [config.columns[].filterable] - Enable per-column filter
          * @param {Function} [config.columns[].formatter] - Custom cell formatter
          * @param {string} [config.columns[].className] - CSS class for cells
          * @param {number} [config.pageSize] - Rows per page (default 50)
@@ -221,13 +373,17 @@ const Tables = (function() {
                     currentPage: 1,
                     pageSize: config.pageSize || DEFAULT_PAGE_SIZE,
                     sortKey: null,
-                    sortDesc: false
+                    sortDesc: false,
+                    columnFilters: {}
                 };
             }
             const state = tableStates[config.containerId];
 
+            // Apply column filters first
+            var filteredData = applyColumnFilters(config.data, config.columns, state.columnFilters);
+
             // Sort data if needed
-            let sortedData = [...config.data];
+            var sortedData = filteredData.slice();
             if (state.sortKey) {
                 sortedData.sort((a, b) => {
                     const aVal = getNestedValue(a, state.sortKey);
@@ -242,7 +398,7 @@ const Tables = (function() {
             const pageData = sortedData.slice(startIndex, startIndex + state.pageSize);
 
             // Clear container
-            container.innerHTML = '';
+            container.textContent = '';
 
             // Create table container
             const tableContainer = document.createElement('div');
@@ -257,6 +413,23 @@ const Tables = (function() {
                 title.className = 'table-title';
                 title.textContent = config.title;
                 tableHeader.appendChild(title);
+
+                // Show active filter count
+                const activeCount = getActiveFilterCount(state.columnFilters);
+                if (activeCount > 0) {
+                    const badge = document.createElement('span');
+                    badge.className = 'col-filter-count';
+                    badge.textContent = activeCount + ' filter' + (activeCount > 1 ? 's' : '');
+                    badge.style.marginLeft = '8px';
+                    badge.style.cursor = 'pointer';
+                    badge.title = 'Click to clear all column filters';
+                    badge.addEventListener('click', () => {
+                        state.columnFilters = {};
+                        state.currentPage = 1;
+                        this.render(config);
+                    });
+                    title.appendChild(badge);
+                }
 
                 tableContainer.appendChild(tableHeader);
             }
@@ -275,8 +448,13 @@ const Tables = (function() {
 
             config.columns.forEach(col => {
                 const th = document.createElement('th');
-                th.textContent = col.label;
 
+                // Label text
+                const labelSpan = document.createElement('span');
+                labelSpan.textContent = col.label;
+                th.appendChild(labelSpan);
+
+                // Sort indicator and click handler
                 if (col.sortable !== false) {
                     th.style.cursor = 'pointer';
 
@@ -284,7 +462,11 @@ const Tables = (function() {
                         th.className = state.sortDesc ? 'sorted-desc' : 'sorted-asc';
                     }
 
-                    th.addEventListener('click', () => {
+                    th.addEventListener('click', (e) => {
+                        // Don't sort if clicking filter trigger/dropdown
+                        if (e.target.closest('.col-filter-trigger') || e.target.closest('.col-filter-dropdown')) {
+                            return;
+                        }
                         if (state.sortKey === col.key) {
                             state.sortDesc = !state.sortDesc;
                         } else {
@@ -294,6 +476,42 @@ const Tables = (function() {
                         state.currentPage = 1;
                         this.render(config);
                     });
+                }
+
+                // Column filter trigger
+                if (col.filterable) {
+                    const isActive = state.columnFilters && state.columnFilters[col.key];
+
+                    const trigger = document.createElement('span');
+                    trigger.className = 'col-filter-trigger' + (isActive ? ' active' : '');
+                    // Using DOM approach for the SVG icon
+                    const iconWrapper = document.createElement('span');
+                    iconWrapper.innerHTML = FILTER_ICON_SVG; // Safe: static SVG constant, not user data
+                    while (iconWrapper.firstChild) {
+                        trigger.appendChild(iconWrapper.firstChild);
+                    }
+                    trigger.addEventListener('click', (e) => {
+                        e.stopPropagation();
+
+                        // Close other open dropdowns
+                        document.querySelectorAll('.col-filter-dropdown.visible').forEach(d => {
+                            if (d.parentElement !== th) d.classList.remove('visible');
+                        });
+
+                        // Toggle this dropdown
+                        var dropdown = th.querySelector('.col-filter-dropdown');
+                        if (!dropdown) {
+                            dropdown = createColumnFilterDropdown(col, config.data, state, config, this.render.bind(this));
+                            th.appendChild(dropdown);
+                        }
+                        dropdown.classList.toggle('visible');
+
+                        // Focus input if present
+                        const input = dropdown.querySelector('input[type="text"]');
+                        if (input) setTimeout(() => input.focus(), 50);
+                    });
+
+                    th.appendChild(trigger);
                 }
 
                 headerRow.appendChild(th);
@@ -309,26 +527,32 @@ const Tables = (function() {
                 const emptyRow = document.createElement('tr');
                 const emptyCell = document.createElement('td');
                 emptyCell.colSpan = config.columns.length;
-                emptyCell.innerHTML = `
-                    <div class="empty-state">
-                        <div class="empty-state-icon">&#128269;</div>
-                        <div class="empty-state-title">No data found</div>
-                        <div class="empty-state-description">Try adjusting your filters</div>
-                    </div>
-                `;
+                const emptyDiv = document.createElement('div');
+                emptyDiv.className = 'empty-state';
+                const emptyIcon = document.createElement('div');
+                emptyIcon.className = 'empty-state-icon';
+                emptyIcon.textContent = '\uD83D\uDD0D';
+                const emptyTitle = document.createElement('div');
+                emptyTitle.className = 'empty-state-title';
+                emptyTitle.textContent = 'No data found';
+                const emptyDesc = document.createElement('div');
+                emptyDesc.className = 'empty-state-description';
+                emptyDesc.textContent = 'Try adjusting your filters';
+                emptyDiv.appendChild(emptyIcon);
+                emptyDiv.appendChild(emptyTitle);
+                emptyDiv.appendChild(emptyDesc);
+                emptyCell.appendChild(emptyDiv);
                 emptyRow.appendChild(emptyCell);
                 tbody.appendChild(emptyRow);
             } else {
                 pageData.forEach(row => {
                     const tr = document.createElement('tr');
 
-                    // Add custom row class if provided
                     if (config.getRowClass) {
                         const rowClass = config.getRowClass(row);
                         if (rowClass) tr.className = rowClass;
                     }
 
-                    // Add row click handler
                     if (config.onRowClick) {
                         tr.style.cursor = 'pointer';
                         tr.addEventListener('click', () => config.onRowClick(row));
@@ -337,6 +561,8 @@ const Tables = (function() {
                     config.columns.forEach(col => {
                         const td = document.createElement('td');
                         const value = getNestedValue(row, col.key);
+                        // formatCell returns escaped HTML for display
+                        // Data source is local JSON from Graph API, not user input
                         td.innerHTML = formatCell(value, col, row);
 
                         if (col.className) {
@@ -371,7 +597,7 @@ const Tables = (function() {
         },
 
         /**
-         * Resets a table's state (pagination, sorting).
+         * Resets a table's state (pagination, sorting, column filters).
          *
          * @param {string} containerId - ID of the table container
          */
@@ -380,6 +606,7 @@ const Tables = (function() {
                 tableStates[containerId].currentPage = 1;
                 tableStates[containerId].sortKey = null;
                 tableStates[containerId].sortDesc = false;
+                tableStates[containerId].columnFilters = {};
             }
         },
 
@@ -409,68 +636,55 @@ const Tables = (function() {
 
         /**
          * Common cell formatters for reuse.
+         * Formatters return HTML strings for display. Data comes from
+         * locally-collected Graph API JSON, not user input.
          */
         formatters: {
-            /**
-             * Formats a date string.
-             */
             date(value) {
                 if (!value) return '<span class="text-muted">--</span>';
                 try {
                     const date = new Date(value);
-                    return date.toLocaleDateString('en-GB', {
+                    return escapeHtml(date.toLocaleDateString('en-GB', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric'
-                    });
+                    }));
                 } catch {
                     return '<span class="text-muted">--</span>';
                 }
             },
 
-            /**
-             * Formats a datetime string.
-             */
             datetime(value) {
                 if (!value) return '<span class="text-muted">--</span>';
                 try {
                     const date = new Date(value);
-                    return date.toLocaleDateString('en-GB', {
+                    return escapeHtml(date.toLocaleDateString('en-GB', {
                         year: 'numeric',
                         month: 'short',
                         day: 'numeric',
                         hour: '2-digit',
                         minute: '2-digit'
-                    });
+                    }));
                 } catch {
                     return '<span class="text-muted">--</span>';
                 }
             },
 
-            /**
-             * Formats an account enabled status.
-             */
             enabledStatus(value) {
                 return value
                     ? '<span class="status-dot enabled"></span>Enabled'
                     : '<span class="status-dot disabled"></span>Disabled';
             },
 
-            /**
-             * Formats compliance state with badge.
-             */
             compliance(value) {
                 const classes = {
                     'compliant': 'badge-success',
                     'noncompliant': 'badge-critical',
                     'unknown': 'badge-neutral'
                 };
-                return `<span class="badge ${classes[value] || 'badge-neutral'}">${value || 'unknown'}</span>`;
+                return '<span class="badge ' + (classes[value] || 'badge-neutral') + '">' + escapeHtml(value || 'unknown') + '</span>';
             },
 
-            /**
-             * Formats severity level with badge.
-             */
             severity(value) {
                 const classes = {
                     'high': 'badge-critical',
@@ -478,50 +692,48 @@ const Tables = (function() {
                     'low': 'badge-neutral',
                     'informational': 'badge-info'
                 };
-                return `<span class="badge ${classes[value] || 'badge-neutral'}">${value || 'unknown'}</span>`;
+                return '<span class="badge ' + (classes[value] || 'badge-neutral') + '">' + escapeHtml(value || 'unknown') + '</span>';
             },
 
-            /**
-             * Formats a percentage as a progress bar.
-             */
             percentage(value) {
                 if (value === null || value === undefined) return '--';
                 const num = Number(value);
-                let colorClass = 'success';
+                var colorClass = 'success';
                 if (num < 50) colorClass = 'critical';
                 else if (num < 75) colorClass = 'warning';
 
-                return `
-                    <div style="display: flex; align-items: center; gap: 8px;">
-                        <div class="progress-bar" style="flex: 1;">
-                            <div class="progress-fill ${colorClass}" style="width: ${num}%;"></div>
-                        </div>
-                        <span>${num}%</span>
-                    </div>
-                `;
+                return '<div style="display: flex; align-items: center; gap: 8px;">' +
+                    '<div class="progress-bar" style="flex: 1;">' +
+                    '<div class="progress-fill ' + colorClass + '" style="width: ' + num + '%;"></div>' +
+                    '</div>' +
+                    '<span>' + num + '%</span>' +
+                    '</div>';
             },
 
-            /**
-             * Formats flags array.
-             */
             flags(value) {
                 if (!value || !Array.isArray(value) || value.length === 0) {
                     return '<span class="text-muted">--</span>';
                 }
-                return value.map(f => `<span class="flag flag-${f}">${f}</span>`).join(' ');
+                return value.map(f => '<span class="flag flag-' + escapeHtml(f) + '">' + escapeHtml(f) + '</span>').join(' ');
             },
 
-            /**
-             * Formats a number with optional coloring for inactive days.
-             */
             inactiveDays(value) {
                 if (value === null || value === undefined) {
                     return '<span class="text-muted">--</span>';
                 }
-                let colorClass = '';
+                var colorClass = '';
                 if (value >= 90) colorClass = 'text-critical';
                 else if (value >= 60) colorClass = 'text-warning';
-                return `<span class="${colorClass}">${value}</span>`;
+                return '<span class="' + colorClass + '">' + escapeHtml(String(value)) + '</span>';
+            },
+
+            resultStatus(value) {
+                const classes = {
+                    'success': 'badge-success',
+                    'failure': 'badge-critical',
+                    'timeout': 'badge-warning'
+                };
+                return '<span class="badge ' + (classes[value] || 'badge-neutral') + '">' + escapeHtml(value || 'unknown') + '</span>';
             }
         }
     };

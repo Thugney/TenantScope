@@ -123,6 +123,8 @@ $dataFiles = @(
     "autopilot.json",
     "defender-alerts.json",
     "enterprise-apps.json",
+    "audit-logs.json",
+    "pim-activity.json",
     "collection-metadata.json"
 )
 
@@ -184,6 +186,8 @@ $bundleMap = @{
     "autopilot"      = "autopilot.json"
     "defenderAlerts"  = "defender-alerts.json"
     "enterpriseApps"  = "enterprise-apps.json"
+    "auditLogs"       = "audit-logs.json"
+    "pimActivity"     = "pim-activity.json"
     "metadata"        = "collection-metadata.json"
 }
 

@@ -64,7 +64,8 @@ param(
 
     [Parameter()]
     [ValidateSet("UserData", "LicenseData", "GuestData", "MFAData", "AdminRoleData",
-                 "SignInData", "DeviceData", "AutopilotData", "DefenderData", "EnterpriseAppData")]
+                 "SignInData", "DeviceData", "AutopilotData", "DefenderData", "EnterpriseAppData",
+                 "AuditLogData", "PIMData")]
     [string[]]$CollectorsToRun
 )
 
@@ -415,6 +416,8 @@ $requiredScopes = @(
     "IdentityRiskyUser.Read.All",
     "IdentityRiskEvent.Read.All",
     "RoleManagement.Read.Directory",
+    "RoleAssignmentSchedule.Read.Directory",
+    "RoleEligibilitySchedule.Read.Directory",
     "Application.Read.All"
 )
 
@@ -476,7 +479,9 @@ $collectors = @(
     @{ Name = "Get-DeviceData";    Script = "Get-DeviceData.ps1";    Output = "devices.json" },
     @{ Name = "Get-AutopilotData"; Script = "Get-AutopilotData.ps1"; Output = "autopilot.json" },
     @{ Name = "Get-DefenderData";  Script = "Get-DefenderData.ps1";  Output = "defender-alerts.json" },
-    @{ Name = "Get-EnterpriseAppData"; Script = "Get-EnterpriseAppData.ps1"; Output = "enterprise-apps.json" }
+    @{ Name = "Get-EnterpriseAppData"; Script = "Get-EnterpriseAppData.ps1"; Output = "enterprise-apps.json" },
+    @{ Name = "Get-AuditLogData";     Script = "Get-AuditLogData.ps1";     Output = "audit-logs.json" },
+    @{ Name = "Get-PIMData";          Script = "Get-PIMData.ps1";          Output = "pim-activity.json" }
 )
 
 # Filter collectors if specific ones were requested

@@ -28,7 +28,9 @@
         'security': PageSecurity,
         'devices': PageDevices,
         'enterprise-apps': PageEnterpriseApps,
-        'lifecycle': PageLifecycle
+        'lifecycle': PageLifecycle,
+        'audit-logs': PageAuditLogs,
+        'pim': PagePIM
     };
 
     // ========================================================================
@@ -169,6 +171,33 @@
     }
 
     // ========================================================================
+    // SIDEBAR TOGGLE
+    // ========================================================================
+
+    /**
+     * Sets up the sidebar collapse/expand toggle.
+     * Persists state in localStorage.
+     */
+    function setupSidebarToggle() {
+        const sidebar = document.getElementById('sidebar');
+        const toggleBtn = document.getElementById('sidebar-toggle');
+
+        if (!sidebar || !toggleBtn) return;
+
+        // Restore saved state
+        const savedState = localStorage.getItem('tenantscope-sidebar-collapsed');
+        if (savedState === 'true') {
+            sidebar.classList.add('collapsed');
+        }
+
+        toggleBtn.addEventListener('click', () => {
+            sidebar.classList.toggle('collapsed');
+            const isCollapsed = sidebar.classList.contains('collapsed');
+            localStorage.setItem('tenantscope-sidebar-collapsed', isCollapsed);
+        });
+    }
+
+    // ========================================================================
     // NAVIGATION HANDLERS
     // ========================================================================
 
@@ -204,6 +233,7 @@
         // Setup event handlers
         setupModalHandlers();
         setupNavigation();
+        setupSidebarToggle();
 
         // Load data
         const dataLoaded = await DataLoader.loadAll();

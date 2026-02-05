@@ -323,6 +323,14 @@ const PageDevices = (function() {
 
             <!-- Data Table -->
             <div id="devices-table"></div>
+
+            <!-- Autopilot Section -->
+            <div class="page-header" style="margin-top: 2rem;">
+                <h3 class="page-title" style="font-size: 1.1rem;">Windows Autopilot</h3>
+                <p class="page-description">Autopilot device identities and enrollment status</p>
+            </div>
+            <div class="cards-grid" id="autopilot-cards"></div>
+            <div id="autopilot-table"></div>
         `;
 
         // Create filter bar
@@ -402,6 +410,129 @@ const PageDevices = (function() {
 
         // Initial render
         applyFilters();
+
+        // Render Autopilot section
+        renderAutopilot();
+    }
+
+    /**
+     * Renders the Autopilot summary cards and table.
+     */
+    function renderAutopilot() {
+        const autopilot = DataLoader.getData('autopilot');
+
+        const enrolledCount = autopilot.filter(d => d.enrollmentState === 'enrolled').length;
+        const notContactedCount = autopilot.filter(d => d.enrollmentState === 'notContacted').length;
+        const failedCount = autopilot.filter(d => d.enrollmentState === 'failed').length;
+        const noProfileCount = autopilot.filter(d => !d.profileAssigned).length;
+
+        // Build cards using DOM
+        const cardsContainer = document.getElementById('autopilot-cards');
+        if (cardsContainer) {
+            cardsContainer.appendChild(createCard('Total Autopilot', String(autopilot.length), '', ''));
+            cardsContainer.appendChild(createCard('Enrolled', String(enrolledCount), 'card-success', 'success'));
+            cardsContainer.appendChild(createCard('Not Contacted', String(notContactedCount),
+                notContactedCount > 0 ? 'card-warning' : '', notContactedCount > 0 ? 'warning' : ''));
+            cardsContainer.appendChild(createCard('Failed', String(failedCount),
+                failedCount > 0 ? 'card-critical' : '', failedCount > 0 ? 'critical' : 'success'));
+        }
+
+        // Render autopilot table
+        Tables.render({
+            containerId: 'autopilot-table',
+            data: autopilot,
+            columns: [
+                { key: 'serialNumber', label: 'Serial Number', filterable: true },
+                { key: 'model', label: 'Model', filterable: true },
+                { key: 'manufacturer', label: 'Manufacturer', filterable: true },
+                { key: 'groupTag', label: 'Group Tag', filterable: true },
+                { key: 'enrollmentState', label: 'Enrollment', filterable: true, formatter: formatEnrollmentState },
+                { key: 'lastContacted', label: 'Last Contacted', formatter: Tables.formatters.datetime },
+                { key: 'profileAssigned', label: 'Profile' },
+                { key: 'purchaseOrder', label: 'PO', filterable: true }
+            ],
+            pageSize: 25,
+            onRowClick: showAutopilotDetails
+        });
+    }
+
+    /**
+     * Creates a summary card DOM element.
+     */
+    function createCard(label, value, cardClass, valueClass) {
+        const card = document.createElement('div');
+        card.className = 'card' + (cardClass ? ' ' + cardClass : '');
+
+        const lbl = document.createElement('div');
+        lbl.className = 'card-label';
+        lbl.textContent = label;
+        card.appendChild(lbl);
+
+        const val = document.createElement('div');
+        val.className = 'card-value' + (valueClass ? ' ' + valueClass : '');
+        val.textContent = value;
+        card.appendChild(val);
+
+        return card;
+    }
+
+    /**
+     * Formats enrollment state with badge.
+     */
+    function formatEnrollmentState(value) {
+        const classes = {
+            'enrolled': 'badge-success',
+            'notContacted': 'badge-warning',
+            'failed': 'badge-critical'
+        };
+        const labels = {
+            'enrolled': 'Enrolled',
+            'notContacted': 'Not Contacted',
+            'failed': 'Failed'
+        };
+        return `<span class="badge ${classes[value] || 'badge-neutral'}">${labels[value] || value || 'Unknown'}</span>`;
+    }
+
+    /**
+     * Shows Autopilot device details in modal.
+     */
+    function showAutopilotDetails(device) {
+        const modal = document.getElementById('modal-overlay');
+        const title = document.getElementById('modal-title');
+        const body = document.getElementById('modal-body');
+
+        title.textContent = 'Autopilot Device: ' + (device.serialNumber || '--');
+
+        const detailList = document.createElement('div');
+        detailList.className = 'detail-list';
+
+        const fields = [
+            { label: 'Serial Number', value: device.serialNumber || '--' },
+            { label: 'Model', value: device.model || '--' },
+            { label: 'Manufacturer', value: device.manufacturer || '--' },
+            { label: 'Group Tag', value: device.groupTag || '--' },
+            { label: 'Enrollment State', value: device.enrollmentState || '--' },
+            { label: 'Last Contacted', value: device.lastContacted ? DataLoader.formatDate(device.lastContacted) : '--' },
+            { label: 'Profile Assigned', value: device.profileAssigned ? 'Yes' : 'No' },
+            { label: 'Purchase Order', value: device.purchaseOrder || '--' },
+            { label: 'Device ID', value: device.id || '--' }
+        ];
+
+        fields.forEach(function(f) {
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'detail-label';
+            labelSpan.textContent = f.label + ':';
+            detailList.appendChild(labelSpan);
+
+            const valueSpan = document.createElement('span');
+            valueSpan.className = 'detail-value';
+            valueSpan.textContent = f.value;
+            detailList.appendChild(valueSpan);
+        });
+
+        body.textContent = '';
+        body.appendChild(detailList);
+        modal.classList.add('visible');
     }
 
     // Public API

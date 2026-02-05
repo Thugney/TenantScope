@@ -61,6 +61,7 @@ All styles are organized by component and follow these design principles:
 
     /* Layout */
     --sidebar-width: 200px;
+    --sidebar-collapsed-width: 60px;
     --header-height: 60px;
     --border-radius: 6px;
     --border-radius-sm: 4px;
@@ -184,6 +185,13 @@ table {
     background-color: var(--color-sidebar);
     padding: var(--spacing-md) 0;
     overflow-y: auto;
+    transition: width var(--transition-normal);
+    display: flex;
+    flex-direction: column;
+}
+
+.sidebar .nav-list {
+    flex: 1;
 }
 
 .nav-list {
@@ -218,14 +226,83 @@ table {
 }
 
 .nav-icon {
-    font-size: var(--font-size-sm);
     width: 20px;
-    text-align: center;
+    height: 20px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.nav-icon svg {
+    width: 18px;
+    height: 18px;
 }
 
 .nav-text {
     font-size: var(--font-size-sm);
     font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    transition: opacity var(--transition-fast);
+}
+
+/* Nav separator */
+.nav-separator {
+    height: 1px;
+    background-color: var(--color-sidebar-hover);
+    margin: var(--spacing-sm) var(--spacing-lg);
+}
+
+/* Sidebar toggle button */
+.sidebar-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: var(--spacing-sm) 0;
+    color: var(--color-text-muted);
+    border-top: 1px solid var(--color-sidebar-hover);
+    transition: all var(--transition-fast);
+}
+
+.sidebar-toggle:hover {
+    color: var(--color-text-inverse);
+    background-color: var(--color-sidebar-hover);
+}
+
+.sidebar-toggle svg {
+    width: 18px;
+    height: 18px;
+    transition: transform var(--transition-normal);
+}
+
+/* Collapsed sidebar state */
+.sidebar.collapsed {
+    width: var(--sidebar-collapsed-width);
+}
+
+.sidebar.collapsed .nav-text {
+    opacity: 0;
+    width: 0;
+    overflow: hidden;
+}
+
+.sidebar.collapsed .nav-link {
+    justify-content: center;
+    padding: var(--spacing-md);
+}
+
+.sidebar.collapsed .nav-separator {
+    margin: var(--spacing-sm) var(--spacing-sm);
+}
+
+.sidebar.collapsed .sidebar-toggle svg {
+    transform: rotate(180deg);
+}
+
+.sidebar.collapsed + .content {
+    margin-left: var(--sidebar-collapsed-width);
 }
 
 /* ========================================================================
@@ -236,6 +313,7 @@ table {
     margin-left: var(--sidebar-width);
     padding: var(--spacing-lg);
     min-width: 0;
+    transition: margin-left var(--transition-normal);
 }
 
 .page-container {
@@ -591,6 +669,131 @@ table {
 }
 
 /* ========================================================================
+   PER-COLUMN FILTERS
+   ======================================================================== */
+.data-table th {
+    position: relative;
+}
+
+.col-filter-trigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    margin-left: 4px;
+    vertical-align: middle;
+    color: var(--color-text-muted);
+    cursor: pointer;
+    border-radius: 2px;
+    opacity: 0.5;
+    transition: all var(--transition-fast);
+}
+
+.col-filter-trigger:hover,
+.col-filter-trigger.active {
+    opacity: 1;
+    color: var(--color-accent);
+}
+
+.col-filter-trigger svg {
+    width: 12px;
+    height: 12px;
+}
+
+.col-filter-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 100;
+    min-width: 200px;
+    max-width: 280px;
+    background-color: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--border-radius);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-sm);
+    display: none;
+}
+
+.col-filter-dropdown.visible {
+    display: block;
+}
+
+.col-filter-dropdown input[type="text"] {
+    width: 100%;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-xs);
+    margin-bottom: var(--spacing-xs);
+}
+
+.col-filter-dropdown input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.col-filter-options {
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.col-filter-option {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 2px 0;
+    font-size: var(--font-size-xs);
+    cursor: pointer;
+}
+
+.col-filter-option input[type="checkbox"] {
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+}
+
+.col-filter-actions {
+    display: flex;
+    justify-content: space-between;
+    margin-top: var(--spacing-xs);
+    padding-top: var(--spacing-xs);
+    border-top: 1px solid var(--color-bg-tertiary);
+}
+
+.col-filter-actions button {
+    font-size: var(--font-size-xs);
+    padding: 2px var(--spacing-sm);
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+}
+
+.col-filter-clear {
+    color: var(--color-text-secondary);
+}
+
+.col-filter-clear:hover {
+    color: var(--color-text-primary);
+}
+
+.col-filter-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    margin-left: 4px;
+    background-color: var(--color-accent);
+    color: var(--color-text-inverse);
+    font-size: 10px;
+    font-weight: 600;
+    border-radius: 8px;
+    vertical-align: middle;
+}
+
+/* ========================================================================
    BADGES & STATUS INDICATORS
    ======================================================================== */
 .badge {
@@ -916,7 +1119,7 @@ table {
    ======================================================================== */
 @media (max-width: 1024px) {
     .sidebar {
-        width: 60px;
+        width: var(--sidebar-collapsed-width);
     }
 
     .nav-text {
@@ -928,12 +1131,16 @@ table {
         padding: var(--spacing-md);
     }
 
-    .nav-icon {
-        margin: 0;
+    .sidebar-toggle {
+        display: none;
     }
 
     .content {
-        margin-left: 60px;
+        margin-left: var(--sidebar-collapsed-width);
+    }
+
+    .sidebar.collapsed + .content {
+        margin-left: var(--sidebar-collapsed-width);
     }
 
     .cards-grid {

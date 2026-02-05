@@ -11,7 +11,9 @@
   },
   "collection": {
     "signInLogDays": 30,
-    "defenderAlertDays": 30
+    "defenderAlertDays": 30,
+    "auditLogDays": 30,
+    "pimActivityDays": 30
   },
   "dashboard": {
     "title": "TenantScope",
