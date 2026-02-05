@@ -199,12 +199,43 @@ const PageGuests = (function() {
                 </div>
             </div>
 
+            <!-- Charts -->
+            <div class="charts-row" id="guests-charts"></div>
+
             <!-- Filters -->
             <div id="guests-filter"></div>
 
             <!-- Data Table -->
             <div id="guests-table"></div>
         `;
+
+        // Render charts
+        var chartsRow = document.getElementById('guests-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Guest Status',
+                [
+                    { value: activeCount, label: 'Active', color: C.green },
+                    { value: staleCount, label: 'Stale', color: C.yellow },
+                    { value: pendingCount, label: 'Pending', color: C.orange },
+                    { value: neverSignedInCount, label: 'Never Signed In', color: C.red }
+                ],
+                String(guests.length), 'total guests'
+            ));
+
+            var acceptedCount = guests.filter(g => g.invitationState === 'Accepted').length;
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Invitation State',
+                [
+                    { value: acceptedCount, label: 'Accepted', color: C.green },
+                    { value: pendingCount, label: 'Pending', color: C.orange }
+                ],
+                guests.length > 0 ? Math.round((acceptedCount / guests.length) * 100) + '%' : '0%',
+                'accepted'
+            ));
+        }
 
         // Create filter bar
         Filters.createFilterBar({

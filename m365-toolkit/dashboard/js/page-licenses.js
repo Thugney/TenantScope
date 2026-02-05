@@ -179,12 +179,44 @@ const PageLicenses = (function() {
                 </div>
             </div>
 
+            <!-- Charts -->
+            <div class="charts-row" id="licenses-charts"></div>
+
             <!-- Filters -->
             <div id="licenses-filter"></div>
 
             <!-- Data Table -->
             <div id="licenses-table"></div>
         `;
+
+        // Render charts
+        var chartsRow = document.getElementById('licenses-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+            var available = totals.purchased - totals.assigned;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'License Allocation',
+                [
+                    { value: totals.assigned - totals.waste, label: 'Active Use', color: C.green },
+                    { value: totals.waste, label: 'Waste', color: C.red },
+                    { value: available > 0 ? available : 0, label: 'Available', color: C.gray }
+                ],
+                avgUtilization + '%', 'avg utilization'
+            ));
+
+            var disabledWaste = licenses.reduce(function(s, l) { return s + l.assignedToDisabled; }, 0);
+            var inactiveWaste = licenses.reduce(function(s, l) { return s + l.assignedToInactive; }, 0);
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Waste Breakdown',
+                [
+                    { value: disabledWaste, label: 'Disabled Users', color: C.orange },
+                    { value: inactiveWaste, label: 'Inactive Users', color: C.yellow }
+                ],
+                String(totals.waste), 'wasted licenses'
+            ));
+        }
 
         // Create filter bar
         Filters.createFilterBar({

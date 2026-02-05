@@ -262,12 +262,7 @@ const DataLoader = (function() {
          * @returns {object} Summary object with counts
          */
         getSummary() {
-            const metadata = dataStore.metadata;
-            if (metadata && metadata.summary) {
-                return metadata.summary;
-            }
-
-            // Calculate from raw data if metadata is missing
+            // Always compute from raw data to ensure all fields are present
             const users = dataStore.users || [];
             const guests = dataStore.guests || [];
             const devices = dataStore.devices || [];

@@ -74,6 +74,52 @@ const PagePIM = (function() {
 
         container.appendChild(cardsGrid);
 
+        // Charts row
+        var chartsRow = document.createElement('div');
+        chartsRow.className = 'charts-row';
+        container.appendChild(chartsRow);
+
+        if (typeof DashboardCharts !== 'undefined') {
+            var C = DashboardCharts.colors;
+
+            // Action distribution
+            var selfActivateCount = requests.filter(function(e) { return e.action === 'selfActivate'; }).length;
+            var adminAssignCount = requests.filter(function(e) { return e.action === 'adminAssign'; }).length;
+            var adminRemoveCount = requests.filter(function(e) { return e.action === 'adminRemove'; }).length;
+            var otherActionCount = requests.length - selfActivateCount - adminAssignCount - adminRemoveCount;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Action Distribution',
+                [
+                    { value: selfActivateCount, label: 'Self Activate', color: C.orange },
+                    { value: adminAssignCount, label: 'Admin Assign', color: C.blue },
+                    { value: adminRemoveCount, label: 'Admin Remove', color: C.red },
+                    { value: otherActionCount, label: 'Other', color: C.gray }
+                ],
+                String(requests.length), 'total requests'
+            ));
+
+            // Status distribution
+            var provisionedCount = requests.filter(function(e) { return e.status === 'Provisioned'; }).length;
+            var revokedCount = requests.filter(function(e) { return e.status === 'Revoked'; }).length;
+            var pendingCount = requests.filter(function(e) { return e.status === 'PendingApproval' || e.status === 'PendingAdminDecision'; }).length;
+            var otherStatusCount = requests.length - provisionedCount - revokedCount - pendingCount;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Request Status',
+                [
+                    { value: provisionedCount, label: 'Provisioned', color: C.green },
+                    { value: revokedCount, label: 'Revoked', color: C.gray },
+                    { value: pendingCount, label: 'Pending', color: C.yellow },
+                    { value: otherStatusCount, label: 'Other', color: C.purple }
+                ],
+                requests.length > 0
+                    ? Math.round((provisionedCount / requests.length) * 100) + '%'
+                    : '0%',
+                'provisioned'
+            ));
+        }
+
         // Role activation requests section
         var requestSection = document.createElement('div');
         requestSection.className = 'section';

@@ -199,12 +199,44 @@ const PageUsers = (function() {
                 </div>
             </div>
 
+            <!-- Charts -->
+            <div class="charts-row" id="users-charts"></div>
+
             <!-- Filters -->
             <div id="users-filter"></div>
 
             <!-- Data Table -->
             <div id="users-table"></div>
         `;
+
+        // Render charts
+        var chartsRow = document.getElementById('users-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+            var enabledCount = users.filter(u => u.accountEnabled).length;
+            var disabledCount = users.filter(u => !u.accountEnabled).length;
+            var mfaCount = users.filter(u => u.mfaRegistered).length;
+            var noMfaCount = users.filter(u => !u.mfaRegistered).length;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Account Status',
+                [
+                    { value: enabledCount, label: 'Enabled', color: C.green },
+                    { value: disabledCount, label: 'Disabled', color: C.red }
+                ],
+                String(enabledCount), 'enabled'
+            ));
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Domain Distribution',
+                [
+                    { value: summary.employeeCount, label: 'Employees', color: C.blue },
+                    { value: summary.studentCount, label: 'Students', color: C.teal },
+                    { value: summary.otherCount || 0, label: 'Other', color: C.gray }
+                ],
+                String(users.length), 'total users'
+            ));
+        }
 
         // Create filter bar
         Filters.createFilterBar({

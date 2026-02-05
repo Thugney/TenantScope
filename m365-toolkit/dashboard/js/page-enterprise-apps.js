@@ -286,9 +286,39 @@ const PageEnterpriseApps = (function() {
             '    </div>',
             '</div>',
             '',
+            '<div class="charts-row" id="apps-charts"></div>',
             '<div id="apps-filter"></div>',
             '<div id="apps-table"></div>'
         ].join('\n');
+
+        // Render charts
+        var chartsRow = document.getElementById('apps-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Credential Status',
+                [
+                    { value: expiredCount, label: 'Expired', color: C.red },
+                    { value: criticalCount, label: 'Critical (30d)', color: C.orange },
+                    { value: warningCount, label: 'Warning (90d)', color: C.yellow },
+                    { value: healthyCount, label: 'Healthy', color: C.green }
+                ],
+                thirdPartyApps.length > 0
+                    ? Math.round((healthyCount / thirdPartyApps.length) * 100) + '%'
+                    : '0%',
+                'healthy'
+            ));
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'App Distribution',
+                [
+                    { value: totalApps - thirdPartyApps.length, label: 'Microsoft', color: C.blue },
+                    { value: thirdPartyApps.length, label: 'Third-party', color: C.purple }
+                ],
+                String(totalApps), 'total apps'
+            ));
+        }
 
         // Create filter bar
         Filters.createFilterBar({

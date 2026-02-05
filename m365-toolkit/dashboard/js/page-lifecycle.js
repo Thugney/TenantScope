@@ -119,6 +119,9 @@ const PageLifecycle = (function() {
                 </div>
             </div>
 
+            <!-- Charts -->
+            <div class="charts-row" id="lifecycle-charts"></div>
+
             <!-- Offboarding Issues Section -->
             <div class="section">
                 <div class="section-header">
@@ -183,6 +186,34 @@ const PageLifecycle = (function() {
                 <div id="guest-pending-table"></div>
             </div>
         `;
+
+        // Render charts
+        var chartsRow = document.getElementById('lifecycle-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Issue Categories',
+                [
+                    { value: disabledWithLicenses.length + disabledAdmins.length, label: 'Offboarding', color: C.orange },
+                    { value: newUsersNoSignIn.length + newUsersNoMfa.length, label: 'Onboarding', color: C.blue },
+                    { value: inactiveAdmins.length + adminsNoMfa.length, label: 'Role Hygiene', color: C.red },
+                    { value: staleGuests.length + pendingGuests.length, label: 'Guest Cleanup', color: C.yellow }
+                ],
+                String(totalIssues), 'total issues'
+            ));
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Guest Status',
+                [
+                    { value: guests.length - staleGuests.length - pendingGuests.length - neverSignedInGuests.length, label: 'Active', color: C.green },
+                    { value: staleGuests.length, label: 'Stale', color: C.yellow },
+                    { value: pendingGuests.length, label: 'Pending', color: C.orange },
+                    { value: neverSignedInGuests.length, label: 'Never Signed In', color: C.red }
+                ],
+                String(guests.length), 'total guests'
+            ));
+        }
 
         // Render offboarding tables
         Tables.render({
