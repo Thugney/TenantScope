@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls -lah \"J:\\\\Projects\\\\New25\\\\M365\\\\-M365-TENANT-TOOLKIT\\\\m365-toolkit\\\\dashboard\\\\data\"\" 2>/dev/null || echo \"Dashboard data directory not yet populated \")",
+      "Bash(ls:*)",
+      "Skill(commit-commands:commit)",
+      "Bash(git push)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(tree:*)",
+      "Bash(find:*)",
+      "Bash(test:*)",
+      "Bash(wc:*)",
+      "WebFetch(domain:keepachangelog.com)"
+    ]
+  }
+}

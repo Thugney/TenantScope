@@ -1,0 +1,46 @@
+# =============================================================================
+# M365 Tenant Toolkit - Root .gitignore
+# =============================================================================
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+._*
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# PowerShell
+PSScriptAnalyzerResults.xml
+
+# Node (future tooling)
+node_modules/
+package-lock.json
+
+# Secrets and credentials
+*.pfx
+*.pem
+*.key
+*.cer
+.env
+.env.*
+credentials.json
+credentials.*.json
+*-secret.*
+*-secrets.*
+
+# Logs (generated at runtime, not in repo)
+*.log
+
+# Build artifacts
+dist/
+output/
