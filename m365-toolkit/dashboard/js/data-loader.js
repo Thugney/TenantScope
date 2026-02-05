@@ -273,6 +273,11 @@ const DataLoader = (function() {
             const devices = dataStore.devices || [];
             const alerts = dataStore.defenderAlerts || [];
 
+            const compliantDevices = devices.filter(d => d.complianceState === 'compliant').length;
+            const staleDevices = devices.filter(d => d.isStale).length;
+            const mfaRegistered = users.filter(u => u.mfaRegistered).length;
+            const noMfa = users.filter(u => !u.mfaRegistered).length;
+
             return {
                 totalUsers: users.length,
                 employeeCount: users.filter(u => u.domain === 'employee').length,
@@ -280,13 +285,18 @@ const DataLoader = (function() {
                 otherCount: users.filter(u => u.domain === 'other').length,
                 disabledUsers: users.filter(u => !u.accountEnabled).length,
                 inactiveUsers: users.filter(u => u.isInactive).length,
-                noMfaUsers: users.filter(u => !u.mfaRegistered).length,
+                noMfaUsers: noMfa,
+                mfaRegisteredCount: mfaRegistered,
+                mfaPct: users.length > 0 ? Math.round((mfaRegistered / users.length) * 100) : 0,
                 adminCount: users.filter(u => u.flags && u.flags.includes('admin')).length,
                 guestCount: guests.length,
                 staleGuests: guests.filter(g => g.isStale).length,
                 totalDevices: devices.length,
-                compliantDevices: devices.filter(d => d.complianceState === 'compliant').length,
-                staleDevices: devices.filter(d => d.isStale).length,
+                compliantDevices: compliantDevices,
+                nonCompliantDevices: devices.filter(d => d.complianceState === 'noncompliant').length,
+                unknownDevices: devices.filter(d => d.complianceState !== 'compliant' && d.complianceState !== 'noncompliant').length,
+                staleDevices: staleDevices,
+                compliancePct: devices.length > 0 ? Math.round((compliantDevices / devices.length) * 100) : 0,
                 activeAlerts: alerts.filter(a => a.status !== 'resolved').length
             };
         },

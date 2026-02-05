@@ -318,6 +318,9 @@ const PageDevices = (function() {
                 </div>
             </div>
 
+            <!-- Charts -->
+            <div class="charts-row" id="devices-charts"></div>
+
             <!-- Filters -->
             <div id="devices-filter"></div>
 
@@ -398,6 +401,36 @@ const PageDevices = (function() {
             ],
             onFilter: applyFilters
         });
+
+        // Render device charts
+        var chartsRow = document.getElementById('devices-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+
+            // Compliance donut
+            var unknownCount = devices.length - compliantCount - nonCompliantCount;
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Device Compliance',
+                [
+                    { value: compliantCount, label: 'Compliant', color: C.green },
+                    { value: nonCompliantCount, label: 'Non-Compliant', color: C.red },
+                    { value: unknownCount > 0 ? unknownCount : 0, label: 'Unknown', color: C.gray }
+                ],
+                compliancePct + '%', 'compliant'
+            ));
+
+            // Certificate status donut
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Certificate Status',
+                [
+                    { value: certHealthyCount, label: 'Healthy', color: C.green },
+                    { value: certWarningCount, label: 'Warning', color: C.yellow },
+                    { value: certCriticalCount, label: 'Critical', color: C.orange },
+                    { value: certExpiredCount, label: 'Expired', color: C.red }
+                ],
+                String(certHealthyCount), 'healthy'
+            ));
+        }
 
         // Fix stale checkbox ID
         const staleCheckbox = document.querySelector('#devices-stale-filter input');

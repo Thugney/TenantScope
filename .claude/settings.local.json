@@ -19,7 +19,9 @@
       "Bash(Get-ChildItem -Path \"J:\\\\Projects\\\\New25\\\\M365\\\\-M365-TENANT-TOOLKIT\" -Recurse -Include \"*.md\" -ErrorAction SilentlyContinue)",
       "Bash(pwsh -NoProfile -Command \"& .\\\\scripts\\\\Build-Dashboard.ps1 -UseSampleData -NoBrowser\")",
       "Bash(pwsh:*)",
-      "Bash(powershell -NoProfile -Command \"& .\\\\scripts\\\\Build-Dashboard.ps1 -UseSampleData -NoBrowser\")"
+      "Bash(powershell -NoProfile -Command \"& .\\\\scripts\\\\Build-Dashboard.ps1 -UseSampleData -NoBrowser\")",
+      "Bash(git update-index:*)",
+      "Bash(git rm:*)"
     ]
   }
 }

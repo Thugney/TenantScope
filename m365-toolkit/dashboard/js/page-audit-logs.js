@@ -70,6 +70,40 @@ const PageAuditLogs = (function() {
 
         container.appendChild(cardsGrid);
 
+        // Charts row
+        var chartsRow = document.createElement('div');
+        chartsRow.className = 'charts-row';
+
+        var C = DashboardCharts.colors;
+
+        // Result distribution donut
+        chartsRow.appendChild(DashboardCharts.createChartCard(
+            'Result Distribution',
+            [
+                { value: successCount, label: 'Success', color: C.green },
+                { value: failureCount, label: 'Failure', color: C.red }
+            ],
+            totalEvents > 0 ? Math.round((successCount / totalEvents) * 100) + '%' : '0%',
+            'success rate'
+        ));
+
+        // Category breakdown donut
+        var categorySegments = Object.entries(categories)
+            .sort(function(a, b) { return b[1] - a[1]; })
+            .slice(0, 6)
+            .map(function(entry, idx) {
+                var catColors = [C.blue, C.teal, C.purple, C.orange, C.indigo, C.gray];
+                return { value: entry[1], label: entry[0], color: catColors[idx] || C.gray };
+            });
+
+        chartsRow.appendChild(DashboardCharts.createChartCard(
+            'Events by Category',
+            categorySegments,
+            String(Object.keys(categories).length), 'categories'
+        ));
+
+        container.appendChild(chartsRow);
+
         // Table section
         var section = document.createElement('div');
         section.className = 'section';

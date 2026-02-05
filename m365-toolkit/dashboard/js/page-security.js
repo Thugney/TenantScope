@@ -68,6 +68,9 @@ const PageSecurity = (function() {
                 </div>
             </div>
 
+            <!-- MFA Chart -->
+            <div class="charts-row" id="security-charts"></div>
+
             <!-- Risky Sign-ins Section -->
             <div class="section">
                 <div class="section-header">
@@ -158,6 +161,41 @@ const PageSecurity = (function() {
             ],
             pageSize: 10
         });
+
+        // Render MFA chart
+        var chartsRow = document.getElementById('security-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+            var mfaRegistered = users.filter(u => u.mfaRegistered && u.accountEnabled).length;
+            var enabledUsers = users.filter(u => u.accountEnabled).length;
+            var mfaPct = enabledUsers > 0 ? Math.round((mfaRegistered / enabledUsers) * 100) : 0;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'MFA Coverage (Enabled Users)',
+                [
+                    { value: mfaRegistered, label: 'Registered', color: C.green },
+                    { value: noMfaUsers.length, label: 'Not Registered', color: C.red }
+                ],
+                mfaPct + '%', 'coverage'
+            ));
+
+            // Alert severity distribution
+            var highCount = defenderAlerts.filter(a => a.severity === 'high').length;
+            var medCount = defenderAlerts.filter(a => a.severity === 'medium').length;
+            var lowCount = defenderAlerts.filter(a => a.severity === 'low').length;
+            var infoCount = defenderAlerts.filter(a => a.severity === 'informational').length;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Alert Severity Distribution',
+                [
+                    { value: highCount, label: 'High', color: C.red },
+                    { value: medCount, label: 'Medium', color: C.yellow },
+                    { value: lowCount, label: 'Low', color: C.blue },
+                    { value: infoCount, label: 'Info', color: C.gray }
+                ],
+                String(defenderAlerts.length), 'total alerts'
+            ));
+        }
 
         // Render Defender alerts table
         Tables.render({
