@@ -36,7 +36,9 @@
         'report': PageReport,
         'data-quality': PageDataQuality,
         'app-usage': PageAppUsage,
-        'conditional-access': PageConditionalAccess
+        'conditional-access': PageConditionalAccess,
+        'organization': PageOrganization,
+        'license-analysis': PageLicenseAnalysis
     };
 
     // ========================================================================
@@ -204,6 +206,88 @@
     }
 
     // ========================================================================
+    // MOBILE MENU
+    // ========================================================================
+
+    /**
+     * Sets up mobile menu toggle functionality.
+     */
+    function setupMobileMenu() {
+        const sidebar = document.getElementById('sidebar');
+        const menuBtn = document.getElementById('mobile-menu-btn');
+        const overlay = document.getElementById('sidebar-overlay');
+
+        if (!sidebar || !menuBtn) return;
+
+        function closeMobileMenu() {
+            sidebar.classList.remove('mobile-open');
+            if (overlay) overlay.classList.remove('visible');
+        }
+
+        function openMobileMenu() {
+            sidebar.classList.add('mobile-open');
+            if (overlay) overlay.classList.add('visible');
+        }
+
+        menuBtn.addEventListener('click', () => {
+            if (sidebar.classList.contains('mobile-open')) {
+                closeMobileMenu();
+            } else {
+                openMobileMenu();
+            }
+        });
+
+        // Close when clicking overlay
+        if (overlay) {
+            overlay.addEventListener('click', closeMobileMenu);
+        }
+
+        // Close when clicking a nav link (on mobile)
+        const navLinks = document.querySelectorAll('.nav-link');
+        navLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    closeMobileMenu();
+                }
+            });
+        });
+    }
+
+    // ========================================================================
+    // NAV GROUP COLLAPSE/EXPAND
+    // ========================================================================
+
+    /**
+     * Sets up collapsible nav groups.
+     * Persists collapsed state in localStorage.
+     */
+    function setupNavGroups() {
+        const toggles = document.querySelectorAll('.nav-group-toggle');
+
+        // Restore saved collapsed states
+        const savedStates = JSON.parse(localStorage.getItem('tenantscope-nav-groups') || '{}');
+
+        toggles.forEach(toggle => {
+            const groupName = toggle.dataset.group;
+            const group = toggle.closest('.nav-group');
+
+            // Apply saved state (all expanded by default)
+            if (savedStates[groupName] === true) {
+                group.classList.add('collapsed');
+            }
+
+            toggle.addEventListener('click', () => {
+                group.classList.toggle('collapsed');
+
+                // Save state
+                const states = JSON.parse(localStorage.getItem('tenantscope-nav-groups') || '{}');
+                states[groupName] = group.classList.contains('collapsed');
+                localStorage.setItem('tenantscope-nav-groups', JSON.stringify(states));
+            });
+        });
+    }
+
+    // ========================================================================
     // NAVIGATION HANDLERS
     // ========================================================================
 
@@ -240,6 +324,8 @@
         setupModalHandlers();
         setupNavigation();
         setupSidebarToggle();
+        setupMobileMenu();
+        setupNavGroups();
 
         // Load data
         const dataLoaded = await DataLoader.loadAll();

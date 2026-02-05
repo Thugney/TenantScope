@@ -254,6 +254,83 @@ table {
     margin: var(--spacing-sm) var(--spacing-lg);
 }
 
+/* Nav groups - collapsible sections */
+.nav-group {
+    margin-top: var(--spacing-xs);
+}
+
+.nav-group-toggle {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--color-text-muted);
+    transition: all var(--transition-fast);
+}
+
+.nav-group-toggle:hover {
+    background-color: var(--color-sidebar-hover);
+    color: var(--color-text-inverse);
+}
+
+.nav-group-text {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.nav-group-chevron {
+    width: 16px;
+    height: 16px;
+    transition: transform var(--transition-fast);
+}
+
+.nav-group.collapsed .nav-group-chevron {
+    transform: rotate(-90deg);
+}
+
+.nav-group-items {
+    list-style: none;
+    overflow: hidden;
+    transition: max-height var(--transition-normal);
+    max-height: 500px;
+}
+
+.nav-group.collapsed .nav-group-items {
+    max-height: 0;
+}
+
+.nav-group-items .nav-item {
+    margin-bottom: 0;
+}
+
+.nav-group-items .nav-link {
+    padding-left: calc(var(--spacing-lg) + var(--spacing-sm));
+}
+
+/* Sidebar collapsed state for groups */
+.sidebar.collapsed .nav-group-toggle {
+    justify-content: center;
+    padding: var(--spacing-sm) 0;
+}
+
+.sidebar.collapsed .nav-group-text {
+    display: none;
+}
+
+.sidebar.collapsed .nav-group-chevron {
+    display: none;
+}
+
+.sidebar.collapsed .nav-group-items .nav-link {
+    padding-left: var(--spacing-lg);
+}
+
 /* Sidebar toggle button */
 .sidebar-toggle {
     display: flex;
@@ -2118,4 +2195,90 @@ table {
     .license-stats {
         flex: 0 0 80px;
     }
+
+    /* Mobile sidebar - hide by default, show as overlay */
+    .sidebar {
+        transform: translateX(-100%);
+        width: 280px;
+        z-index: 1000;
+    }
+
+    .sidebar.mobile-open {
+        transform: translateX(0);
+    }
+
+    /* Show all nav groups expanded on mobile when sidebar is open */
+    .sidebar.mobile-open .nav-group-items {
+        max-height: 1000px;
+        opacity: 1;
+    }
+
+    .sidebar.mobile-open .nav-group-text,
+    .sidebar.mobile-open .nav-group-chevron {
+        display: block;
+    }
+
+    .sidebar.mobile-open .nav-text {
+        display: inline;
+    }
+
+    /* Sidebar overlay */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        top: var(--header-height);
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+    }
+
+    .sidebar-overlay.visible {
+        display: block;
+    }
+
+    /* Content takes full width on mobile */
+    .content {
+        margin-left: 0;
+    }
+
+    .sidebar.collapsed + .content,
+    .sidebar + .content {
+        margin-left: 0;
+    }
+
+    /* Mobile menu button */
+    .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        background: transparent;
+        border: none;
+        color: var(--color-text-inverse);
+        cursor: pointer;
+        margin-right: var(--spacing-sm);
+    }
+
+    .mobile-menu-btn svg {
+        width: 24px;
+        height: 24px;
+    }
+
+    .mobile-menu-btn:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+        border-radius: var(--radius-sm);
+    }
+
+    /* Hide sidebar toggle on mobile (use hamburger instead) */
+    .sidebar-toggle {
+        display: none;
+    }
+}
+
+/* Mobile menu button - hidden by default on larger screens */
+.mobile-menu-btn {
+    display: none;
 }

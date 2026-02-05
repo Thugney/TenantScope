@@ -10,7 +10,7 @@
     "department": "IT-avdeling",
     "jobTitle": "IT-sjef",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 952 34 567",
@@ -25,7 +25,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": true,
-    "flags": ["admin"]
+    "flags": ["admin"],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f",
+      "84a661c4-e949-4bd2-a560-ed7766fcaf2b"
+    ]
   },
   {
     "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
@@ -53,7 +58,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "c3d4e5f6-a7b8-9012-cdef-345678901234",
@@ -63,10 +72,10 @@
     "accountEnabled": true,
     "userType": "Member",
     "domain": "employee",
-    "department": "Økonomi",
-    "jobTitle": "Regnskapsfører",
+    "department": "Okonomi",
+    "jobTitle": "Regnskapsforer",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": null,
@@ -81,7 +90,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "d4e5f6a7-b8c9-0123-def0-456789012345",
@@ -92,9 +105,9 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Personal",
-    "jobTitle": "HR-rådgiver",
+    "jobTitle": "HR-radgiver",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 976 12 345",
@@ -109,7 +122,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": true,
-    "flags": ["admin"]
+    "flags": ["admin"],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f",
+      "84a661c4-e949-4bd2-a560-ed7766fcaf2b"
+    ]
   },
   {
     "id": "e5f6a7b8-c9d0-1234-ef01-567890123456",
@@ -120,7 +138,7 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Teknisk",
-    "jobTitle": "Ingeniør",
+    "jobTitle": "Ingenior",
     "companyName": "Modum kommune",
     "officeLocation": "Teknisk bygg",
     "city": "Vikersund",
@@ -137,7 +155,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": ["inactive"]
+    "flags": ["inactive"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "f6a7b8c9-d0e1-2345-f012-678901234567",
@@ -165,7 +187,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": ["disabled", "inactive"]
+    "flags": ["disabled", "inactive"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "a7b8c9d0-e1f2-3456-0123-789012345678",
@@ -178,7 +204,7 @@
     "department": "IT-avdeling",
     "jobTitle": "Systemadministrator",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 941 56 789",
@@ -193,7 +219,13 @@
     "onPremSync": true,
     "licenseCount": 4,
     "mfaRegistered": true,
-    "flags": ["admin"]
+    "flags": ["admin"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f",
+      "84a661c4-e949-4bd2-a560-ed7766fcaf2b"
+    ]
   },
   {
     "id": "b8c9d0e1-f2a3-4567-1234-890123456789",
@@ -221,7 +253,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": false,
-    "flags": ["no-mfa"]
+    "flags": ["no-mfa"],
+    "assignedSkuIds": [
+      "05e9a617-0261-4cee-bb44-138d3ef5d965",
+      "061f9ace-7d42-4136-88ac-31dc755f143f",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "c9d0e1f2-a3b4-5678-2345-901234567890",
@@ -232,7 +269,7 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Bygg og eiendom",
-    "jobTitle": "Driftsoperatør",
+    "jobTitle": "Driftsoperator",
     "companyName": "Modum kommune",
     "officeLocation": "Teknisk bygg",
     "city": "Geithus",
@@ -249,7 +286,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": false,
-    "flags": ["no-mfa"]
+    "flags": ["no-mfa"],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "d0e1f2a3-b4c5-6789-3456-012345678901",
@@ -260,7 +300,7 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Barnehage",
-    "jobTitle": "Barnehagelærer",
+    "jobTitle": "Barnehagelaerer",
     "companyName": "Modum kommune",
     "officeLocation": null,
     "city": "Vikersund",
@@ -277,7 +317,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "e1f2a3b4-c5d6-7890-4567-123456789012",
@@ -287,8 +331,8 @@
     "accountEnabled": false,
     "userType": "Member",
     "domain": "employee",
-    "department": "Vann og avløp",
-    "jobTitle": "Rørlegger",
+    "department": "Vann og avlop",
+    "jobTitle": "Rorlegger",
     "companyName": null,
     "officeLocation": null,
     "city": "Geithus",
@@ -305,7 +349,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": ["disabled", "inactive"]
+    "flags": ["disabled", "inactive"],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "f2a3b4c5-d6e7-8901-5678-234567890123",
@@ -333,7 +380,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "a3b4c5d6-e7f8-9012-6789-345678901234",
@@ -346,7 +397,7 @@
     "department": "Plan og bygg",
     "jobTitle": "Arkitekt",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": null,
     "country": null,
     "mobilePhone": null,
@@ -361,7 +412,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": false,
-    "flags": ["inactive", "no-mfa"]
+    "flags": ["inactive", "no-mfa"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "b4c5d6e7-f8a9-0123-7890-456789012345",
@@ -389,7 +445,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "c5d6e7f8-a9b0-1234-8901-567890123456",
@@ -400,9 +460,9 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Kommunikasjon",
-    "jobTitle": "Kommunikasjonsrådgiver",
+    "jobTitle": "Kommunikasjonsradgiver",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 911 34 567",
@@ -417,7 +477,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "d6e7f8a9-b0c1-2345-9012-678901234567",
@@ -445,7 +509,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": ["disabled"]
+    "flags": ["disabled"],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "e7f8a9b0-c1d2-3456-0123-789012345678",
@@ -455,10 +522,10 @@
     "accountEnabled": true,
     "userType": "Member",
     "domain": "employee",
-    "department": "Økonomi",
+    "department": "Okonomi",
     "jobTitle": "Controller",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 945 67 890",
@@ -473,7 +540,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "f8a9b0c1-d2e3-4567-1234-890123456789",
@@ -484,7 +556,7 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Skole",
-    "jobTitle": "Lærer",
+    "jobTitle": "Laerer",
     "companyName": "Modum kommune",
     "officeLocation": "Skolesenter",
     "city": "Vikersund",
@@ -501,7 +573,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "05e9a617-0261-4cee-bb44-138d3ef5d965",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "a9b0c1d2-e3f4-5678-2345-901234567890",
@@ -529,7 +605,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": true,
-    "flags": ["inactive"]
+    "flags": ["inactive"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4",
+      "84a661c4-e949-4bd2-a560-ed7766fcaf2b"
+    ]
   },
   {
     "id": "b0c1d2e3-f4a5-6789-3456-012345678901",
@@ -540,9 +621,9 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Personal",
-    "jobTitle": "Personalrådgiver",
+    "jobTitle": "Personalradgiver",
     "companyName": "Modum kommune",
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 923 45 678",
@@ -557,7 +638,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "c1d2e3f4-a5b6-7890-4567-123456789012",
@@ -585,7 +670,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": false,
-    "flags": ["no-mfa"]
+    "flags": ["no-mfa"],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "d2e3f4a5-b6c7-8901-5678-234567890123",
@@ -613,7 +701,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f",
+      "84a661c4-e949-4bd2-a560-ed7766fcaf2b"
+    ]
   },
   {
     "id": "e3f4a5b6-c7d8-9012-6789-345678901234",
@@ -641,7 +734,12 @@
     "onPremSync": true,
     "licenseCount": 3,
     "mfaRegistered": true,
-    "flags": ["disabled", "inactive"]
+    "flags": ["disabled", "inactive"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "f4a5b6c7-d8e9-0123-7890-456789012345",
@@ -652,7 +750,7 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Kultur",
-    "jobTitle": "Kulturrådgiver",
+    "jobTitle": "Kulturradgiver",
     "companyName": "Modum kommune",
     "officeLocation": "Kulturhuset",
     "city": "Vikersund",
@@ -669,7 +767,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "a5b6c7d8-e9f0-1234-8901-567890123456",
@@ -697,7 +799,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "b6c7d8e9-f0a1-2345-9012-678901234567",
@@ -710,7 +815,7 @@
     "department": "Plan og bygg",
     "jobTitle": "Saksbehandler",
     "companyName": null,
-    "officeLocation": "Rådhuset",
+    "officeLocation": "Radhuset",
     "city": "Vikersund",
     "country": "Norway",
     "mobilePhone": "+47 912 89 012",
@@ -725,7 +830,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": false,
-    "flags": ["inactive", "no-mfa"]
+    "flags": ["inactive", "no-mfa"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "c7d8e9f0-a1b2-3456-0123-789012345678",
@@ -735,7 +844,7 @@
     "accountEnabled": true,
     "userType": "Member",
     "domain": "employee",
-    "department": "Vann og avløp",
+    "department": "Vann og avlop",
     "jobTitle": "Tekniker",
     "companyName": "Modum kommune",
     "officeLocation": "Teknisk bygg",
@@ -753,7 +862,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "d8e9f0a1-b2c3-4567-1234-890123456789",
@@ -764,7 +876,7 @@
     "userType": "Member",
     "domain": "employee",
     "department": "Sosial",
-    "jobTitle": "Rådgiver",
+    "jobTitle": "Radgiver",
     "companyName": "Modum kommune",
     "officeLocation": "Helsesenteret",
     "city": "Vikersund",
@@ -781,7 +893,11 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ]
   },
   {
     "id": "e9f0a1b2-c3d4-5678-2345-901234567890",
@@ -809,11 +925,15 @@
     "onPremSync": true,
     "licenseCount": 2,
     "mfaRegistered": false,
-    "flags": ["no-mfa"]
+    "flags": ["no-mfa"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ]
   },
   {
     "id": "f0a1b2c3-d4e5-6789-3456-012345678901",
-    "displayName": "Nina Ødegård",
+    "displayName": "Nina Odegard",
     "userPrincipalName": "nina.odegard@modum.kommune.no",
     "mail": "nina.odegard@modum.kommune.no",
     "accountEnabled": true,
@@ -837,7 +957,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "4b9405b0-7788-4568-add1-99614e613b69"
+    ]
   },
   {
     "id": "01a2b3c4-d5e6-7890-4567-123456789012",
@@ -865,7 +988,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "12b3c4d5-e6f7-8901-5678-234567890123",
@@ -893,7 +1019,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "94763226-9b3c-4e75-a931-5c89701abe66"
+    ]
   },
   {
     "id": "23c4d5e6-f7a8-9012-6789-345678901234",
@@ -921,7 +1050,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "34d5e6f7-a8b9-0123-7890-456789012345",
@@ -949,17 +1081,20 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "45e6f7a8-b9c0-1234-8901-567890123456",
-    "displayName": "William Nygård",
+    "displayName": "William Nygard",
     "userPrincipalName": "william.nygard@skole.modum.kommune.no",
     "mail": "william.nygard@skole.modum.kommune.no",
     "accountEnabled": true,
     "userType": "Member",
     "domain": "student",
-    "department": "Åmot Barneskole",
+    "department": "Amot Barneskole",
     "jobTitle": "Elev",
     "companyName": null,
     "officeLocation": null,
@@ -977,7 +1112,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "56f7a8b9-c0d1-2345-9012-678901234567",
@@ -987,7 +1125,7 @@
     "accountEnabled": true,
     "userType": "Member",
     "domain": "student",
-    "department": "Åmot Barneskole",
+    "department": "Amot Barneskole",
     "jobTitle": "Elev",
     "companyName": null,
     "officeLocation": null,
@@ -1005,7 +1143,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "67a8b9c0-d1e2-3456-0123-789012345678",
@@ -1033,7 +1174,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": ["inactive"]
+    "flags": ["inactive"],
+    "assignedSkuIds": [
+      "94763226-9b3c-4e75-a931-5c89701abe66"
+    ]
   },
   {
     "id": "78b9c0d1-e2f3-4567-1234-890123456789",
@@ -1061,7 +1205,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": ["disabled", "inactive"]
+    "flags": ["disabled", "inactive"],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "89c0d1e2-f3a4-5678-2345-901234567890",
@@ -1089,7 +1236,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "90d1e2f3-a4b5-6789-3456-012345678901",
@@ -1099,7 +1249,7 @@
     "accountEnabled": true,
     "userType": "Member",
     "domain": "student",
-    "department": "Åmot Barneskole",
+    "department": "Amot Barneskole",
     "jobTitle": "Elev",
     "companyName": null,
     "officeLocation": null,
@@ -1117,7 +1267,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "01e2f3a4-b5c6-7890-4567-123456789012",
@@ -1145,7 +1298,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "94763226-9b3c-4e75-a931-5c89701abe66"
+    ]
   },
   {
     "id": "12f3a4b5-c6d7-8901-5678-234567890123",
@@ -1173,7 +1329,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "23a4b5c6-d7e8-9012-6789-345678901234",
@@ -1201,11 +1360,14 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "94763226-9b3c-4e75-a931-5c89701abe66"
+    ]
   },
   {
     "id": "34b5c6d7-e8f9-0123-7890-456789012345",
-    "displayName": "Ella Sørensen",
+    "displayName": "Ella Sorensen",
     "userPrincipalName": "ella.sorensen@skole.modum.kommune.no",
     "mail": "ella.sorensen@skole.modum.kommune.no",
     "accountEnabled": true,
@@ -1229,7 +1391,10 @@
     "onPremSync": true,
     "licenseCount": 1,
     "mfaRegistered": true,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "18250162-5d87-4436-a834-d795c15c80f3"
+    ]
   },
   {
     "id": "45c6d7e8-f9a0-1234-8901-567890123456",
@@ -1257,7 +1422,8 @@
     "onPremSync": false,
     "licenseCount": 0,
     "mfaRegistered": false,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": []
   },
   {
     "id": "56d7e8f9-a0b1-2345-9012-678901234567",
@@ -1285,7 +1451,8 @@
     "onPremSync": false,
     "licenseCount": 0,
     "mfaRegistered": false,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": []
   },
   {
     "id": "67e8f9a0-b1c2-3456-0123-789012345678",
@@ -1313,7 +1480,8 @@
     "onPremSync": false,
     "licenseCount": 0,
     "mfaRegistered": false,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": []
   },
   {
     "id": "78f9a0b1-c2d3-4567-1234-890123456789",
@@ -1341,7 +1509,8 @@
     "onPremSync": false,
     "licenseCount": 0,
     "mfaRegistered": false,
-    "flags": ["disabled", "inactive"]
+    "flags": ["disabled", "inactive"],
+    "assignedSkuIds": []
   },
   {
     "id": "89a0b1c2-d3e4-5678-2345-901234567890",
@@ -1369,6 +1538,9 @@
     "onPremSync": false,
     "licenseCount": 1,
     "mfaRegistered": false,
-    "flags": []
+    "flags": [],
+    "assignedSkuIds": [
+      "f30db892-07e9-47e9-837c-80727f46fd3d"
+    ]
   }
 ]

@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-02-05
+
+### Added
+- **Organization Hierarchy page**: Management hierarchy analysis with span of control metrics, orphan user detection, and department breakdown
+- **License Overlap Analysis page**: Per-user license overlap detection identifying users with redundant license assignments (E3+E5, AAD P1+P2, etc.)
+- **Collapsible navigation groups**: Sidebar reorganized into logical categories (Identity, Licensing, Security, Endpoints, Collaboration, Reports, Audit) with expand/collapse functionality
+- Span of control analysis: buckets managers by direct report count (1-3, 4-7, 8-12, 13+)
+- Orphan user detection: identifies users without managers who are not managers themselves
+- License overlap rules: configurable detection for E3/E5, AAD P1/P2, Business Basic/Standard, and EMS E3/E5
+- Department-level overlap breakdown: see which departments have the most redundant licenses
+- Navigation state persistence: collapsed/expanded state saved to localStorage
+
+### Changed
+- Sidebar navigation restructured into 7 collapsible groups
+- Sidebar footer now displays version number (v1.5.0)
+- Sample user data now includes `assignedSkuIds` for overlap detection testing
+
 ## [1.4.0] - 2026-02-05
 
 ### Added

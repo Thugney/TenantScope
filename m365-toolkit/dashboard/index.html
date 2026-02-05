@@ -19,6 +19,13 @@ License: MIT
     <!-- HEADER BAR                                                          -->
     <!-- ================================================================== -->
     <header class="header">
+        <button class="mobile-menu-btn" id="mobile-menu-btn" aria-label="Toggle menu">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="3" y1="6" x2="21" y2="6"></line>
+                <line x1="3" y1="12" x2="21" y2="12"></line>
+                <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+        </button>
         <div class="header-brand">
             <h1 class="header-title">TenantScope</h1>
             <span class="header-subtitle" id="header-subtitle">Dashboard</span>
@@ -37,109 +44,184 @@ License: MIT
         <!-- Sidebar Navigation -->
         <nav class="sidebar" id="sidebar">
             <ul class="nav-list">
+                <!-- Overview -->
                 <li class="nav-item">
                     <a href="#overview" class="nav-link active" data-page="overview">
                         <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg></span>
                         <span class="nav-text">Overview</span>
                     </a>
                 </li>
-                <li class="nav-item">
-                    <a href="#users" class="nav-link" data-page="users">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
-                        <span class="nav-text">Users</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#licenses" class="nav-link" data-page="licenses">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg></span>
-                        <span class="nav-text">Licenses</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#guests" class="nav-link" data-page="guests">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg></span>
-                        <span class="nav-text">Guests</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#security" class="nav-link" data-page="security">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
-                        <span class="nav-text">Security</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#conditional-access" class="nav-link" data-page="conditional-access">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
-                        <span class="nav-text">Conditional Access</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#devices" class="nav-link" data-page="devices">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></span>
-                        <span class="nav-text">Devices</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#enterprise-apps" class="nav-link" data-page="enterprise-apps">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></span>
-                        <span class="nav-text">Enterprise Apps</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#lifecycle" class="nav-link" data-page="lifecycle">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></span>
-                        <span class="nav-text">Lifecycle</span>
-                    </a>
+
+                <!-- IDENTITY GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="identity">
+                        <span class="nav-group-text">Identity</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="identity">
+                        <li class="nav-item">
+                            <a href="#users" class="nav-link" data-page="users">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                                <span class="nav-text">Users</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#organization" class="nav-link" data-page="organization">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="3"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="12" x2="6" y2="18"></line><line x1="12" y1="12" x2="18" y2="18"></line><circle cx="6" cy="19" r="2"></circle><circle cx="18" cy="19" r="2"></circle></svg></span>
+                                <span class="nav-text">Organization</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#guests" class="nav-link" data-page="guests">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><line x1="20" y1="8" x2="20" y2="14"></line><line x1="23" y1="11" x2="17" y2="11"></line></svg></span>
+                                <span class="nav-text">Guests</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#lifecycle" class="nav-link" data-page="lifecycle">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"></polyline><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path></svg></span>
+                                <span class="nav-text">Lifecycle</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
 
-                <li class="nav-item">
-                    <a href="#teams" class="nav-link" data-page="teams">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
-                        <span class="nav-text">Teams</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#sharepoint" class="nav-link" data-page="sharepoint">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span>
-                        <span class="nav-text">SharePoint</span>
-                    </a>
-                </li>
-
-                <li class="nav-separator"></li>
-
-                <li class="nav-item">
-                    <a href="#report" class="nav-link" data-page="report">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></span>
-                        <span class="nav-text">Report</span>
-                    </a>
-                </li>
-
-                <li class="nav-item">
-                    <a href="#app-usage" class="nav-link" data-page="app-usage">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></span>
-                        <span class="nav-text">App Usage</span>
-                    </a>
-                </li>
-                <li class="nav-item">
-                    <a href="#data-quality" class="nav-link" data-page="data-quality">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
-                        <span class="nav-text">Data Quality</span>
-                    </a>
+                <!-- LICENSING GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="licensing">
+                        <span class="nav-group-text">Licensing</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="licensing">
+                        <li class="nav-item">
+                            <a href="#licenses" class="nav-link" data-page="licenses">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg></span>
+                                <span class="nav-text">Licenses</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#license-analysis" class="nav-link" data-page="license-analysis">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83"></path><circle cx="12" cy="12" r="4"></circle></svg></span>
+                                <span class="nav-text">Overlap Analysis</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
 
-                <li class="nav-separator"></li>
-
-                <li class="nav-item">
-                    <a href="#audit-logs" class="nav-link" data-page="audit-logs">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>
-                        <span class="nav-text">Audit Logs</span>
-                    </a>
+                <!-- SECURITY GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="security">
+                        <span class="nav-group-text">Security</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="security">
+                        <li class="nav-item">
+                            <a href="#security" class="nav-link" data-page="security">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg></span>
+                                <span class="nav-text">Security</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#conditional-access" class="nav-link" data-page="conditional-access">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M9 12l2 2 4-4"></path></svg></span>
+                                <span class="nav-text">Conditional Access</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#pim" class="nav-link" data-page="pim">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span>
+                                <span class="nav-text">PIM</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
-                <li class="nav-item">
-                    <a href="#pim" class="nav-link" data-page="pim">
-                        <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path><path d="M12 8v4"></path><path d="M12 16h.01"></path></svg></span>
-                        <span class="nav-text">PIM</span>
-                    </a>
+
+                <!-- ENDPOINTS GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="endpoints">
+                        <span class="nav-group-text">Endpoints</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="endpoints">
+                        <li class="nav-item">
+                            <a href="#devices" class="nav-link" data-page="devices">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg></span>
+                                <span class="nav-text">Devices</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#enterprise-apps" class="nav-link" data-page="enterprise-apps">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="7" width="20" height="14" rx="2" ry="2"></rect><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"></path></svg></span>
+                                <span class="nav-text">Enterprise Apps</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- COLLABORATION GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="collaboration">
+                        <span class="nav-group-text">Collaboration</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="collaboration">
+                        <li class="nav-item">
+                            <a href="#teams" class="nav-link" data-page="teams">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg></span>
+                                <span class="nav-text">Teams</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#sharepoint" class="nav-link" data-page="sharepoint">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg></span>
+                                <span class="nav-text">SharePoint</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- REPORTS GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="reports">
+                        <span class="nav-group-text">Reports</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="reports">
+                        <li class="nav-item">
+                            <a href="#report" class="nav-link" data-page="report">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg></span>
+                                <span class="nav-text">Executive Report</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#app-usage" class="nav-link" data-page="app-usage">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="9" x2="21" y2="9"></line><line x1="9" y1="21" x2="9" y2="9"></line></svg></span>
+                                <span class="nav-text">App Usage</span>
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#data-quality" class="nav-link" data-page="data-quality">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></span>
+                                <span class="nav-text">Data Quality</span>
+                            </a>
+                        </li>
+                    </ul>
+                </li>
+
+                <!-- AUDIT GROUP -->
+                <li class="nav-group">
+                    <button class="nav-group-toggle" data-group="audit">
+                        <span class="nav-group-text">Audit</span>
+                        <svg class="nav-group-chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                    </button>
+                    <ul class="nav-group-items" data-group="audit">
+                        <li class="nav-item">
+                            <a href="#audit-logs" class="nav-link" data-page="audit-logs">
+                                <span class="nav-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></span>
+                                <span class="nav-text">Audit Logs</span>
+                            </a>
+                        </li>
+                    </ul>
                 </li>
             </ul>
 
@@ -150,10 +232,13 @@ License: MIT
 
             <!-- Author Credit -->
             <div class="sidebar-footer">
-                <span class="sidebar-version">v1.4.0</span>
+                <span class="sidebar-version">v1.5.0</span>
                 <a href="https://github.com/Thugney/-M365-TENANT-TOOLKIT" class="sidebar-author" target="_blank" rel="noopener">by Robel</a>
             </div>
         </nav>
+
+        <!-- Mobile sidebar overlay (closes sidebar when clicked) -->
+        <div class="sidebar-overlay" id="sidebar-overlay"></div>
 
         <!-- Main Content Area -->
         <main class="content">
@@ -216,6 +301,8 @@ License: MIT
     <script src="js/page-data-quality.js"></script>
     <script src="js/page-app-usage.js"></script>
     <script src="js/page-conditional-access.js"></script>
+    <script src="js/page-organization.js"></script>
+    <script src="js/page-license-analysis.js"></script>
     <script src="js/app.js"></script>
 </body>
 </html>
