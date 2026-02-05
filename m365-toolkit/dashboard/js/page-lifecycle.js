@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * TenantScope
- * Author: Robe (https://github.com/Thugney)
+ * Author: Robel (https://github.com/Thugney)
  * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
  * License: MIT
  * ============================================================================
@@ -13,6 +13,8 @@
  * - Onboarding Gaps (new users with missing setup)
  * - Role Hygiene (inactive admins, admins without MFA)
  * - Guest Cleanup (stale guests, pending invitations)
+ * - Teams Governance (ownerless teams, inactive teams with guest access)
+ * - SharePoint Governance (anonymous links, inactive external sites, missing labels)
  */
 
 const PageLifecycle = (function() {
@@ -24,9 +26,12 @@ const PageLifecycle = (function() {
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        const users = DataLoader.getData('users');
+        var allUsers = DataLoader.getData('users');
+        var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
         const guests = DataLoader.getData('guests');
         const adminRoles = DataLoader.getData('adminRoles');
+        const teams = DataLoader.getData('teams');
+        const spSites = DataLoader.getData('sharepointSites');
 
         // Calculate offboarding issues
         const disabledWithLicenses = users.filter(u => !u.accountEnabled && u.licenseCount > 0);
@@ -87,11 +92,24 @@ const PageLifecycle = (function() {
         const pendingGuests = guests.filter(g => g.invitationState === 'PendingAcceptance');
         const neverSignedInGuests = guests.filter(g => g.neverSignedIn && g.invitationState === 'Accepted');
 
+        // Calculate teams governance issues
+        const ownerlessTeams = teams.filter(function(t) { return t.hasNoOwner; });
+        const inactiveTeamsWithGuests = teams.filter(function(t) { return t.isInactive && t.hasGuests; });
+        const teamsIssueCount = ownerlessTeams.length + inactiveTeamsWithGuests.length;
+
+        // Calculate SharePoint governance issues (non-personal sites only)
+        const spNonPersonal = spSites.filter(function(s) { return !s.isPersonalSite; });
+        const sitesWithAnonymousLinks = spNonPersonal.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; });
+        const externalInactiveSites = spNonPersonal.filter(function(s) { return s.isInactive && s.hasExternalSharing; });
+        const sitesWithoutLabels = spNonPersonal.filter(function(s) { return !s.sensitivityLabelId; });
+        const spGovernanceCount = sitesWithAnonymousLinks.length + externalInactiveSites.length + sitesWithoutLabels.length;
+
         // Calculate total issues
         const totalIssues = disabledWithLicenses.length + disabledAdmins.length +
                            inactiveStillEnabled.length + newUsersNoSignIn.length +
                            inactiveAdmins.length + adminsNoMfa.length +
-                           staleGuests.length + pendingGuests.length;
+                           staleGuests.length + pendingGuests.length +
+                           teamsIssueCount + spGovernanceCount;
 
         container.innerHTML = `
             <div class="page-header">
@@ -116,6 +134,14 @@ const PageLifecycle = (function() {
                 <div class="card ${staleGuests.length > 0 ? 'card-warning' : ''}">
                     <div class="card-label">Guest Cleanup</div>
                     <div class="card-value">${staleGuests.length + pendingGuests.length}</div>
+                </div>
+                <div class="card ${teamsIssueCount > 0 ? 'card-warning' : ''}">
+                    <div class="card-label">Teams Governance</div>
+                    <div class="card-value ${teamsIssueCount > 0 ? 'warning' : ''}">${teamsIssueCount}</div>
+                </div>
+                <div class="card ${spGovernanceCount > 0 ? 'card-warning' : ''}">
+                    <div class="card-label">SharePoint Governance</div>
+                    <div class="card-value ${spGovernanceCount > 0 ? 'warning' : ''}">${spGovernanceCount}</div>
                 </div>
             </div>
 
@@ -185,6 +211,41 @@ const PageLifecycle = (function() {
                 <h4 class="mb-sm mt-lg">Pending Invitations (${pendingGuests.length})</h4>
                 <div id="guest-pending-table"></div>
             </div>
+
+            <!-- Teams Governance Section -->
+            <div class="section">
+                <div class="section-header">
+                    <div>
+                        <h3 class="section-title">Teams Governance</h3>
+                        <p class="section-subtitle">Teams requiring ownership or access review</p>
+                    </div>
+                </div>
+
+                <h4 class="mb-sm">Ownerless Teams (${ownerlessTeams.length})</h4>
+                <div id="teams-ownerless-table"></div>
+
+                <h4 class="mb-sm mt-lg">Inactive Teams with Guest Access (${inactiveTeamsWithGuests.length})</h4>
+                <div id="teams-inactive-guests-table"></div>
+            </div>
+
+            <!-- SharePoint Governance Section -->
+            <div class="section">
+                <div class="section-header">
+                    <div>
+                        <h3 class="section-title">SharePoint Governance</h3>
+                        <p class="section-subtitle">Sites with sharing exposure, missing labels, or inactive external access</p>
+                    </div>
+                </div>
+
+                <h4 class="mb-sm">Sites with Anonymous Links (${sitesWithAnonymousLinks.length})</h4>
+                <div id="sp-anon-links-table"></div>
+
+                <h4 class="mb-sm mt-lg">Inactive Sites with External Sharing (${externalInactiveSites.length})</h4>
+                <div id="sp-external-inactive-table"></div>
+
+                <h4 class="mb-sm mt-lg">Sites Without Sensitivity Labels (${sitesWithoutLabels.length})</h4>
+                <div id="sp-no-labels-table"></div>
+            </div>
         `;
 
         // Render charts
@@ -198,7 +259,9 @@ const PageLifecycle = (function() {
                     { value: disabledWithLicenses.length + disabledAdmins.length, label: 'Offboarding', color: C.orange },
                     { value: newUsersNoSignIn.length + newUsersNoMfa.length, label: 'Onboarding', color: C.blue },
                     { value: inactiveAdmins.length + adminsNoMfa.length, label: 'Role Hygiene', color: C.red },
-                    { value: staleGuests.length + pendingGuests.length, label: 'Guest Cleanup', color: C.yellow }
+                    { value: staleGuests.length + pendingGuests.length, label: 'Guest Cleanup', color: C.yellow },
+                    { value: teamsIssueCount, label: 'Teams', color: C.purple },
+                    { value: spGovernanceCount, label: 'SharePoint', color: C.teal }
                 ],
                 String(totalIssues), 'total issues'
             ));
@@ -313,6 +376,73 @@ const PageLifecycle = (function() {
                 { key: 'mail', label: 'Email', className: 'cell-truncate' },
                 { key: 'sourceDomain', label: 'Source' },
                 { key: 'createdDateTime', label: 'Invited', formatter: Tables.formatters.date }
+            ],
+            pageSize: 10
+        });
+
+        // Render teams governance tables
+        Tables.render({
+            containerId: 'teams-ownerless-table',
+            data: ownerlessTeams,
+            columns: [
+                { key: 'displayName', label: 'Team Name' },
+                { key: 'visibility', label: 'Visibility' },
+                { key: 'memberCount', label: 'Members', className: 'cell-right' },
+                { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+                { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays }
+            ],
+            pageSize: 10
+        });
+
+        Tables.render({
+            containerId: 'teams-inactive-guests-table',
+            data: inactiveTeamsWithGuests,
+            columns: [
+                { key: 'displayName', label: 'Team Name' },
+                { key: 'guestCount', label: 'Guests', className: 'cell-right' },
+                { key: 'memberCount', label: 'Members', className: 'cell-right' },
+                { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+                { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays }
+            ],
+            pageSize: 10
+        });
+
+        // Render SharePoint governance tables
+        Tables.render({
+            containerId: 'sp-anon-links-table',
+            data: sitesWithAnonymousLinks,
+            columns: [
+                { key: 'displayName', label: 'Site Name' },
+                { key: 'anonymousLinkCount', label: 'Anonymous Links', className: 'cell-right' },
+                { key: 'guestLinkCount', label: 'Guest Links', className: 'cell-right' },
+                { key: 'externalSharing', label: 'Sharing Policy' },
+                { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date }
+            ],
+            pageSize: 10
+        });
+
+        Tables.render({
+            containerId: 'sp-external-inactive-table',
+            data: externalInactiveSites,
+            columns: [
+                { key: 'displayName', label: 'Site Name' },
+                { key: 'externalSharing', label: 'Sharing Policy' },
+                { key: 'totalSharingLinks', label: 'Total Links', className: 'cell-right' },
+                { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+                { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right' }
+            ],
+            pageSize: 10
+        });
+
+        Tables.render({
+            containerId: 'sp-no-labels-table',
+            data: sitesWithoutLabels,
+            columns: [
+                { key: 'displayName', label: 'Site Name' },
+                { key: 'template', label: 'Template' },
+                { key: 'ownerDisplayName', label: 'Owner' },
+                { key: 'externalSharing', label: 'Sharing Policy' },
+                { key: 'fileCount', label: 'Files', className: 'cell-right' }
             ],
             pageSize: 10
         });

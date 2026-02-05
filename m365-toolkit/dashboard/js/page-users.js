@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * TenantScope
- * Author: Robe (https://github.com/Thugney)
+ * Author: Robel (https://github.com/Thugney)
  * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
  * License: MIT
  * ============================================================================
@@ -22,7 +22,8 @@ const PageUsers = (function() {
      * Applies current filters and re-renders the table.
      */
     function applyFilters() {
-        const users = DataLoader.getData('users');
+        var allUsers = DataLoader.getData('users');
+        var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
 
         // Build filter configuration
         const filterConfig = {

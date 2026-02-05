@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * TenantScope
- * Author: Robe (https://github.com/Thugney)
+ * Author: Robel (https://github.com/Thugney)
  * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
  * License: MIT
  * ============================================================================
@@ -41,6 +41,10 @@ const DataLoader = (function() {
         enterpriseApps: [],
         auditLogs: [],
         pimActivity: [],
+        teams: [],
+        sharepointSites: [],
+        trendHistory: [],
+        secureScore: null,
         metadata: null
     };
 
@@ -60,6 +64,10 @@ const DataLoader = (function() {
         enterpriseApps: 'data/enterprise-apps.json',
         auditLogs: 'data/audit-logs.json',
         pimActivity: 'data/pim-activity.json',
+        teams: 'data/teams.json',
+        sharepointSites: 'data/sharepoint-sites.json',
+        trendHistory: 'data/trend-history.json',
+        secureScore: 'data/secure-score.json',
         metadata: 'data/collection-metadata.json'
     };
 
@@ -158,7 +166,7 @@ const DataLoader = (function() {
                     console.log('DataLoader: Fetching data files via HTTP...');
                     const loadPromises = Object.entries(dataFiles).map(async ([key, path]) => {
                         const data = await fetchJSON(path);
-                        dataStore[key] = data || (key === 'metadata' ? null : []);
+                        dataStore[key] = data || ((key === 'metadata' || key === 'secureScore') ? null : []);
                     });
                     await Promise.all(loadPromises);
                 }
@@ -171,7 +179,8 @@ const DataLoader = (function() {
                 // Check if any meaningful data was loaded
                 const hasData = dataStore.users.length > 0 ||
                     dataStore.devices.length > 0 ||
-                    dataStore.guests.length > 0;
+                    dataStore.guests.length > 0 ||
+                    dataStore.teams.length > 0;
 
                 isLoaded = true;
                 loadError = null;
@@ -267,6 +276,7 @@ const DataLoader = (function() {
             const guests = dataStore.guests || [];
             const devices = dataStore.devices || [];
             const alerts = dataStore.defenderAlerts || [];
+            const licenseSkus = dataStore.licenseSkus || [];
 
             const compliantDevices = devices.filter(d => d.complianceState === 'compliant').length;
             const staleDevices = devices.filter(d => d.isStale).length;
@@ -292,7 +302,34 @@ const DataLoader = (function() {
                 unknownDevices: devices.filter(d => d.complianceState !== 'compliant' && d.complianceState !== 'noncompliant').length,
                 staleDevices: staleDevices,
                 compliancePct: devices.length > 0 ? Math.round((compliantDevices / devices.length) * 100) : 0,
-                activeAlerts: alerts.filter(a => a.status !== 'resolved').length
+                activeAlerts: alerts.filter(a => a.status !== 'resolved').length,
+
+                // Teams
+                totalTeams: (dataStore.teams || []).length,
+                activeTeams: (dataStore.teams || []).filter(t => !t.isInactive && !t.isArchived).length,
+                inactiveTeams: (dataStore.teams || []).filter(t => t.isInactive).length,
+                ownerlessTeams: (dataStore.teams || []).filter(t => t.hasNoOwner).length,
+                teamsWithGuests: (dataStore.teams || []).filter(t => t.hasGuests).length,
+                archivedTeams: (dataStore.teams || []).filter(t => t.isArchived).length,
+                publicTeams: (dataStore.teams || []).filter(t => t.visibility === 'Public').length,
+                privateTeams: (dataStore.teams || []).filter(t => t.visibility === 'Private').length,
+
+                // SharePoint
+                totalSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite).length,
+                activeSites: (dataStore.sharepointSites || []).filter(s => !s.isInactive && !s.isPersonalSite).length,
+                inactiveSites: (dataStore.sharepointSites || []).filter(s => s.isInactive && !s.isPersonalSite).length,
+                totalStorageGB: Math.round(((dataStore.sharepointSites || []).reduce((sum, s) => sum + (s.storageUsedGB || 0), 0)) * 10) / 10,
+                groupConnectedSites: (dataStore.sharepointSites || []).filter(s => s.isGroupConnected).length,
+                highStorageSites: (dataStore.sharepointSites || []).filter(s => (s.storageUsedGB || 0) >= 20).length,
+                externalSharingSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && s.hasExternalSharing).length,
+                anonymousLinkSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && (s.anonymousLinkCount || 0) > 0).length,
+                noLabelSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && !s.sensitivityLabelId).length,
+
+                // License costs
+                totalWasteMonthlyCost: licenseSkus.reduce((sum, l) => sum + (l.wasteMonthlyCost || 0), 0),
+                totalWasteAnnualCost: licenseSkus.reduce((sum, l) => sum + (l.wasteMonthlyCost || 0), 0) * 12,
+                totalEstimatedMonthlyCost: licenseSkus.reduce((sum, l) => sum + (l.estimatedMonthlyCost || 0), 0),
+                currency: (licenseSkus.find(l => l.currency) || {}).currency || 'NOK'
             };
         },
 

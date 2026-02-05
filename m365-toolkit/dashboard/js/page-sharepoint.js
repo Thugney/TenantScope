@@ -1,0 +1,473 @@
+/**
+ * ============================================================================
+ * TenantScope
+ * Author: Robel (https://github.com/Thugney)
+ * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+ * License: MIT
+ * ============================================================================
+ *
+ * PAGE: SHAREPOINT
+ *
+ * Renders the SharePoint page showing site usage, storage consumption,
+ * activity, and governance status.
+ *
+ * Note: innerHTML usage follows existing dashboard patterns. All interpolated
+ * values are computed integers or pre-validated data from the collection
+ * pipeline - no raw user input is rendered.
+ */
+
+const PageSharePoint = (function() {
+    'use strict';
+
+    /**
+     * Applies current filters and re-renders the table.
+     */
+    function applyFilters() {
+        var sites = DataLoader.getData('sharepointSites');
+
+        // Build filter configuration
+        var filterConfig = {
+            search: Filters.getValue('sp-search'),
+            searchFields: ['displayName', 'url', 'ownerPrincipalName', 'ownerDisplayName'],
+            exact: {}
+        };
+
+        // Template filter
+        var templateFilter = Filters.getValue('sp-template');
+        if (templateFilter && templateFilter !== 'all') {
+            filterConfig.exact.template = templateFilter;
+        }
+
+        // Apply filters
+        var filteredData = Filters.apply(sites, filterConfig);
+
+        // Status filter
+        var statusFilter = Filters.getValue('sp-status');
+        if (statusFilter && statusFilter !== 'all') {
+            if (statusFilter === 'active') {
+                filteredData = filteredData.filter(function(s) { return !s.isInactive; });
+            } else if (statusFilter === 'inactive') {
+                filteredData = filteredData.filter(function(s) { return s.isInactive; });
+            }
+        }
+
+        // Sharing filter
+        var sharingFilter = Filters.getValue('sp-sharing');
+        if (sharingFilter && sharingFilter !== 'all') {
+            if (sharingFilter === 'external') {
+                filteredData = filteredData.filter(function(s) { return s.hasExternalSharing; });
+            } else if (sharingFilter === 'anonymous') {
+                filteredData = filteredData.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; });
+            } else if (sharingFilter === 'internal') {
+                filteredData = filteredData.filter(function(s) { return !s.hasExternalSharing; });
+            }
+        }
+
+        // Personal sites toggle
+        var showPersonal = Filters.getValue('sp-personal');
+        if (!showPersonal) {
+            filteredData = filteredData.filter(function(s) { return !s.isPersonalSite; });
+        }
+
+        renderTable(filteredData);
+    }
+
+    /**
+     * Renders the SharePoint sites table.
+     *
+     * @param {Array} data - Filtered site data
+     */
+    function renderTable(data) {
+        Tables.render({
+            containerId: 'sp-table',
+            data: data,
+            columns: [
+                { key: 'displayName', label: 'Site Name' },
+                { key: 'template', label: 'Template', formatter: formatTemplate },
+                { key: 'ownerDisplayName', label: 'Owner' },
+                { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right', formatter: formatStorage },
+                { key: 'fileCount', label: 'Files', className: 'cell-right' },
+                { key: 'activeFileCount', label: 'Active Files', className: 'cell-right' },
+                { key: 'externalSharing', label: 'Ext. Sharing', formatter: formatExternalSharing },
+                { key: 'anonymousLinkCount', label: 'Anon Links', className: 'cell-right', formatter: formatLinkCount },
+                { key: 'guestLinkCount', label: 'Guest Links', className: 'cell-right', formatter: formatLinkCount },
+                { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+                { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+                { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
+            ],
+            pageSize: 50,
+            onRowClick: showSiteDetails,
+            getRowClass: function(row) {
+                if (row.isInactive) return 'row-muted';
+                if ((row.storageUsedGB || 0) >= 20) return 'row-warning';
+                return '';
+            }
+        });
+    }
+
+    /**
+     * Formats site template with badge.
+     */
+    function formatTemplate(value) {
+        var map = {
+            'Group':         { cls: 'badge-info', label: 'Team Site' },
+            'Communication': { cls: 'badge-success', label: 'Communication' },
+            'OneDrive':      { cls: 'badge-neutral', label: 'OneDrive' },
+            'Other':         { cls: 'badge-neutral', label: 'Other' }
+        };
+        var info = map[value] || { cls: 'badge-neutral', label: value || 'Unknown' };
+        return '<span class="badge ' + info.cls + '">' + info.label + '</span>';
+    }
+
+    /**
+     * Formats storage with color coding.
+     */
+    function formatStorage(value) {
+        if (value === null || value === undefined) {
+            return '<span class="text-muted">--</span>';
+        }
+        var colorClass = '';
+        if (value >= 20) colorClass = 'text-critical font-bold';
+        else if (value >= 10) colorClass = 'text-warning';
+        return '<span class="' + colorClass + '">' + value + '</span>';
+    }
+
+    /**
+     * Formats external sharing status with severity badge.
+     */
+    function formatExternalSharing(value) {
+        if (!value || value === 'Disabled' || value === 'None') {
+            return '<span class="badge badge-success">Internal Only</span>';
+        }
+        if (value === 'Anyone') {
+            return '<span class="badge badge-critical">Anyone</span>';
+        }
+        if (value === 'NewAndExistingGuests') {
+            return '<span class="badge badge-warning">New + Guests</span>';
+        }
+        if (value === 'ExistingGuests') {
+            return '<span class="badge badge-info">Guests Only</span>';
+        }
+        return '<span class="badge badge-neutral">' + value + '</span>';
+    }
+
+    /**
+     * Formats link count with color coding.
+     */
+    function formatLinkCount(value) {
+        var count = value || 0;
+        if (count === 0) {
+            return '<span class="text-muted">0</span>';
+        }
+        if (count >= 5) {
+            return '<span class="text-critical font-bold">' + count + '</span>';
+        }
+        if (count >= 1) {
+            return '<span class="text-warning">' + count + '</span>';
+        }
+        return String(count);
+    }
+
+    /**
+     * Shows detailed modal for a site.
+     *
+     * @param {object} site - SharePoint site data object
+     */
+    function showSiteDetails(site) {
+        var modal = document.getElementById('modal-overlay');
+        var title = document.getElementById('modal-title');
+        var body = document.getElementById('modal-body');
+
+        title.textContent = site.displayName;
+
+        // All values below are pre-validated from the collection pipeline
+        body.innerHTML = [
+            '<div class="detail-list">',
+            '    <span class="detail-label">Site Name:</span>',
+            '    <span class="detail-value">' + site.displayName + '</span>',
+            '',
+            '    <span class="detail-label">URL:</span>',
+            '    <span class="detail-value" style="font-size: 0.8em; word-break: break-all;">' + site.url + '</span>',
+            '',
+            '    <span class="detail-label">Owner:</span>',
+            '    <span class="detail-value">' + (site.ownerDisplayName || '--') + '</span>',
+            '',
+            '    <span class="detail-label">Owner UPN:</span>',
+            '    <span class="detail-value">' + (site.ownerPrincipalName || '--') + '</span>',
+            '',
+            '    <span class="detail-label">Template:</span>',
+            '    <span class="detail-value">' + site.template + '</span>',
+            '',
+            '    <span class="detail-label">Group-Connected:</span>',
+            '    <span class="detail-value">' + (site.isGroupConnected ? 'Yes' : 'No') + '</span>',
+            '',
+            '    <span class="detail-label">Created:</span>',
+            '    <span class="detail-value">' + DataLoader.formatDate(site.createdDateTime) + '</span>',
+            '</div>',
+            '',
+            '<h4 class="mt-lg mb-sm">Storage</h4>',
+            '<div class="detail-list">',
+            '    <span class="detail-label">Storage Used:</span>',
+            '    <span class="detail-value' + ((site.storageUsedGB || 0) >= 20 ? ' text-critical font-bold' : '') + '">' + site.storageUsedGB + ' GB</span>',
+            '',
+            '    <span class="detail-label">Storage Allocated:</span>',
+            '    <span class="detail-value">' + site.storageAllocatedGB + ' GB</span>',
+            '',
+            '    <span class="detail-label">Usage:</span>',
+            '    <span class="detail-value">' + site.storagePct + '%</span>',
+            '</div>',
+            '',
+            '<h4 class="mt-lg mb-sm">Activity</h4>',
+            '<div class="detail-list">',
+            '    <span class="detail-label">Total Files:</span>',
+            '    <span class="detail-value">' + site.fileCount + '</span>',
+            '',
+            '    <span class="detail-label">Active Files:</span>',
+            '    <span class="detail-value">' + site.activeFileCount + '</span>',
+            '',
+            '    <span class="detail-label">Page Views:</span>',
+            '    <span class="detail-value">' + site.pageViewCount + '</span>',
+            '',
+            '    <span class="detail-label">Last Activity:</span>',
+            '    <span class="detail-value">' + DataLoader.formatDate(site.lastActivityDate) + '</span>',
+            '',
+            '    <span class="detail-label">Days Since Activity:</span>',
+            '    <span class="detail-value">' + (site.daysSinceActivity !== null ? site.daysSinceActivity : '--') + '</span>',
+            '',
+            '    <span class="detail-label">Is Inactive:</span>',
+            '    <span class="detail-value">' + (site.isInactive ? 'Yes' : 'No') + '</span>',
+            '',
+            '    <span class="detail-label">Visited Pages:</span>',
+            '    <span class="detail-value">' + (site.visitedPageCount || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Flags:</span>',
+            '    <span class="detail-value">' + (site.flags && site.flags.length > 0 ? site.flags.join(', ') : 'None') + '</span>',
+            '</div>',
+            '',
+            '<h4 class="mt-lg mb-sm">Sharing & Governance</h4>',
+            '<div class="detail-list">',
+            '    <span class="detail-label">External Sharing:</span>',
+            '    <span class="detail-value">' + formatExternalSharing(site.externalSharing) + '</span>',
+            '',
+            '    <span class="detail-label">Anonymous Links:</span>',
+            '    <span class="detail-value">' + (site.anonymousLinkCount || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Company Links:</span>',
+            '    <span class="detail-value">' + (site.companyLinkCount || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Guest Links:</span>',
+            '    <span class="detail-value">' + (site.guestLinkCount || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Member Links:</span>',
+            '    <span class="detail-value">' + (site.memberLinkCount || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Total Sharing Links:</span>',
+            '    <span class="detail-value font-bold">' + (site.totalSharingLinks || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Sensitivity Label:</span>',
+            '    <span class="detail-value">' + (site.sensitivityLabelId ? '<span class="badge badge-success">Labeled</span>' : '<span class="badge badge-warning">Unlabeled</span>') + '</span>',
+            '',
+            '    <span class="detail-label">Unmanaged Device Policy:</span>',
+            '    <span class="detail-value">' + (site.unmanagedDevicePolicy || '--') + '</span>',
+            '</div>',
+            '',
+            '<div class="detail-list" style="margin-top: var(--space-md);">',
+            '    <span class="detail-label">Site ID:</span>',
+            '    <span class="detail-value" style="font-size: 0.8em;">' + site.id + '</span>',
+            '</div>'
+        ].join('\n');
+
+        modal.classList.add('visible');
+    }
+
+    /**
+     * Renders the SharePoint page content.
+     *
+     * @param {HTMLElement} container - The page container element
+     */
+    function render(container) {
+        var sites = DataLoader.getData('sharepointSites');
+        var nonPersonal = sites.filter(function(s) { return !s.isPersonalSite; });
+
+        // Calculate stats
+        var totalStorageGB = Math.round(nonPersonal.reduce(function(s, site) { return s + (site.storageUsedGB || 0); }, 0) * 10) / 10;
+        var activeSites = nonPersonal.filter(function(s) { return !s.isInactive; }).length;
+        var inactiveSites = nonPersonal.filter(function(s) { return s.isInactive; }).length;
+        var groupConnected = nonPersonal.filter(function(s) { return s.isGroupConnected; }).length;
+        var highStorage = nonPersonal.filter(function(s) { return (s.storageUsedGB || 0) >= 20; }).length;
+
+        // Template counts
+        var groupCount = nonPersonal.filter(function(s) { return s.template === 'Group'; }).length;
+        var commCount = nonPersonal.filter(function(s) { return s.template === 'Communication'; }).length;
+        var otherCount = nonPersonal.filter(function(s) { return s.template !== 'Group' && s.template !== 'Communication'; }).length;
+        var personalCount = sites.filter(function(s) { return s.isPersonalSite; }).length;
+
+        // Governance stats
+        var externalSharingSites = nonPersonal.filter(function(s) { return s.hasExternalSharing; }).length;
+        var anonymousLinkSites = nonPersonal.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; }).length;
+        var noLabelSites = nonPersonal.filter(function(s) { return !s.sensitivityLabelId; }).length;
+        var internalOnlySites = nonPersonal.filter(function(s) { return !s.hasExternalSharing; }).length;
+        var guestSharedSites = nonPersonal.filter(function(s) { return s.hasExternalSharing && (s.anonymousLinkCount || 0) === 0; }).length;
+
+        // All values below are computed integers from trusted collection data
+        container.innerHTML = [
+            '<div class="page-header">',
+            '    <h2 class="page-title">SharePoint</h2>',
+            '    <p class="page-description">SharePoint site usage, storage, activity, and sharing governance</p>',
+            '</div>',
+            '',
+            '<div class="cards-grid">',
+            '    <div class="card">',
+            '        <div class="card-label">Total Sites</div>',
+            '        <div class="card-value">' + nonPersonal.length + '</div>',
+            '        <div class="card-change">' + personalCount + ' personal (OneDrive)</div>',
+            '    </div>',
+            '    <div class="card">',
+            '        <div class="card-label">Total Storage</div>',
+            '        <div class="card-value">' + totalStorageGB + ' GB</div>',
+            '    </div>',
+            '    <div class="card ' + (inactiveSites > 0 ? 'card-warning' : '') + '">',
+            '        <div class="card-label">Inactive Sites</div>',
+            '        <div class="card-value ' + (inactiveSites > 0 ? 'warning' : '') + '">' + inactiveSites + '</div>',
+            '        <div class="card-change">90+ days no activity</div>',
+            '    </div>',
+            '    <div class="card ' + (highStorage > 0 ? 'card-warning' : '') + '">',
+            '        <div class="card-label">High Storage</div>',
+            '        <div class="card-value ' + (highStorage > 0 ? 'warning' : '') + '">' + highStorage + '</div>',
+            '        <div class="card-change">20+ GB used</div>',
+            '    </div>',
+            '    <div class="card ' + (externalSharingSites > 0 ? 'card-warning' : '') + '">',
+            '        <div class="card-label">Externally Shared</div>',
+            '        <div class="card-value ' + (externalSharingSites > 0 ? 'warning' : '') + '">' + externalSharingSites + '</div>',
+            '        <div class="card-change">sites with external sharing</div>',
+            '    </div>',
+            '    <div class="card ' + (anonymousLinkSites > 0 ? 'card-critical' : '') + '">',
+            '        <div class="card-label">Anonymous Links</div>',
+            '        <div class="card-value ' + (anonymousLinkSites > 0 ? 'critical' : '') + '">' + anonymousLinkSites + '</div>',
+            '        <div class="card-change">sites with anonymous links</div>',
+            '    </div>',
+            '</div>',
+            '',
+            '<div class="charts-row" id="sp-charts"></div>',
+            '<div id="sp-filter"></div>',
+            '<div id="sp-table"></div>'
+        ].join('\n');
+
+        // Render charts
+        var chartsRow = document.getElementById('sp-charts');
+        if (chartsRow) {
+            var C = DashboardCharts.colors;
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Site Activity',
+                [
+                    { value: activeSites, label: 'Active', color: C.green },
+                    { value: inactiveSites, label: 'Inactive', color: C.yellow }
+                ],
+                nonPersonal.length > 0
+                    ? Math.round((activeSites / nonPersonal.length) * 100) + '%'
+                    : '0%',
+                'active'
+            ));
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Site Templates',
+                [
+                    { value: groupCount, label: 'Team Site', color: C.blue },
+                    { value: commCount, label: 'Communication', color: C.teal },
+                    { value: otherCount, label: 'Other', color: C.gray }
+                ],
+                String(nonPersonal.length), 'sites'
+            ));
+
+            chartsRow.appendChild(DashboardCharts.createChartCard(
+                'Sharing Exposure',
+                [
+                    { value: internalOnlySites, label: 'Internal Only', color: C.green },
+                    { value: guestSharedSites, label: 'Guest Shared', color: C.yellow },
+                    { value: anonymousLinkSites, label: 'Anonymous Links', color: C.red }
+                ],
+                externalSharingSites > 0
+                    ? Math.round((externalSharingSites / nonPersonal.length) * 100) + '%'
+                    : '0%',
+                'external'
+            ));
+        }
+
+        // Create filter bar
+        Filters.createFilterBar({
+            containerId: 'sp-filter',
+            controls: [
+                {
+                    type: 'search',
+                    id: 'sp-search',
+                    label: 'Search',
+                    placeholder: 'Search sites...'
+                },
+                {
+                    type: 'select',
+                    id: 'sp-template',
+                    label: 'Template',
+                    options: [
+                        { value: 'all', label: 'All Templates' },
+                        { value: 'Group', label: 'Team Site' },
+                        { value: 'Communication', label: 'Communication' },
+                        { value: 'OneDrive', label: 'OneDrive' },
+                        { value: 'Other', label: 'Other' }
+                    ]
+                },
+                {
+                    type: 'select',
+                    id: 'sp-status',
+                    label: 'Status',
+                    options: [
+                        { value: 'all', label: 'All' },
+                        { value: 'active', label: 'Active' },
+                        { value: 'inactive', label: 'Inactive' }
+                    ]
+                },
+                {
+                    type: 'select',
+                    id: 'sp-sharing',
+                    label: 'Sharing',
+                    options: [
+                        { value: 'all', label: 'All Sharing' },
+                        { value: 'external', label: 'External' },
+                        { value: 'anonymous', label: 'Anonymous Links' },
+                        { value: 'internal', label: 'Internal Only' }
+                    ]
+                },
+                {
+                    type: 'checkbox-group',
+                    id: 'sp-options-filter',
+                    label: 'Options',
+                    options: [
+                        { value: 'personal', label: 'Include personal sites' }
+                    ]
+                }
+            ],
+            onFilter: applyFilters
+        });
+
+        // Map checkbox ID
+        var personalCheckbox = document.querySelector('#sp-options-filter input');
+        if (personalCheckbox) {
+            personalCheckbox.id = 'sp-personal';
+        }
+
+        // Bind export button
+        Export.bindExportButton('sp-table', 'sharepoint-sites');
+
+        // Initial render
+        applyFilters();
+    }
+
+    // Public API
+    return {
+        render: render
+    };
+
+})();
+
+// Register page
+window.PageSharePoint = PageSharePoint;

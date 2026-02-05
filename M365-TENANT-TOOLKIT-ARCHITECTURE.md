@@ -10,7 +10,7 @@
 ```
 # ============================================================================
 # TenantScope
-# Author: Robe (https://github.com/Thugney)
+# Author: Robel (https://github.com/Thugney)
 # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 # License: MIT
 # ============================================================================
@@ -217,7 +217,7 @@ onPremisesSyncEnabled, assignedLicenses, signInActivity
 ```powershell
 # ============================================================================
 # TenantScope
-# Author: Robe (https://github.com/Thugney)
+# Author: Robel (https://github.com/Thugney)
 # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 # License: MIT
 # ============================================================================

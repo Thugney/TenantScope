@@ -1,7 +1,7 @@
 /*
 ============================================================================
 TenantScope
-Author: Robe (https://github.com/Thugney)
+Author: Robel (https://github.com/Thugney)
 Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 License: MIT
 ============================================================================
@@ -1098,9 +1098,31 @@ table {
    ======================================================================== */
 .overview-charts-grid {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
     gap: var(--spacing-lg);
     margin-bottom: var(--spacing-xl);
+}
+
+.secure-score-actions {
+    list-style: none;
+    padding: 0;
+    margin: var(--spacing-sm) 0 0 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    border-top: 1px solid var(--color-bg-tertiary);
+    padding-top: var(--spacing-sm);
+}
+
+.secure-score-actions li {
+    padding: 2px 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.secure-score-actions li::before {
+    content: "\2022  ";
+    color: var(--color-warning);
 }
 
 .charts-row {
@@ -1200,6 +1222,35 @@ table {
     font-size: var(--font-size-sm);
     font-weight: 600;
     color: var(--color-text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+/* Trend Indicators */
+.trend-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    font-size: 0.75rem;
+    margin-left: 8px;
+    font-weight: 600;
+    vertical-align: middle;
+}
+
+.trend-arrow {
+    font-size: 0.85rem;
+}
+
+.trend-up-good { color: var(--color-success); }
+.trend-up-bad { color: var(--color-critical); }
+.trend-down-good { color: var(--color-success); }
+.trend-down-bad { color: var(--color-critical); }
+.trend-flat { color: var(--color-text-muted); }
+
+.license-waste-callout {
+    font-size: var(--font-size-xs);
+    color: var(--color-critical);
+    font-weight: 600;
+    margin-top: calc(-1 * var(--spacing-sm));
     margin-bottom: var(--spacing-md);
 }
 
@@ -1310,6 +1361,53 @@ table {
 }
 
 /* ========================================================================
+   DEPARTMENT FILTER (global header filter)
+   ======================================================================== */
+.department-filter {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+.department-filter label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-inverse);
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.department-filter select {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius-sm);
+    background-color: rgba(255, 255, 255, 0.1);
+    color: var(--color-text-inverse);
+    font-size: var(--font-size-sm);
+    cursor: pointer;
+    min-width: 160px;
+}
+
+.department-filter select:focus {
+    outline: none;
+    border-color: var(--color-accent);
+}
+
+.department-filter select option {
+    background-color: var(--color-sidebar);
+    color: var(--color-text-inverse);
+}
+
+.department-banner {
+    background-color: #dbeafe;
+    color: #1e40af;
+    text-align: center;
+    padding: var(--spacing-xs) var(--spacing-md);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    border-bottom: 1px solid #93c5fd;
+}
+
+/* ========================================================================
    UTILITY CLASSES
    ======================================================================== */
 .text-critical { color: var(--color-critical); }
@@ -1329,6 +1427,281 @@ table {
 .mb-lg { margin-bottom: var(--spacing-lg); }
 
 .hidden { display: none !important; }
+
+/* ========================================================================
+   EXECUTIVE REPORT PAGE
+   ======================================================================== */
+.report-page {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.report-header {
+    margin-bottom: var(--spacing-xl);
+}
+
+.report-title-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.report-print-btn {
+    padding: var(--spacing-sm) var(--spacing-lg);
+    background-color: var(--color-accent);
+    color: var(--color-text-inverse);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    cursor: pointer;
+    transition: background-color var(--transition-fast);
+}
+
+.report-print-btn:hover {
+    background-color: #1d4ed8;
+}
+
+.report-section {
+    margin-bottom: var(--spacing-xl);
+    page-break-inside: avoid;
+}
+
+.report-section-title {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-xs);
+    border-bottom: 2px solid var(--color-accent);
+}
+
+/* Health Score */
+.report-health-row {
+    display: flex;
+    gap: var(--spacing-xl);
+    align-items: flex-start;
+}
+
+.report-health-chart {
+    flex-shrink: 0;
+}
+
+.report-health-breakdown {
+    flex: 1;
+}
+
+.report-breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.report-breakdown-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+}
+
+.report-breakdown-table td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+}
+
+/* Risk List */
+.risk-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+}
+
+.risk-item {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-radius: var(--border-radius-sm);
+    border-left: 4px solid;
+}
+
+.risk-critical {
+    border-left-color: var(--color-critical);
+    background-color: #fef2f2;
+}
+
+.risk-warning {
+    border-left-color: var(--color-warning);
+    background-color: #fffbeb;
+}
+
+.risk-info {
+    border-left-color: var(--color-accent);
+    background-color: #eff6ff;
+}
+
+.risk-title {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.risk-detail {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+/* Key Metrics Grid */
+.report-metrics-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--spacing-md);
+}
+
+.report-metric-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+    text-align: center;
+}
+
+.report-metric-value {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+}
+
+.report-metric-label {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-secondary);
+    margin-top: var(--spacing-xs);
+}
+
+/* License Waste Table */
+.report-waste-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.report-waste-table th {
+    text-align: left;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    padding: var(--spacing-sm);
+    border-bottom: 2px solid var(--color-bg-tertiary);
+}
+
+.report-waste-table td {
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+}
+
+.report-waste-total td {
+    border-top: 2px solid var(--color-text-primary);
+    border-bottom: none;
+}
+
+/* Governance Summary */
+.report-governance-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--spacing-lg);
+}
+
+.report-governance-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-lg);
+}
+
+.report-governance-subtitle {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-md);
+}
+
+.report-governance-row {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--spacing-xs) 0;
+    border-bottom: 1px solid var(--color-bg-tertiary);
+    font-size: var(--font-size-sm);
+}
+
+.report-governance-row:last-child {
+    border-bottom: none;
+}
+
+.report-governance-label {
+    color: var(--color-text-secondary);
+}
+
+.report-governance-value {
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+/* ========================================================================
+   PRINT STYLES
+   ======================================================================== */
+@media print {
+    /* Hide non-print elements */
+    .sidebar,
+    .header,
+    .department-banner,
+    .no-print,
+    .sidebar-toggle {
+        display: none !important;
+    }
+
+    /* Full width content */
+    .content {
+        margin-left: 0 !important;
+        padding: 0 !important;
+    }
+
+    .main-container {
+        display: block;
+    }
+
+    .page-container {
+        padding: 0;
+    }
+
+    /* Report page print adjustments */
+    .report-page {
+        max-width: 100%;
+    }
+
+    body {
+        font-size: 11pt;
+        background: white;
+    }
+
+    /* Avoid page breaks inside sections */
+    .report-section,
+    .report-metric-card,
+    .risk-item,
+    .report-governance-card {
+        page-break-inside: avoid;
+    }
+
+    /* Force color printing */
+    * {
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+
+    /* Clean borders for print */
+    .report-metric-card,
+    .report-governance-card {
+        border: 1px solid #ccc;
+    }
+}
 
 /* ========================================================================
    RESPONSIVE (basic adjustments for smaller screens)

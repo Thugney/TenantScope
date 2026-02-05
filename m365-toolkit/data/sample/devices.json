@@ -18,7 +18,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2027-01-15T00:00:00Z",
     "daysUntilCertExpiry": 344,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Erik Hansen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 198.3,
+    "storageUsedPct": 58.4,
+    "wifiMacAddress": "A4:5E:60:3B:7A:12",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev2b3c4-d5e6-7890-bcde-f23456789012",
@@ -39,7 +47,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-08-20T00:00:00Z",
     "daysUntilCertExpiry": 196,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Ingrid Olsen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 112.5,
+    "storageUsedPct": 56.1,
+    "wifiMacAddress": "A4:5E:60:4C:8B:23",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev3c4d5-e6f7-8901-cdef-345678901234",
@@ -60,7 +76,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-05-10T00:00:00Z",
     "daysUntilCertExpiry": 94,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Lars Johansen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 145.2,
+    "storageUsedPct": 69.5,
+    "wifiMacAddress": "A4:5E:60:5D:9C:34",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev4d5e6-f7a8-9012-def0-456789012345",
@@ -81,7 +105,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-03-15T00:00:00Z",
     "daysUntilCertExpiry": 38,
-    "certStatus": "warning"
+    "certStatus": "warning",
+    "primaryUserDisplayName": "Kari Andersen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 234.1,
+    "storageUsedPct": 50.9,
+    "wifiMacAddress": "A4:5E:60:6E:AD:45",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev5e6f7-a8b9-0123-ef01-567890123456",
@@ -102,7 +134,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2025-11-20T00:00:00Z",
     "daysUntilCertExpiry": -77,
-    "certStatus": "expired"
+    "certStatus": "expired",
+    "primaryUserDisplayName": "Magnus Nilsen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 23.4,
+    "storageUsedPct": 90.9,
+    "wifiMacAddress": "A4:5E:60:7F:BE:56",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev6f7a8-b9c0-1234-f012-678901234567",
@@ -123,7 +163,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-09-15T00:00:00Z",
     "daysUntilCertExpiry": 222,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Anders Kristiansen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 287.6,
+    "storageUsedPct": 39.7,
+    "wifiMacAddress": "A4:5E:60:8A:CF:67",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev7a8b9-c0d1-2345-0123-789012345678",
@@ -144,7 +192,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-08-01T00:00:00Z",
     "daysUntilCertExpiry": 177,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Hanna Larsen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 89.7,
+    "storageUsedPct": 65.0,
+    "wifiMacAddress": "A4:5E:60:9B:D0:78",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev8b9c0-d1e2-3456-1234-890123456789",
@@ -165,7 +221,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-02-20T00:00:00Z",
     "daysUntilCertExpiry": 15,
-    "certStatus": "critical"
+    "certStatus": "critical",
+    "primaryUserDisplayName": "Ole Pedersen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 42.8,
+    "storageUsedPct": 83.3,
+    "wifiMacAddress": "A4:5E:60:AC:E1:89",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev9c0d1-e2f3-4567-2345-901234567890",
@@ -186,7 +250,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-08-15T00:00:00Z",
     "daysUntilCertExpiry": 191,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Marte Eriksen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 134.9,
+    "storageUsedPct": 47.3,
+    "wifiMacAddress": "A4:5E:60:BD:F2:9A",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev0d1e2-f3a4-5678-3456-012345678901",
@@ -207,7 +279,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2027-01-10T00:00:00Z",
     "daysUntilCertExpiry": 339,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Camilla Haugen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 312.4,
+    "storageUsedPct": 34.5,
+    "wifiMacAddress": "A4:5E:60:CE:03:AB",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev1e2f3-a4b5-6789-4567-123456789012",
@@ -228,7 +308,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-01-01T00:00:00Z",
     "daysUntilCertExpiry": -35,
-    "certStatus": "expired"
+    "certStatus": "expired",
+    "primaryUserDisplayName": "Fredrik Moen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 512.0,
+    "freeStorageGB": 67.3,
+    "storageUsedPct": 86.9,
+    "wifiMacAddress": "A4:5E:60:DF:14:BC",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev2f3a4-b5c6-7890-5678-234567890123",
@@ -249,7 +337,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-03-25T00:00:00Z",
     "daysUntilCertExpiry": 48,
-    "certStatus": "warning"
+    "certStatus": "warning",
+    "primaryUserDisplayName": "Silje Gulbrandsen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 156.7,
+    "storageUsedPct": 67.1,
+    "wifiMacAddress": "A4:5E:60:E0:25:CD",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev3a4b5-c6d7-8901-6789-345678901234",
@@ -270,7 +366,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-08-30T00:00:00Z",
     "daysUntilCertExpiry": 206,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Henrik Strand",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 201.5,
+    "storageUsedPct": 57.7,
+    "wifiMacAddress": "A4:5E:60:F1:36:DE",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev4b5c6-d7e8-9012-7890-456789012345",
@@ -291,7 +395,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-11-01T00:00:00Z",
     "daysUntilCertExpiry": 269,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Martin Holter",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 98.2,
+    "storageUsedPct": 61.6,
+    "wifiMacAddress": "A4:5E:60:02:47:EF",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev5c6d7-e8f9-0123-8901-567890123456",
@@ -312,7 +424,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-08-15T00:00:00Z",
     "daysUntilCertExpiry": 191,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Lise Bakken",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 78.4,
+    "storageUsedPct": 69.4,
+    "wifiMacAddress": "A4:5E:60:13:58:F0",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev6d7e8-f9a0-1234-9012-678901234567",
@@ -333,7 +453,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-02-10T00:00:00Z",
     "daysUntilCertExpiry": 5,
-    "certStatus": "critical"
+    "certStatus": "critical",
+    "primaryUserDisplayName": "Petter Nordby",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 51.2,
+    "storageUsedPct": 89.3,
+    "wifiMacAddress": "A4:5E:60:24:69:01",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev7e8f9-a0b1-2345-0123-789012345678",
@@ -354,7 +482,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-05-01T00:00:00Z",
     "daysUntilCertExpiry": 85,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Anne Riise",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 267.3,
+    "storageUsedPct": 43.9,
+    "wifiMacAddress": "A4:5E:60:35:7A:12",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev8f9a0-b1c2-3456-1234-890123456789",
@@ -375,7 +511,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-02-15T00:00:00Z",
     "daysUntilCertExpiry": 10,
-    "certStatus": "critical"
+    "certStatus": "critical",
+    "primaryUserDisplayName": "Jonas Aas",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 31.8,
+    "storageUsedPct": 87.6,
+    "wifiMacAddress": "A4:5E:60:46:8B:23",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev9a0b1-c2d3-4567-2345-901234567890",
@@ -396,7 +540,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2027-03-01T00:00:00Z",
     "daysUntilCertExpiry": 389,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Marianne Dahl",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 476.8,
+    "freeStorageGB": 341.2,
+    "storageUsedPct": 28.4,
+    "wifiMacAddress": "A4:5E:60:57:9C:34",
+    "joinType": "azureADJoined"
   },
   {
     "id": "dev0b1c2-d3e4-5678-3456-012345678901",
@@ -417,7 +569,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2025-12-01T00:00:00Z",
     "daysUntilCertExpiry": -66,
-    "certStatus": "expired"
+    "certStatus": "expired",
+    "primaryUserDisplayName": "Ida Engen",
+    "autopilotEnrolled": true,
+    "deviceCategory": "Standard Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 18.9,
+    "storageUsedPct": 92.6,
+    "wifiMacAddress": "A4:5E:60:68:AD:45",
+    "joinType": "hybridAzureADJoined"
   },
   {
     "id": "dev1c2d3-e4f5-6789-4567-123456789012",
@@ -438,7 +598,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-09-15T00:00:00Z",
     "daysUntilCertExpiry": 222,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Erik Hansen",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mobile Device",
+    "totalStorageGB": 128.0,
+    "freeStorageGB": 54.3,
+    "storageUsedPct": 57.6,
+    "wifiMacAddress": "A4:5E:60:79:BE:56",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev2d3e4-f5a6-7890-5678-234567890123",
@@ -459,7 +627,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-11-01T00:00:00Z",
     "daysUntilCertExpiry": 269,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Kari Andersen",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mobile Device",
+    "totalStorageGB": 128.0,
+    "freeStorageGB": 71.8,
+    "storageUsedPct": 43.9,
+    "wifiMacAddress": "A4:5E:60:8A:CF:67",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev3e4f5-a6b7-8901-6789-345678901234",
@@ -480,7 +656,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2027-01-15T00:00:00Z",
     "daysUntilCertExpiry": 344,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Anders Kristiansen",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mobile Device",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 178.4,
+    "storageUsedPct": 30.3,
+    "wifiMacAddress": "A4:5E:60:9B:D0:78",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev4f5a6-b7c8-9012-7890-456789012345",
@@ -501,7 +685,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-03-20T00:00:00Z",
     "daysUntilCertExpiry": 43,
-    "certStatus": "warning"
+    "certStatus": "warning",
+    "primaryUserDisplayName": "Hanna Larsen",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mobile Device",
+    "totalStorageGB": 128.0,
+    "freeStorageGB": 38.6,
+    "storageUsedPct": 69.8,
+    "wifiMacAddress": "A4:5E:60:AC:E1:89",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev5a6b7-c8d9-0123-8901-567890123456",
@@ -522,7 +714,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2027-03-01T00:00:00Z",
     "daysUntilCertExpiry": 389,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Marianne Dahl",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mobile Device",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 189.1,
+    "storageUsedPct": 26.1,
+    "wifiMacAddress": "A4:5E:60:BD:F2:9A",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev6b7c8-d9e0-1234-9012-678901234567",
@@ -543,7 +743,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-06-10T00:00:00Z",
     "daysUntilCertExpiry": 125,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Ole Pedersen",
+    "autopilotEnrolled": false,
+    "deviceCategory": null,
+    "totalStorageGB": 128.0,
+    "freeStorageGB": 45.7,
+    "storageUsedPct": 64.3,
+    "wifiMacAddress": "A4:5E:60:CE:03:AB",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev7c8d9-e0f1-2345-0123-789012345678",
@@ -564,7 +772,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-02-25T00:00:00Z",
     "daysUntilCertExpiry": 20,
-    "certStatus": "critical"
+    "certStatus": "critical",
+    "primaryUserDisplayName": "Jonas Aas",
+    "autopilotEnrolled": false,
+    "deviceCategory": null,
+    "totalStorageGB": 128.0,
+    "freeStorageGB": 22.1,
+    "storageUsedPct": 82.7,
+    "wifiMacAddress": "A4:5E:60:DF:14:BC",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev8d9e0-f1a2-3456-1234-890123456789",
@@ -585,7 +801,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": null,
     "daysUntilCertExpiry": null,
-    "certStatus": "unknown"
+    "certStatus": "unknown",
+    "primaryUserDisplayName": "Vegard Ellingsen",
+    "autopilotEnrolled": false,
+    "deviceCategory": null,
+    "totalStorageGB": 128.0,
+    "freeStorageGB": 67.9,
+    "storageUsedPct": 46.9,
+    "wifiMacAddress": "A4:5E:60:E0:25:CD",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev9e0f1-a2b3-4567-2345-901234567890",
@@ -606,7 +830,15 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-06-01T00:00:00Z",
     "daysUntilCertExpiry": 116,
-    "certStatus": "healthy"
+    "certStatus": "healthy",
+    "primaryUserDisplayName": "Henrik Strand",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mac Workstation",
+    "totalStorageGB": 512.0,
+    "freeStorageGB": 278.5,
+    "storageUsedPct": 45.6,
+    "wifiMacAddress": "A4:5E:60:F1:36:DE",
+    "joinType": "azureADRegistered"
   },
   {
     "id": "dev0f1a2-b3c4-5678-3456-012345678901",
@@ -627,6 +859,14 @@
     "managementAgent": "mdm",
     "certExpiryDate": "2026-03-30T00:00:00Z",
     "daysUntilCertExpiry": 53,
-    "certStatus": "warning"
+    "certStatus": "warning",
+    "primaryUserDisplayName": "Tonje Haug",
+    "autopilotEnrolled": false,
+    "deviceCategory": "Mac Workstation",
+    "totalStorageGB": 256.0,
+    "freeStorageGB": 112.3,
+    "storageUsedPct": 56.1,
+    "wifiMacAddress": "A4:5E:60:02:47:EF",
+    "joinType": "azureADRegistered"
   }
 ]

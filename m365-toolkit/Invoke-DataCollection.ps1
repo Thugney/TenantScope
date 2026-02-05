@@ -1,6 +1,6 @@
 # ============================================================================
 # TenantScope
-# Author: Robe (https://github.com/Thugney)
+# Author: Robel (https://github.com/Thugney)
 # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 # License: MIT
 # ============================================================================
@@ -65,7 +65,7 @@ param(
     [Parameter()]
     [ValidateSet("UserData", "LicenseData", "GuestData", "MFAData", "AdminRoleData",
                  "SignInData", "DeviceData", "AutopilotData", "DefenderData", "EnterpriseAppData",
-                 "AuditLogData", "PIMData")]
+                 "AuditLogData", "PIMData", "TeamsData", "SharePointData", "SecureScoreData")]
     [string[]]$CollectorsToRun
 )
 
@@ -418,7 +418,11 @@ $requiredScopes = @(
     "RoleManagement.Read.Directory",
     "RoleAssignmentSchedule.Read.Directory",
     "RoleEligibilitySchedule.Read.Directory",
-    "Application.Read.All"
+    "Application.Read.All",
+    "Team.ReadBasic.All",
+    "Channel.ReadBasic.All",
+    "TeamMember.Read.All",
+    "Sites.Read.All"
 )
 
 Write-Host "  Required scopes:" -ForegroundColor Gray
@@ -481,7 +485,10 @@ $collectors = @(
     @{ Name = "Get-DefenderData";  Script = "Get-DefenderData.ps1";  Output = "defender-alerts.json" },
     @{ Name = "Get-EnterpriseAppData"; Script = "Get-EnterpriseAppData.ps1"; Output = "enterprise-apps.json" },
     @{ Name = "Get-AuditLogData";     Script = "Get-AuditLogData.ps1";     Output = "audit-logs.json" },
-    @{ Name = "Get-PIMData";          Script = "Get-PIMData.ps1";          Output = "pim-activity.json" }
+    @{ Name = "Get-PIMData";          Script = "Get-PIMData.ps1";          Output = "pim-activity.json" },
+    @{ Name = "Get-TeamsData";        Script = "Get-TeamsData.ps1";        Output = "teams.json" },
+    @{ Name = "Get-SharePointData";   Script = "Get-SharePointData.ps1";   Output = "sharepoint-sites.json" },
+    @{ Name = "Get-SecureScoreData"; Script = "Get-SecureScoreData.ps1"; Output = "secure-score.json" }
 )
 
 # Filter collectors if specific ones were requested
@@ -603,6 +610,14 @@ $summary = @{
     compliantDevices = 0
     staleDevices = 0
     activeAlerts = 0
+    totalTeams = 0
+    activeTeams = 0
+    inactiveTeams = 0
+    ownerlessTeams = 0
+    totalSites = 0
+    activeSites = 0
+    inactiveSites = 0
+    totalStorageGB = 0
 }
 
 # Try to read collected data for summary
@@ -639,6 +654,28 @@ try {
         $alerts = Get-Content $alertsPath -Raw | ConvertFrom-Json
         $summary.activeAlerts = ($alerts | Where-Object { $_.status -ne "resolved" }).Count
     }
+
+    $teamsPath = Join-Path $dataPath "teams.json"
+    if (Test-Path $teamsPath) {
+        $teamsData = Get-Content $teamsPath -Raw | ConvertFrom-Json
+        $summary.totalTeams = $teamsData.Count
+        $summary.activeTeams = ($teamsData | Where-Object { -not $_.isInactive -and -not $_.isArchived }).Count
+        $summary.inactiveTeams = ($teamsData | Where-Object { $_.isInactive }).Count
+        $summary.ownerlessTeams = ($teamsData | Where-Object { $_.hasNoOwner }).Count
+    }
+
+    $spPath = Join-Path $dataPath "sharepoint-sites.json"
+    if (Test-Path $spPath) {
+        $spData = Get-Content $spPath -Raw | ConvertFrom-Json
+        $nonPersonal = $spData | Where-Object { -not $_.isPersonalSite }
+        $summary.totalSites = ($nonPersonal).Count
+        $summary.activeSites = ($nonPersonal | Where-Object { -not $_.isInactive }).Count
+        $summary.inactiveSites = ($nonPersonal | Where-Object { $_.isInactive }).Count
+        $summary.totalStorageGB = [Math]::Round(($nonPersonal | Measure-Object -Property storageUsedGB -Sum).Sum, 1)
+        $summary.externalSharingSites = ($nonPersonal | Where-Object { $_.hasExternalSharing }).Count
+        $summary.anonymousLinkSites = ($nonPersonal | Where-Object { $_.anonymousLinkCount -gt 0 }).Count
+        $summary.noLabelSites = ($nonPersonal | Where-Object { -not $_.sensitivityLabelId }).Count
+    }
 }
 catch {
     Write-Host "    ⚠ Could not calculate summary statistics" -ForegroundColor Yellow
@@ -673,6 +710,72 @@ foreach ($collector in $collectorResults.GetEnumerator()) {
 $metadataPath = Join-Path $dataPath "collection-metadata.json"
 $metadata | ConvertTo-Json -Depth 10 | Set-Content -Path $metadataPath -Encoding UTF8
 Write-Host "  ✓ Metadata written to: $metadataPath" -ForegroundColor Green
+
+# ============================================================================
+# Append trend history snapshot
+# ============================================================================
+
+try {
+    $trendPath = Join-Path $dataPath "trend-history.json"
+    $trendHistory = @()
+
+    if (Test-Path $trendPath) {
+        $existing = Get-Content $trendPath -Raw | ConvertFrom-Json
+        if ($existing) { $trendHistory = @($existing) }
+    }
+
+    # Compute MFA and compliance percentages
+    $mfaPct = 0
+    $compliancePct = 0
+    if ($summary.totalUsers -gt 0) {
+        $mfaRegistered = $summary.totalUsers - $summary.noMfaUsers
+        $mfaPct = [Math]::Round(($mfaRegistered / $summary.totalUsers) * 100)
+    }
+    if ($summary.totalDevices -gt 0) {
+        $compliancePct = [Math]::Round(($summary.compliantDevices / $summary.totalDevices) * 100)
+    }
+
+    # Compute waste cost from license data
+    $totalWasteMonthlyCost = 0
+    $licensePath = Join-Path $dataPath "license-skus.json"
+    if (Test-Path $licensePath) {
+        $licenseData = Get-Content $licensePath -Raw | ConvertFrom-Json
+        foreach ($sku in $licenseData) {
+            $totalWasteMonthlyCost += ($sku.wasteMonthlyCost -as [int])
+        }
+    }
+
+    # Read secure score if available
+    $secureScoreVal = $null
+    $secureScorePath = Join-Path $dataPath "secure-score.json"
+    if (Test-Path $secureScorePath) {
+        $ssData = Get-Content $secureScorePath -Raw | ConvertFrom-Json
+        if ($ssData -and $ssData.scorePct) { $secureScoreVal = $ssData.scorePct }
+    }
+
+    $snapshot = [PSCustomObject]@{
+        date                  = $collectionEndTime.ToString("o")
+        totalUsers            = $summary.totalUsers
+        mfaPct                = $mfaPct
+        compliancePct         = $compliancePct
+        activeAlerts          = $summary.activeAlerts
+        totalWasteMonthlyCost = $totalWasteMonthlyCost
+        secureScore           = $secureScoreVal
+    }
+
+    $trendHistory += $snapshot
+
+    # Keep only the most recent 12 snapshots
+    if ($trendHistory.Count -gt 12) {
+        $trendHistory = $trendHistory[($trendHistory.Count - 12)..($trendHistory.Count - 1)]
+    }
+
+    $trendHistory | ConvertTo-Json -Depth 5 | Set-Content -Path $trendPath -Encoding UTF8
+    Write-Host "  ✓ Trend snapshot appended ($($trendHistory.Count) entries)" -ForegroundColor Green
+}
+catch {
+    Write-Host "  Could not update trend history: $($_.Exception.Message)" -ForegroundColor Yellow
+}
 
 # ============================================================================
 # Display summary and cleanup

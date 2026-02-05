@@ -10,7 +10,11 @@
     "assignedToInactive": 20,
     "available": 75,
     "wasteCount": 45,
-    "utilizationPercent": 85
+    "utilizationPercent": 85,
+    "monthlyCostPerLicense": 70,
+    "estimatedMonthlyCost": 29750,
+    "wasteMonthlyCost": 3150,
+    "currency": "NOK"
   },
   {
     "skuId": "18250162-5d87-4436-a834-d795c15c80f3",
@@ -23,7 +27,11 @@
     "assignedToInactive": 100,
     "available": 1800,
     "wasteCount": 250,
-    "utilizationPercent": 64
+    "utilizationPercent": 64,
+    "monthlyCostPerLicense": 0,
+    "estimatedMonthlyCost": 0,
+    "wasteMonthlyCost": 0,
+    "currency": "NOK"
   },
   {
     "skuId": "94763226-9b3c-4e75-a931-5c89701abe66",
@@ -36,7 +44,11 @@
     "assignedToInactive": 70,
     "available": 150,
     "wasteCount": 150,
-    "utilizationPercent": 93
+    "utilizationPercent": 93,
+    "monthlyCostPerLicense": 30,
+    "estimatedMonthlyCost": 55500,
+    "wasteMonthlyCost": 4500,
+    "currency": "NOK"
   },
   {
     "skuId": "c5928f49-12ba-48f7-ada3-0d743a3601d5",
@@ -49,7 +61,11 @@
     "assignedToInactive": 1,
     "available": 2,
     "wasteCount": 3,
-    "utilizationPercent": 96
+    "utilizationPercent": 96,
+    "monthlyCostPerLicense": 350,
+    "estimatedMonthlyCost": 16800,
+    "wasteMonthlyCost": 1050,
+    "currency": "NOK"
   },
   {
     "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
@@ -62,7 +78,11 @@
     "assignedToInactive": 0,
     "available": 0,
     "wasteCount": 0,
-    "utilizationPercent": 100
+    "utilizationPercent": 100,
+    "monthlyCostPerLicense": 580,
+    "estimatedMonthlyCost": 5800,
+    "wasteMonthlyCost": 0,
+    "currency": "NOK"
   },
   {
     "skuId": "4b9405b0-7788-4568-add1-99614e613b69",
@@ -75,7 +95,11 @@
     "assignedToInactive": 2,
     "available": 58,
     "wasteCount": 7,
-    "utilizationPercent": 42
+    "utilizationPercent": 42,
+    "monthlyCostPerLicense": 55,
+    "estimatedMonthlyCost": 2310,
+    "wasteMonthlyCost": 385,
+    "currency": "NOK"
   },
   {
     "skuId": "f30db892-07e9-47e9-837c-80727f46fd3d",
@@ -88,7 +112,11 @@
     "assignedToInactive": 1,
     "available": 3,
     "wasteCount": 2,
-    "utilizationPercent": 88
+    "utilizationPercent": 88,
+    "monthlyCostPerLicense": 105,
+    "estimatedMonthlyCost": 2310,
+    "wasteMonthlyCost": 210,
+    "currency": "NOK"
   },
   {
     "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
@@ -101,7 +129,11 @@
     "assignedToInactive": 15,
     "available": 20,
     "wasteCount": 40,
-    "utilizationPercent": 97
+    "utilizationPercent": 97,
+    "monthlyCostPerLicense": 90,
+    "estimatedMonthlyCost": 52200,
+    "wasteMonthlyCost": 3600,
+    "currency": "NOK"
   },
   {
     "skuId": "078d2b04-f1bd-4111-bbd4-b4b1b354cef4",
@@ -114,7 +146,11 @@
     "assignedToInactive": 15,
     "available": 50,
     "wasteCount": 40,
-    "utilizationPercent": 92
+    "utilizationPercent": 92,
+    "monthlyCostPerLicense": 65,
+    "estimatedMonthlyCost": 35750,
+    "wasteMonthlyCost": 2600,
+    "currency": "NOK"
   },
   {
     "skuId": "84a661c4-e949-4bd2-a560-ed7766fcaf2b",
@@ -127,6 +163,10 @@
     "assignedToInactive": 1,
     "available": 2,
     "wasteCount": 2,
-    "utilizationPercent": 96
+    "utilizationPercent": 96,
+    "monthlyCostPerLicense": 100,
+    "estimatedMonthlyCost": 4800,
+    "wasteMonthlyCost": 200,
+    "currency": "NOK"
   }
 ]

@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * TenantScope
- * Author: Robe (https://github.com/Thugney)
+ * Author: Robel (https://github.com/Thugney)
  * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
  * License: MIT
  * ============================================================================
@@ -57,6 +57,8 @@ const PageLicenses = (function() {
                 { key: 'assignedToDisabled', label: 'Disabled', className: 'cell-right', formatter: formatWasteCell },
                 { key: 'assignedToInactive', label: 'Inactive', className: 'cell-right', formatter: formatWasteCell },
                 { key: 'wasteCount', label: 'Total Waste', className: 'cell-right', formatter: formatWasteCell },
+                { key: 'estimatedMonthlyCost', label: 'Monthly Cost', className: 'cell-right', formatter: function(v, row) { return v ? formatCurrency(v, (row && row.currency) || 'NOK') : '<span class="text-muted">--</span>'; } },
+                { key: 'wasteMonthlyCost', label: 'Waste Cost', className: 'cell-right', formatter: formatCostCell },
                 { key: 'utilizationPercent', label: 'Utilization', formatter: Tables.formatters.percentage }
             ],
             pageSize: 50,
@@ -127,6 +129,21 @@ const PageLicenses = (function() {
                 <span class="detail-label">Total Waste:</span>
                 <span class="detail-value ${sku.wasteCount > 0 ? 'text-critical font-bold' : ''}">${sku.wasteCount}</span>
             </div>
+
+            <h4 class="mt-lg mb-sm">Cost Analysis</h4>
+            <div class="detail-list">
+                <span class="detail-label">Cost per License:</span>
+                <span class="detail-value">${sku.monthlyCostPerLicense ? formatCurrency(sku.monthlyCostPerLicense, sku.currency || 'NOK') + '/mo' : 'Not configured'}</span>
+
+                <span class="detail-label">Estimated Monthly Cost:</span>
+                <span class="detail-value">${formatCurrency(sku.estimatedMonthlyCost || 0, sku.currency || 'NOK')}</span>
+
+                <span class="detail-label">Monthly Waste Cost:</span>
+                <span class="detail-value ${(sku.wasteMonthlyCost || 0) > 0 ? 'text-critical font-bold' : ''}">${formatCurrency(sku.wasteMonthlyCost || 0, sku.currency || 'NOK')}</span>
+
+                <span class="detail-label">Annual Waste Cost:</span>
+                <span class="detail-value ${(sku.wasteMonthlyCost || 0) > 0 ? 'text-critical font-bold' : ''}">${formatCurrency((sku.wasteMonthlyCost || 0) * 12, sku.currency || 'NOK')}</span>
+            </div>
         `;
 
         modal.classList.add('visible');
@@ -137,6 +154,27 @@ const PageLicenses = (function() {
      *
      * @param {HTMLElement} container - The page container element
      */
+    /**
+     * Formats a number as currency using locale from data.
+     */
+    function formatCurrency(value, curr) {
+        if (!value && value !== 0) return '--';
+        var sym = curr === 'NOK' ? 'kr' : curr === 'USD' ? '$' : curr === 'EUR' ? 'E' : '';
+        return sym + ' ' + value.toLocaleString();
+    }
+
+    /**
+     * Formats cost cell with color coding.
+     * All values are computed integers from the collection pipeline.
+     */
+    function formatCostCell(value, row) {
+        if (!value || value === 0) {
+            return '<span class="text-muted">kr 0</span>';
+        }
+        var curr = (row && row.currency) || 'NOK';
+        return '<span class="text-critical font-bold">' + formatCurrency(value, curr) + '</span>';
+    }
+
     function render(container) {
         const licenses = DataLoader.getData('licenseSkus');
 
@@ -145,49 +183,49 @@ const PageLicenses = (function() {
             acc.purchased += sku.totalPurchased;
             acc.assigned += sku.totalAssigned;
             acc.waste += sku.wasteCount;
+            acc.wasteCost += (sku.wasteMonthlyCost || 0);
+            acc.totalCost += (sku.estimatedMonthlyCost || 0);
             return acc;
-        }, { purchased: 0, assigned: 0, waste: 0 });
+        }, { purchased: 0, assigned: 0, waste: 0, wasteCost: 0, totalCost: 0 });
+
+        const currency = (licenses.find(l => l.currency) || {}).currency || 'NOK';
+        const annualWasteCost = totals.wasteCost * 12;
 
         const avgUtilization = licenses.length > 0
             ? Math.round(licenses.reduce((sum, sku) => sum + sku.utilizationPercent, 0) / licenses.length)
             : 0;
 
-        container.innerHTML = `
-            <div class="page-header">
-                <h2 class="page-title">Licenses</h2>
-                <p class="page-description">License allocation and waste analysis</p>
-            </div>
-
-            <!-- Summary Cards -->
-            <div class="cards-grid">
-                <div class="card">
-                    <div class="card-label">Total SKUs</div>
-                    <div class="card-value">${licenses.length}</div>
-                </div>
-                <div class="card">
-                    <div class="card-label">Total Purchased</div>
-                    <div class="card-value">${totals.purchased.toLocaleString()}</div>
-                </div>
-                <div class="card">
-                    <div class="card-label">Total Assigned</div>
-                    <div class="card-value">${totals.assigned.toLocaleString()}</div>
-                </div>
-                <div class="card ${totals.waste > 0 ? 'card-warning' : 'card-success'}">
-                    <div class="card-label">Total Waste</div>
-                    <div class="card-value ${totals.waste > 0 ? 'warning' : 'success'}">${totals.waste}</div>
-                    <div class="card-change">Disabled + Inactive users</div>
-                </div>
-            </div>
-
-            <!-- Charts -->
-            <div class="charts-row" id="licenses-charts"></div>
-
-            <!-- Filters -->
-            <div id="licenses-filter"></div>
-
-            <!-- Data Table -->
-            <div id="licenses-table"></div>
-        `;
+        // All interpolated values below are computed integers or pre-validated
+        // data from the collection pipeline -- no user-supplied strings
+        container.innerHTML = [
+            '<div class="page-header">',
+            '    <h2 class="page-title">Licenses</h2>',
+            '    <p class="page-description">License allocation, waste analysis, and cost impact</p>',
+            '</div>',
+            '<div class="cards-grid">',
+            '    <div class="card">',
+            '        <div class="card-label">Total SKUs</div>',
+            '        <div class="card-value">' + licenses.length + '</div>',
+            '    </div>',
+            '    <div class="card">',
+            '        <div class="card-label">Total Purchased</div>',
+            '        <div class="card-value">' + totals.purchased.toLocaleString() + '</div>',
+            '    </div>',
+            '    <div class="card ' + (totals.wasteCost > 0 ? 'card-warning' : 'card-success') + '">',
+            '        <div class="card-label">Monthly Waste Cost</div>',
+            '        <div class="card-value ' + (totals.wasteCost > 0 ? 'warning' : 'success') + '">' + formatCurrency(totals.wasteCost, currency) + '</div>',
+            '        <div class="card-change">' + totals.waste + ' wasted licenses</div>',
+            '    </div>',
+            '    <div class="card ' + (annualWasteCost > 0 ? 'card-critical' : 'card-success') + '">',
+            '        <div class="card-label">Annual Waste Cost</div>',
+            '        <div class="card-value ' + (annualWasteCost > 0 ? 'critical' : 'success') + '">' + formatCurrency(annualWasteCost, currency) + '</div>',
+            '        <div class="card-change">Projected yearly loss</div>',
+            '    </div>',
+            '</div>',
+            '<div class="charts-row" id="licenses-charts"></div>',
+            '<div id="licenses-filter"></div>',
+            '<div id="licenses-table"></div>'
+        ].join('\n');
 
         // Render charts
         var chartsRow = document.getElementById('licenses-charts');

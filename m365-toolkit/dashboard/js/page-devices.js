@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * TenantScope
- * Author: Robe (https://github.com/Thugney)
+ * Author: Robel (https://github.com/Thugney)
  * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
  * License: MIT
  * ============================================================================
@@ -19,12 +19,13 @@ const PageDevices = (function() {
      * Applies current filters and re-renders the table.
      */
     function applyFilters() {
-        const devices = DataLoader.getData('devices');
+        var allDevices = DataLoader.getData('devices');
+        var devices = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterByUPN(allDevices, 'userPrincipalName') : allDevices;
 
         // Build filter configuration
         const filterConfig = {
             search: Filters.getValue('devices-search'),
-            searchFields: ['deviceName', 'userPrincipalName', 'model', 'manufacturer', 'serialNumber'],
+            searchFields: ['deviceName', 'userPrincipalName', 'primaryUserDisplayName', 'model', 'manufacturer', 'serialNumber'],
             exact: {}
         };
 
@@ -235,6 +236,36 @@ const PageDevices = (function() {
 
                 <span class="detail-label">Device ID:</span>
                 <span class="detail-value" style="font-size: 0.8em;">${device.id}</span>
+            </div>
+
+            <h4 class="mt-lg mb-sm">User & Enrollment</h4>
+            <div class="detail-list">
+                <span class="detail-label">Primary User:</span>
+                <span class="detail-value">${device.primaryUserDisplayName || '--'}</span>
+
+                <span class="detail-label">Autopilot Enrolled:</span>
+                <span class="detail-value">${device.autopilotEnrolled ? 'Yes' : 'No'}</span>
+
+                <span class="detail-label">Device Category:</span>
+                <span class="detail-value">${device.deviceCategory || '--'}</span>
+
+                <span class="detail-label">Join Type:</span>
+                <span class="detail-value">${device.joinType || '--'}</span>
+
+                <span class="detail-label">Wi-Fi MAC:</span>
+                <span class="detail-value">${device.wifiMacAddress || '--'}</span>
+            </div>
+
+            <h4 class="mt-lg mb-sm">Storage</h4>
+            <div class="detail-list">
+                <span class="detail-label">Total Storage:</span>
+                <span class="detail-value">${device.totalStorageGB !== null && device.totalStorageGB !== undefined ? device.totalStorageGB + ' GB' : '--'}</span>
+
+                <span class="detail-label">Free Storage:</span>
+                <span class="detail-value">${device.freeStorageGB !== null && device.freeStorageGB !== undefined ? device.freeStorageGB + ' GB' : '--'}</span>
+
+                <span class="detail-label">Storage Used:</span>
+                <span class="detail-value">${device.storageUsedPct !== null && device.storageUsedPct !== undefined ? device.storageUsedPct + '%' : '--'}</span>
             </div>
         `;
 

@@ -1,0 +1,38 @@
+{
+  "currentScore": 62.3,
+  "maxScore": 100,
+  "scorePct": 62,
+  "controlScores": [
+    {
+      "name": "AdminMFAV2",
+      "description": "Require MFA for administrative roles",
+      "scoreInPercentage": 0,
+      "maxScore": 10
+    },
+    {
+      "name": "BlockLegacyAuthentication",
+      "description": "Block legacy authentication",
+      "scoreInPercentage": 50,
+      "maxScore": 8
+    },
+    {
+      "name": "SigninRiskPolicy",
+      "description": "Enable sign-in risk policy",
+      "scoreInPercentage": 0,
+      "maxScore": 7
+    },
+    {
+      "name": "SelfServicePasswordReset",
+      "description": "Enable self-service password reset",
+      "scoreInPercentage": 0,
+      "maxScore": 6
+    },
+    {
+      "name": "RoleOverlap",
+      "description": "Reduce role overlap between admin accounts",
+      "scoreInPercentage": 30,
+      "maxScore": 5
+    }
+  ],
+  "collectedAt": "2026-01-15T10:30:00Z"
+}

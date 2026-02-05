@@ -1,7 +1,7 @@
 /**
  * ============================================================================
  * TenantScope
- * Author: Robe (https://github.com/Thugney)
+ * Author: Robel (https://github.com/Thugney)
  * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
  * License: MIT
  * ============================================================================
@@ -24,6 +24,27 @@ const PageOverview = (function() {
      */
     function render(container) {
         var summary = DataLoader.getSummary();
+
+        // Recompute summary from department-filtered data if active
+        if (typeof DepartmentFilter !== 'undefined' && DepartmentFilter.getSelected()) {
+            var fUsers = DepartmentFilter.filterData(DataLoader.getData('users'), 'department');
+            var fDevices = DepartmentFilter.filterByUPN(DataLoader.getData('devices'), 'userPrincipalName');
+            var fAlerts = DataLoader.getData('defenderAlerts');
+            var compliant = fDevices.filter(function(d) { return d.complianceState === 'compliant'; }).length;
+            var mfaReg = fUsers.filter(function(u) { return u.mfaRegistered; }).length;
+            summary = Object.assign({}, summary, {
+                totalUsers: fUsers.length,
+                employeeCount: fUsers.filter(function(u) { return u.domain === 'employee'; }).length,
+                studentCount: fUsers.filter(function(u) { return u.domain === 'student'; }).length,
+                otherCount: fUsers.filter(function(u) { return u.domain === 'other'; }).length,
+                mfaRegisteredCount: mfaReg,
+                noMfaUsers: fUsers.length - mfaReg,
+                mfaPct: fUsers.length > 0 ? Math.round((mfaReg / fUsers.length) * 100) : 0,
+                totalDevices: fDevices.length,
+                compliantDevices: compliant,
+                compliancePct: fDevices.length > 0 ? Math.round((compliant / fDevices.length) * 100) : 0
+            });
+        }
 
         container.textContent = '';
 
@@ -112,6 +133,27 @@ const PageOverview = (function() {
         grid.appendChild(alertCard);
 
         container.appendChild(grid);
+
+        // Add trend indicators if history is available
+        if (typeof TrendHelper !== 'undefined') {
+            var history = DataLoader.getData('trendHistory');
+            if (history && history.length > 0) {
+                var trendMetrics = [
+                    { card: userCard, key: 'totalUsers', value: s.totalUsers },
+                    { card: mfaCard, key: 'mfaPct', value: s.mfaPct },
+                    { card: compCard, key: 'compliancePct', value: s.compliancePct },
+                    { card: alertCard, key: 'activeAlerts', value: s.activeAlerts }
+                ];
+                trendMetrics.forEach(function(m) {
+                    var trend = TrendHelper.getTrend(m.value, history, m.key);
+                    if (trend) {
+                        var indicator = TrendHelper.createIndicator(trend);
+                        var valEl = m.card.querySelector('.card-value');
+                        if (valEl) valEl.appendChild(indicator);
+                    }
+                });
+            }
+        }
     }
 
     /**
@@ -120,6 +162,36 @@ const PageOverview = (function() {
     function renderCharts(container, s) {
         var grid = document.createElement('div');
         grid.className = 'overview-charts-grid';
+
+        // Secure Score donut (first chart)
+        var secureScore = DataLoader.getData('secureScore');
+        if (secureScore && secureScore.scorePct !== undefined) {
+            var pct = secureScore.scorePct;
+            var scoreColor = pct >= 70 ? C.green : (pct >= 40 ? C.yellow : C.red);
+            var scoreSegments = [
+                { value: pct, label: 'Achieved', color: scoreColor },
+                { value: 100 - pct, label: 'Remaining', color: C.gray }
+            ];
+            var scoreCard = DashboardCharts.createChartCard(
+                'Secure Score', scoreSegments,
+                pct + '%', 'of 100'
+            );
+
+            // Add top improvement actions below chart
+            if (secureScore.controlScores && secureScore.controlScores.length > 0) {
+                var list = document.createElement('ul');
+                list.className = 'secure-score-actions';
+                var top3 = secureScore.controlScores.slice(0, 3);
+                for (var i = 0; i < top3.length; i++) {
+                    var li = document.createElement('li');
+                    li.textContent = top3[i].description;
+                    list.appendChild(li);
+                }
+                scoreCard.appendChild(list);
+            }
+
+            grid.appendChild(scoreCard);
+        }
 
         // User Composition donut
         var userSegments = [
@@ -176,6 +248,16 @@ const PageOverview = (function() {
         title.className = 'license-grid-title';
         title.textContent = 'License Utilization';
         panel.appendChild(title);
+
+        // Waste cost callout
+        var summary = DataLoader.getSummary();
+        if (summary.totalWasteMonthlyCost > 0) {
+            var costCallout = document.createElement('div');
+            costCallout.className = 'license-waste-callout';
+            var sym = summary.currency === 'NOK' ? 'kr' : summary.currency === 'USD' ? '$' : '';
+            costCallout.textContent = sym + ' ' + summary.totalWasteMonthlyCost.toLocaleString() + '/mo wasted';
+            panel.appendChild(costCallout);
+        }
 
         for (var i = 0; i < sorted.length; i++) {
             var sku = sorted[i];

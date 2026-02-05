@@ -1,6 +1,6 @@
 # ============================================================================
 # TenantScope
-# Author: Robe (https://github.com/Thugney)
+# Author: Robel (https://github.com/Thugney)
 # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 # License: MIT
 # ============================================================================
@@ -251,6 +251,19 @@ try {
             $utilizationPercent = [Math]::Round(($assignedToEnabled / $totalPurchased) * 100)
         }
 
+        # Cost calculation from config pricing
+        $monthlyCostPerLicense = 0
+        $currencyCode = "NOK"
+        if ($Config.licensePricing -and $Config.licensePricing.ContainsKey($sku.SkuPartNumber)) {
+            $monthlyCostPerLicense = [double]$Config.licensePricing[$sku.SkuPartNumber]
+        }
+        if ($Config.currency -and $Config.currency.code) {
+            $currencyCode = $Config.currency.code
+        }
+
+        $estimatedMonthlyCost = [Math]::Round($totalAssigned * $monthlyCostPerLicense)
+        $wasteMonthlyCost = [Math]::Round($wasteCount * $monthlyCostPerLicense)
+
         # Build output object
         $processedSku = [PSCustomObject]@{
             skuId               = $sku.SkuId
@@ -264,6 +277,10 @@ try {
             available           = [Math]::Max(0, $available)
             wasteCount          = $wasteCount
             utilizationPercent  = $utilizationPercent
+            monthlyCostPerLicense = $monthlyCostPerLicense
+            estimatedMonthlyCost  = $estimatedMonthlyCost
+            wasteMonthlyCost      = $wasteMonthlyCost
+            currency              = $currencyCode
         }
 
         $processedSkus += $processedSku

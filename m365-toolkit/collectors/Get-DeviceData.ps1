@@ -1,6 +1,6 @@
 # ============================================================================
 # TenantScope
-# Author: Robe (https://github.com/Thugney)
+# Author: Robel (https://github.com/Thugney)
 # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 # License: MIT
 # ============================================================================
@@ -285,6 +285,22 @@ try {
             certExpiryDate  = if ($device.ManagedDeviceCertificateExpirationDate) { $device.ManagedDeviceCertificateExpirationDate.ToString("o") } else { $null }
             daysUntilCertExpiry = $daysUntilCertExpiry
             certStatus      = $certStatus
+            # Extended fields from existing API response (no additional calls)
+            primaryUserDisplayName = $device.UserDisplayName
+            autopilotEnrolled      = [bool]$device.AutopilotEnrolled
+            deviceCategory         = $device.DeviceCategoryDisplayName
+            totalStorageGB         = if ($device.TotalStorageSpaceInBytes -and $device.TotalStorageSpaceInBytes -gt 0) {
+                                         [Math]::Round($device.TotalStorageSpaceInBytes / 1GB, 1)
+                                     } else { $null }
+            freeStorageGB          = if ($device.FreeStorageSpaceInBytes -and $device.FreeStorageSpaceInBytes -gt 0) {
+                                         [Math]::Round($device.FreeStorageSpaceInBytes / 1GB, 1)
+                                     } else { $null }
+            storageUsedPct         = if ($device.TotalStorageSpaceInBytes -and $device.TotalStorageSpaceInBytes -gt 0) {
+                                         $used = $device.TotalStorageSpaceInBytes - $device.FreeStorageSpaceInBytes
+                                         [Math]::Round(($used / $device.TotalStorageSpaceInBytes) * 100, 1)
+                                     } else { $null }
+            wifiMacAddress         = $device.WiFiMacAddress
+            joinType               = if ($device.JoinType) { $device.JoinType } else { $null }
         }
 
         $processedDevices += $processedDevice

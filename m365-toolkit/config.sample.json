@@ -7,13 +7,41 @@
   "thresholds": {
     "inactiveDays": 90,
     "staleGuestDays": 60,
-    "staleDeviceDays": 90
+    "staleDeviceDays": 90,
+    "inactiveTeamDays": 90,
+    "inactiveSiteDays": 90,
+    "highStorageThresholdGB": 20
   },
   "collection": {
     "signInLogDays": 30,
     "defenderAlertDays": 30,
     "auditLogDays": 30,
     "pimActivityDays": 30
+  },
+  "currency": {
+    "code": "NOK",
+    "symbol": "kr",
+    "locale": "nb-NO"
+  },
+  "licensePricing": {
+    "SPE_E3": 350,
+    "SPE_E5": 580,
+    "M365EDU_A3_FACULTY": 70,
+    "M365EDU_A1": 0,
+    "M365EDU_A3_STUUSEBNFT": 30,
+    "ENTERPRISEPACK": 270,
+    "EXCHANGESTANDARD": 55,
+    "POWER_BI_PRO": 105,
+    "INTUNE_A": 90,
+    "AAD_PREMIUM": 65,
+    "AAD_PREMIUM_P2": 100,
+    "VISIOCLIENT": 165,
+    "PROJECTPREMIUM": 520,
+    "TEAMS_EXPLORATORY": 0,
+    "FLOW_FREE": 0,
+    "POWERAPPS_VIRAL": 0,
+    "STREAM": 0,
+    "POWER_BI_STANDARD": 0
   },
   "dashboard": {
     "title": "TenantScope",

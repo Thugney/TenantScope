@@ -1,6 +1,6 @@
 # ============================================================================
 # TenantScope
-# Author: Robe (https://github.com/Thugney)
+# Author: Robel (https://github.com/Thugney)
 # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
 # License: MIT
 # ============================================================================
@@ -125,7 +125,11 @@ $dataFiles = @(
     "enterprise-apps.json",
     "audit-logs.json",
     "pim-activity.json",
-    "collection-metadata.json"
+    "teams.json",
+    "sharepoint-sites.json",
+    "collection-metadata.json",
+    "trend-history.json",
+    "secure-score.json"
 )
 
 # Copy each file
@@ -188,7 +192,11 @@ $bundleMap = @{
     "enterpriseApps"  = "enterprise-apps.json"
     "auditLogs"       = "audit-logs.json"
     "pimActivity"     = "pim-activity.json"
+    "teams"           = "teams.json"
+    "sharepointSites" = "sharepoint-sites.json"
     "metadata"        = "collection-metadata.json"
+    "trendHistory"    = "trend-history.json"
+    "secureScore"     = "secure-score.json"
 }
 
 foreach ($entry in $bundleMap.GetEnumerator()) {
