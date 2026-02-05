@@ -199,6 +199,8 @@ $bundleMap = @{
     "metadata"        = "collection-metadata.json"
     "trendHistory"    = "trend-history.json"
     "secureScore"     = "secure-score.json"
+    "appSignins"      = "app-signins.json"
+    "conditionalAccess" = "conditional-access.json"
 }
 
 foreach ($entry in $bundleMap.GetEnumerator()) {
