@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Sidebar footer now displays version number (v1.5.0)
 - Sample user data now includes `assignedSkuIds` for overlap detection testing
 
+### Fixed
+- Mobile sidebar usability: added hamburger menu, overlay backdrop, and auto-close on navigation
+- DashboardCharts API calls in Organization and License Analysis pages (renderDonut -> createDonutChart)
+- FocusTables integration in Organization page manager focus table
+
 ## [1.4.0] - 2026-02-05
 
 ### Added
