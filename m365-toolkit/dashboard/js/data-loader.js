@@ -46,6 +46,7 @@ const DataLoader = (function() {
         trendHistory: [],
         secureScore: null,
         appSignins: [],
+        conditionalAccess: [],
         metadata: null
     };
 
@@ -70,6 +71,7 @@ const DataLoader = (function() {
         trendHistory: 'data/trend-history.json',
         secureScore: 'data/secure-score.json',
         appSignins: 'data/app-signins.json',
+        conditionalAccess: 'data/conditional-access.json',
         metadata: 'data/collection-metadata.json'
     };
 

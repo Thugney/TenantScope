@@ -35,7 +35,8 @@
         'pim': PagePIM,
         'report': PageReport,
         'data-quality': PageDataQuality,
-        'app-usage': PageAppUsage
+        'app-usage': PageAppUsage,
+        'conditional-access': PageConditionalAccess
     };
 
     // ========================================================================

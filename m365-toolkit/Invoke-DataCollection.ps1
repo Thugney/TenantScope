@@ -66,7 +66,7 @@ param(
     [ValidateSet("UserData", "LicenseData", "GuestData", "MFAData", "AdminRoleData",
                  "SignInData", "DeviceData", "AutopilotData", "DefenderData", "EnterpriseAppData",
                  "AuditLogData", "PIMData", "TeamsData", "SharePointData", "SecureScoreData",
-                 "AppSignInData")]
+                 "AppSignInData", "ConditionalAccessData")]
     [string[]]$CollectorsToRun
 )
 
@@ -490,7 +490,8 @@ $collectors = @(
     @{ Name = "Get-TeamsData";        Script = "Get-TeamsData.ps1";        Output = "teams.json" },
     @{ Name = "Get-SharePointData";   Script = "Get-SharePointData.ps1";   Output = "sharepoint-sites.json" },
     @{ Name = "Get-SecureScoreData"; Script = "Get-SecureScoreData.ps1"; Output = "secure-score.json" },
-    @{ Name = "Get-AppSignInData";  Script = "Get-AppSignInData.ps1";  Output = "app-signins.json" }
+    @{ Name = "Get-AppSignInData";  Script = "Get-AppSignInData.ps1";  Output = "app-signins.json" },
+    @{ Name = "Get-ConditionalAccessData"; Script = "Get-ConditionalAccessData.ps1"; Output = "conditional-access.json" }
 )
 
 # Filter collectors if specific ones were requested

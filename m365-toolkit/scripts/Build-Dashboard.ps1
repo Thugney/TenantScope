@@ -130,7 +130,8 @@ $dataFiles = @(
     "collection-metadata.json",
     "trend-history.json",
     "secure-score.json",
-    "app-signins.json"
+    "app-signins.json",
+    "conditional-access.json"
 )
 
 # Copy each file

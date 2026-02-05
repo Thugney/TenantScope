@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-05
+
+### Added
+- **Conditional Access Analysis**: New dashboard page for CA policy inventory and security gap detection
+- New collector: `Get-ConditionalAccessData.ps1` collecting from `/identity/conditionalAccess/policies` endpoint
+- CA policy inventory with state, type, and security level classification
+- Security gap detection: identifies missing MFA policies, legacy auth exposure, risk-based policy gaps
+- Policy exclusion tracking: highlights users/groups excluded from security policies (blind spots)
+- MFA Coverage analysis: visual breakdown of all-users vs partial vs no-MFA policies
+- Focus/Breakdown tables on CA page for policy analysis by state, type, and security level
+- New Graph scope: `Policy.Read.All` for Conditional Access policy data
+- Sample data with 15 realistic CA policies demonstrating various configurations
+
+### Changed
+- Navigation updated with Conditional Access page under Security section
+- Build pipeline now includes `conditional-access.json` in dashboard bundle
+
 ## [1.3.0] - 2026-02-05
 
 ### Added
