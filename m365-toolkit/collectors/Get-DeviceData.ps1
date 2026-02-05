@@ -154,6 +154,89 @@ function Get-SimplifiedOS {
     return $OperatingSystem
 }
 
+function Get-WindowsLifecycleInfo {
+    <#
+    .SYNOPSIS
+        Returns Windows version lifecycle information from OS version string.
+
+    .DESCRIPTION
+        Parses Windows build number and returns release name, type (10/11),
+        end-of-support date, and supported status. Uses Microsoft lifecycle data.
+
+    .PARAMETER OsVersion
+        The OS version string (e.g., "10.0.22631.4890").
+
+    .OUTPUTS
+        Hashtable with: windowsRelease, windowsBuild, windowsType, windowsEOL, windowsSupported
+    #>
+    param(
+        [Parameter()]
+        [AllowNull()]
+        [string]$OsVersion
+    )
+
+    $result = @{
+        windowsRelease   = $null
+        windowsBuild     = $null
+        windowsType      = $null
+        windowsEOL       = $null
+        windowsSupported = $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($OsVersion)) {
+        return $result
+    }
+
+    # Extract build number from version string (e.g., "10.0.22631.4890" -> 22631)
+    $match = [regex]::Match($OsVersion, "10\.0\.(\d{5})")
+    if (-not $match.Success) {
+        return $result
+    }
+
+    $buildNumber = [int]$match.Groups[1].Value
+    $result.windowsBuild = $buildNumber
+
+    # Windows 11 builds (22000+)
+    # Windows 10 builds (19041-19045)
+    # Lifecycle data based on Microsoft support policy (Enterprise/Education LTSC support dates)
+    $lifecycleData = @{
+        # Windows 11
+        22631 = @{ Release = "23H2"; Type = "Windows 11"; EOL = "2026-11-10"; Supported = $true }
+        22621 = @{ Release = "22H2"; Type = "Windows 11"; EOL = "2025-10-14"; Supported = $true }
+        22000 = @{ Release = "21H2"; Type = "Windows 11"; EOL = "2024-10-08"; Supported = $false }
+        # Windows 10
+        19045 = @{ Release = "22H2"; Type = "Windows 10"; EOL = "2025-10-14"; Supported = $true }
+        19044 = @{ Release = "21H2"; Type = "Windows 10"; EOL = "2024-06-11"; Supported = $false }
+        19043 = @{ Release = "21H1"; Type = "Windows 10"; EOL = "2022-12-13"; Supported = $false }
+        19042 = @{ Release = "20H2"; Type = "Windows 10"; EOL = "2023-05-09"; Supported = $false }
+        19041 = @{ Release = "2004"; Type = "Windows 10"; EOL = "2021-12-14"; Supported = $false }
+    }
+
+    if ($lifecycleData.ContainsKey($buildNumber)) {
+        $info = $lifecycleData[$buildNumber]
+        $result.windowsRelease = $info.Release
+        $result.windowsType = $info.Type
+        $result.windowsEOL = $info.EOL
+        $result.windowsSupported = $info.Supported
+    }
+    else {
+        # Unknown build - determine type by build range
+        if ($buildNumber -ge 22000) {
+            $result.windowsType = "Windows 11"
+        }
+        elseif ($buildNumber -ge 19041) {
+            $result.windowsType = "Windows 10"
+        }
+        else {
+            $result.windowsType = "Windows"
+        }
+        $result.windowsRelease = "Unknown"
+        $result.windowsSupported = $null
+    }
+
+    return $result
+}
+
 function Invoke-GraphWithRetry {
     <#
     .SYNOPSIS
@@ -264,6 +347,9 @@ try {
         $daysUntilCertExpiry = Get-DaysUntilDate -DateValue $device.ManagedDeviceCertificateExpirationDate
         $certStatus = Get-CertificateStatus -DaysUntilExpiry $daysUntilCertExpiry
 
+        # Get Windows lifecycle info (only for Windows devices)
+        $winLifecycle = Get-WindowsLifecycleInfo -OsVersion $device.OsVersion
+
         # Build output object matching our schema
         $processedDevice = [PSCustomObject]@{
             id              = $device.Id
@@ -301,6 +387,12 @@ try {
                                      } else { $null }
             wifiMacAddress         = $device.WiFiMacAddress
             joinType               = if ($device.JoinType) { $device.JoinType } else { $null }
+            # Windows lifecycle fields
+            windowsRelease         = $winLifecycle.windowsRelease
+            windowsBuild           = $winLifecycle.windowsBuild
+            windowsType            = $winLifecycle.windowsType
+            windowsEOL             = $winLifecycle.windowsEOL
+            windowsSupported       = $winLifecycle.windowsSupported
         }
 
         $processedDevices += $processedDevice

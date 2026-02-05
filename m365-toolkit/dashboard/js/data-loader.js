@@ -45,6 +45,7 @@ const DataLoader = (function() {
         sharepointSites: [],
         trendHistory: [],
         secureScore: null,
+        appSignins: [],
         metadata: null
     };
 
@@ -68,6 +69,7 @@ const DataLoader = (function() {
         sharepointSites: 'data/sharepoint-sites.json',
         trendHistory: 'data/trend-history.json',
         secureScore: 'data/secure-score.json',
+        appSignins: 'data/app-signins.json',
         metadata: 'data/collection-metadata.json'
     };
 

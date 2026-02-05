@@ -15,6 +15,12 @@
 const PageGuests = (function() {
     'use strict';
 
+    /** Column selector instance */
+    var colSelector = null;
+
+    /** Current breakdown dimension */
+    var currentBreakdown = 'sourceDomain';
+
     /**
      * Applies current filters and re-renders the table.
      */
@@ -49,6 +55,32 @@ const PageGuests = (function() {
             }
         }
 
+        // Date range filters
+        var createdRange = Filters.getValue('guests-created-range');
+        if (createdRange && (createdRange.from || createdRange.to)) {
+            filteredData = filteredData.filter(function(g) {
+                if (!g.createdDateTime) return false;
+                var dt = new Date(g.createdDateTime);
+                if (createdRange.from && dt < new Date(createdRange.from)) return false;
+                if (createdRange.to && dt > new Date(createdRange.to + 'T23:59:59')) return false;
+                return true;
+            });
+        }
+
+        var signinRange = Filters.getValue('guests-signin-range');
+        if (signinRange && (signinRange.from || signinRange.to)) {
+            filteredData = filteredData.filter(function(g) {
+                if (!g.lastSignIn) return !signinRange.from;
+                var dt = new Date(g.lastSignIn);
+                if (signinRange.from && dt < new Date(signinRange.from)) return false;
+                if (signinRange.to && dt > new Date(signinRange.to + 'T23:59:59')) return false;
+                return true;
+            });
+        }
+
+        // Render Focus/Breakdown tables
+        renderFocusBreakdown(filteredData);
+
         // Render table
         renderTable(filteredData);
     }
@@ -59,19 +91,34 @@ const PageGuests = (function() {
      * @param {Array} data - Filtered guest data
      */
     function renderTable(data) {
+        // Get visible columns from Column Selector
+        var visible = colSelector ? colSelector.getVisible() : [
+            'displayName', 'mail', 'sourceDomain', 'createdDateTime',
+            'invitationState', 'lastSignIn', 'daysSinceLastSignIn', 'isStale'
+        ];
+
+        // All column definitions
+        var allDefs = [
+            { key: 'displayName', label: 'Name' },
+            { key: 'mail', label: 'Email', className: 'cell-truncate' },
+            { key: 'sourceDomain', label: 'Source Domain' },
+            { key: 'createdDateTime', label: 'Invited', formatter: Tables.formatters.date },
+            { key: 'invitationState', label: 'Invitation', formatter: formatInvitationState },
+            { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date },
+            { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+            { key: 'isStale', label: 'Status', formatter: formatGuestStatus },
+            { key: 'neverSignedIn', label: 'Never Signed In', formatter: function(v) { return v ? 'Yes' : 'No'; } }
+        ];
+
+        // Filter to visible columns only
+        var columns = allDefs.filter(function(col) {
+            return visible.indexOf(col.key) !== -1;
+        });
+
         Tables.render({
             containerId: 'guests-table',
             data: data,
-            columns: [
-                { key: 'displayName', label: 'Name' },
-                { key: 'mail', label: 'Email', className: 'cell-truncate' },
-                { key: 'sourceDomain', label: 'Source Domain' },
-                { key: 'createdDateTime', label: 'Invited', formatter: Tables.formatters.date },
-                { key: 'invitationState', label: 'Invitation', formatter: formatInvitationState },
-                { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date },
-                { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
-                { key: 'isStale', label: 'Status', formatter: formatGuestStatus }
-            ],
+            columns: columns,
             pageSize: 50,
             onRowClick: showGuestDetails,
             getRowClass: (row) => {
@@ -106,6 +153,68 @@ const PageGuests = (function() {
             return '<span class="badge badge-critical">Stale</span>';
         }
         return '<span class="badge badge-success">Active</span>';
+    }
+
+    /**
+     * Renders Focus/Breakdown tables for guest analysis.
+     *
+     * @param {Array} guests - Filtered guest data
+     */
+    function renderFocusBreakdown(guests) {
+        var focusContainer = document.getElementById('guests-focus-table');
+        var breakdownContainer = document.getElementById('guests-breakdown-table');
+        var breakdownFilterContainer = document.getElementById('guests-breakdown-filter');
+
+        if (!focusContainer || !breakdownContainer) return;
+
+        // Breakdown dimension options
+        var breakdownDimensions = [
+            { key: 'sourceDomain', label: 'Source Domain' },
+            { key: 'invitationState', label: 'Invitation State' }
+        ];
+
+        // Render breakdown filter
+        if (breakdownFilterContainer && typeof FocusTables !== 'undefined') {
+            FocusTables.renderBreakdownFilter({
+                containerId: 'guests-breakdown-filter',
+                dimensions: breakdownDimensions,
+                selected: currentBreakdown,
+                onChange: function(newDim) {
+                    currentBreakdown = newDim;
+                    renderFocusBreakdown(guests);
+                }
+            });
+        }
+
+        // Derive guest status for focus grouping
+        var guestsWithStatus = guests.map(function(g) {
+            var guestStatus = 'Active';
+            if (g.invitationState === 'PendingAcceptance') guestStatus = 'Pending';
+            else if (g.neverSignedIn) guestStatus = 'Never Signed In';
+            else if (g.isStale) guestStatus = 'Stale';
+            return Object.assign({}, g, { guestStatus: guestStatus });
+        });
+
+        // Render Focus Table: group by status
+        if (typeof FocusTables !== 'undefined') {
+            FocusTables.renderFocusTable({
+                containerId: 'guests-focus-table',
+                data: guestsWithStatus,
+                groupByKey: 'guestStatus',
+                groupByLabel: 'Status',
+                countLabel: 'Guests'
+            });
+
+            // Render Breakdown Table: status x breakdown dimension
+            FocusTables.renderBreakdownTable({
+                containerId: 'guests-breakdown-table',
+                data: guestsWithStatus,
+                primaryKey: 'guestStatus',
+                breakdownKey: currentBreakdown,
+                primaryLabel: 'Status',
+                breakdownLabel: breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }).label
+            });
+        }
     }
 
     /**
@@ -202,8 +311,24 @@ const PageGuests = (function() {
             <!-- Charts -->
             <div class="charts-row" id="guests-charts"></div>
 
+            <!-- Focus/Breakdown Analysis -->
+            <div class="section-header">
+                <h3>Guest Analysis</h3>
+                <div id="guests-breakdown-filter"></div>
+            </div>
+            <div class="focus-breakdown-row">
+                <div id="guests-focus-table"></div>
+                <div id="guests-breakdown-table"></div>
+            </div>
+
             <!-- Filters -->
             <div id="guests-filter"></div>
+
+            <!-- Column Selector + Export -->
+            <div class="table-toolbar">
+                <div id="guests-col-selector"></div>
+                <button class="btn btn-secondary btn-sm" id="export-guests-table">Export CSV</button>
+            </div>
 
             <!-- Data Table -->
             <div id="guests-table"></div>
@@ -258,10 +383,44 @@ const PageGuests = (function() {
                         { value: 'never', label: 'Never Signed In' },
                         { value: 'pending', label: 'Pending' }
                     ]
+                },
+                {
+                    type: 'date-range',
+                    id: 'guests-created-range',
+                    label: 'Invited'
+                },
+                {
+                    type: 'date-range',
+                    id: 'guests-signin-range',
+                    label: 'Last Sign-In'
                 }
             ],
             onFilter: applyFilters
         });
+
+        // Setup Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'guests-col-selector',
+                storageKey: 'guests-columns',
+                allColumns: [
+                    { key: 'displayName', label: 'Name' },
+                    { key: 'mail', label: 'Email' },
+                    { key: 'sourceDomain', label: 'Source Domain' },
+                    { key: 'createdDateTime', label: 'Invited' },
+                    { key: 'invitationState', label: 'Invitation' },
+                    { key: 'lastSignIn', label: 'Last Sign-In' },
+                    { key: 'daysSinceLastSignIn', label: 'Days Inactive' },
+                    { key: 'isStale', label: 'Status' },
+                    { key: 'neverSignedIn', label: 'Never Signed In' }
+                ],
+                defaultVisible: [
+                    'displayName', 'mail', 'sourceDomain', 'createdDateTime',
+                    'invitationState', 'lastSignIn', 'daysSinceLastSignIn', 'isStale'
+                ],
+                onColumnsChanged: applyFilters
+            });
+        }
 
         // Bind export button
         Export.bindExportButton('guests-table', 'guests');

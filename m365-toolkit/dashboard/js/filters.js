@@ -144,13 +144,27 @@ const Filters = (function() {
                     }
                 }
 
-                // Range filters
+                // Range filters (numeric)
                 if (filterConfig.range) {
                     for (const [field, range] of Object.entries(filterConfig.range)) {
                         const value = getNestedValue(item, field);
                         if (value === null || value === undefined) continue;
                         if (range.min !== undefined && value < range.min) return false;
                         if (range.max !== undefined && value > range.max) return false;
+                    }
+                }
+
+                // Date range filters (ISO string comparison)
+                if (filterConfig.dateRange) {
+                    for (const [field, range] of Object.entries(filterConfig.dateRange)) {
+                        if ((!range.from || range.from === '') && (!range.to || range.to === '')) continue;
+                        const value = getNestedValue(item, field);
+                        if (value === null || value === undefined || value === '') {
+                            return false;
+                        }
+                        const dateStr = String(value).substring(0, 10);
+                        if (range.from && range.from !== '' && dateStr < range.from) return false;
+                        if (range.to && range.to !== '' && dateStr > range.to) return false;
                     }
                 }
 
@@ -214,6 +228,34 @@ const Filters = (function() {
                     select.addEventListener('change', config.onFilter);
                     group.appendChild(select);
                 }
+                else if (control.type === 'date-range') {
+                    const rangeWrap = document.createElement('div');
+                    rangeWrap.className = 'filter-date-range';
+                    rangeWrap.id = control.id;
+
+                    const fromInput = document.createElement('input');
+                    fromInput.type = 'date';
+                    fromInput.className = 'filter-date-input';
+                    fromInput.dataset.role = 'from';
+                    fromInput.title = 'From date';
+                    fromInput.addEventListener('change', config.onFilter);
+
+                    const sep = document.createElement('span');
+                    sep.className = 'filter-date-sep';
+                    sep.textContent = 'to';
+
+                    const toInput = document.createElement('input');
+                    toInput.type = 'date';
+                    toInput.className = 'filter-date-input';
+                    toInput.dataset.role = 'to';
+                    toInput.title = 'To date';
+                    toInput.addEventListener('change', config.onFilter);
+
+                    rangeWrap.appendChild(fromInput);
+                    rangeWrap.appendChild(sep);
+                    rangeWrap.appendChild(toInput);
+                    group.appendChild(rangeWrap);
+                }
                 else if (control.type === 'checkbox-group') {
                     const checkboxGroup = document.createElement('div');
                     checkboxGroup.className = 'filter-checkbox-group';
@@ -272,7 +314,15 @@ const Filters = (function() {
             const element = document.getElementById(controlId);
             if (!element) return null;
 
-            if (element.type === 'checkbox') {
+            if (element.classList.contains('filter-date-range')) {
+                const fromInput = element.querySelector('[data-role="from"]');
+                const toInput = element.querySelector('[data-role="to"]');
+                return {
+                    from: fromInput ? fromInput.value : '',
+                    to: toInput ? toInput.value : ''
+                };
+            }
+            else if (element.type === 'checkbox') {
                 return element.checked;
             }
             else if (element.classList.contains('filter-checkbox-group')) {
@@ -322,6 +372,9 @@ const Filters = (function() {
 
             const selects = container.querySelectorAll('.filter-select');
             selects.forEach(select => select.selectedIndex = 0);
+
+            const dateInputs = container.querySelectorAll('.filter-date-input');
+            dateInputs.forEach(input => input.value = '');
 
             const checkboxes = container.querySelectorAll('input[type="checkbox"]');
             checkboxes.forEach(cb => cb.checked = false);

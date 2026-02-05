@@ -188,15 +188,21 @@ try {
         "department",
         "jobTitle",
         "companyName",
+        "officeLocation",
+        "city",
+        "country",
+        "mobilePhone",
+        "usageLocation",
         "onPremisesSyncEnabled",
         "assignedLicenses",
         "signInActivity"
     )
 
     # Retrieve all users with pagination handled by -All parameter
+    # Expand manager relationship to get manager display name
     # This may take time for large tenants
     $graphUsers = Invoke-GraphWithRetry -ScriptBlock {
-        Get-MgUser -All -Property ($selectProperties -join ",") -ConsistencyLevel eventual -CountVariable userTotal
+        Get-MgUser -All -Property ($selectProperties -join ",") -ExpandProperty "manager(`$select=displayName,id)" -ConsistencyLevel eventual -CountVariable userTotal
     }
 
     Write-Host "      Retrieved $($graphUsers.Count) users from Graph API" -ForegroundColor Gray
@@ -232,10 +238,12 @@ try {
         # Classify user domain
         $domain = Get-DomainClassification -UserPrincipalName $user.UserPrincipalName -Config $Config
 
-        # Count assigned licenses
+        # Count assigned licenses and extract SKU IDs
         $licenseCount = 0
+        $assignedSkuIds = @()
         if ($user.AssignedLicenses) {
             $licenseCount = $user.AssignedLicenses.Count
+            $assignedSkuIds = $user.AssignedLicenses | ForEach-Object { $_.SkuId }
         }
 
         # Build flags array based on user state
@@ -249,6 +257,15 @@ try {
         # MFA flag will be added by cross-reference step
         # Admin flag will be added by cross-reference step
 
+        # Extract manager display name if available
+        $managerName = $null
+        if ($user.Manager) {
+            $managerName = $user.Manager.AdditionalProperties.displayName
+        }
+
+        # Determine user source (cloud-only vs on-premises synced)
+        $userSource = if ($user.OnPremisesSyncEnabled) { "On-premises synced" } else { "Cloud" }
+
         # Build output object matching our schema
         $processedUser = [PSCustomObject]@{
             id                      = $user.Id
@@ -260,6 +277,14 @@ try {
             domain                  = $domain
             department              = $user.Department
             jobTitle                = $user.JobTitle
+            companyName             = $user.CompanyName
+            officeLocation          = $user.OfficeLocation
+            city                    = $user.City
+            country                 = $user.Country
+            mobilePhone             = $user.MobilePhone
+            usageLocation           = $user.UsageLocation
+            manager                 = $managerName
+            userSource              = $userSource
             createdDateTime         = if ($user.CreatedDateTime) { $user.CreatedDateTime.ToString("o") } else { $null }
             lastSignIn              = if ($lastSignIn) { ([DateTime]$lastSignIn).ToString("o") } else { $null }
             lastNonInteractiveSignIn = if ($lastNonInteractiveSignIn) { ([DateTime]$lastNonInteractiveSignIn).ToString("o") } else { $null }
@@ -267,6 +292,7 @@ try {
             isInactive              = $isInactive
             onPremSync              = [bool]$user.OnPremisesSyncEnabled
             licenseCount            = $licenseCount
+            assignedSkuIds          = $assignedSkuIds
             mfaRegistered           = $true  # Default, will be updated by MFA cross-reference
             flags                   = $flags
         }

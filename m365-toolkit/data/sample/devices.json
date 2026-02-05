@@ -26,7 +26,12 @@
     "freeStorageGB": 198.3,
     "storageUsedPct": 58.4,
     "wifiMacAddress": "A4:5E:60:3B:7A:12",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev2b3c4-d5e6-7890-bcde-f23456789012",
@@ -55,7 +60,12 @@
     "freeStorageGB": 112.5,
     "storageUsedPct": 56.1,
     "wifiMacAddress": "A4:5E:60:4C:8B:23",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev3c4d5-e6f7-8901-cdef-345678901234",
@@ -84,7 +94,12 @@
     "freeStorageGB": 145.2,
     "storageUsedPct": 69.5,
     "wifiMacAddress": "A4:5E:60:5D:9C:34",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev4d5e6-f7a8-9012-def0-456789012345",
@@ -113,7 +128,12 @@
     "freeStorageGB": 234.1,
     "storageUsedPct": 50.9,
     "wifiMacAddress": "A4:5E:60:6E:AD:45",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev5e6f7-a8b9-0123-ef01-567890123456",
@@ -142,7 +162,12 @@
     "freeStorageGB": 23.4,
     "storageUsedPct": 90.9,
     "wifiMacAddress": "A4:5E:60:7F:BE:56",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "22H2",
+    "windowsBuild": 19045,
+    "windowsType": "Windows 10",
+    "windowsEOL": "2025-10-14",
+    "windowsSupported": true
   },
   {
     "id": "dev6f7a8-b9c0-1234-f012-678901234567",
@@ -171,7 +196,12 @@
     "freeStorageGB": 287.6,
     "storageUsedPct": 39.7,
     "wifiMacAddress": "A4:5E:60:8A:CF:67",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev7a8b9-c0d1-2345-0123-789012345678",
@@ -200,7 +230,12 @@
     "freeStorageGB": 89.7,
     "storageUsedPct": 65.0,
     "wifiMacAddress": "A4:5E:60:9B:D0:78",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev8b9c0-d1e2-3456-1234-890123456789",
@@ -229,7 +264,12 @@
     "freeStorageGB": 42.8,
     "storageUsedPct": 83.3,
     "wifiMacAddress": "A4:5E:60:AC:E1:89",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "22H2",
+    "windowsBuild": 19045,
+    "windowsType": "Windows 10",
+    "windowsEOL": "2025-10-14",
+    "windowsSupported": true
   },
   {
     "id": "dev9c0d1-e2f3-4567-2345-901234567890",
@@ -258,7 +298,12 @@
     "freeStorageGB": 134.9,
     "storageUsedPct": 47.3,
     "wifiMacAddress": "A4:5E:60:BD:F2:9A",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev0d1e2-f3a4-5678-3456-012345678901",
@@ -287,7 +332,12 @@
     "freeStorageGB": 312.4,
     "storageUsedPct": 34.5,
     "wifiMacAddress": "A4:5E:60:CE:03:AB",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev1e2f3-a4b5-6789-4567-123456789012",
@@ -316,7 +366,12 @@
     "freeStorageGB": 67.3,
     "storageUsedPct": 86.9,
     "wifiMacAddress": "A4:5E:60:DF:14:BC",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "21H2",
+    "windowsBuild": 19044,
+    "windowsType": "Windows 10",
+    "windowsEOL": "2024-06-11",
+    "windowsSupported": false
   },
   {
     "id": "dev2f3a4-b5c6-7890-5678-234567890123",
@@ -345,7 +400,12 @@
     "freeStorageGB": 156.7,
     "storageUsedPct": 67.1,
     "wifiMacAddress": "A4:5E:60:E0:25:CD",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev3a4b5-c6d7-8901-6789-345678901234",
@@ -374,7 +434,12 @@
     "freeStorageGB": 201.5,
     "storageUsedPct": 57.7,
     "wifiMacAddress": "A4:5E:60:F1:36:DE",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev4b5c6-d7e8-9012-7890-456789012345",
@@ -403,7 +468,12 @@
     "freeStorageGB": 98.2,
     "storageUsedPct": 61.6,
     "wifiMacAddress": "A4:5E:60:02:47:EF",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev5c6d7-e8f9-0123-8901-567890123456",
@@ -432,7 +502,12 @@
     "freeStorageGB": 78.4,
     "storageUsedPct": 69.4,
     "wifiMacAddress": "A4:5E:60:13:58:F0",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev6d7e8-f9a0-1234-9012-678901234567",
@@ -461,7 +536,12 @@
     "freeStorageGB": 51.2,
     "storageUsedPct": 89.3,
     "wifiMacAddress": "A4:5E:60:24:69:01",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "22H2",
+    "windowsBuild": 19045,
+    "windowsType": "Windows 10",
+    "windowsEOL": "2025-10-14",
+    "windowsSupported": true
   },
   {
     "id": "dev7e8f9-a0b1-2345-0123-789012345678",
@@ -490,7 +570,12 @@
     "freeStorageGB": 267.3,
     "storageUsedPct": 43.9,
     "wifiMacAddress": "A4:5E:60:35:7A:12",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev8f9a0-b1c2-3456-1234-890123456789",
@@ -519,7 +604,12 @@
     "freeStorageGB": 31.8,
     "storageUsedPct": 87.6,
     "wifiMacAddress": "A4:5E:60:46:8B:23",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "21H2",
+    "windowsBuild": 19044,
+    "windowsType": "Windows 10",
+    "windowsEOL": "2024-06-11",
+    "windowsSupported": false
   },
   {
     "id": "dev9a0b1-c2d3-4567-2345-901234567890",
@@ -548,7 +638,12 @@
     "freeStorageGB": 341.2,
     "storageUsedPct": 28.4,
     "wifiMacAddress": "A4:5E:60:57:9C:34",
-    "joinType": "azureADJoined"
+    "joinType": "azureADJoined",
+    "windowsRelease": "23H2",
+    "windowsBuild": 22631,
+    "windowsType": "Windows 11",
+    "windowsEOL": "2026-11-10",
+    "windowsSupported": true
   },
   {
     "id": "dev0b1c2-d3e4-5678-3456-012345678901",
@@ -577,7 +672,12 @@
     "freeStorageGB": 18.9,
     "storageUsedPct": 92.6,
     "wifiMacAddress": "A4:5E:60:68:AD:45",
-    "joinType": "hybridAzureADJoined"
+    "joinType": "hybridAzureADJoined",
+    "windowsRelease": "22H2",
+    "windowsBuild": 19045,
+    "windowsType": "Windows 10",
+    "windowsEOL": "2025-10-14",
+    "windowsSupported": true
   },
   {
     "id": "dev1c2d3-e4f5-6789-4567-123456789012",
@@ -606,7 +706,12 @@
     "freeStorageGB": 54.3,
     "storageUsedPct": 57.6,
     "wifiMacAddress": "A4:5E:60:79:BE:56",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev2d3e4-f5a6-7890-5678-234567890123",
@@ -635,7 +740,12 @@
     "freeStorageGB": 71.8,
     "storageUsedPct": 43.9,
     "wifiMacAddress": "A4:5E:60:8A:CF:67",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev3e4f5-a6b7-8901-6789-345678901234",
@@ -664,7 +774,12 @@
     "freeStorageGB": 178.4,
     "storageUsedPct": 30.3,
     "wifiMacAddress": "A4:5E:60:9B:D0:78",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev4f5a6-b7c8-9012-7890-456789012345",
@@ -693,7 +808,12 @@
     "freeStorageGB": 38.6,
     "storageUsedPct": 69.8,
     "wifiMacAddress": "A4:5E:60:AC:E1:89",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev5a6b7-c8d9-0123-8901-567890123456",
@@ -722,7 +842,12 @@
     "freeStorageGB": 189.1,
     "storageUsedPct": 26.1,
     "wifiMacAddress": "A4:5E:60:BD:F2:9A",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev6b7c8-d9e0-1234-9012-678901234567",
@@ -751,7 +876,12 @@
     "freeStorageGB": 45.7,
     "storageUsedPct": 64.3,
     "wifiMacAddress": "A4:5E:60:CE:03:AB",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev7c8d9-e0f1-2345-0123-789012345678",
@@ -780,7 +910,12 @@
     "freeStorageGB": 22.1,
     "storageUsedPct": 82.7,
     "wifiMacAddress": "A4:5E:60:DF:14:BC",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev8d9e0-f1a2-3456-1234-890123456789",
@@ -809,7 +944,12 @@
     "freeStorageGB": 67.9,
     "storageUsedPct": 46.9,
     "wifiMacAddress": "A4:5E:60:E0:25:CD",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev9e0f1-a2b3-4567-2345-901234567890",
@@ -838,7 +978,12 @@
     "freeStorageGB": 278.5,
     "storageUsedPct": 45.6,
     "wifiMacAddress": "A4:5E:60:F1:36:DE",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   },
   {
     "id": "dev0f1a2-b3c4-5678-3456-012345678901",
@@ -867,6 +1012,11 @@
     "freeStorageGB": 112.3,
     "storageUsedPct": 56.1,
     "wifiMacAddress": "A4:5E:60:02:47:EF",
-    "joinType": "azureADRegistered"
+    "joinType": "azureADRegistered",
+    "windowsRelease": null,
+    "windowsBuild": null,
+    "windowsType": null,
+    "windowsEOL": null,
+    "windowsSupported": null
   }
 ]

@@ -264,6 +264,18 @@ try {
         $estimatedMonthlyCost = [Math]::Round($totalAssigned * $monthlyCostPerLicense)
         $wasteMonthlyCost = [Math]::Round($wasteCount * $monthlyCostPerLicense)
 
+        # Billed users: exclude free SKUs (cost = 0)
+        $billedUsers = 0
+        if ($monthlyCostPerLicense -gt 0) {
+            $billedUsers = $totalAssigned
+        }
+
+        # Average cost per user
+        $averageCostPerUser = 0
+        if ($billedUsers -gt 0) {
+            $averageCostPerUser = [Math]::Round($estimatedMonthlyCost / $billedUsers)
+        }
+
         # Build output object
         $processedSku = [PSCustomObject]@{
             skuId               = $sku.SkuId
@@ -280,11 +292,75 @@ try {
             monthlyCostPerLicense = $monthlyCostPerLicense
             estimatedMonthlyCost  = $estimatedMonthlyCost
             wasteMonthlyCost      = $wasteMonthlyCost
+            overlapCount          = 0
+            overlapSkuName        = $null
+            billedUsers           = $billedUsers
+            averageCostPerUser    = $averageCostPerUser
+            potentialSavingsPercent = 0
             currency              = $currencyCode
         }
 
         $processedSkus += $processedSku
         $skuCount++
+    }
+
+    # ========================================================================
+    # OVERLAP DETECTION
+    # Uses overlap rules from config to find users with redundant licenses
+    # ========================================================================
+
+    $overlapRules = @()
+    if ($Config.licenseOverlapRules) {
+        $overlapRules = $Config.licenseOverlapRules
+    }
+
+    if ($overlapRules.Count -gt 0 -and $users.Count -gt 0) {
+        Write-Host "      Checking $($overlapRules.Count) overlap rules..." -ForegroundColor Gray
+
+        # Build SKU part number to ID lookup
+        $partToId = @{}
+        foreach ($s in $processedSkus) {
+            $partToId[$s.skuPartNumber] = $s.skuId
+        }
+
+        foreach ($rule in $overlapRules) {
+            $higherSkuId = $partToId[$rule.higherSku]
+            $lowerSkuId = $partToId[$rule.lowerSku]
+
+            if (-not $higherSkuId -or -not $lowerSkuId) {
+                continue
+            }
+
+            # Count users who have both SKUs assigned
+            $overlapCount = 0
+            foreach ($u in $users) {
+                $skuIds = $u.assignedSkuIds
+                if ($skuIds -and ($skuIds -contains $higherSkuId) -and ($skuIds -contains $lowerSkuId)) {
+                    $overlapCount++
+                }
+            }
+
+            if ($overlapCount -gt 0) {
+                # Update the lower SKU with overlap info
+                $lowerSkuObj = $processedSkus | Where-Object { $_.skuPartNumber -eq $rule.lowerSku }
+                if ($lowerSkuObj) {
+                    $lowerSkuObj.overlapCount = $overlapCount
+                    $lowerSkuObj.overlapSkuName = (Get-FriendlySkuName -SkuPartNumber $rule.higherSku)
+                    if ($lowerSkuObj.estimatedMonthlyCost -gt 0) {
+                        $lowerSkuObj.potentialSavingsPercent = [Math]::Round(($overlapCount * $lowerSkuObj.monthlyCostPerLicense) / $lowerSkuObj.estimatedMonthlyCost * 100)
+                    }
+                }
+
+                # Also update the higher SKU with overlap info (bidirectional)
+                $higherSkuObj = $processedSkus | Where-Object { $_.skuPartNumber -eq $rule.higherSku }
+                if ($higherSkuObj) {
+                    $higherSkuObj.overlapCount = $overlapCount
+                    $higherSkuObj.overlapSkuName = (Get-FriendlySkuName -SkuPartNumber $rule.lowerSku)
+                }
+
+                Write-Host "      Found $overlapCount users with both $($rule.lowerSku) and $($rule.higherSku)" -ForegroundColor Gray
+            }
+        }
     }
 
     # Sort by total purchased descending for easier reading

@@ -14,6 +14,11 @@
     "monthlyCostPerLicense": 70,
     "estimatedMonthlyCost": 29750,
     "wasteMonthlyCost": 3150,
+    "overlapCount": 3,
+    "overlapSkuName": "Microsoft 365 E3",
+    "billedUsers": 425,
+    "averageCostPerUser": 70,
+    "potentialSavingsPercent": 1,
     "currency": "NOK"
   },
   {
@@ -31,6 +36,11 @@
     "monthlyCostPerLicense": 0,
     "estimatedMonthlyCost": 0,
     "wasteMonthlyCost": 0,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 0,
+    "averageCostPerUser": 0,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   },
   {
@@ -48,6 +58,11 @@
     "monthlyCostPerLicense": 30,
     "estimatedMonthlyCost": 55500,
     "wasteMonthlyCost": 4500,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 0,
+    "averageCostPerUser": 30,
+    "potentialSavingsPercent": 2,
     "currency": "NOK"
   },
   {
@@ -65,6 +80,11 @@
     "monthlyCostPerLicense": 350,
     "estimatedMonthlyCost": 16800,
     "wasteMonthlyCost": 1050,
+    "overlapCount": 5,
+    "overlapSkuName": "Microsoft 365 E5",
+    "billedUsers": 48,
+    "averageCostPerUser": 350,
+    "potentialSavingsPercent": 10,
     "currency": "NOK"
   },
   {
@@ -82,6 +102,11 @@
     "monthlyCostPerLicense": 580,
     "estimatedMonthlyCost": 5800,
     "wasteMonthlyCost": 0,
+    "overlapCount": 5,
+    "overlapSkuName": "Microsoft 365 E3",
+    "billedUsers": 10,
+    "averageCostPerUser": 580,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   },
   {
@@ -99,6 +124,11 @@
     "monthlyCostPerLicense": 55,
     "estimatedMonthlyCost": 2310,
     "wasteMonthlyCost": 385,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 42,
+    "averageCostPerUser": 55,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   },
   {
@@ -116,6 +146,11 @@
     "monthlyCostPerLicense": 105,
     "estimatedMonthlyCost": 2310,
     "wasteMonthlyCost": 210,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 22,
+    "averageCostPerUser": 105,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   },
   {
@@ -133,6 +168,11 @@
     "monthlyCostPerLicense": 90,
     "estimatedMonthlyCost": 52200,
     "wasteMonthlyCost": 3600,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 580,
+    "averageCostPerUser": 90,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   },
   {
@@ -150,6 +190,11 @@
     "monthlyCostPerLicense": 65,
     "estimatedMonthlyCost": 35750,
     "wasteMonthlyCost": 2600,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 550,
+    "averageCostPerUser": 65,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   },
   {
@@ -167,6 +212,11 @@
     "monthlyCostPerLicense": 100,
     "estimatedMonthlyCost": 4800,
     "wasteMonthlyCost": 200,
+    "overlapCount": 0,
+    "overlapSkuName": null,
+    "billedUsers": 48,
+    "averageCostPerUser": 100,
+    "potentialSavingsPercent": 0,
     "currency": "NOK"
   }
 ]

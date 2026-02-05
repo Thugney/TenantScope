@@ -277,6 +277,41 @@ table {
     transition: transform var(--transition-normal);
 }
 
+/* Sidebar footer (author credit) */
+.sidebar-footer {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-top: 1px solid var(--color-sidebar-hover);
+    text-align: center;
+}
+
+.sidebar-version {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    font-weight: 500;
+}
+
+.sidebar-author {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+.sidebar-author:hover {
+    color: var(--color-accent);
+    text-decoration: none;
+}
+
+.sidebar.collapsed .sidebar-author {
+    display: none;
+}
+
 /* Collapsed sidebar state */
 .sidebar.collapsed {
     width: var(--sidebar-collapsed-width);
@@ -1704,8 +1739,316 @@ table {
 }
 
 /* ========================================================================
+   FOCUS / BREAKDOWN TABLES (BSURE analysis pattern)
+   ======================================================================== */
+
+/* Layout: Focus (1fr) + Breakdown (2fr) side-by-side */
+.focus-breakdown-row {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-lg);
+}
+
+/* Focus Table */
+.focus-table-wrapper {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+}
+
+.focus-table-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.focus-table-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-sm);
+}
+
+.focus-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.focus-table th {
+    text-align: left;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 2px solid var(--color-bg-tertiary);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+}
+
+.focus-table td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+}
+
+.focus-table tbody tr:hover {
+    background: var(--color-neutral-bg);
+}
+
+.focus-table-total td {
+    font-weight: 700;
+    border-top: 2px solid var(--color-bg-tertiary);
+    border-bottom: none;
+}
+
+/* Breakdown Table */
+.breakdown-table-wrapper {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-md);
+}
+
+.breakdown-table-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.breakdown-table-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    margin-bottom: var(--spacing-sm);
+}
+
+.breakdown-table-scroll {
+    overflow-x: auto;
+}
+
+.breakdown-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: var(--font-size-sm);
+}
+
+.breakdown-table th {
+    text-align: left;
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 2px solid var(--color-bg-tertiary);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    white-space: nowrap;
+}
+
+.breakdown-table td {
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+}
+
+.breakdown-table tbody tr:hover {
+    background: var(--color-neutral-bg);
+}
+
+.breakdown-table-total td {
+    font-weight: 700;
+    border-top: 2px solid var(--color-bg-tertiary);
+    border-bottom: none;
+}
+
+/* Cell alignment */
+.cell-right {
+    text-align: right;
+}
+
+.font-bold {
+    font-weight: 700;
+}
+
+/* Breakdown Filter (radio pill row) */
+.breakdown-filter {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    flex-wrap: wrap;
+    margin-bottom: var(--spacing-md);
+}
+
+.breakdown-filter-label {
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    margin-right: var(--spacing-xs);
+}
+
+.breakdown-filter-option {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-tertiary);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    border: 1px solid transparent;
+    user-select: none;
+}
+
+.breakdown-filter-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.breakdown-filter-option:hover {
+    background: var(--color-accent);
+    color: var(--color-text-inverse);
+}
+
+.breakdown-filter-option.active {
+    background: var(--color-accent);
+    color: var(--color-text-inverse);
+    border-color: var(--color-accent-hover);
+}
+
+/* ========================================================================
+   COLUMN SELECTOR
+   ======================================================================== */
+.column-selector {
+    position: relative;
+    display: inline-block;
+}
+
+.column-selector-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 6px 14px;
+    font-size: var(--font-size-xs);
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.column-selector-btn:hover {
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+}
+
+.column-selector-panel {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 50;
+    min-width: 200px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-md);
+    padding: var(--spacing-xs) 0;
+    margin-top: 4px;
+}
+
+.column-selector-actions {
+    display: flex;
+    gap: var(--spacing-xs);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.column-selector-action {
+    font-size: var(--font-size-xs);
+    color: var(--color-accent);
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: var(--radius-sm);
+}
+
+.column-selector-action:hover {
+    background: var(--color-neutral-bg);
+}
+
+.column-selector-item {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    padding: 4px var(--spacing-sm);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    cursor: pointer;
+    transition: background var(--transition-fast);
+}
+
+.column-selector-item:hover {
+    background: var(--color-neutral-bg);
+}
+
+.column-selector-item input[type="checkbox"] {
+    margin: 0;
+    accent-color: var(--color-accent);
+}
+
+/* ========================================================================
+   DATE RANGE FILTER
+   ======================================================================== */
+.filter-date-range {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+}
+
+.filter-date-input {
+    padding: 6px 8px;
+    font-size: var(--font-size-xs);
+    font-family: var(--font-family);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-secondary);
+    color: var(--color-text-primary);
+    min-width: 130px;
+}
+
+.filter-date-input:focus {
+    outline: none;
+    border-color: var(--color-accent);
+    box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.1);
+}
+
+.filter-date-sep {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    padding: 0 2px;
+}
+
+/* ========================================================================
    RESPONSIVE (basic adjustments for smaller screens)
    ======================================================================== */
+
+@media (max-width: 1200px) {
+    .focus-breakdown-row {
+        grid-template-columns: 1fr;
+    }
+}
 @media (max-width: 1024px) {
     .sidebar {
         width: var(--sidebar-collapsed-width);

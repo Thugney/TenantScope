@@ -33,7 +33,9 @@
         'sharepoint': PageSharePoint,
         'audit-logs': PageAuditLogs,
         'pim': PagePIM,
-        'report': PageReport
+        'report': PageReport,
+        'data-quality': PageDataQuality,
+        'app-usage': PageAppUsage
     };
 
     // ========================================================================

@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-02-05
+
+### Added
+- Focus/Breakdown Tables: BSURE-style analytical tables showing data grouped by dimensions with percentage breakdowns
+- Column Selector: customizable column visibility on all detail tables with localStorage persistence
+- Date Range Filters: created date and last sign-in date range filters on Users and Guests pages
+- User Source filter: filter users by Cloud vs On-premises synced origin
+- Windows Lifecycle tracking: automatic detection of Windows 10/11 version, release name, EOL date, and support status
+- Devices per Person analysis: bucket distribution showing users with 1, 2, 3, or 4+ devices
+- License Overlap Detection: configurable rules to identify users with redundant license assignments (e.g., E3 + E5)
+- Data Quality Report page: profile completeness analysis showing field coverage percentages across users
+- Application Usage page: sign-in analytics by app with user counts and department breakdown
+- App Sign-In collector: `Get-AppSignInData.ps1` collecting from `/auditLogs/signIns` endpoint
+- Enhanced user properties: companyName, officeLocation, city, country, mobilePhone, usageLocation, manager, userSource
+- Windows lifecycle columns on Devices page: Windows Type, Release, Supported status
+- Overlap, Savings %, Billed Users columns on Licenses page
+- Sample data for app sign-ins
+
+### Changed
+- Users page now includes Focus/Breakdown panel, Column Selector, User Source filter, and date range filters
+- Guests page now includes Focus/Breakdown panel, Column Selector, and date range filters
+- Devices page now includes Column Selector, Windows Support filter, and Devices per Person section
+- Licenses page now includes Column Selector, Overlap filter, and enhanced cost metrics
+- User collector now outputs `assignedSkuIds` for license overlap cross-referencing
+- License collector now calculates overlap counts, potential savings, and average cost per user
+
 ## [1.2.0] - 2026-02-05
 
 ### Added

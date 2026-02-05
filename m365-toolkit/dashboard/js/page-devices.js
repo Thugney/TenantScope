@@ -15,6 +15,8 @@
 const PageDevices = (function() {
     'use strict';
 
+    var colSelector = null;
+
     /**
      * Applies current filters and re-renders the table.
      */
@@ -23,43 +25,53 @@ const PageDevices = (function() {
         var devices = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterByUPN(allDevices, 'userPrincipalName') : allDevices;
 
         // Build filter configuration
-        const filterConfig = {
+        var filterConfig = {
             search: Filters.getValue('devices-search'),
             searchFields: ['deviceName', 'userPrincipalName', 'primaryUserDisplayName', 'model', 'manufacturer', 'serialNumber'],
             exact: {}
         };
 
         // OS filter
-        const osFilter = Filters.getValue('devices-os');
+        var osFilter = Filters.getValue('devices-os');
         if (osFilter && osFilter !== 'all') {
             filterConfig.exact.os = osFilter;
         }
 
         // Compliance filter
-        const complianceFilter = Filters.getValue('devices-compliance');
+        var complianceFilter = Filters.getValue('devices-compliance');
         if (complianceFilter && complianceFilter !== 'all') {
             filterConfig.exact.complianceState = complianceFilter;
         }
 
         // Ownership filter
-        const ownershipFilter = Filters.getValue('devices-ownership');
+        var ownershipFilter = Filters.getValue('devices-ownership');
         if (ownershipFilter && ownershipFilter !== 'all') {
             filterConfig.exact.ownership = ownershipFilter;
         }
 
         // Apply filters
-        let filteredData = Filters.apply(devices, filterConfig);
+        var filteredData = Filters.apply(devices, filterConfig);
 
         // Certificate status filter
-        const certFilter = Filters.getValue('devices-cert');
+        var certFilter = Filters.getValue('devices-cert');
         if (certFilter && certFilter !== 'all') {
-            filteredData = filteredData.filter(d => d.certStatus === certFilter);
+            filteredData = filteredData.filter(function(d) { return d.certStatus === certFilter; });
+        }
+
+        // Windows support filter
+        var winSupportFilter = Filters.getValue('devices-winsupport');
+        if (winSupportFilter && winSupportFilter !== 'all') {
+            if (winSupportFilter === 'supported') {
+                filteredData = filteredData.filter(function(d) { return d.windowsSupported === true; });
+            } else if (winSupportFilter === 'unsupported') {
+                filteredData = filteredData.filter(function(d) { return d.windowsSupported === false; });
+            }
         }
 
         // Stale filter (special handling)
-        const staleOnly = Filters.getValue('devices-stale');
-        if (staleOnly) {
-            filteredData = filteredData.filter(d => d.isStale);
+        var staleCheckbox = document.getElementById('devices-stale');
+        if (staleCheckbox && staleCheckbox.checked) {
+            filteredData = filteredData.filter(function(d) { return d.isStale; });
         }
 
         // Render table
@@ -67,27 +79,44 @@ const PageDevices = (function() {
     }
 
     /**
-     * Renders the devices table.
+     * Renders the devices table with dynamic columns from Column Selector.
      *
      * @param {Array} data - Filtered device data
      */
     function renderTable(data) {
+        var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'windowsSupported', 'certStatus', 'ownership', 'isEncrypted'];
+
+        var allDefs = [
+            { key: 'deviceName', label: 'Device' },
+            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
+            { key: 'os', label: 'OS', formatter: formatOS },
+            { key: 'osVersion', label: 'OS Version' },
+            { key: 'windowsType', label: 'Win Type', formatter: formatWindowsType },
+            { key: 'windowsRelease', label: 'Win Release' },
+            { key: 'windowsSupported', label: 'Supported', formatter: formatWindowsSupported },
+            { key: 'windowsEOL', label: 'Win EOL' },
+            { key: 'complianceState', label: 'Compliance', formatter: Tables.formatters.compliance },
+            { key: 'lastSync', label: 'Last Sync', formatter: Tables.formatters.date },
+            { key: 'daysSinceSync', label: 'Days', formatter: formatDaysSinceSync },
+            { key: 'certStatus', label: 'Cert Status', formatter: formatCertStatus },
+            { key: 'daysUntilCertExpiry', label: 'Cert Days', formatter: formatCertDays },
+            { key: 'ownership', label: 'Ownership', formatter: formatOwnership },
+            { key: 'isEncrypted', label: 'Encrypted', formatter: formatEncrypted },
+            { key: 'manufacturer', label: 'Manufacturer' },
+            { key: 'model', label: 'Model' },
+            { key: 'serialNumber', label: 'Serial' },
+            { key: 'joinType', label: 'Join Type' },
+            { key: 'managementAgent', label: 'Mgmt Agent' }
+        ];
+
+        var columns = allDefs.filter(function(col) {
+            return visible.indexOf(col.key) !== -1;
+        });
+
         Tables.render({
             containerId: 'devices-table',
             data: data,
-            columns: [
-                { key: 'deviceName', label: 'Device' },
-                { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
-                { key: 'os', label: 'OS', formatter: formatOS },
-                { key: 'osVersion', label: 'Version' },
-                { key: 'complianceState', label: 'Compliance', formatter: Tables.formatters.compliance },
-                { key: 'lastSync', label: 'Last Sync', formatter: Tables.formatters.date },
-                { key: 'daysSinceSync', label: 'Days', formatter: formatDaysSinceSync },
-                { key: 'certStatus', label: 'Cert Status', formatter: formatCertStatus },
-                { key: 'daysUntilCertExpiry', label: 'Cert Days', formatter: formatCertDays },
-                { key: 'ownership', label: 'Ownership', formatter: formatOwnership },
-                { key: 'isEncrypted', label: 'Encrypted', formatter: formatEncrypted }
-            ],
+            columns: columns,
             pageSize: 50,
             onRowClick: showDeviceDetails
         });
@@ -163,6 +192,34 @@ const PageDevices = (function() {
     function formatEncrypted(value) {
         return value
             ? '<span class="text-success">Yes</span>'
+            : '<span class="text-critical font-bold">No</span>';
+    }
+
+    /**
+     * Formats Windows type (Windows 10/11) with badge.
+     */
+    function formatWindowsType(value) {
+        if (!value) {
+            return '<span class="text-muted">--</span>';
+        }
+        if (value === 'Windows 11') {
+            return '<span class="badge badge-info">Win 11</span>';
+        }
+        if (value === 'Windows 10') {
+            return '<span class="badge badge-neutral">Win 10</span>';
+        }
+        return '<span class="badge badge-neutral">' + value + '</span>';
+    }
+
+    /**
+     * Formats Windows supported status with color coding.
+     */
+    function formatWindowsSupported(value) {
+        if (value === null || value === undefined) {
+            return '<span class="text-muted">--</span>';
+        }
+        return value
+            ? '<span class="text-success font-bold">Yes</span>'
             : '<span class="text-critical font-bold">No</span>';
     }
 
@@ -278,25 +335,35 @@ const PageDevices = (function() {
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        const devices = DataLoader.getData('devices');
+        var devices = DataLoader.getData('devices');
 
         // Calculate stats
-        const compliantCount = devices.filter(d => d.complianceState === 'compliant').length;
-        const nonCompliantCount = devices.filter(d => d.complianceState === 'noncompliant').length;
-        const staleCount = devices.filter(d => d.isStale).length;
-        const unencryptedCount = devices.filter(d => !d.isEncrypted).length;
+        var compliantCount = devices.filter(function(d) { return d.complianceState === 'compliant'; }).length;
+        var nonCompliantCount = devices.filter(function(d) { return d.complianceState === 'noncompliant'; }).length;
+        var staleCount = devices.filter(function(d) { return d.isStale; }).length;
+        var unencryptedCount = devices.filter(function(d) { return !d.isEncrypted; }).length;
 
         // Certificate stats
-        const certExpiredCount = devices.filter(d => d.certStatus === 'expired').length;
-        const certCriticalCount = devices.filter(d => d.certStatus === 'critical').length;
-        const certWarningCount = devices.filter(d => d.certStatus === 'warning').length;
-        const certHealthyCount = devices.filter(d => d.certStatus === 'healthy').length;
+        var certExpiredCount = devices.filter(function(d) { return d.certStatus === 'expired'; }).length;
+        var certCriticalCount = devices.filter(function(d) { return d.certStatus === 'critical'; }).length;
+        var certWarningCount = devices.filter(function(d) { return d.certStatus === 'warning'; }).length;
+        var certHealthyCount = devices.filter(function(d) { return d.certStatus === 'healthy'; }).length;
+
+        // Windows lifecycle stats
+        var win10Count = devices.filter(function(d) { return d.windowsType === 'Windows 10'; }).length;
+        var win11Count = devices.filter(function(d) { return d.windowsType === 'Windows 11'; }).length;
+        var winSupportedCount = devices.filter(function(d) { return d.windowsSupported === true; }).length;
+        var winUnsupportedCount = devices.filter(function(d) { return d.windowsSupported === false; }).length;
 
         // Get unique OS values
-        const osList = [...new Set(devices.map(d => d.os).filter(Boolean))].sort();
+        var osList = [];
+        devices.forEach(function(d) {
+            if (d.os && osList.indexOf(d.os) === -1) osList.push(d.os);
+        });
+        osList.sort();
 
         // Build page HTML using safe integer values only (no user input)
-        const compliancePct = devices.length > 0 ? Math.round((compliantCount / devices.length) * 100) : 0;
+        var compliancePct = devices.length > 0 ? Math.round((compliantCount / devices.length) * 100) : 0;
 
         container.innerHTML = `
             <div class="page-header">
@@ -349,14 +416,48 @@ const PageDevices = (function() {
                 </div>
             </div>
 
+            <!-- Windows Lifecycle Cards -->
+            <div class="page-header" style="margin-top: 1.5rem;">
+                <h3 class="page-title" style="font-size: 1.1rem;">Windows Lifecycle</h3>
+                <p class="page-description">Windows version distribution and support status</p>
+            </div>
+            <div class="cards-grid">
+                <div class="card">
+                    <div class="card-label">Windows 11</div>
+                    <div class="card-value">${win11Count}</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">Windows 10</div>
+                    <div class="card-value">${win10Count}</div>
+                </div>
+                <div class="card card-success">
+                    <div class="card-label">Supported</div>
+                    <div class="card-value success">${winSupportedCount}</div>
+                </div>
+                <div class="card ${winUnsupportedCount > 0 ? 'card-critical' : ''}">
+                    <div class="card-label">Unsupported</div>
+                    <div class="card-value ${winUnsupportedCount > 0 ? 'critical' : ''}">${winUnsupportedCount}</div>
+                </div>
+            </div>
+
             <!-- Charts -->
             <div class="charts-row" id="devices-charts"></div>
 
             <!-- Filters -->
             <div id="devices-filter"></div>
 
+            <!-- Column Selector -->
+            <div id="devices-column-selector" style="margin-bottom: 8px; text-align: right;"></div>
+
             <!-- Data Table -->
             <div id="devices-table"></div>
+
+            <!-- Devices per Person Section -->
+            <div class="page-header" style="margin-top: 2rem;">
+                <h3 class="page-title" style="font-size: 1.1rem;">Devices per Person</h3>
+                <p class="page-description">Distribution of device counts per user</p>
+            </div>
+            <div id="devices-per-person-focus"></div>
 
             <!-- Autopilot Section -->
             <div class="page-header" style="margin-top: 2rem;">
@@ -422,6 +523,16 @@ const PageDevices = (function() {
                     ]
                 },
                 {
+                    type: 'select',
+                    id: 'devices-winsupport',
+                    label: 'Win Support',
+                    options: [
+                        { value: 'all', label: 'All' },
+                        { value: 'supported', label: 'Supported' },
+                        { value: 'unsupported', label: 'Unsupported' }
+                    ]
+                },
+                {
                     type: 'checkbox-group',
                     id: 'devices-stale-filter',
                     label: 'Status',
@@ -464,10 +575,43 @@ const PageDevices = (function() {
         }
 
         // Fix stale checkbox ID
-        const staleCheckbox = document.querySelector('#devices-stale-filter input');
+        var staleCheckbox = document.querySelector('#devices-stale-filter input');
         if (staleCheckbox) {
             staleCheckbox.id = 'devices-stale';
         }
+
+        // Column Selector
+        var allCols = [
+            { key: 'deviceName', label: 'Device' },
+            { key: 'userPrincipalName', label: 'User' },
+            { key: 'os', label: 'OS' },
+            { key: 'osVersion', label: 'OS Version' },
+            { key: 'windowsType', label: 'Win Type' },
+            { key: 'windowsRelease', label: 'Win Release' },
+            { key: 'windowsSupported', label: 'Supported' },
+            { key: 'windowsEOL', label: 'Win EOL' },
+            { key: 'complianceState', label: 'Compliance' },
+            { key: 'lastSync', label: 'Last Sync' },
+            { key: 'daysSinceSync', label: 'Days' },
+            { key: 'certStatus', label: 'Cert Status' },
+            { key: 'daysUntilCertExpiry', label: 'Cert Days' },
+            { key: 'ownership', label: 'Ownership' },
+            { key: 'isEncrypted', label: 'Encrypted' },
+            { key: 'manufacturer', label: 'Manufacturer' },
+            { key: 'model', label: 'Model' },
+            { key: 'serialNumber', label: 'Serial' },
+            { key: 'joinType', label: 'Join Type' },
+            { key: 'managementAgent', label: 'Mgmt Agent' }
+        ];
+        var defaultCols = ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'windowsSupported', 'certStatus', 'ownership', 'isEncrypted'];
+
+        colSelector = ColumnSelector.create({
+            containerId: 'devices-column-selector',
+            storageKey: 'tenantscope-devices-columns',
+            allColumns: allCols,
+            defaultVisible: defaultCols,
+            onColumnsChanged: function() { applyFilters(); }
+        });
 
         // Bind export button
         Export.bindExportButton('devices-table', 'devices');
@@ -475,8 +619,99 @@ const PageDevices = (function() {
         // Initial render
         applyFilters();
 
+        // Render Devices per Person Focus Table
+        renderDevicesPerPerson(devices);
+
         // Render Autopilot section
         renderAutopilot();
+    }
+
+    /**
+     * Renders the Devices per Person Focus Table.
+     *
+     * @param {Array} devices - Array of device objects
+     */
+    function renderDevicesPerPerson(devices) {
+        // Group devices by user
+        var userDeviceCounts = {};
+        devices.forEach(function(d) {
+            var upn = d.userPrincipalName;
+            if (!upn) return;
+            if (!userDeviceCounts[upn]) {
+                userDeviceCounts[upn] = { user: upn, count: 0 };
+            }
+            userDeviceCounts[upn].count++;
+        });
+
+        // Convert to array and group by device count
+        var countBuckets = {};
+        Object.keys(userDeviceCounts).forEach(function(upn) {
+            var c = userDeviceCounts[upn].count;
+            var bucket = c >= 4 ? '4+' : String(c);
+            if (!countBuckets[bucket]) {
+                countBuckets[bucket] = { bucket: bucket, userCount: 0, deviceCount: 0 };
+            }
+            countBuckets[bucket].userCount++;
+            countBuckets[bucket].deviceCount += c;
+        });
+
+        // Build Focus Table data
+        var focusData = ['1', '2', '3', '4+'].map(function(bucket) {
+            var b = countBuckets[bucket] || { bucket: bucket, userCount: 0, deviceCount: 0 };
+            return {
+                group: bucket + (bucket === '1' ? ' device' : ' devices'),
+                count: b.userCount,
+                devices: b.deviceCount
+            };
+        });
+
+        var totalUsers = Object.keys(userDeviceCounts).length;
+
+        // Render Focus Table using FocusTables module if available
+        var container = document.getElementById('devices-per-person-focus');
+        if (container && typeof FocusTables !== 'undefined') {
+            FocusTables.renderFocusTable({
+                containerId: 'devices-per-person-focus',
+                data: focusData,
+                groupByKey: 'group',
+                groupByLabel: 'Device Count',
+                countKey: 'count',
+                countLabel: 'Users',
+                totalCount: totalUsers,
+                showPercentage: true
+            });
+        } else if (container) {
+            // Fallback: simple table using DOM methods
+            var table = document.createElement('table');
+            table.className = 'data-table';
+            var thead = document.createElement('thead');
+            var headRow = document.createElement('tr');
+            ['Device Count', 'Users', '%'].forEach(function(h) {
+                var th = document.createElement('th');
+                th.textContent = h;
+                headRow.appendChild(th);
+            });
+            thead.appendChild(headRow);
+            table.appendChild(thead);
+
+            var tbody = document.createElement('tbody');
+            focusData.forEach(function(row) {
+                var pct = totalUsers > 0 ? Math.round((row.count / totalUsers) * 100) : 0;
+                var tr = document.createElement('tr');
+                var td1 = document.createElement('td');
+                td1.textContent = row.group;
+                var td2 = document.createElement('td');
+                td2.textContent = String(row.count);
+                var td3 = document.createElement('td');
+                td3.textContent = pct + '%';
+                tr.appendChild(td1);
+                tr.appendChild(td2);
+                tr.appendChild(td3);
+                tbody.appendChild(tr);
+            });
+            table.appendChild(tbody);
+            container.appendChild(table);
+        }
     }
 
     /**

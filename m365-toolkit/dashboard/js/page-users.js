@@ -18,6 +18,9 @@ const PageUsers = (function() {
     /** Current filter state */
     let currentFilters = {};
 
+    /** Column selector instance */
+    var colSelector = null;
+
     /**
      * Applies current filters and re-renders the table.
      */
@@ -45,7 +48,41 @@ const PageUsers = (function() {
         }
 
         // Apply filters
-        const filteredData = Filters.apply(users, filterConfig);
+        var filteredData = Filters.apply(users, filterConfig);
+
+        // User Source filter (Cloud vs On-premises synced)
+        var userSourceFilter = Filters.getValue('users-source');
+        if (userSourceFilter && userSourceFilter !== 'all') {
+            filteredData = filteredData.filter(function(u) {
+                return u.userSource === userSourceFilter;
+            });
+        }
+
+        // Date range filters
+        var createdRange = Filters.getValue('users-created-range');
+        if (createdRange && (createdRange.from || createdRange.to)) {
+            filteredData = filteredData.filter(function(u) {
+                if (!u.createdDateTime) return false;
+                var dt = new Date(u.createdDateTime);
+                if (createdRange.from && dt < new Date(createdRange.from)) return false;
+                if (createdRange.to && dt > new Date(createdRange.to + 'T23:59:59')) return false;
+                return true;
+            });
+        }
+
+        var signinRange = Filters.getValue('users-signin-range');
+        if (signinRange && (signinRange.from || signinRange.to)) {
+            filteredData = filteredData.filter(function(u) {
+                if (!u.lastSignIn) return !signinRange.from;
+                var dt = new Date(u.lastSignIn);
+                if (signinRange.from && dt < new Date(signinRange.from)) return false;
+                if (signinRange.to && dt > new Date(signinRange.to + 'T23:59:59')) return false;
+                return true;
+            });
+        }
+
+        // Render Focus/Breakdown tables
+        renderFocusBreakdown(filteredData);
 
         // Render table
         renderTable(filteredData);
@@ -57,24 +94,59 @@ const PageUsers = (function() {
      * @param {Array} data - Filtered user data
      */
     function renderTable(data) {
+        // Get visible columns from Column Selector
+        var visible = colSelector ? colSelector.getVisible() : [
+            'displayName', 'userPrincipalName', 'domain', 'accountEnabled', 'department',
+            'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'flags'
+        ];
+
+        // All column definitions
+        var allDefs = [
+            { key: 'displayName', label: 'Name' },
+            { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'mail', label: 'Email', className: 'cell-truncate' },
+            { key: 'domain', label: 'Domain', formatter: formatDomain },
+            { key: 'accountEnabled', label: 'Status', formatter: Tables.formatters.enabledStatus },
+            { key: 'userSource', label: 'Source', formatter: formatUserSource },
+            { key: 'department', label: 'Department' },
+            { key: 'jobTitle', label: 'Job Title' },
+            { key: 'companyName', label: 'Company' },
+            { key: 'officeLocation', label: 'Office' },
+            { key: 'city', label: 'City' },
+            { key: 'country', label: 'Country' },
+            { key: 'manager', label: 'Manager' },
+            { key: 'usageLocation', label: 'Usage Location' },
+            { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
+            { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date },
+            { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+            { key: 'mfaRegistered', label: 'MFA', formatter: formatMfa },
+            { key: 'licenseCount', label: 'Licenses', className: 'cell-right' },
+            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
+        ];
+
+        // Filter to visible columns only
+        var columns = allDefs.filter(function(col) {
+            return visible.indexOf(col.key) !== -1;
+        });
+
         Tables.render({
             containerId: 'users-table',
             data: data,
-            columns: [
-                { key: 'displayName', label: 'Name' },
-                { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
-                { key: 'domain', label: 'Domain', formatter: formatDomain },
-                { key: 'accountEnabled', label: 'Status', formatter: Tables.formatters.enabledStatus },
-                { key: 'department', label: 'Department' },
-                { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date },
-                { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
-                { key: 'mfaRegistered', label: 'MFA', formatter: formatMfa },
-                { key: 'licenseCount', label: 'Licenses' },
-                { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
-            ],
+            columns: columns,
             pageSize: 50,
             onRowClick: showUserDetails
         });
+    }
+
+    /**
+     * Formats user source badge.
+     */
+    function formatUserSource(value) {
+        if (!value) return '<span class="text-muted">--</span>';
+        if (value === 'Cloud') {
+            return '<span class="badge badge-info">Cloud</span>';
+        }
+        return '<span class="badge badge-neutral">On-prem</span>';
     }
 
     /**
@@ -96,6 +168,73 @@ const PageUsers = (function() {
         return value
             ? '<span class="text-success">Yes</span>'
             : '<span class="text-critical font-bold">No</span>';
+    }
+
+    /** Current breakdown dimension */
+    var currentBreakdown = 'department';
+
+    /**
+     * Renders Focus/Breakdown tables for user analysis.
+     *
+     * @param {Array} users - Filtered user data
+     */
+    function renderFocusBreakdown(users) {
+        var focusContainer = document.getElementById('users-focus-table');
+        var breakdownContainer = document.getElementById('users-breakdown-table');
+        var breakdownFilterContainer = document.getElementById('users-breakdown-filter');
+
+        if (!focusContainer || !breakdownContainer) return;
+
+        // Breakdown dimension options
+        var breakdownDimensions = [
+            { key: 'department', label: 'Department' },
+            { key: 'companyName', label: 'Company' },
+            { key: 'city', label: 'City' },
+            { key: 'officeLocation', label: 'Office' },
+            { key: 'jobTitle', label: 'Job Title' },
+            { key: 'manager', label: 'Manager' },
+            { key: 'userSource', label: 'Source' }
+        ];
+
+        // Render breakdown filter
+        if (breakdownFilterContainer && typeof FocusTables !== 'undefined') {
+            FocusTables.renderBreakdownFilter({
+                containerId: 'users-breakdown-filter',
+                dimensions: breakdownDimensions,
+                selected: currentBreakdown,
+                onChange: function(newDim) {
+                    currentBreakdown = newDim;
+                    renderFocusBreakdown(users);
+                }
+            });
+        }
+
+        // Render Focus Table: group by domain
+        if (typeof FocusTables !== 'undefined') {
+            FocusTables.renderFocusTable({
+                containerId: 'users-focus-table',
+                data: users,
+                groupByKey: 'domain',
+                groupByLabel: 'Domain',
+                countLabel: 'Users'
+            });
+
+            // Render Breakdown Table: domain x breakdown dimension
+            FocusTables.renderBreakdownTable({
+                containerId: 'users-breakdown-table',
+                data: users,
+                primaryKey: 'domain',
+                breakdownKey: currentBreakdown,
+                primaryLabel: 'Domain',
+                breakdownLabel: breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }).label
+            });
+        } else {
+            // Fallback - render simple summary
+            var fallbackMsg = document.createElement('p');
+            fallbackMsg.className = 'text-muted';
+            fallbackMsg.textContent = 'Focus/Breakdown tables not available';
+            focusContainer.appendChild(fallbackMsg);
+        }
     }
 
     /**
@@ -203,8 +342,24 @@ const PageUsers = (function() {
             <!-- Charts -->
             <div class="charts-row" id="users-charts"></div>
 
+            <!-- Focus/Breakdown Analysis -->
+            <div class="section-header">
+                <h3>User Analysis</h3>
+                <div id="users-breakdown-filter"></div>
+            </div>
+            <div class="focus-breakdown-row">
+                <div id="users-focus-table"></div>
+                <div id="users-breakdown-table"></div>
+            </div>
+
             <!-- Filters -->
             <div id="users-filter"></div>
+
+            <!-- Column Selector + Export -->
+            <div class="table-toolbar">
+                <div id="users-col-selector"></div>
+                <button class="btn btn-secondary btn-sm" id="export-users-table">Export CSV</button>
+            </div>
 
             <!-- Data Table -->
             <div id="users-table"></div>
@@ -271,6 +426,16 @@ const PageUsers = (function() {
                     ]
                 },
                 {
+                    type: 'select',
+                    id: 'users-source',
+                    label: 'Source',
+                    options: [
+                        { value: 'all', label: 'All Sources' },
+                        { value: 'Cloud', label: 'Cloud' },
+                        { value: 'On-premises synced', label: 'On-prem Synced' }
+                    ]
+                },
+                {
                     type: 'checkbox-group',
                     id: 'users-flags',
                     label: 'Flags',
@@ -279,10 +444,55 @@ const PageUsers = (function() {
                         { value: 'no-mfa', label: 'No MFA' },
                         { value: 'admin', label: 'Admin' }
                     ]
+                },
+                {
+                    type: 'date-range',
+                    id: 'users-created-range',
+                    label: 'Created'
+                },
+                {
+                    type: 'date-range',
+                    id: 'users-signin-range',
+                    label: 'Last Sign-In'
                 }
             ],
             onFilter: applyFilters
         });
+
+        // Setup Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'users-col-selector',
+                storageKey: 'users-columns',
+                allColumns: [
+                    { key: 'displayName', label: 'Name' },
+                    { key: 'userPrincipalName', label: 'UPN' },
+                    { key: 'mail', label: 'Email' },
+                    { key: 'domain', label: 'Domain' },
+                    { key: 'accountEnabled', label: 'Status' },
+                    { key: 'userSource', label: 'Source' },
+                    { key: 'department', label: 'Department' },
+                    { key: 'jobTitle', label: 'Job Title' },
+                    { key: 'companyName', label: 'Company' },
+                    { key: 'officeLocation', label: 'Office' },
+                    { key: 'city', label: 'City' },
+                    { key: 'country', label: 'Country' },
+                    { key: 'manager', label: 'Manager' },
+                    { key: 'usageLocation', label: 'Usage Location' },
+                    { key: 'createdDateTime', label: 'Created' },
+                    { key: 'lastSignIn', label: 'Last Sign-In' },
+                    { key: 'daysSinceLastSignIn', label: 'Days Inactive' },
+                    { key: 'mfaRegistered', label: 'MFA' },
+                    { key: 'licenseCount', label: 'Licenses' },
+                    { key: 'flags', label: 'Flags' }
+                ],
+                defaultVisible: [
+                    'displayName', 'userPrincipalName', 'domain', 'accountEnabled', 'department',
+                    'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'flags'
+                ],
+                onColumnsChanged: applyFilters
+            });
+        }
 
         // Bind export button
         Export.bindExportButton('users-table', 'users');

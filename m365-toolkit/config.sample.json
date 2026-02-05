@@ -43,6 +43,10 @@
     "STREAM": 0,
     "POWER_BI_STANDARD": 0
   },
+  "licenseOverlapRules": [
+    { "name": "E3 + E5", "higherSku": "SPE_E5", "lowerSku": "SPE_E3", "description": "E5 includes all E3 capabilities" },
+    { "name": "A3 Faculty + E3", "higherSku": "SPE_E3", "lowerSku": "M365EDU_A3_FACULTY", "description": "E3 includes overlapping functionality" }
+  ],
   "dashboard": {
     "title": "TenantScope",
     "subtitle": "M365 Tenant Dashboard"

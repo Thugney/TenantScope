@@ -129,7 +129,8 @@ $dataFiles = @(
     "sharepoint-sites.json",
     "collection-metadata.json",
     "trend-history.json",
-    "secure-score.json"
+    "secure-score.json",
+    "app-signins.json"
 )
 
 # Copy each file
