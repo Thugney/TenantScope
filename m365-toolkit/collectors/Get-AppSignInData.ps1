@@ -14,6 +14,8 @@
     applications users authenticate to, enabling application usage analytics.
     Requires Entra ID P1 license and AuditLog.Read.All permission.
 
+    Uses manual pagination to avoid skip token expiration issues on large tenants.
+
     Graph API endpoint: GET /auditLogs/signIns
     Required scopes: AuditLog.Read.All
 
@@ -34,7 +36,7 @@
 #>
 
 #Requires -Version 7.0
-#Requires -Modules Microsoft.Graph.Reports
+#Requires -Modules Microsoft.Graph.Authentication
 
 param(
     [Parameter(Mandatory)]
@@ -51,29 +53,40 @@ param(
 function Invoke-GraphWithRetry {
     param(
         [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
+        [string]$Uri,
 
         [Parameter()]
         [int]$MaxRetries = 5,
 
         [Parameter()]
-        [int]$BaseBackoffSeconds = 60
+        [int]$BaseBackoffSeconds = 30
     )
 
     $attempt = 0
     while ($attempt -le $MaxRetries) {
         try {
-            return & $ScriptBlock
+            return Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
         }
         catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
+            $errorMsg = $_.Exception.Message
+
+            # Handle throttling
+            if ($errorMsg -match "429|throttl|TooManyRequests") {
                 $attempt++
                 if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
+                $wait = $BaseBackoffSeconds * $attempt
                 Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
                 Start-Sleep -Seconds $wait
+                continue
             }
-            else { throw }
+
+            # Handle skip token errors - just stop pagination, return what we have
+            if ($errorMsg -match "Skip token is null|skiptoken") {
+                Write-Host "      Pagination token expired - returning collected data" -ForegroundColor Yellow
+                return $null
+            }
+
+            throw
         }
     }
 }
@@ -88,60 +101,83 @@ $signInCount = 0
 try {
     Write-Host "    Collecting application sign-in data..." -ForegroundColor Gray
 
-    # Collect sign-ins from the last 30 days (configurable)
+    # Collect sign-ins from the last N days (configurable)
     $daysBack = 30
-    if ($Config.thresholds -and $Config.thresholds.signInDaysBack) {
-        $daysBack = $Config.thresholds.signInDaysBack
+    if ($Config.collection -and $Config.collection.signInLogDays) {
+        $daysBack = $Config.collection.signInLogDays
     }
     $startDate = (Get-Date).AddDays(-$daysBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
 
-    # Retrieve sign-in logs with pagination
-    $signIns = Invoke-GraphWithRetry -ScriptBlock {
-        Get-MgAuditLogSignIn -All -Filter "createdDateTime ge $startDate" `
-            -Property "appDisplayName,resourceDisplayName,userPrincipalName,createdDateTime,isInteractive,status,location"
-    }
+    # Build initial URI with filter and select for efficiency
+    $baseUri = "https://graph.microsoft.com/v1.0/auditLogs/signIns"
+    $filter = "createdDateTime ge $startDate"
+    $select = "appDisplayName,resourceDisplayName,userPrincipalName,createdDateTime,isInteractive,status,location"
+    $uri = "$baseUri`?`$filter=$filter&`$select=$select&`$top=500"
 
-    Write-Host "      Retrieved $($signIns.Count) sign-in records" -ForegroundColor Gray
-
-    # Transform to output schema
     $processedSignIns = @()
+    $pageCount = 0
+    $maxPages = 20  # Limit to avoid very long runs (500 * 20 = 10,000 records max)
 
-    foreach ($signIn in $signIns) {
-        $statusCode = 0
-        $statusReason = "Success"
-        if ($signIn.Status) {
-            $statusCode = $signIn.Status.ErrorCode
-            if ($signIn.Status.FailureReason) {
-                $statusReason = $signIn.Status.FailureReason
+    do {
+        $pageCount++
+        $response = Invoke-GraphWithRetry -Uri $uri
+
+        # If pagination failed, stop but keep what we have
+        if ($null -eq $response) {
+            Write-Host "      Stopping pagination early - collected $signInCount records" -ForegroundColor Yellow
+            break
+        }
+
+        $signIns = $response.value
+        if (-not $signIns -or $signIns.Count -eq 0) {
+            break
+        }
+
+        foreach ($signIn in $signIns) {
+            $statusCode = 0
+            $statusReason = "Success"
+            if ($signIn.status) {
+                $statusCode = $signIn.status.errorCode
+                if ($signIn.status.failureReason) {
+                    $statusReason = $signIn.status.failureReason
+                }
             }
+
+            $city = $null
+            $country = $null
+            if ($signIn.location) {
+                $city = $signIn.location.city
+                $country = $signIn.location.countryOrRegion
+            }
+
+            $processedSignIn = [PSCustomObject]@{
+                appDisplayName       = $signIn.appDisplayName
+                resourceDisplayName  = $signIn.resourceDisplayName
+                userPrincipalName    = $signIn.userPrincipalName
+                createdDateTime      = $signIn.createdDateTime
+                isInteractive        = [bool]$signIn.isInteractive
+                statusCode           = $statusCode
+                statusReason         = $statusReason
+                city                 = $city
+                country              = $country
+            }
+
+            $processedSignIns += $processedSignIn
+            $signInCount++
         }
 
-        $city = $null
-        $country = $null
-        if ($signIn.Location) {
-            $city = $signIn.Location.City
-            $country = $signIn.Location.CountryOrRegion
+        Write-Host "      Page $pageCount`: $signInCount sign-ins collected..." -ForegroundColor Gray
+
+        # Get next page
+        $uri = $response.'@odata.nextLink'
+
+        # Safety limit
+        if ($pageCount -ge $maxPages) {
+            Write-Host "      Reached page limit ($maxPages) - stopping collection" -ForegroundColor Yellow
+            break
         }
 
-        $processedSignIn = [PSCustomObject]@{
-            appDisplayName       = $signIn.AppDisplayName
-            resourceDisplayName  = $signIn.ResourceDisplayName
-            userPrincipalName    = $signIn.UserPrincipalName
-            createdDateTime      = if ($signIn.CreatedDateTime) { $signIn.CreatedDateTime.ToString("o") } else { $null }
-            isInteractive        = [bool]$signIn.IsInteractive
-            statusCode           = $statusCode
-            statusReason         = $statusReason
-            city                 = $city
-            country              = $country
-        }
-
-        $processedSignIns += $processedSignIn
-        $signInCount++
-
-        if ($signInCount % 500 -eq 0) {
-            Write-Host "      Processed $signInCount sign-ins..." -ForegroundColor Gray
-        }
-    }
+    } while ($uri)
 
     # Write results
     $processedSignIns | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
