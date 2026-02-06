@@ -715,22 +715,7 @@ function Get-WindowsLifecycleInfo {
 }
 
 # ============================================================================
-# EXPORT
+# NOTE: This file is designed to be dot-sourced, not imported as a module.
+# All functions are automatically available when dot-sourced:
+#   . "$PSScriptRoot\..\lib\CollectorBase.ps1"
 # ============================================================================
-
-# Export all functions when dot-sourced
-Export-ModuleMember -Function @(
-    'Invoke-GraphWithRetry',
-    'Get-DaysSinceDate',
-    'Get-DaysUntilDate',
-    'Format-IsoDate',
-    'Get-DomainClassification',
-    'Get-SourceDomain',
-    'Get-ActivityStatus',
-    'Get-CertificateStatus',
-    'New-CollectorResult',
-    'Write-CollectorProgress',
-    'Save-CollectorData',
-    'Get-SimplifiedOS',
-    'Get-WindowsLifecycleInfo'
-) -ErrorAction SilentlyContinue
