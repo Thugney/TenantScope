@@ -202,6 +202,12 @@ try {
     $reportData = Import-Csv -Path $tempCsvPath
     Write-Host "      Report contains $($reportData.Count) sites" -ForegroundColor Gray
 
+    # Debug: Show actual column names if first row exists
+    if ($reportData.Count -gt 0) {
+        $columns = $reportData[0].PSObject.Properties.Name
+        Write-Host "      Columns: $($columns -join ', ')" -ForegroundColor Gray
+    }
+
     # ========================================================================
     # Process each site from the report
     # ========================================================================
