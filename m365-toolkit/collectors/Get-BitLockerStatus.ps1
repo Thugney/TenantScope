@@ -95,48 +95,79 @@ $deviceCount = 0
 try {
     Write-Host "    Collecting BitLocker encryption status..." -ForegroundColor Gray
 
-    # Get Windows devices with encryption information
-    $windowsDevices = Invoke-GraphWithRetry -ScriptBlock {
+    # Get managed devices with encryption information
+    # Fetch all devices and filter Windows client-side (server-side filter not reliable)
+    $devicesResponse = Invoke-GraphWithRetry -ScriptBlock {
         Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,userPrincipalName,operatingSystem,osVersion,isEncrypted,encryptionState,complianceState,lastSyncDateTime,model,manufacturer,serialNumber" `
+            -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$select=id,deviceName,userPrincipalName,operatingSystem,osVersion,isEncrypted,encryptionState,complianceState,lastSyncDateTime,model,manufacturer,serialNumber" `
             -OutputType PSObject
-    } -OperationName "Windows device encryption retrieval"
+    } -OperationName "Device encryption retrieval"
 
-    $allDevices = @($windowsDevices.value)
+    $allDevices = @($devicesResponse.value)
 
     # Handle pagination
-    while ($windowsDevices.'@odata.nextLink') {
-        $windowsDevices = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $windowsDevices.'@odata.nextLink' -OutputType PSObject
-        } -OperationName "Windows device pagination"
-        $allDevices += $windowsDevices.value
+    while ($devicesResponse.'@odata.nextLink') {
+        $devicesResponse = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri $devicesResponse.'@odata.nextLink' -OutputType PSObject
+        } -OperationName "Device pagination"
+        $allDevices += $devicesResponse.value
     }
+
+    # Filter to Windows devices only (client-side)
+    $allDevices = $allDevices | Where-Object { $_.operatingSystem -like "Windows*" }
 
     Write-Host "      Retrieved $($allDevices.Count) Windows devices" -ForegroundColor Gray
 
-    # Try to get recovery keys (requires BitLockerKey.Read.All)
+    # Try to get recovery keys (requires BitLockerKey.ReadBasic.All or BitLockerKey.Read.All)
+    # Note: User-Agent header is required for BitLocker API
     $recoveryKeys = @{}
     try {
+        $headers = @{
+            "User-Agent" = "TenantScope/2.0 (PowerShell)"
+        }
         $keysResponse = Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/beta/informationProtection/bitlocker/recoveryKeys?`$select=id,createdDateTime,deviceId,volumeType" `
+            -Uri "https://graph.microsoft.com/v1.0/informationProtection/bitlocker/recoveryKeys" `
+            -Headers $headers `
             -OutputType PSObject
 
         foreach ($key in $keysResponse.value) {
-            if (-not $recoveryKeys.ContainsKey($key.deviceId)) {
+            if ($key.deviceId -and -not $recoveryKeys.ContainsKey($key.deviceId)) {
                 $recoveryKeys[$key.deviceId] = @()
             }
-            $recoveryKeys[$key.deviceId] += @{
-                keyId = $key.id
-                createdDateTime = $key.createdDateTime
-                volumeType = $key.volumeType
+            if ($key.deviceId) {
+                $recoveryKeys[$key.deviceId] += @{
+                    keyId = $key.id
+                    createdDateTime = $key.createdDateTime
+                    volumeType = $key.volumeType
+                }
+            }
+        }
+
+        # Handle pagination
+        while ($keysResponse.'@odata.nextLink') {
+            $keysResponse = Invoke-MgGraphRequest -Method GET `
+                -Uri $keysResponse.'@odata.nextLink' `
+                -Headers $headers `
+                -OutputType PSObject
+            foreach ($key in $keysResponse.value) {
+                if ($key.deviceId -and -not $recoveryKeys.ContainsKey($key.deviceId)) {
+                    $recoveryKeys[$key.deviceId] = @()
+                }
+                if ($key.deviceId) {
+                    $recoveryKeys[$key.deviceId] += @{
+                        keyId = $key.id
+                        createdDateTime = $key.createdDateTime
+                        volumeType = $key.volumeType
+                    }
+                }
             }
         }
 
         Write-Host "      Retrieved recovery key metadata for $($recoveryKeys.Count) devices" -ForegroundColor Gray
     }
     catch {
-        # BitLockerKey.Read.All may not be consented
-        $errors += "Recovery keys not accessible (BitLockerKey.Read.All scope may be required)"
+        # BitLockerKey.ReadBasic.All may not be consented
+        $errors += "Recovery keys not accessible (BitLockerKey.ReadBasic.All scope may be required)"
     }
 
     # Process devices

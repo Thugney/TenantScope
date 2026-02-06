@@ -8,7 +8,9 @@ const PageBitLocker = (function() {
     var colSelector = null;
 
     function applyFilters() {
-        var devices = DataLoader.getData('bitlockerStatus') || [];
+        var rawData = DataLoader.getData('bitlockerStatus') || [];
+        // Handle both array format (sample data) and object format (real collector output)
+        var devices = Array.isArray(rawData) ? rawData : (rawData.devices || []);
         var filterConfig = { search: Filters.getValue('bitlocker-search'), searchFields: ['deviceName', 'userPrincipalName'], exact: {} };
         var encFilter = Filters.getValue('bitlocker-encryption');
         if (encFilter && encFilter !== 'all') filterConfig.exact.encryptionState = encFilter;
@@ -35,7 +37,9 @@ const PageBitLocker = (function() {
     }
 
     function render(container) {
-        var devices = DataLoader.getData('bitlockerStatus') || [];
+        var rawData = DataLoader.getData('bitlockerStatus') || [];
+        // Handle both array format (sample data) and object format (real collector output)
+        var devices = Array.isArray(rawData) ? rawData : (rawData.devices || []);
         var total = devices.length;
         var encrypted = devices.filter(function(d) { return d.encryptionState === 'encrypted'; }).length;
         var notEnc = devices.filter(function(d) { return d.encryptionState === 'notEncrypted'; }).length;
