@@ -224,9 +224,12 @@ try {
     $teamSettingsLookup = @{}
     $channelCountLookup = @{}
 
-    # Process in batches of 20 (Graph batch limit)
-    $batchSize = 20
+    # Process in batches of 10 teams (20 requests per batch: 10 settings + 10 channels)
+    # Smaller batches help avoid throttling with large tenant team counts
+    $batchSize = 10
     $groupIds = $teamsGroups | ForEach-Object { if ($_.Id) { $_.Id } else { $_.id } }
+    $batchFailures = 0
+    $maxBatchRetries = 3
 
     for ($i = 0; $i -lt $groupIds.Count; $i += $batchSize) {
         $batchIds = $groupIds[$i..([Math]::Min($i + $batchSize - 1, $groupIds.Count - 1))]
@@ -253,45 +256,178 @@ try {
             $requestId++
         }
 
-        # Execute batch request
-        try {
-            $batchResponse = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
-                    -Body @{ requests = $batchRequests } -OutputType PSObject
-            }
+        # Execute batch request with retry logic
+        $batchSuccess = $false
+        $retryCount = 0
 
-            # Process batch responses
-            $halfPoint = $batchIds.Count
-            foreach ($response in $batchResponse.responses) {
-                $respId = [int]$response.id
-                if ($respId -le $halfPoint) {
-                    # Team settings response
-                    $teamId = $batchIds[$respId - 1]
-                    if ($response.status -eq 200 -and $response.body) {
-                        $teamSettingsLookup[$teamId] = $response.body
+        while (-not $batchSuccess -and $retryCount -lt $maxBatchRetries) {
+            try {
+                $batchResponse = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
+                    -Body @{ requests = $batchRequests } -OutputType PSObject
+
+                # Process batch responses
+                $halfPoint = $batchIds.Count
+                foreach ($response in $batchResponse.responses) {
+                    $respId = [int]$response.id
+                    if ($respId -le $halfPoint) {
+                        # Team settings response
+                        $teamId = $batchIds[$respId - 1]
+                        if ($response.status -eq 200 -and $response.body) {
+                            $teamSettingsLookup[$teamId] = $response.body
+                        }
                     }
+                    else {
+                        # Channel count response
+                        $teamId = $batchIds[$respId - $halfPoint - 1]
+                        if ($response.status -eq 200 -and $response.body -and $response.body.value) {
+                            $channelCountLookup[$teamId] = $response.body.value.Count
+                        }
+                    }
+                }
+                $batchSuccess = $true
+            }
+            catch {
+                $retryCount++
+                if ($_.Exception.Message -match "429|throttl|TooManyRequests") {
+                    # Throttled - wait longer before retry
+                    $waitSeconds = 30 * $retryCount
+                    Write-Host "      Throttled at batch $([Math]::Floor($i / $batchSize) + 1). Waiting ${waitSeconds}s..." -ForegroundColor Yellow
+                    Start-Sleep -Seconds $waitSeconds
+                }
+                elseif ($retryCount -lt $maxBatchRetries) {
+                    # Other error - brief pause and retry
+                    Start-Sleep -Milliseconds 500
                 }
                 else {
-                    # Channel count response
-                    $teamId = $batchIds[$respId - $halfPoint - 1]
-                    if ($response.status -eq 200 -and $response.body -and $response.body.value) {
-                        $channelCountLookup[$teamId] = $response.body.value.Count
-                    }
+                    $batchFailures++
                 }
             }
         }
-        catch {
-            Write-Host "      Warning: Batch request failed, will use fallback for some teams" -ForegroundColor Yellow
+
+        # Show progress every 50 teams
+        $processed = [Math]::Min($i + $batchSize, $groupIds.Count)
+        if ($processed % 50 -eq 0 -or $processed -eq $groupIds.Count) {
+            Write-Host "      Batch progress: $processed / $($groupIds.Count) teams..." -ForegroundColor Gray
         }
 
-        # Show progress
-        $processed = [Math]::Min($i + $batchSize, $groupIds.Count)
-        Write-Host "      Batch progress: $processed / $($groupIds.Count) teams..." -ForegroundColor Gray
+        # Small delay between batches to avoid throttling (200ms)
+        if ($i + $batchSize -lt $groupIds.Count) {
+            Start-Sleep -Milliseconds 200
+        }
+    }
+
+    if ($batchFailures -gt 0) {
+        Write-Host "      Note: $batchFailures batches failed, will fetch individually for those teams" -ForegroundColor Yellow
     }
 
     # ========================================================================
-    # Phase 4: Process each team (now much faster with pre-fetched data)
+    # Phase 4: Batch fetch members/owners for teams missing expanded data
     # ========================================================================
+
+    Write-Host "      Checking for teams needing member/owner data..." -ForegroundColor Gray
+
+    # Build lookup tables for members and owners
+    $memberLookup = @{}
+    $ownerLookup = @{}
+
+    # Identify teams that need member/owner fetching
+    $teamsNeedingMembers = @()
+    foreach ($group in $teamsGroups) {
+        $groupId = if ($group.Id) { $group.Id } else { $group.id }
+        if ($group.members) {
+            $memberLookup[$groupId] = $group.members
+        } else {
+            $teamsNeedingMembers += $groupId
+        }
+        if ($group.owners) {
+            $ownerLookup[$groupId] = $group.owners
+        }
+    }
+
+    # Batch fetch members/owners if needed (using smaller batches of 5 to avoid throttling)
+    if ($teamsNeedingMembers.Count -gt 0) {
+        Write-Host "      Fetching members for $($teamsNeedingMembers.Count) teams in batches..." -ForegroundColor Gray
+        $memberBatchSize = 5
+
+        for ($i = 0; $i -lt $teamsNeedingMembers.Count; $i += $memberBatchSize) {
+            $batchIds = $teamsNeedingMembers[$i..([Math]::Min($i + $memberBatchSize - 1, $teamsNeedingMembers.Count - 1))]
+
+            # Build batch requests for members and owners
+            $batchRequests = @()
+            $requestId = 1
+            foreach ($id in $batchIds) {
+                # Members request
+                $batchRequests += @{
+                    id = [string]$requestId
+                    method = "GET"
+                    url = "/groups/$id/members?`$select=id,userPrincipalName&`$top=999"
+                }
+                $requestId++
+                # Owners request
+                $batchRequests += @{
+                    id = [string]$requestId
+                    method = "GET"
+                    url = "/groups/$id/owners?`$select=id&`$top=100"
+                }
+                $requestId++
+            }
+
+            # Execute batch with retry
+            $retryCount = 0
+            $maxRetries = 3
+            $batchSuccess = $false
+
+            while (-not $batchSuccess -and $retryCount -lt $maxRetries) {
+                try {
+                    $batchResponse = Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
+                        -Body @{ requests = $batchRequests } -OutputType PSObject
+
+                    # Process responses
+                    foreach ($response in $batchResponse.responses) {
+                        $respId = [int]$response.id
+                        $teamIdx = [Math]::Floor(($respId - 1) / 2)
+                        $teamId = $batchIds[$teamIdx]
+                        $isMembers = ($respId % 2 -eq 1)
+
+                        if ($response.status -eq 200 -and $response.body) {
+                            if ($isMembers) {
+                                $memberLookup[$teamId] = if ($response.body.value) { $response.body.value } else { @() }
+                            } else {
+                                $ownerLookup[$teamId] = if ($response.body.value) { $response.body.value } else { @() }
+                            }
+                        }
+                    }
+                    $batchSuccess = $true
+                }
+                catch {
+                    $retryCount++
+                    if ($_.Exception.Message -match "429|throttl|TooManyRequests") {
+                        $waitSeconds = 30 * $retryCount
+                        Write-Host "      Throttled fetching members. Waiting ${waitSeconds}s..." -ForegroundColor Yellow
+                        Start-Sleep -Seconds $waitSeconds
+                    }
+                    elseif ($retryCount -lt $maxRetries) {
+                        Start-Sleep -Milliseconds 500
+                    }
+                }
+            }
+
+            # Progress every 100 teams
+            $processed = [Math]::Min($i + $memberBatchSize, $teamsNeedingMembers.Count)
+            if ($processed % 100 -eq 0 -or $processed -eq $teamsNeedingMembers.Count) {
+                Write-Host "      Member fetch progress: $processed / $($teamsNeedingMembers.Count)..." -ForegroundColor Gray
+            }
+
+            # Small delay between batches
+            Start-Sleep -Milliseconds 200
+        }
+    }
+
+    # ========================================================================
+    # Phase 5: Process each team using lookup data
+    # ========================================================================
+
+    Write-Host "      Processing team data..." -ForegroundColor Gray
 
     $processedTeams = @()
 
@@ -299,43 +435,13 @@ try {
         try {
             $groupId = if ($group.Id) { $group.Id } else { $group.id }
 
-            # Get team settings from lookup (or fetch individually if not in batch)
+            # Get team settings from lookup
             $teamSettings = $teamSettingsLookup[$groupId]
             $isArchived = if ($teamSettings -and $teamSettings.isArchived) { $true } else { $false }
 
-            # Get members and owners from expanded data or fetch if needed
-            $members = @()
-            $owners = @()
-
-            if ($group.members) {
-                $members = $group.members
-            }
-            else {
-                # Fallback: fetch members individually
-                try {
-                    $members = Invoke-GraphWithRetry -ScriptBlock {
-                        Get-MgGroupMember -GroupId $groupId -All -Property Id,UserPrincipalName,DisplayName
-                    }
-                }
-                catch {
-                    $errors += "Could not get members for team $($group.displayName): $($_.Exception.Message)"
-                }
-            }
-
-            if ($group.owners) {
-                $owners = $group.owners
-            }
-            else {
-                # Fallback: fetch owners individually
-                try {
-                    $owners = Invoke-GraphWithRetry -ScriptBlock {
-                        Get-MgGroupOwner -GroupId $groupId -All
-                    }
-                }
-                catch {
-                    $errors += "Could not get owners for team $($group.displayName): $($_.Exception.Message)"
-                }
-            }
+            # Get members and owners from lookup
+            $members = if ($memberLookup.ContainsKey($groupId)) { $memberLookup[$groupId] } else { @() }
+            $owners = if ($ownerLookup.ContainsKey($groupId)) { $ownerLookup[$groupId] } else { @() }
 
             # Get channel count from lookup
             $channelCount = if ($channelCountLookup.ContainsKey($groupId)) { $channelCountLookup[$groupId] } else { 0 }
@@ -411,15 +517,9 @@ try {
             $processedTeams += $processedTeam
             $teamCount++
 
-            # Progress indicator every 25 teams
-            if ($teamCount % 25 -eq 0) {
-                Write-Host "      Processed $teamCount teams..." -ForegroundColor Gray
-            }
-
         }
         catch {
             $errors += "Error processing team $($group.DisplayName): $($_.Exception.Message)"
-            Write-Host "      Warning: Error processing $($group.DisplayName): $($_.Exception.Message)" -ForegroundColor Yellow
         }
     }
 

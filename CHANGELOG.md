@@ -5,6 +5,18 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.3] - 2026-02-06
+
+### Fixed
+- **Teams collector throttling**: Reduced batch size from 20 to 10 teams, added 200ms delay between batches
+- **Teams collector retry logic**: Added exponential backoff retry for batch requests (3 retries, 30s/60s/90s waits)
+- **Teams member/owner fetching**: Now uses batch API instead of individual calls per team, dramatically faster for large tenants
+
+### Changed
+- Teams batch progress now shows every 50 teams instead of every 20
+- Member fetch progress shows every 100 teams
+- Removed per-team progress indicator in final processing phase (now instant with lookup data)
+
 ## [1.5.2] - 2026-02-06
 
 ### Fixed
