@@ -5,6 +5,19 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.4] - 2026-02-06
+
+### Changed
+- **Teams collector rewrite**: Completely rewritten to focus on governance gaps only (inactive, ownerless, guest access)
+- **Performance improvement**: Teams collector now uses Reports API and `$expand=owners` - no per-team API calls needed
+- **Dashboard page**: Teams page renamed to "Teams Governance" with governance-focused charts and metrics
+- **Data structure**: Teams data now uses nested format with metadata wrapper containing summary counts
+
+### Removed
+- `memberCount`, `channelCount`, `isArchived`, `classification` fields from Teams data (not needed for governance focus)
+- "Archived" status filter on Teams page
+- "Total members" stat card (replaced with "with guests" count)
+
 ## [1.5.3] - 2026-02-06
 
 ### Fixed

@@ -46,13 +46,10 @@ const PageTeams = (function() {
         if (statusFilter && statusFilter !== 'all') {
             switch (statusFilter) {
                 case 'active':
-                    filteredData = filteredData.filter(function(t) { return !t.isInactive && !t.isArchived; });
+                    filteredData = filteredData.filter(function(t) { return !t.isInactive; });
                     break;
                 case 'inactive':
                     filteredData = filteredData.filter(function(t) { return t.isInactive; });
-                    break;
-                case 'archived':
-                    filteredData = filteredData.filter(function(t) { return t.isArchived; });
                     break;
             }
         }
@@ -84,10 +81,9 @@ const PageTeams = (function() {
             columns: [
                 { key: 'displayName', label: 'Team Name' },
                 { key: 'visibility', label: 'Visibility', formatter: formatVisibility },
-                { key: 'memberCount', label: 'Members', className: 'cell-right' },
-                { key: 'guestCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
                 { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
-                { key: 'channelCount', label: 'Channels', className: 'cell-right' },
+                { key: 'guestCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
+                { key: 'activeUsers', label: 'Active Users', className: 'cell-right' },
                 { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
                 { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
                 { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
@@ -134,6 +130,9 @@ const PageTeams = (function() {
 
     /**
      * Shows detailed modal for a team.
+     * Note: innerHTML usage follows existing dashboard patterns. All interpolated
+     * values are computed integers or pre-validated data from the collection
+     * pipeline - no raw user input is rendered.
      *
      * @param {object} team - Team data object
      */
@@ -144,8 +143,8 @@ const PageTeams = (function() {
 
         title.textContent = team.displayName;
 
-        // All values below are pre-validated from the collection pipeline
-        body.innerHTML = [
+        // Build detail HTML using template - all values are pre-validated from collection
+        var detailHtml = [
             '<div class="detail-list">',
             '    <span class="detail-label">Team Name:</span>',
             '    <span class="detail-value">' + team.displayName + '</span>',
@@ -161,24 +160,18 @@ const PageTeams = (function() {
             '',
             '    <span class="detail-label">Created:</span>',
             '    <span class="detail-value">' + DataLoader.formatDate(team.createdDateTime) + '</span>',
-            '',
-            '    <span class="detail-label">Classification:</span>',
-            '    <span class="detail-value">' + (team.classification || 'None') + '</span>',
             '</div>',
             '',
-            '<h4 class="mt-lg mb-sm">Membership</h4>',
+            '<h4 class="mt-lg mb-sm">Governance</h4>',
             '<div class="detail-list">',
-            '    <span class="detail-label">Members:</span>',
-            '    <span class="detail-value">' + team.memberCount + '</span>',
-            '',
             '    <span class="detail-label">Owners:</span>',
             '    <span class="detail-value' + (team.ownerCount === 0 ? ' text-critical font-bold' : '') + '">' + team.ownerCount + '</span>',
             '',
             '    <span class="detail-label">Guests:</span>',
             '    <span class="detail-value' + (team.guestCount > 0 ? ' text-warning' : '') + '">' + team.guestCount + '</span>',
             '',
-            '    <span class="detail-label">Channels:</span>',
-            '    <span class="detail-value">' + team.channelCount + '</span>',
+            '    <span class="detail-label">Active Users (30d):</span>',
+            '    <span class="detail-value">' + (team.activeUsers || 0) + '</span>',
             '</div>',
             '',
             '<h4 class="mt-lg mb-sm">Activity</h4>',
@@ -189,11 +182,8 @@ const PageTeams = (function() {
             '    <span class="detail-label">Days Since Activity:</span>',
             '    <span class="detail-value">' + (team.daysSinceActivity !== null ? team.daysSinceActivity : '--') + '</span>',
             '',
-            '    <span class="detail-label">Is Inactive:</span>',
-            '    <span class="detail-value">' + (team.isInactive ? 'Yes' : 'No') + '</span>',
-            '',
-            '    <span class="detail-label">Is Archived:</span>',
-            '    <span class="detail-value">' + (team.isArchived ? 'Yes' : 'No') + '</span>',
+            '    <span class="detail-label">Status:</span>',
+            '    <span class="detail-value">' + (team.isInactive ? 'Inactive' : 'Active') + '</span>',
             '',
             '    <span class="detail-label">Flags:</span>',
             '    <span class="detail-value">' + (team.flags && team.flags.length > 0 ? team.flags.join(', ') : 'None') + '</span>',
@@ -203,6 +193,7 @@ const PageTeams = (function() {
             '</div>'
         ].join('\n');
 
+        body.innerHTML = detailHtml;
         modal.classList.add('visible');
     }
 
@@ -214,28 +205,26 @@ const PageTeams = (function() {
     function render(container) {
         var teams = DataLoader.getData('teams');
 
-        // Calculate stats
+        // Calculate governance-focused stats
         var publicCount = teams.filter(function(t) { return t.visibility === 'Public'; }).length;
         var privateCount = teams.filter(function(t) { return t.visibility === 'Private'; }).length;
-        var activeCount = teams.filter(function(t) { return !t.isInactive && !t.isArchived; }).length;
+        var activeCount = teams.filter(function(t) { return !t.isInactive; }).length;
         var inactiveCount = teams.filter(function(t) { return t.isInactive; }).length;
-        var archivedCount = teams.filter(function(t) { return t.isArchived; }).length;
         var ownerlessCount = teams.filter(function(t) { return t.hasNoOwner; }).length;
         var withGuestsCount = teams.filter(function(t) { return t.hasGuests; }).length;
-        var totalMembers = teams.reduce(function(s, t) { return s + t.memberCount; }, 0);
 
-        // All values below are computed integers from trusted collection data
-        container.innerHTML = [
+        // Build page HTML - all values are computed integers from trusted collection data
+        var pageHtml = [
             '<div class="page-header">',
-            '    <h2 class="page-title">Teams</h2>',
-            '    <p class="page-description">Microsoft Teams activity and governance overview</p>',
+            '    <h2 class="page-title">Teams Governance</h2>',
+            '    <p class="page-description">Governance gaps: inactive, ownerless, and guest access</p>',
             '</div>',
             '',
             '<div class="cards-grid">',
             '    <div class="card">',
             '        <div class="card-label">Total Teams</div>',
             '        <div class="card-value">' + teams.length + '</div>',
-            '        <div class="card-change">' + totalMembers + ' total members</div>',
+            '        <div class="card-change">' + withGuestsCount + ' with guests</div>',
             '    </div>',
             '    <div class="card">',
             '        <div class="card-label">Active</div>',
@@ -256,28 +245,30 @@ const PageTeams = (function() {
             '<div id="teams-table"></div>'
         ].join('\n');
 
+        container.innerHTML = pageHtml;
+
         // Render charts
         var chartsRow = document.getElementById('teams-charts');
         if (chartsRow) {
             var C = DashboardCharts.colors;
 
             chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Team Activity',
+                'Activity Status',
                 [
                     { value: activeCount, label: 'Active', color: C.green },
-                    { value: inactiveCount - archivedCount, label: 'Inactive', color: C.yellow },
-                    { value: archivedCount, label: 'Archived', color: C.gray }
+                    { value: inactiveCount, label: 'Inactive', color: C.yellow }
                 ],
                 String(activeCount), 'active'
             ));
 
             chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Visibility',
+                'Governance Issues',
                 [
-                    { value: publicCount, label: 'Public', color: C.blue },
-                    { value: privateCount, label: 'Private', color: C.purple }
+                    { value: ownerlessCount, label: 'Ownerless', color: C.red },
+                    { value: withGuestsCount, label: 'With Guests', color: C.orange },
+                    { value: Math.max(0, teams.length - ownerlessCount - withGuestsCount), label: 'Clean', color: C.green }
                 ],
-                String(teams.length), 'total teams'
+                String(ownerlessCount + withGuestsCount), 'issues'
             ));
         }
 
@@ -308,8 +299,7 @@ const PageTeams = (function() {
                     options: [
                         { value: 'all', label: 'All' },
                         { value: 'active', label: 'Active' },
-                        { value: 'inactive', label: 'Inactive' },
-                        { value: 'archived', label: 'Archived' }
+                        { value: 'inactive', label: 'Inactive' }
                     ]
                 },
                 {

@@ -175,6 +175,13 @@ const DataLoader = (function() {
                     await Promise.all(loadPromises);
                 }
 
+                // Post-process nested data structures
+                // Teams data may come in nested format with metadata wrapper
+                if (dataStore.teams && !Array.isArray(dataStore.teams) && dataStore.teams.teams) {
+                    console.log('DataLoader: Extracting teams from nested structure');
+                    dataStore.teams = dataStore.teams.teams;
+                }
+
                 // Log what was loaded
                 Object.entries(dataStore).forEach(([key, data]) => {
                     console.log(`DataLoader: ${key} (${Array.isArray(data) ? data.length + ' items' : (data ? 'object' : 'null')})`);
@@ -184,7 +191,7 @@ const DataLoader = (function() {
                 const hasData = dataStore.users.length > 0 ||
                     dataStore.devices.length > 0 ||
                     dataStore.guests.length > 0 ||
-                    dataStore.teams.length > 0;
+                    (dataStore.teams && dataStore.teams.length > 0);
 
                 isLoaded = true;
                 loadError = null;
@@ -308,13 +315,12 @@ const DataLoader = (function() {
                 compliancePct: devices.length > 0 ? Math.round((compliantDevices / devices.length) * 100) : 0,
                 activeAlerts: alerts.filter(a => a.status !== 'resolved').length,
 
-                // Teams
+                // Teams (governance-focused)
                 totalTeams: (dataStore.teams || []).length,
-                activeTeams: (dataStore.teams || []).filter(t => !t.isInactive && !t.isArchived).length,
+                activeTeams: (dataStore.teams || []).filter(t => !t.isInactive).length,
                 inactiveTeams: (dataStore.teams || []).filter(t => t.isInactive).length,
                 ownerlessTeams: (dataStore.teams || []).filter(t => t.hasNoOwner).length,
                 teamsWithGuests: (dataStore.teams || []).filter(t => t.hasGuests).length,
-                archivedTeams: (dataStore.teams || []).filter(t => t.isArchived).length,
                 publicTeams: (dataStore.teams || []).filter(t => t.visibility === 'Public').length,
                 privateTeams: (dataStore.teams || []).filter(t => t.visibility === 'Private').length,
 
