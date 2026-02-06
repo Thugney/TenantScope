@@ -50,7 +50,8 @@ const PageLicenseAnalysis = (function() {
         OVERLAP_RULES.forEach(function(r) { ruleStats[r.name] = { count: 0, users: [] }; });
 
         users.forEach(function(user) {
-            if (!user.assignedSkuIds || user.assignedSkuIds.length < 2) return;
+            // Ensure assignedSkuIds is an array with at least 2 items
+            if (!user.assignedSkuIds || !Array.isArray(user.assignedSkuIds) || user.assignedSkuIds.length < 2) return;
 
             var userSkuPartNumbers = user.assignedSkuIds.map(function(id) {
                 var lic = skuMap[id];
