@@ -22,6 +22,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Switched to v1.0 API endpoint for recovery keys
   - Added pagination for recovery keys
   - Dashboard page handles both sample data (array) and real collector output (object)
+- **SharePoint collector resilience for concealed URLs:**
+  - Fixed crash when `Sort-Object` returned `$null` on empty arrays
+  - Sites no longer skipped when URLs are concealed - uses site ID as identifier
+  - Added hint about Sites.Read.All permission for URL resolution
+  - Improved messaging for admin privacy settings
 
 ### Added
 - Secure Score now displayed on Security page with:
