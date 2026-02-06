@@ -7,8 +7,15 @@ const PageAppDeployments = (function() {
 
     var colSelector = null;
 
+    // Extract apps from nested structure
+    function extractApps(rawData) {
+        if (Array.isArray(rawData)) return rawData;
+        if (!rawData) return [];
+        return rawData.apps || [];
+    }
+
     function applyFilters() {
-        var apps = DataLoader.getData('appDeployments') || [];
+        var apps = extractApps(DataLoader.getData('appDeployments'));
         var filterConfig = { search: Filters.getValue('apps-search'), searchFields: ['displayName', 'publisher', 'appType'], exact: {} };
         var typeFilter = Filters.getValue('apps-type');
         if (typeFilter && typeFilter !== 'all') filterConfig.exact.appType = typeFilter;
@@ -39,7 +46,7 @@ const PageAppDeployments = (function() {
     }
 
     function render(container) {
-        var apps = DataLoader.getData('appDeployments') || [];
+        var apps = extractApps(DataLoader.getData('appDeployments'));
         var totalApps = apps.length;
         var totalInstalled = apps.reduce(function(s, a) { return s + (a.installedCount || 0); }, 0);
         var totalFailed = apps.reduce(function(s, a) { return s + (a.failedCount || 0); }, 0);

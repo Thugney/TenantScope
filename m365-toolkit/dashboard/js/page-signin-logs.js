@@ -7,8 +7,15 @@ const PageSignInLogs = (function() {
 
     var colSelector = null;
 
+    // Extract sign-ins from nested structure
+    function extractSignIns(rawData) {
+        if (Array.isArray(rawData)) return rawData;
+        if (!rawData) return [];
+        return rawData.signIns || [];
+    }
+
     function applyFilters() {
-        var logs = DataLoader.getData('signinLogs') || [];
+        var logs = extractSignIns(DataLoader.getData('signinLogs'));
         var filterConfig = { search: Filters.getValue('signin-search'), searchFields: ['userPrincipalName', 'userDisplayName', 'appDisplayName', 'ipAddress', 'location'], exact: {} };
         var statusFilter = Filters.getValue('signin-status');
         if (statusFilter && statusFilter !== 'all') filterConfig.exact.status = statusFilter;
@@ -49,7 +56,7 @@ const PageSignInLogs = (function() {
     }
 
     function render(container) {
-        var logs = DataLoader.getData('signinLogs') || [];
+        var logs = extractSignIns(DataLoader.getData('signinLogs'));
         var total = logs.length;
         var success = logs.filter(function(l) { return l.status === 'success'; }).length;
         var failure = logs.filter(function(l) { return l.status === 'failure'; }).length;

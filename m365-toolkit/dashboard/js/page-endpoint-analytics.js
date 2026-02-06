@@ -7,8 +7,27 @@ const PageEndpointAnalytics = (function() {
 
     var colSelector = null;
 
+    // Extract and normalize devices from nested structure
+    function extractDevices(rawData) {
+        if (Array.isArray(rawData)) return rawData;
+        if (!rawData) return [];
+        // Collector outputs {deviceScores: [...], ...}
+        var devices = rawData.deviceScores || [];
+        // Map collector field names to page field names
+        return devices.map(function(d) {
+            return {
+                deviceName: d.deviceName,
+                userPrincipalName: d.userPrincipalName || '',
+                model: d.model,
+                healthScore: d.healthScore || d.endpointAnalyticsScore,
+                startupScore: d.startupScore || d.startupPerformanceScore,
+                bootTimeSeconds: d.bootTimeSeconds || null
+            };
+        });
+    }
+
     function applyFilters() {
-        var devices = DataLoader.getData('endpointAnalytics') || [];
+        var devices = extractDevices(DataLoader.getData('endpointAnalytics'));
         var filterConfig = { search: Filters.getValue('analytics-search'), searchFields: ['deviceName', 'userPrincipalName', 'model'], exact: {} };
         var filteredData = Filters.apply(devices, filterConfig);
         var healthFilter = Filters.getValue('analytics-health');
@@ -44,7 +63,7 @@ const PageEndpointAnalytics = (function() {
     }
 
     function render(container) {
-        var devices = DataLoader.getData('endpointAnalytics') || [];
+        var devices = extractDevices(DataLoader.getData('endpointAnalytics'));
         var total = devices.length;
         var avgHealth = total > 0 ? Math.round(devices.reduce(function(s, d) { return s + (d.healthScore || 0); }, 0) / total) : 0;
         var avgBoot = total > 0 ? Math.round(devices.reduce(function(s, d) { return s + (d.bootTimeSeconds || 0); }, 0) / total) : 0;

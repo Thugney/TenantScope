@@ -7,8 +7,15 @@ const PageASRRules = (function() {
 
     var colSelector = null;
 
+    // Extract rules from nested structure
+    function extractRules(rawData) {
+        if (Array.isArray(rawData)) return rawData;
+        if (!rawData) return [];
+        return rawData.rulesArray || [];
+    }
+
     function applyFilters() {
-        var rules = DataLoader.getData('asrRules') || [];
+        var rules = extractRules(DataLoader.getData('asrRules'));
         var filterConfig = { search: Filters.getValue('asr-search'), searchFields: ['ruleName', 'ruleId', 'description'], exact: {} };
         var modeFilter = Filters.getValue('asr-mode');
         if (modeFilter && modeFilter !== 'all') filterConfig.exact.mode = modeFilter;
@@ -38,7 +45,7 @@ const PageASRRules = (function() {
     }
 
     function render(container) {
-        var rules = DataLoader.getData('asrRules') || [];
+        var rules = extractRules(DataLoader.getData('asrRules'));
         var total = rules.length;
         var blockMode = rules.filter(function(r) { return r.mode === 'block'; }).length;
         var auditMode = rules.filter(function(r) { return r.mode === 'audit'; }).length;

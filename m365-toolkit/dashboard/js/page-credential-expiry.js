@@ -7,8 +7,36 @@ const PageCredentialExpiry = (function() {
 
     var colSelector = null;
 
+    // Extract flat credentials from nested structure
+    function extractCredentials(rawData) {
+        if (Array.isArray(rawData)) return rawData;
+        if (!rawData || !rawData.applications) return [];
+        var creds = [];
+        rawData.applications.forEach(function(app) {
+            (app.secrets || []).forEach(function(s) {
+                creds.push({
+                    appDisplayName: app.displayName,
+                    credentialType: 'secret',
+                    status: s.status,
+                    daysUntilExpiry: s.daysUntilExpiry,
+                    expiryDate: s.endDateTime
+                });
+            });
+            (app.certificates || []).forEach(function(c) {
+                creds.push({
+                    appDisplayName: app.displayName,
+                    credentialType: 'certificate',
+                    status: c.status,
+                    daysUntilExpiry: c.daysUntilExpiry,
+                    expiryDate: c.endDateTime
+                });
+            });
+        });
+        return creds;
+    }
+
     function applyFilters() {
-        var creds = DataLoader.getData('servicePrincipalSecrets') || [];
+        var creds = extractCredentials(DataLoader.getData('servicePrincipalSecrets'));
         var filterConfig = { search: Filters.getValue('creds-search'), searchFields: ['appDisplayName', 'credentialType'], exact: {} };
         var typeFilter = Filters.getValue('creds-type');
         if (typeFilter && typeFilter !== 'all') filterConfig.exact.credentialType = typeFilter;
@@ -40,7 +68,7 @@ const PageCredentialExpiry = (function() {
     }
 
     function render(container) {
-        var creds = DataLoader.getData('servicePrincipalSecrets') || [];
+        var creds = extractCredentials(DataLoader.getData('servicePrincipalSecrets'));
         var total = creds.length;
         var expired = creds.filter(function(c) { return c.status === 'expired'; }).length;
         var critical = creds.filter(function(c) { return c.status === 'critical'; }).length;

@@ -21,7 +21,7 @@ const PagePIM = (function() {
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        var pimData = DataLoader.getData('pimActivity');
+        var pimData = DataLoader.getData('pimActivity') || [];
 
         // Split into requests and eligible assignments
         var requests = pimData.filter(function(e) { return e.entryType === 'request'; });
