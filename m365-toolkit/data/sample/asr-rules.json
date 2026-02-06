@@ -1,0 +1,82 @@
+[
+  {
+    "ruleName": "Block executable content from email and webmail",
+    "ruleId": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550",
+    "mode": "block",
+    "description": "Blocks executable file types from running in email",
+    "assignedDevices": 150,
+    "enabledDevices": 142,
+    "auditDevices": 8,
+    "coverage": 95
+  },
+  {
+    "ruleName": "Block Office apps from creating child processes",
+    "ruleId": "d4f940ab-401b-4efc-aadc-ad5f3c50688a",
+    "mode": "block",
+    "description": "Prevents Office applications from creating child processes",
+    "assignedDevices": 150,
+    "enabledDevices": 148,
+    "auditDevices": 2,
+    "coverage": 99
+  },
+  {
+    "ruleName": "Block credential stealing from LSASS",
+    "ruleId": "9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2",
+    "mode": "block",
+    "description": "Prevents credential theft from Windows LSASS process",
+    "assignedDevices": 150,
+    "enabledDevices": 150,
+    "auditDevices": 0,
+    "coverage": 100
+  },
+  {
+    "ruleName": "Block JavaScript/VBScript launching downloads",
+    "ruleId": "d3e037e1-3eb8-44c8-a917-57927947596d",
+    "mode": "audit",
+    "description": "Blocks script execution of downloaded content",
+    "assignedDevices": 150,
+    "enabledDevices": 0,
+    "auditDevices": 150,
+    "coverage": 100
+  },
+  {
+    "ruleName": "Block untrusted processes from USB",
+    "ruleId": "b2b3f03d-6a65-4f7b-a9c7-1c7ef74a9ba4",
+    "mode": "audit",
+    "description": "Blocks unsigned executables from USB drives",
+    "assignedDevices": 100,
+    "enabledDevices": 0,
+    "auditDevices": 100,
+    "coverage": 67
+  },
+  {
+    "ruleName": "Use advanced ransomware protection",
+    "ruleId": "c1db55ab-c21a-4637-bb3f-a12568109d35",
+    "mode": "block",
+    "description": "Enables advanced protection against ransomware",
+    "assignedDevices": 150,
+    "enabledDevices": 145,
+    "auditDevices": 5,
+    "coverage": 97
+  },
+  {
+    "ruleName": "Block persistence through WMI",
+    "ruleId": "e6db77e5-3df2-4cf1-b95a-636979351e5b",
+    "mode": "disabled",
+    "description": "Prevents malware persistence via WMI subscriptions",
+    "assignedDevices": 50,
+    "enabledDevices": 0,
+    "auditDevices": 0,
+    "coverage": 33
+  },
+  {
+    "ruleName": "Block Win32 API calls from Office macros",
+    "ruleId": "92e97fa1-2edf-4476-bdd6-9dd0b4dddc7b",
+    "mode": "block",
+    "description": "Prevents Office macros from calling Win32 APIs",
+    "assignedDevices": 150,
+    "enabledDevices": 140,
+    "auditDevices": 10,
+    "coverage": 93
+  }
+]

@@ -1,0 +1,56 @@
+[
+  {
+    "displayName": "Windows 10 Security Baseline",
+    "platform": "Windows 10/11",
+    "assignedCount": 150,
+    "compliantCount": 142,
+    "nonCompliantCount": 5,
+    "errorCount": 3,
+    "complianceRate": 95
+  },
+  {
+    "displayName": "iOS Device Compliance",
+    "platform": "iOS/iPadOS",
+    "assignedCount": 75,
+    "compliantCount": 72,
+    "nonCompliantCount": 2,
+    "errorCount": 1,
+    "complianceRate": 96
+  },
+  {
+    "displayName": "Android Enterprise Policy",
+    "platform": "Android Enterprise",
+    "assignedCount": 45,
+    "compliantCount": 38,
+    "nonCompliantCount": 5,
+    "errorCount": 2,
+    "complianceRate": 84
+  },
+  {
+    "displayName": "macOS Security Requirements",
+    "platform": "macOS",
+    "assignedCount": 30,
+    "compliantCount": 28,
+    "nonCompliantCount": 1,
+    "errorCount": 1,
+    "complianceRate": 93
+  },
+  {
+    "displayName": "BitLocker Encryption Policy",
+    "platform": "Windows 10/11",
+    "assignedCount": 150,
+    "compliantCount": 135,
+    "nonCompliantCount": 12,
+    "errorCount": 3,
+    "complianceRate": 90
+  },
+  {
+    "displayName": "Windows Defender AV Policy",
+    "platform": "Windows 10/11",
+    "assignedCount": 150,
+    "compliantCount": 148,
+    "nonCompliantCount": 2,
+    "errorCount": 0,
+    "complianceRate": 99
+  }
+]

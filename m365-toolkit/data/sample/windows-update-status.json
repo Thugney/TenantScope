@@ -1,0 +1,81 @@
+{
+  "updateRings": [
+    {
+      "displayName": "Production Ring",
+      "qualityUpdatesDeferralDays": 7,
+      "featureUpdatesDeferralDays": 60,
+      "qualityUpdatesPaused": false,
+      "featureUpdatesPaused": false,
+      "successDevices": 120,
+      "pendingDevices": 15,
+      "errorDevices": 5,
+      "totalDevices": 140
+    },
+    {
+      "displayName": "Pilot Ring",
+      "qualityUpdatesDeferralDays": 3,
+      "featureUpdatesDeferralDays": 14,
+      "qualityUpdatesPaused": false,
+      "featureUpdatesPaused": false,
+      "successDevices": 25,
+      "pendingDevices": 3,
+      "errorDevices": 2,
+      "totalDevices": 30
+    },
+    {
+      "displayName": "IT Test Ring",
+      "qualityUpdatesDeferralDays": 0,
+      "featureUpdatesDeferralDays": 0,
+      "qualityUpdatesPaused": false,
+      "featureUpdatesPaused": false,
+      "successDevices": 8,
+      "pendingDevices": 1,
+      "errorDevices": 1,
+      "totalDevices": 10
+    },
+    {
+      "displayName": "Kiosk Devices",
+      "qualityUpdatesDeferralDays": 14,
+      "featureUpdatesDeferralDays": 90,
+      "qualityUpdatesPaused": true,
+      "featureUpdatesPaused": true,
+      "successDevices": 18,
+      "pendingDevices": 0,
+      "errorDevices": 2,
+      "totalDevices": 20
+    }
+  ],
+  "featureUpdates": [
+    {
+      "displayName": "Windows 11 24H2 Rollout",
+      "featureUpdateVersion": "Windows 11, version 24H2",
+      "endOfSupportDate": "2027-10-14T00:00:00Z",
+      "deploymentState": {
+        "total": 150,
+        "succeeded": 85,
+        "pending": 50,
+        "failed": 15
+      }
+    },
+    {
+      "displayName": "Windows 11 23H2 Migration",
+      "featureUpdateVersion": "Windows 11, version 23H2",
+      "endOfSupportDate": "2026-11-11T00:00:00Z",
+      "deploymentState": {
+        "total": 50,
+        "succeeded": 48,
+        "pending": 1,
+        "failed": 1
+      }
+    }
+  ],
+  "qualityUpdates": [],
+  "driverUpdates": [],
+  "summary": {
+    "totalRings": 4,
+    "totalFeaturePolicies": 2,
+    "devicesUpToDate": 171,
+    "devicesPendingUpdate": 19,
+    "devicesWithErrors": 10
+  }
+}

@@ -1,0 +1,98 @@
+[
+  {
+    "createdDateTime": "2026-01-15T14:32:00Z",
+    "userPrincipalName": "admin@contoso.com",
+    "userDisplayName": "Admin User",
+    "appDisplayName": "Microsoft Teams",
+    "status": "success",
+    "mfaSatisfied": true,
+    "caStatus": "success",
+    "location": "Seattle, US",
+    "ipAddress": "203.0.113.45",
+    "riskLevel": "none"
+  },
+  {
+    "createdDateTime": "2026-01-15T14:28:00Z",
+    "userPrincipalName": "john.smith@contoso.com",
+    "userDisplayName": "John Smith",
+    "appDisplayName": "Outlook",
+    "status": "success",
+    "mfaSatisfied": true,
+    "caStatus": "success",
+    "location": "New York, US",
+    "ipAddress": "198.51.100.22",
+    "riskLevel": "none"
+  },
+  {
+    "createdDateTime": "2026-01-15T14:15:00Z",
+    "userPrincipalName": "jane.doe@contoso.com",
+    "userDisplayName": "Jane Doe",
+    "appDisplayName": "SharePoint",
+    "status": "failure",
+    "mfaSatisfied": false,
+    "caStatus": "failure",
+    "location": "London, UK",
+    "ipAddress": "192.0.2.100",
+    "riskLevel": "medium"
+  },
+  {
+    "createdDateTime": "2026-01-15T13:45:00Z",
+    "userPrincipalName": "bob.wilson@contoso.com",
+    "userDisplayName": "Bob Wilson",
+    "appDisplayName": "Azure Portal",
+    "status": "success",
+    "mfaSatisfied": true,
+    "caStatus": "success",
+    "location": "Chicago, US",
+    "ipAddress": "203.0.113.88",
+    "riskLevel": "none"
+  },
+  {
+    "createdDateTime": "2026-01-15T13:22:00Z",
+    "userPrincipalName": "external@partner.com",
+    "userDisplayName": "External User",
+    "appDisplayName": "Microsoft Teams",
+    "status": "failure",
+    "mfaSatisfied": false,
+    "caStatus": "notApplied",
+    "location": "Unknown",
+    "ipAddress": "198.51.100.99",
+    "riskLevel": "high"
+  },
+  {
+    "createdDateTime": "2026-01-15T12:55:00Z",
+    "userPrincipalName": "sarah.jones@contoso.com",
+    "userDisplayName": "Sarah Jones",
+    "appDisplayName": "Power BI",
+    "status": "success",
+    "mfaSatisfied": true,
+    "caStatus": "success",
+    "location": "San Francisco, US",
+    "ipAddress": "203.0.113.12",
+    "riskLevel": "none"
+  },
+  {
+    "createdDateTime": "2026-01-15T12:30:00Z",
+    "userPrincipalName": "mike.brown@contoso.com",
+    "userDisplayName": "Mike Brown",
+    "appDisplayName": "OneDrive",
+    "status": "interrupted",
+    "mfaSatisfied": false,
+    "caStatus": "notApplied",
+    "location": "Toronto, CA",
+    "ipAddress": "192.0.2.55",
+    "riskLevel": "low"
+  },
+  {
+    "createdDateTime": "2026-01-15T11:45:00Z",
+    "userPrincipalName": "admin@contoso.com",
+    "userDisplayName": "Admin User",
+    "appDisplayName": "Azure Portal",
+    "status": "success",
+    "mfaSatisfied": true,
+    "caStatus": "success",
+    "location": "Seattle, US",
+    "ipAddress": "203.0.113.45",
+    "riskLevel": "none"
+  }
+]

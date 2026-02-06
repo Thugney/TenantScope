@@ -1,0 +1,74 @@
+[
+  {
+    "deviceName": "DESKTOP-WIN001",
+    "userPrincipalName": "john.smith@contoso.com",
+    "encryptionState": "encrypted",
+    "hasRecoveryKey": true,
+    "complianceState": "compliant",
+    "manufacturer": "Dell",
+    "model": "Latitude 5520"
+  },
+  {
+    "deviceName": "LAPTOP-WIN002",
+    "userPrincipalName": "jane.doe@contoso.com",
+    "encryptionState": "encrypted",
+    "hasRecoveryKey": true,
+    "complianceState": "compliant",
+    "manufacturer": "HP",
+    "model": "EliteBook 840"
+  },
+  {
+    "deviceName": "DESKTOP-WIN003",
+    "userPrincipalName": "bob.wilson@contoso.com",
+    "encryptionState": "notEncrypted",
+    "hasRecoveryKey": false,
+    "complianceState": "nonCompliant",
+    "manufacturer": "Lenovo",
+    "model": "ThinkPad T14"
+  },
+  {
+    "deviceName": "LAPTOP-WIN004",
+    "userPrincipalName": "sarah.jones@contoso.com",
+    "encryptionState": "encrypted",
+    "hasRecoveryKey": true,
+    "complianceState": "compliant",
+    "manufacturer": "Microsoft",
+    "model": "Surface Pro 9"
+  },
+  {
+    "deviceName": "DESKTOP-WIN005",
+    "userPrincipalName": "mike.brown@contoso.com",
+    "encryptionState": "suspended",
+    "hasRecoveryKey": true,
+    "complianceState": "nonCompliant",
+    "manufacturer": "Dell",
+    "model": "OptiPlex 7090"
+  },
+  {
+    "deviceName": "LAPTOP-WIN006",
+    "userPrincipalName": "admin@contoso.com",
+    "encryptionState": "encrypted",
+    "hasRecoveryKey": true,
+    "complianceState": "compliant",
+    "manufacturer": "HP",
+    "model": "ZBook 15"
+  },
+  {
+    "deviceName": "DESKTOP-WIN007",
+    "userPrincipalName": "lisa.chen@contoso.com",
+    "encryptionState": "notEncrypted",
+    "hasRecoveryKey": false,
+    "complianceState": "nonCompliant",
+    "manufacturer": "Lenovo",
+    "model": "ThinkCentre M90"
+  },
+  {
+    "deviceName": "LAPTOP-WIN008",
+    "userPrincipalName": "david.kim@contoso.com",
+    "encryptionState": "encrypted",
+    "hasRecoveryKey": true,
+    "complianceState": "compliant",
+    "manufacturer": "Dell",
+    "model": "XPS 15"
+  }
+]

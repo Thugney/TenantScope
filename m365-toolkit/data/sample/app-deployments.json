@@ -1,0 +1,102 @@
+[
+  {
+    "displayName": "Microsoft 365 Apps for Enterprise",
+    "appType": "Microsoft 365 Apps",
+    "publisher": "Microsoft",
+    "assignedCount": 150,
+    "installedCount": 145,
+    "failedCount": 3,
+    "pendingCount": 2,
+    "installRate": 97
+  },
+  {
+    "displayName": "Google Chrome",
+    "appType": "Win32",
+    "publisher": "Google",
+    "assignedCount": 150,
+    "installedCount": 148,
+    "failedCount": 1,
+    "pendingCount": 1,
+    "installRate": 99
+  },
+  {
+    "displayName": "Adobe Acrobat Reader",
+    "appType": "Win32",
+    "publisher": "Adobe",
+    "assignedCount": 150,
+    "installedCount": 140,
+    "failedCount": 5,
+    "pendingCount": 5,
+    "installRate": 93
+  },
+  {
+    "displayName": "Zoom Workplace",
+    "appType": "Win32",
+    "publisher": "Zoom",
+    "assignedCount": 100,
+    "installedCount": 95,
+    "failedCount": 2,
+    "pendingCount": 3,
+    "installRate": 95
+  },
+  {
+    "displayName": "7-Zip",
+    "appType": "Win32",
+    "publisher": "Igor Pavlov",
+    "assignedCount": 150,
+    "installedCount": 150,
+    "failedCount": 0,
+    "pendingCount": 0,
+    "installRate": 100
+  },
+  {
+    "displayName": "Microsoft Teams",
+    "appType": "Store for Business",
+    "publisher": "Microsoft",
+    "assignedCount": 75,
+    "installedCount": 72,
+    "failedCount": 1,
+    "pendingCount": 2,
+    "installRate": 96
+  },
+  {
+    "displayName": "Visual Studio Code",
+    "appType": "Win32",
+    "publisher": "Microsoft",
+    "assignedCount": 50,
+    "installedCount": 45,
+    "failedCount": 3,
+    "pendingCount": 2,
+    "installRate": 90
+  },
+  {
+    "displayName": "Slack",
+    "appType": "Win32",
+    "publisher": "Slack Technologies",
+    "assignedCount": 80,
+    "installedCount": 65,
+    "failedCount": 10,
+    "pendingCount": 5,
+    "installRate": 81
+  },
+  {
+    "displayName": "Corporate VPN Client",
+    "appType": "Win32",
+    "publisher": "Contoso IT",
+    "assignedCount": 150,
+    "installedCount": 120,
+    "failedCount": 20,
+    "pendingCount": 10,
+    "installRate": 80
+  },
+  {
+    "displayName": "Company Portal",
+    "appType": "Store App",
+    "publisher": "Microsoft",
+    "assignedCount": 150,
+    "installedCount": 150,
+    "failedCount": 0,
+    "pendingCount": 0,
+    "installRate": 100
+  }
+]

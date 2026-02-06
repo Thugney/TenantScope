@@ -1,0 +1,82 @@
+[
+  {
+    "deviceName": "DESKTOP-WIN001",
+    "userPrincipalName": "john.smith@contoso.com",
+    "model": "Dell Latitude 5520",
+    "healthScore": 85,
+    "startupScore": 78,
+    "bootTimeSeconds": 45
+  },
+  {
+    "deviceName": "LAPTOP-WIN002",
+    "userPrincipalName": "jane.doe@contoso.com",
+    "model": "HP EliteBook 840",
+    "healthScore": 72,
+    "startupScore": 65,
+    "bootTimeSeconds": 68
+  },
+  {
+    "deviceName": "DESKTOP-WIN003",
+    "userPrincipalName": "bob.wilson@contoso.com",
+    "model": "Lenovo ThinkPad T14",
+    "healthScore": 45,
+    "startupScore": 38,
+    "bootTimeSeconds": 145
+  },
+  {
+    "deviceName": "LAPTOP-WIN004",
+    "userPrincipalName": "sarah.jones@contoso.com",
+    "model": "Microsoft Surface Pro 9",
+    "healthScore": 92,
+    "startupScore": 88,
+    "bootTimeSeconds": 32
+  },
+  {
+    "deviceName": "DESKTOP-WIN005",
+    "userPrincipalName": "mike.brown@contoso.com",
+    "model": "Dell OptiPlex 7090",
+    "healthScore": 58,
+    "startupScore": 52,
+    "bootTimeSeconds": 95
+  },
+  {
+    "deviceName": "LAPTOP-WIN006",
+    "userPrincipalName": "admin@contoso.com",
+    "model": "HP ZBook 15",
+    "healthScore": 78,
+    "startupScore": 72,
+    "bootTimeSeconds": 55
+  },
+  {
+    "deviceName": "DESKTOP-WIN007",
+    "userPrincipalName": "lisa.chen@contoso.com",
+    "model": "Lenovo ThinkCentre M90",
+    "healthScore": 35,
+    "startupScore": 28,
+    "bootTimeSeconds": 180
+  },
+  {
+    "deviceName": "LAPTOP-WIN008",
+    "userPrincipalName": "david.kim@contoso.com",
+    "model": "Dell XPS 15",
+    "healthScore": 88,
+    "startupScore": 82,
+    "bootTimeSeconds": 38
+  },
+  {
+    "deviceName": "DESKTOP-WIN009",
+    "userPrincipalName": "emma.taylor@contoso.com",
+    "model": "HP ProDesk 400",
+    "healthScore": 62,
+    "startupScore": 55,
+    "bootTimeSeconds": 82
+  },
+  {
+    "deviceName": "LAPTOP-WIN010",
+    "userPrincipalName": "alex.martinez@contoso.com",
+    "model": "Microsoft Surface Laptop 5",
+    "healthScore": 95,
+    "startupScore": 92,
+    "bootTimeSeconds": 28
+  }
+]

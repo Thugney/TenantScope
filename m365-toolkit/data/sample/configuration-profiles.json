@@ -1,0 +1,74 @@
+[
+  {
+    "displayName": "Windows Security Baseline",
+    "profileType": "Endpoint Protection",
+    "platform": "Windows",
+    "successDevices": 145,
+    "errorDevices": 3,
+    "pendingDevices": 2,
+    "successRate": 97
+  },
+  {
+    "displayName": "Edge Browser Settings",
+    "profileType": "Settings Catalog",
+    "platform": "Windows",
+    "successDevices": 148,
+    "errorDevices": 1,
+    "pendingDevices": 1,
+    "successRate": 99
+  },
+  {
+    "displayName": "Windows Firewall Rules",
+    "profileType": "Endpoint Protection",
+    "platform": "Windows",
+    "successDevices": 140,
+    "errorDevices": 8,
+    "pendingDevices": 2,
+    "successRate": 93
+  },
+  {
+    "displayName": "Corporate WiFi Profile",
+    "profileType": "Wi-Fi",
+    "platform": "Windows",
+    "successDevices": 130,
+    "errorDevices": 5,
+    "pendingDevices": 15,
+    "successRate": 87
+  },
+  {
+    "displayName": "iOS Email Configuration",
+    "profileType": "Device Features",
+    "platform": "iOS/iPadOS",
+    "successDevices": 72,
+    "errorDevices": 2,
+    "pendingDevices": 1,
+    "successRate": 96
+  },
+  {
+    "displayName": "macOS Security Settings",
+    "profileType": "Device Restrictions",
+    "platform": "macOS",
+    "successDevices": 28,
+    "errorDevices": 1,
+    "pendingDevices": 1,
+    "successRate": 93
+  },
+  {
+    "displayName": "Android Work Profile",
+    "profileType": "Android Work Profile",
+    "platform": "Android",
+    "successDevices": 40,
+    "errorDevices": 3,
+    "pendingDevices": 2,
+    "successRate": 89
+  },
+  {
+    "displayName": "VPN Configuration",
+    "profileType": "VPN",
+    "platform": "Windows",
+    "successDevices": 120,
+    "errorDevices": 15,
+    "pendingDevices": 15,
+    "successRate": 80
+  }
+]
