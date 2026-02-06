@@ -3,72 +3,72 @@
     "displayName": "Windows Security Baseline",
     "profileType": "Endpoint Protection",
     "platform": "Windows",
-    "successDevices": 145,
-    "errorDevices": 3,
-    "pendingDevices": 2,
-    "successRate": 97
+    "assignedCount": 150,
+    "successCount": 145,
+    "errorCount": 3,
+    "lastModified": "2026-01-10T09:30:00Z"
   },
   {
     "displayName": "Edge Browser Settings",
     "profileType": "Settings Catalog",
     "platform": "Windows",
-    "successDevices": 148,
-    "errorDevices": 1,
-    "pendingDevices": 1,
-    "successRate": 99
+    "assignedCount": 150,
+    "successCount": 148,
+    "errorCount": 1,
+    "lastModified": "2026-01-08T14:20:00Z"
   },
   {
     "displayName": "Windows Firewall Rules",
     "profileType": "Endpoint Protection",
     "platform": "Windows",
-    "successDevices": 140,
-    "errorDevices": 8,
-    "pendingDevices": 2,
-    "successRate": 93
+    "assignedCount": 150,
+    "successCount": 140,
+    "errorCount": 8,
+    "lastModified": "2025-12-15T11:00:00Z"
   },
   {
     "displayName": "Corporate WiFi Profile",
     "profileType": "Wi-Fi",
     "platform": "Windows",
-    "successDevices": 130,
-    "errorDevices": 5,
-    "pendingDevices": 15,
-    "successRate": 87
+    "assignedCount": 150,
+    "successCount": 130,
+    "errorCount": 5,
+    "lastModified": "2025-11-20T16:45:00Z"
   },
   {
     "displayName": "iOS Email Configuration",
     "profileType": "Device Features",
     "platform": "iOS/iPadOS",
-    "successDevices": 72,
-    "errorDevices": 2,
-    "pendingDevices": 1,
-    "successRate": 96
+    "assignedCount": 75,
+    "successCount": 72,
+    "errorCount": 2,
+    "lastModified": "2026-01-05T08:15:00Z"
   },
   {
     "displayName": "macOS Security Settings",
     "profileType": "Device Restrictions",
     "platform": "macOS",
-    "successDevices": 28,
-    "errorDevices": 1,
-    "pendingDevices": 1,
-    "successRate": 93
+    "assignedCount": 30,
+    "successCount": 28,
+    "errorCount": 1,
+    "lastModified": "2025-12-28T10:30:00Z"
   },
   {
     "displayName": "Android Work Profile",
     "profileType": "Android Work Profile",
     "platform": "Android",
-    "successDevices": 40,
-    "errorDevices": 3,
-    "pendingDevices": 2,
-    "successRate": 89
+    "assignedCount": 45,
+    "successCount": 40,
+    "errorCount": 3,
+    "lastModified": "2026-01-02T13:00:00Z"
   },
   {
     "displayName": "VPN Configuration",
     "profileType": "VPN",
     "platform": "Windows",
-    "successDevices": 120,
-    "errorDevices": 15,
-    "pendingDevices": 15,
-    "successRate": 80
+    "assignedCount": 150,
+    "successCount": 120,
+    "errorCount": 15,
+    "lastModified": "2025-10-15T09:00:00Z"
   }
 ]

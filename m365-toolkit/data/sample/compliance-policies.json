@@ -1,56 +1,62 @@
 [
   {
     "displayName": "Windows 10 Security Baseline",
+    "description": "Baseline security policy for all Windows 10/11 devices",
     "platform": "Windows 10/11",
     "assignedCount": 150,
     "compliantCount": 142,
     "nonCompliantCount": 5,
-    "errorCount": 3,
-    "complianceRate": 95
+    "complianceRate": 95,
+    "lastModified": "2026-01-12T10:30:00Z"
   },
   {
     "displayName": "iOS Device Compliance",
+    "description": "Compliance requirements for corporate iOS devices",
     "platform": "iOS/iPadOS",
     "assignedCount": 75,
     "compliantCount": 72,
     "nonCompliantCount": 2,
-    "errorCount": 1,
-    "complianceRate": 96
+    "complianceRate": 96,
+    "lastModified": "2026-01-08T14:15:00Z"
   },
   {
     "displayName": "Android Enterprise Policy",
+    "description": "Work profile compliance for Android devices",
     "platform": "Android Enterprise",
     "assignedCount": 45,
     "compliantCount": 38,
     "nonCompliantCount": 5,
-    "errorCount": 2,
-    "complianceRate": 84
+    "complianceRate": 84,
+    "lastModified": "2025-12-20T09:00:00Z"
   },
   {
     "displayName": "macOS Security Requirements",
+    "description": "Security compliance for Mac devices",
     "platform": "macOS",
     "assignedCount": 30,
     "compliantCount": 28,
     "nonCompliantCount": 1,
-    "errorCount": 1,
-    "complianceRate": 93
+    "complianceRate": 93,
+    "lastModified": "2026-01-05T11:45:00Z"
   },
   {
     "displayName": "BitLocker Encryption Policy",
+    "description": "Requires BitLocker encryption on all Windows devices",
     "platform": "Windows 10/11",
     "assignedCount": 150,
     "compliantCount": 135,
     "nonCompliantCount": 12,
-    "errorCount": 3,
-    "complianceRate": 90
+    "complianceRate": 90,
+    "lastModified": "2025-11-15T16:20:00Z"
   },
   {
     "displayName": "Windows Defender AV Policy",
+    "description": "Requires Windows Defender with real-time protection",
     "platform": "Windows 10/11",
     "assignedCount": 150,
     "compliantCount": 148,
     "nonCompliantCount": 2,
-    "errorCount": 0,
-    "complianceRate": 99
+    "complianceRate": 99,
+    "lastModified": "2026-01-10T08:30:00Z"
   }
 ]
