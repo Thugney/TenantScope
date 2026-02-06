@@ -747,7 +747,7 @@ const PageDevices = (function() {
                 { key: 'groupTag', label: 'Group Tag', filterable: true },
                 { key: 'enrollmentState', label: 'Enrollment', filterable: true, formatter: formatEnrollmentState },
                 { key: 'lastContacted', label: 'Last Contacted', formatter: Tables.formatters.datetime },
-                { key: 'profileAssigned', label: 'Profile' },
+                { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
                 { key: 'purchaseOrder', label: 'PO', filterable: true }
             ],
             pageSize: 25,
@@ -793,6 +793,30 @@ const PageDevices = (function() {
     }
 
     /**
+     * Formats profile assignment status with badge.
+     */
+    function formatProfileAssigned(value, row) {
+        if (value === true) {
+            // Show status detail if available
+            var statusLabel = 'Assigned';
+            if (row && row.profileAssignmentStatus) {
+                var status = row.profileAssignmentStatus;
+                if (status === 'assignedInSync') statusLabel = 'Assigned (In Sync)';
+                else if (status === 'assignedOutOfSync') statusLabel = 'Assigned (Out of Sync)';
+                else if (status === 'pending') statusLabel = 'Pending';
+            }
+            return '<span class="badge badge-success">' + statusLabel + '</span>';
+        }
+        // Check for specific not-assigned reasons
+        if (row && row.profileAssignmentStatus) {
+            var status = row.profileAssignmentStatus;
+            if (status === 'notAssigned') return '<span class="badge badge-warning">Not Assigned</span>';
+            if (status === 'failed') return '<span class="badge badge-critical">Failed</span>';
+        }
+        return '<span class="badge badge-warning">No</span>';
+    }
+
+    /**
      * Shows Autopilot device details in modal.
      */
     function showAutopilotDetails(device) {
@@ -805,6 +829,21 @@ const PageDevices = (function() {
         const detailList = document.createElement('div');
         detailList.className = 'detail-list';
 
+        // Build profile assignment display text
+        var profileAssignedText = device.profileAssigned ? 'Yes' : 'No';
+        if (device.profileAssignmentStatus) {
+            var statusMap = {
+                'assignedInSync': 'Yes (In Sync)',
+                'assignedOutOfSync': 'Yes (Out of Sync)',
+                'assignedUnkownSyncState': 'Yes (Sync Unknown)',
+                'pending': 'Pending',
+                'notAssigned': 'Not Assigned',
+                'failed': 'Failed',
+                'unknown': 'Unknown'
+            };
+            profileAssignedText = statusMap[device.profileAssignmentStatus] || device.profileAssignmentStatus;
+        }
+
         const fields = [
             { label: 'Serial Number', value: device.serialNumber || '--' },
             { label: 'Model', value: device.model || '--' },
@@ -812,7 +851,8 @@ const PageDevices = (function() {
             { label: 'Group Tag', value: device.groupTag || '--' },
             { label: 'Enrollment State', value: device.enrollmentState || '--' },
             { label: 'Last Contacted', value: device.lastContacted ? DataLoader.formatDate(device.lastContacted) : '--' },
-            { label: 'Profile Assigned', value: device.profileAssigned ? 'Yes' : 'No' },
+            { label: 'Profile Assigned', value: profileAssignedText },
+            { label: 'Profile Status', value: device.profileAssignmentStatus || '--' },
             { label: 'Purchase Order', value: device.purchaseOrder || '--' },
             { label: 'Device ID', value: device.id || '--' }
         ];

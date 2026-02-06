@@ -136,20 +136,30 @@ try {
     $processedMfa = @()
 
     foreach ($record in $mfaDetails) {
-        # Extract methods registered
+        # Handle both PascalCase (cmdlet) and camelCase (direct API) property names
+        $recordId = if ($record.Id) { $record.Id } else { $record.id }
+        $upn = if ($record.UserPrincipalName) { $record.UserPrincipalName } else { $record.userPrincipalName }
+        $mfaRegistered = if ($null -ne $record.IsMfaRegistered) { $record.IsMfaRegistered } else { $record.isMfaRegistered }
+        $mfaCapable = if ($null -ne $record.IsMfaCapable) { $record.IsMfaCapable } else { $record.isMfaCapable }
+        $defaultMfa = if ($record.DefaultMfaMethod) { $record.DefaultMfaMethod } else { $record.defaultMfaMethod }
+
+        # Extract methods registered (handle both cases)
         $methods = @()
         if ($record.MethodsRegistered) {
             $methods = $record.MethodsRegistered
         }
+        elseif ($record.methodsRegistered) {
+            $methods = $record.methodsRegistered
+        }
 
         # Build output object matching our schema
         $mfaRecord = [PSCustomObject]@{
-            userId              = $record.Id
-            userPrincipalName   = $record.UserPrincipalName
-            isMfaRegistered     = [bool]$record.IsMfaRegistered
-            isMfaCapable        = [bool]$record.IsMfaCapable
+            userId              = $recordId
+            userPrincipalName   = $upn
+            isMfaRegistered     = [bool]$mfaRegistered
+            isMfaCapable        = [bool]$mfaCapable
             methods             = $methods
-            defaultMethod       = $record.DefaultMfaMethod
+            defaultMethod       = $defaultMfa
         }
 
         $processedMfa += $mfaRecord

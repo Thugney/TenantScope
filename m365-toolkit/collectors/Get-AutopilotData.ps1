@@ -165,33 +165,70 @@ try {
     $processedDevices = @()
 
     foreach ($device in $autopilotDevices) {
-        # Map enrollment state
-        $enrollmentState = Get-EnrollmentStateName -State $device.EnrollmentState
+        # Map enrollment state (handle both PascalCase and camelCase property names)
+        $enrollmentStateValue = $device.EnrollmentState
+        if ($null -eq $enrollmentStateValue) {
+            $enrollmentStateValue = $device.enrollmentState
+        }
+        $enrollmentState = Get-EnrollmentStateName -State $enrollmentStateValue
 
         # Determine if profile is assigned
-        # If deploymentProfileAssignmentStatus is "assigned" or similar, profile is assigned
+        # Handle both PascalCase (cmdlet) and camelCase (direct API) property names
+        # Graph API deploymentProfileAssignmentStatus values:
+        #   - unknown, assignedInSync, assignedOutOfSync, assignedUnkownSyncState, notAssigned, pending, failed
+        # Profile IS assigned when status is: assignedInSync, assignedOutOfSync, assignedUnkownSyncState, pending
+        # Profile is NOT assigned when status is: unknown, notAssigned, failed
         $profileAssigned = $false
-        if ($device.DeploymentProfileAssignmentStatus) {
-            if ($device.DeploymentProfileAssignmentStatus -match "assigned|pendingAssignment") {
-                $profileAssigned = $true
-            }
+        $profileAssignmentStatus = "unknown"
+
+        # Check deployment profile assignment status (handles both property name cases)
+        $assignmentStatus = $device.DeploymentProfileAssignmentStatus
+        if ($null -eq $assignmentStatus) {
+            $assignmentStatus = $device.deploymentProfileAssignmentStatus
         }
-        # Also check if deploymentProfileAssignedDateTime is set
-        if ($device.DeploymentProfileAssignedDateTime) {
+        if ($assignmentStatus) {
+            $profileAssignmentStatus = $assignmentStatus.ToString()
+        }
+
+        # Check if profile is assigned based on status
+        # "assigned" prefix catches: assignedInSync, assignedOutOfSync, assignedUnkownSyncState
+        # "pending" means assignment is in progress
+        if ($profileAssignmentStatus -match "^assigned|^pending") {
+            $profileAssigned = $true
+        }
+
+        # Also check if deploymentProfileAssignedDateTime is set as additional confirmation
+        # (handles both property name cases)
+        $assignedDateTime = $device.DeploymentProfileAssignedDateTime
+        if ($null -eq $assignedDateTime) {
+            $assignedDateTime = $device.deploymentProfileAssignedDateTime
+        }
+        if ($assignedDateTime -and -not $profileAssigned) {
+            # If we have an assigned date but status didn't show assigned, still mark as assigned
             $profileAssigned = $true
         }
 
         # Build output object matching our schema
+        # Handle both PascalCase (cmdlet) and camelCase (direct API) property names
+        $deviceId = if ($device.Id) { $device.Id } else { $device.id }
+        $serial = if ($device.SerialNumber) { $device.SerialNumber } else { $device.serialNumber }
+        $model = if ($device.Model) { $device.Model } else { $device.model }
+        $manufacturer = if ($device.Manufacturer) { $device.Manufacturer } else { $device.manufacturer }
+        $groupTag = if ($device.GroupTag) { $device.GroupTag } else { $device.groupTag }
+        $lastContactedDt = if ($device.LastContactedDateTime) { $device.LastContactedDateTime } else { $device.lastContactedDateTime }
+        $purchaseOrderId = if ($device.PurchaseOrderIdentifier) { $device.PurchaseOrderIdentifier } else { $device.purchaseOrderIdentifier }
+
         $processedDevice = [PSCustomObject]@{
-            id              = $device.Id
-            serialNumber    = $device.SerialNumber
-            model           = $device.Model
-            manufacturer    = $device.Manufacturer
-            groupTag        = $device.GroupTag
-            enrollmentState = $enrollmentState
-            lastContacted   = if ($device.LastContactedDateTime) { $device.LastContactedDateTime.ToString("o") } else { $null }
-            profileAssigned = $profileAssigned
-            purchaseOrder   = $device.PurchaseOrderIdentifier
+            id                      = $deviceId
+            serialNumber            = $serial
+            model                   = $model
+            manufacturer            = $manufacturer
+            groupTag                = $groupTag
+            enrollmentState         = $enrollmentState
+            lastContacted           = if ($lastContactedDt) { ([DateTime]$lastContactedDt).ToString("o") } else { $null }
+            profileAssigned         = $profileAssigned
+            profileAssignmentStatus = $profileAssignmentStatus
+            purchaseOrder           = $purchaseOrderId
         }
 
         $processedDevices += $processedDevice

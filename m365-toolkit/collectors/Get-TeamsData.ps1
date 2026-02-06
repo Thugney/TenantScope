@@ -181,77 +181,175 @@ try {
     }
 
     # ========================================================================
-    # Phase 2: Enumerate Teams-provisioned groups
+    # Phase 2: Enumerate Teams-provisioned groups with expanded members/owners
     # ========================================================================
 
     Write-Host "      Enumerating Teams-provisioned groups..." -ForegroundColor Gray
 
-    $teamsGroups = Invoke-GraphWithRetry -ScriptBlock {
-        Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All `
-            -Property Id,DisplayName,Description,Visibility,CreatedDateTime,Mail,Classification
+    # Use direct API call with $expand to get members and owners in a single call per group
+    # This significantly reduces the number of API calls needed
+    $teamsGroups = @()
+    try {
+        $teamsGroups = Invoke-GraphWithRetry -ScriptBlock {
+            $allGroups = @()
+            $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$select=id,displayName,description,visibility,createdDateTime,mail,classification&`$expand=members(`$select=id,userPrincipalName),owners(`$select=id)"
+            do {
+                $response = Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
+                if ($response.value) {
+                    $allGroups += $response.value
+                }
+                $uri = $response.'@odata.nextLink'
+            } while ($uri)
+            return $allGroups
+        }
+    }
+    catch {
+        # Fallback to simple group enumeration if expand fails
+        Write-Host "      Falling back to simple group enumeration..." -ForegroundColor Yellow
+        $teamsGroups = Invoke-GraphWithRetry -ScriptBlock {
+            Get-MgGroup -Filter "resourceProvisioningOptions/Any(x:x eq 'Team')" -All `
+                -Property Id,DisplayName,Description,Visibility,CreatedDateTime,Mail,Classification
+        }
     }
 
     Write-Host "      Found $($teamsGroups.Count) Teams-provisioned groups" -ForegroundColor Gray
 
     # ========================================================================
-    # Phase 3: Process each team
+    # Phase 3: Get team settings in batches using Graph batch API
+    # ========================================================================
+
+    Write-Host "      Fetching team settings and channels in batches..." -ForegroundColor Gray
+
+    # Build lookup tables for team settings and channels using batch requests
+    $teamSettingsLookup = @{}
+    $channelCountLookup = @{}
+
+    # Process in batches of 20 (Graph batch limit)
+    $batchSize = 20
+    $groupIds = $teamsGroups | ForEach-Object { if ($_.Id) { $_.Id } else { $_.id } }
+
+    for ($i = 0; $i -lt $groupIds.Count; $i += $batchSize) {
+        $batchIds = $groupIds[$i..([Math]::Min($i + $batchSize - 1, $groupIds.Count - 1))]
+
+        # Build batch request for team settings
+        $batchRequests = @()
+        $requestId = 1
+        foreach ($id in $batchIds) {
+            $batchRequests += @{
+                id = [string]$requestId
+                method = "GET"
+                url = "/teams/$id"
+            }
+            $requestId++
+        }
+
+        # Add channel count requests
+        foreach ($id in $batchIds) {
+            $batchRequests += @{
+                id = [string]$requestId
+                method = "GET"
+                url = "/teams/$id/channels?`$select=id&`$top=999"
+            }
+            $requestId++
+        }
+
+        # Execute batch request
+        try {
+            $batchResponse = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" `
+                    -Body @{ requests = $batchRequests } -OutputType PSObject
+            }
+
+            # Process batch responses
+            $halfPoint = $batchIds.Count
+            foreach ($response in $batchResponse.responses) {
+                $respId = [int]$response.id
+                if ($respId -le $halfPoint) {
+                    # Team settings response
+                    $teamId = $batchIds[$respId - 1]
+                    if ($response.status -eq 200 -and $response.body) {
+                        $teamSettingsLookup[$teamId] = $response.body
+                    }
+                }
+                else {
+                    # Channel count response
+                    $teamId = $batchIds[$respId - $halfPoint - 1]
+                    if ($response.status -eq 200 -and $response.body -and $response.body.value) {
+                        $channelCountLookup[$teamId] = $response.body.value.Count
+                    }
+                }
+            }
+        }
+        catch {
+            Write-Host "      Warning: Batch request failed, will use fallback for some teams" -ForegroundColor Yellow
+        }
+
+        # Show progress
+        $processed = [Math]::Min($i + $batchSize, $groupIds.Count)
+        Write-Host "      Batch progress: $processed / $($groupIds.Count) teams..." -ForegroundColor Gray
+    }
+
+    # ========================================================================
+    # Phase 4: Process each team (now much faster with pre-fetched data)
     # ========================================================================
 
     $processedTeams = @()
 
     foreach ($group in $teamsGroups) {
         try {
-            # Get team-specific settings (archived status)
-            $teamSettings = $null
-            try {
-                $teamSettings = Invoke-GraphWithRetry -ScriptBlock {
-                    Get-MgTeam -TeamId $group.Id -ErrorAction Stop
-                }
-            }
-            catch {
-                # Team may not be fully provisioned
-            }
+            $groupId = if ($group.Id) { $group.Id } else { $group.id }
 
-            $isArchived = if ($teamSettings) { [bool]$teamSettings.IsArchived } else { $false }
+            # Get team settings from lookup (or fetch individually if not in batch)
+            $teamSettings = $teamSettingsLookup[$groupId]
+            $isArchived = if ($teamSettings -and $teamSettings.isArchived) { $true } else { $false }
 
-            # Get members
+            # Get members and owners from expanded data or fetch if needed
             $members = @()
-            try {
-                $members = Invoke-GraphWithRetry -ScriptBlock {
-                    Get-MgGroupMember -GroupId $group.Id -All -Property Id,UserPrincipalName,DisplayName
-                }
-            }
-            catch {
-                $errors += "Could not get members for team $($group.DisplayName): $($_.Exception.Message)"
-            }
-
-            # Get owners
             $owners = @()
-            try {
-                $owners = Invoke-GraphWithRetry -ScriptBlock {
-                    Get-MgGroupOwner -GroupId $group.Id -All
-                }
+
+            if ($group.members) {
+                $members = $group.members
             }
-            catch {
-                $errors += "Could not get owners for team $($group.DisplayName): $($_.Exception.Message)"
+            else {
+                # Fallback: fetch members individually
+                try {
+                    $members = Invoke-GraphWithRetry -ScriptBlock {
+                        Get-MgGroupMember -GroupId $groupId -All -Property Id,UserPrincipalName,DisplayName
+                    }
+                }
+                catch {
+                    $errors += "Could not get members for team $($group.displayName): $($_.Exception.Message)"
+                }
             }
 
-            # Get channels
-            $channels = @()
-            try {
-                $channels = Invoke-GraphWithRetry -ScriptBlock {
-                    Get-MgTeamChannel -TeamId $group.Id -All
+            if ($group.owners) {
+                $owners = $group.owners
+            }
+            else {
+                # Fallback: fetch owners individually
+                try {
+                    $owners = Invoke-GraphWithRetry -ScriptBlock {
+                        Get-MgGroupOwner -GroupId $groupId -All
+                    }
+                }
+                catch {
+                    $errors += "Could not get owners for team $($group.displayName): $($_.Exception.Message)"
                 }
             }
-            catch {
-                # Channels may not be accessible for archived teams
-            }
+
+            # Get channel count from lookup
+            $channelCount = if ($channelCountLookup.ContainsKey($groupId)) { $channelCountLookup[$groupId] } else { 0 }
 
             # Count guests (members with #EXT# in UPN)
             $guestCount = 0
             foreach ($member in $members) {
-                $memberObj = $member.AdditionalProperties
-                $upn = $memberObj["userPrincipalName"]
+                $upn = $null
+                if ($member.userPrincipalName) {
+                    $upn = $member.userPrincipalName
+                }
+                elseif ($member.AdditionalProperties -and $member.AdditionalProperties["userPrincipalName"]) {
+                    $upn = $member.AdditionalProperties["userPrincipalName"]
+                }
                 if ($upn -and $upn -match "#EXT#") {
                     $guestCount++
                 }
@@ -259,14 +357,13 @@ try {
 
             $memberCount = $members.Count
             $ownerCount = $owners.Count
-            $channelCount = $channels.Count
             $hasNoOwner = ($ownerCount -eq 0)
             $hasGuests = ($guestCount -gt 0)
 
             # Get activity data from report
             $lastActivityDate = $null
-            if ($activityLookup.ContainsKey($group.Id)) {
-                $lastActivityDate = $activityLookup[$group.Id].lastActivityDate
+            if ($activityLookup.ContainsKey($groupId)) {
+                $lastActivityDate = $activityLookup[$groupId].lastActivityDate
             }
 
             $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
@@ -281,14 +378,22 @@ try {
             if ($isArchived) { $flags += "archived" }
             if ($memberCount -ge $largeTeamThreshold) { $flags += "large-team" }
 
+            # Get display name and other properties (handle both cases)
+            $displayName = if ($group.DisplayName) { $group.DisplayName } else { $group.displayName }
+            $description = if ($group.Description) { $group.Description } else { $group.description }
+            $visibility = if ($group.Visibility) { $group.Visibility } elseif ($group.visibility) { $group.visibility } else { "Private" }
+            $createdDt = if ($group.CreatedDateTime) { $group.CreatedDateTime } else { $group.createdDateTime }
+            $mail = if ($group.Mail) { $group.Mail } else { $group.mail }
+            $classification = if ($group.Classification) { $group.Classification } else { $group.classification }
+
             # Build output object
             $processedTeam = [PSCustomObject]@{
-                id                = $group.Id
-                displayName       = $group.DisplayName
-                description       = $group.Description
-                visibility        = if ($group.Visibility) { $group.Visibility } else { "Private" }
-                createdDateTime   = if ($group.CreatedDateTime) { $group.CreatedDateTime.ToString("o") } else { $null }
-                mail              = $group.Mail
+                id                = $groupId
+                displayName       = $displayName
+                description       = $description
+                visibility        = $visibility
+                createdDateTime   = if ($createdDt) { ([DateTime]$createdDt).ToString("o") } else { $null }
+                mail              = $mail
                 memberCount       = $memberCount
                 ownerCount        = $ownerCount
                 guestCount        = $guestCount
@@ -299,20 +404,17 @@ try {
                 isInactive        = $isInactive
                 hasNoOwner        = $hasNoOwner
                 hasGuests         = $hasGuests
-                classification    = $group.Classification
+                classification    = $classification
                 flags             = $flags
             }
 
             $processedTeams += $processedTeam
             $teamCount++
 
-            # Progress indicator every 10 teams
-            if ($teamCount % 10 -eq 0) {
+            # Progress indicator every 25 teams
+            if ($teamCount % 25 -eq 0) {
                 Write-Host "      Processed $teamCount teams..." -ForegroundColor Gray
             }
-
-            # Brief pause between per-team API calls to avoid throttling
-            Start-Sleep -Seconds 1
 
         }
         catch {

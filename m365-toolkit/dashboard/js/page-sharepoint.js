@@ -23,7 +23,11 @@ const PageSharePoint = (function() {
      * Applies current filters and re-renders the table.
      */
     function applyFilters() {
-        var sites = DataLoader.getData('sharepointSites');
+        var allSites = DataLoader.getData('sharepointSites');
+        // Filter by owner's department if department filter is active
+        var sites = (typeof DepartmentFilter !== 'undefined')
+            ? DepartmentFilter.filterByUPN(allSites, 'ownerPrincipalName')
+            : allSites;
 
         // Build filter configuration
         var filterConfig = {
@@ -286,7 +290,11 @@ const PageSharePoint = (function() {
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        var sites = DataLoader.getData('sharepointSites');
+        var allSites = DataLoader.getData('sharepointSites');
+        // Filter by owner's department if department filter is active
+        var sites = (typeof DepartmentFilter !== 'undefined')
+            ? DepartmentFilter.filterByUPN(allSites, 'ownerPrincipalName')
+            : allSites;
         var nonPersonal = sites.filter(function(s) { return !s.isPersonalSite; });
 
         // Calculate stats

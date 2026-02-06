@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-02-06
+
+### Fixed
+- **Autopilot profile assignment accuracy**: Fixed property name casing issue where Graph API returns camelCase but code expected PascalCase, causing all devices to show "Profile Assignment: No" incorrectly
+- **Autopilot status matching**: Updated regex to correctly match Graph API status values (`assignedInSync`, `assignedOutOfSync`, `assignedUnkownSyncState`, `pending`)
+- **MFA collector property casing**: Fixed fallback API path property handling (cmdlet returns PascalCase, direct API returns camelCase)
+- **Department filter on SharePoint**: Sites now filter by owner's department when department filter is active
+- **Department filter on Security**: Risky sign-ins and users now filter by department when filter is active
+
+### Changed
+- **Teams data collection performance**: Implemented batch API requests and `$expand` for members/owners, reducing API calls by ~80% and eliminating 1-second sleep delays
+- Autopilot dashboard now shows detailed profile assignment status (In Sync, Out of Sync, Pending, Not Assigned, Failed)
+- Added `profileAssignmentStatus` field to Autopilot data output for granular status visibility
+
 ## [1.5.0] - 2026-02-05
 
 ### Added

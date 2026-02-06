@@ -24,10 +24,18 @@ const PageSecurity = (function() {
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        const riskySignins = DataLoader.getData('riskySignins');
+        const allRiskySignins = DataLoader.getData('riskySignins');
         const adminRoles = DataLoader.getData('adminRoles');
-        const users = DataLoader.getData('users');
+        const allUsers = DataLoader.getData('users');
         const defenderAlerts = DataLoader.getData('defenderAlerts');
+
+        // Apply department filter to user-centric data
+        const users = (typeof DepartmentFilter !== 'undefined')
+            ? DepartmentFilter.filterData(allUsers, 'department')
+            : allUsers;
+        const riskySignins = (typeof DepartmentFilter !== 'undefined')
+            ? DepartmentFilter.filterByUPN(allRiskySignins, 'userPrincipalName')
+            : allRiskySignins;
 
         // Calculate stats
         const highRiskCount = riskySignins.filter(r => r.riskLevel === 'high').length;
