@@ -48,6 +48,12 @@ param(
 )
 
 # ============================================================================
+# IMPORT SHARED UTILITIES
+# ============================================================================
+
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
+
+# ============================================================================
 # HIGH-PRIVILEGE ROLES DEFINITION
 # Roles that grant significant administrative access and require extra scrutiny
 # ============================================================================
@@ -69,69 +75,6 @@ $highPrivilegeRoles = @(
     "Azure AD Joined Device Local Administrator",
     "Password Administrator"
 )
-
-# ============================================================================
-# HELPER FUNCTIONS
-# ============================================================================
-
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
-
-function Get-DaysSinceDate {
-    <#
-    .SYNOPSIS
-        Calculates days between a given date and now.
-    #>
-    param(
-        [Parameter()]
-        [AllowNull()]
-        $DateString
-    )
-
-    if ($null -eq $DateString -or $DateString -eq "") {
-        return $null
-    }
-
-    try {
-        $date = [DateTime]::Parse($DateString)
-        $days = ((Get-Date) - $date).Days
-        return [Math]::Max(0, $days)
-    }
-    catch {
-        return $null
-    }
-}
 
 # ============================================================================
 # MAIN COLLECTION LOGIC
@@ -159,7 +102,7 @@ try {
     # Note: Only roles that have been activated (have members) are returned
     $directoryRoles = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgDirectoryRole -All
-    }
+    } -OperationName "Directory role retrieval"
 
     Write-Host "      Retrieved $($directoryRoles.Count) active roles from Graph API" -ForegroundColor Gray
 
@@ -177,7 +120,7 @@ try {
         try {
             $roleMembers = Invoke-GraphWithRetry -ScriptBlock {
                 Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -All
-            }
+            } -OperationName "Role member retrieval"
 
             foreach ($member in $roleMembers) {
                 # Members can be users, service principals, or groups
@@ -221,7 +164,7 @@ try {
             }
         }
         catch {
-            Write-Host "        ⚠ Could not retrieve members: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "        [!] Could not retrieve members: $($_.Exception.Message)" -ForegroundColor Yellow
             $errors += "Failed to get members for role $($role.DisplayName): $($_.Exception.Message)"
         }
 
@@ -241,28 +184,20 @@ try {
     # Sort by high privilege first, then by member count
     $processedRoles = $processedRoles | Sort-Object -Property @{Expression = "isHighPrivilege"; Descending = $true}, @{Expression = "memberCount"; Descending = $true}
 
-    # Write results to JSON file
-    $processedRoles | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedRoles -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    ✓ Collected $roleCount directory roles" -ForegroundColor Green
+    Write-Host "    [OK] Collected $roleCount directory roles" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $roleCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $roleCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

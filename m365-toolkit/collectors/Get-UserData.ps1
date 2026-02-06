@@ -46,123 +46,10 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Get-DomainClassification {
-    <#
-    .SYNOPSIS
-        Classifies a user's domain based on their UPN suffix.
-
-    .DESCRIPTION
-        Compares the user's UPN against configured domain patterns
-        to determine if they are an employee, student, or other.
-
-    .PARAMETER UserPrincipalName
-        The user's UPN to classify.
-
-    .PARAMETER Config
-        Configuration hashtable containing domain mappings.
-
-    .OUTPUTS
-        String: "employee", "student", or "other"
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [string]$UserPrincipalName,
-
-        [Parameter(Mandatory)]
-        [hashtable]$Config
-    )
-
-    # Extract domain from UPN (everything after @)
-    $upnDomain = "@" + ($UserPrincipalName -split "@")[-1]
-
-    # Check against configured domains
-    if ($upnDomain -eq $Config.domains.employees) {
-        return "employee"
-    }
-    elseif ($upnDomain -eq $Config.domains.students) {
-        return "student"
-    }
-    else {
-        return "other"
-    }
-}
-
-function Get-DaysSinceDate {
-    <#
-    .SYNOPSIS
-        Calculates days between a given date and now.
-
-    .PARAMETER DateString
-        ISO 8601 formatted date string, or null.
-
-    .OUTPUTS
-        Integer number of days, or null if input is null.
-    #>
-    param(
-        [Parameter()]
-        [AllowNull()]
-        $DateString
-    )
-
-    if ($null -eq $DateString -or $DateString -eq "") {
-        return $null
-    }
-
-    try {
-        $date = [DateTime]::Parse($DateString)
-        $days = ((Get-Date) - $date).Days
-        return [Math]::Max(0, $days)
-    }
-    catch {
-        return $null
-    }
-}
-
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-
-    .PARAMETER ScriptBlock
-        The script block containing the Graph API call.
-
-    .PARAMETER MaxRetries
-        Maximum retry attempts (default 5).
-
-    .PARAMETER BaseBackoffSeconds
-        Base backoff time in seconds, doubles each attempt (default 60).
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
 # MAIN COLLECTION LOGIC
@@ -199,11 +86,9 @@ try {
     )
 
     # Retrieve all users with pagination handled by -All parameter
-    # Expand manager relationship to get manager display name
-    # This may take time for large tenants
     $graphUsers = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgUser -All -Property ($selectProperties -join ",") -ExpandProperty "manager(`$select=displayName,id)" -ConsistencyLevel eventual -CountVariable userTotal
-    }
+    } -OperationName "User retrieval"
 
     Write-Host "      Retrieved $($graphUsers.Count) users from Graph API" -ForegroundColor Gray
 
@@ -226,16 +111,14 @@ try {
             $lastNonInteractiveSignIn = $user.SignInActivity.LastNonInteractiveSignInDateTime
         }
 
-        # Calculate days since last sign-in
-        $daysSinceLastSignIn = Get-DaysSinceDate -DateString $lastSignIn
+        # Calculate days since last sign-in using shared utility
+        $daysSinceLastSignIn = Get-DaysSinceDate -DateValue $lastSignIn
 
-        # Determine if user is inactive based on threshold
-        $isInactive = $false
-        if ($null -ne $daysSinceLastSignIn -and $daysSinceLastSignIn -ge $inactiveThreshold) {
-            $isInactive = $true
-        }
+        # Determine if user is inactive using shared utility
+        $activityStatus = Get-ActivityStatus -DaysSinceActivity $daysSinceLastSignIn -InactiveThreshold $inactiveThreshold
+        $isInactive = $activityStatus.isInactive
 
-        # Classify user domain
+        # Classify user domain using shared utility
         $domain = Get-DomainClassification -UserPrincipalName $user.UserPrincipalName -Config $Config
 
         # Count assigned licenses and extract SKU IDs
@@ -268,33 +151,33 @@ try {
 
         # Build output object matching our schema
         $processedUser = [PSCustomObject]@{
-            id                      = $user.Id
-            displayName             = $user.DisplayName
-            userPrincipalName       = $user.UserPrincipalName
-            mail                    = $user.Mail
-            accountEnabled          = $user.AccountEnabled
-            userType                = $user.UserType
-            domain                  = $domain
-            department              = $user.Department
-            jobTitle                = $user.JobTitle
-            companyName             = $user.CompanyName
-            officeLocation          = $user.OfficeLocation
-            city                    = $user.City
-            country                 = $user.Country
-            mobilePhone             = $user.MobilePhone
-            usageLocation           = $user.UsageLocation
-            manager                 = $managerName
-            userSource              = $userSource
-            createdDateTime         = if ($user.CreatedDateTime) { $user.CreatedDateTime.ToString("o") } else { $null }
-            lastSignIn              = if ($lastSignIn) { ([DateTime]$lastSignIn).ToString("o") } else { $null }
-            lastNonInteractiveSignIn = if ($lastNonInteractiveSignIn) { ([DateTime]$lastNonInteractiveSignIn).ToString("o") } else { $null }
-            daysSinceLastSignIn     = $daysSinceLastSignIn
-            isInactive              = $isInactive
-            onPremSync              = [bool]$user.OnPremisesSyncEnabled
-            licenseCount            = $licenseCount
-            assignedSkuIds          = $assignedSkuIds
-            mfaRegistered           = $true  # Default, will be updated by MFA cross-reference
-            flags                   = $flags
+            id                       = $user.Id
+            displayName              = $user.DisplayName
+            userPrincipalName        = $user.UserPrincipalName
+            mail                     = $user.Mail
+            accountEnabled           = $user.AccountEnabled
+            userType                 = $user.UserType
+            domain                   = $domain
+            department               = $user.Department
+            jobTitle                 = $user.JobTitle
+            companyName              = $user.CompanyName
+            officeLocation           = $user.OfficeLocation
+            city                     = $user.City
+            country                  = $user.Country
+            mobilePhone              = $user.MobilePhone
+            usageLocation            = $user.UsageLocation
+            manager                  = $managerName
+            userSource               = $userSource
+            createdDateTime          = Format-IsoDate -DateValue $user.CreatedDateTime
+            lastSignIn               = Format-IsoDate -DateValue $lastSignIn
+            lastNonInteractiveSignIn = Format-IsoDate -DateValue $lastNonInteractiveSignIn
+            daysSinceLastSignIn      = $daysSinceLastSignIn
+            isInactive               = $isInactive
+            onPremSync               = [bool]$user.OnPremisesSyncEnabled
+            licenseCount             = $licenseCount
+            assignedSkuIds           = $assignedSkuIds
+            mfaRegistered            = $true  # Default, will be updated by MFA cross-reference
+            flags                    = $flags
         }
 
         $processedUsers += $processedUser
@@ -306,28 +189,20 @@ try {
         }
     }
 
-    # Write results to JSON file
-    $processedUsers | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedUsers -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    ✓ Collected $userCount users" -ForegroundColor Green
+    Write-Host "    [OK] Collected $userCount users" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $userCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $userCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

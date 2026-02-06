@@ -47,10 +47,21 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
+
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
+
+function Invoke-SignInGraphRequest {
+    <#
+    .SYNOPSIS
+        Executes a sign-in log Graph API call with retry and skip token handling.
+        This is a local variant that handles pagination token expiry gracefully.
+    #>
     param(
         [Parameter(Mandatory)]
         [string]$Uri,
@@ -120,7 +131,7 @@ try {
 
     do {
         $pageCount++
-        $response = Invoke-GraphWithRetry -Uri $uri
+        $response = Invoke-SignInGraphRequest -Uri $uri
 
         # If pagination failed, stop but keep what we have
         if ($null -eq $response) {
@@ -179,27 +190,20 @@ try {
 
     } while ($uri)
 
-    # Write results
-    $processedSignIns | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedSignIns -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    Collected $signInCount sign-in records" -ForegroundColor Green
+    Write-Host "    [OK] Collected $signInCount sign-in records" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $signInCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $signInCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
-    Write-Host "    Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    # Write empty array to prevent dashboard errors
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

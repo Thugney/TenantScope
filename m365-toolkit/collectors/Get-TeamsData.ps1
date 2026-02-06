@@ -50,40 +50,10 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Get-DaysSinceDate {
-    param([AllowNull()]$DateValue)
-    if ($null -eq $DateValue) { return $null }
-    try {
-        $date = if ($DateValue -is [DateTime]) { $DateValue } else { [DateTime]::Parse($DateValue) }
-        return [Math]::Max(0, ((Get-Date) - $date).Days)
-    }
-    catch { return $null }
-}
-
-function Invoke-GraphWithRetry {
-    param(
-        [Parameter(Mandatory)][scriptblock]$ScriptBlock,
-        [int]$MaxRetries = 5,
-        [int]$BaseBackoffSeconds = 30
-    )
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try { return & $ScriptBlock }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * $attempt
-                Write-Host "      Throttled. Waiting ${wait}s..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
 # MAIN COLLECTION LOGIC
@@ -112,7 +82,7 @@ try {
             Invoke-MgGraphRequest -Method GET `
                 -Uri "https://graph.microsoft.com/v1.0/reports/getTeamsTeamActivityDetail(period='D30')" `
                 -OutputFilePath $tempCsvPath
-        }
+        } -OperationName "Teams activity report"
 
         if (Test-Path $tempCsvPath) {
             $reportRows = Import-Csv -Path $tempCsvPath
@@ -152,7 +122,7 @@ try {
         do {
             $response = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
-            }
+            } -OperationName "Teams groups retrieval"
             if ($response.value) {
                 $teamsGroups += $response.value
             }
@@ -261,33 +231,27 @@ try {
         teams = $processedTeams
     }
 
-    $output | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $output -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    Collected $teamCount teams (governance-focused)" -ForegroundColor Green
+    Write-Host "    [OK] Collected $teamCount teams (governance-focused)" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $teamCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $teamCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
-    Write-Host "    FAILED: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty output on failure
-    [PSCustomObject]@{
+    $emptyOutput = [PSCustomObject]@{
         metadata = [PSCustomObject]@{
             collectedAt = (Get-Date).ToString("o")
             error       = $errorMessage
         }
         teams = @()
-    } | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
-
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
     }
+    Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

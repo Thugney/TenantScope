@@ -45,42 +45,10 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
 # MAIN COLLECTION LOGIC
@@ -100,7 +68,7 @@ try {
         # Use the authentication methods user registration details report
         $mfaDetails = Invoke-GraphWithRetry -ScriptBlock {
             Get-MgReportAuthenticationMethodUserRegistrationDetail -All
-        }
+        } -OperationName "MFA registration retrieval"
     }
     catch {
         # If the cmdlet fails, try the direct API call
@@ -109,7 +77,7 @@ try {
         try {
             $mfaDetails = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/reports/authenticationMethods/userRegistrationDetails" -OutputType PSObject
-            }
+            } -OperationName "MFA registration (direct API)"
 
             # Handle paged results if necessary
             if ($mfaDetails.value) {
@@ -171,16 +139,12 @@ try {
         }
     }
 
-    # Write results to JSON file
-    $processedMfa | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedMfa -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    ✓ Collected $mfaCount MFA records" -ForegroundColor Green
+    Write-Host "    [OK] Collected $mfaCount MFA records" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $mfaCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $mfaCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
@@ -188,17 +152,13 @@ catch {
 
     # Check if this is a licensing issue (MFA reports require specific licenses)
     if ($errorMessage -match "license|subscription|feature|not available") {
-        Write-Host "    ⚠ MFA reports may require Entra ID P1/P2 license" -ForegroundColor Yellow
+        Write-Host "    [!] MFA reports may require Entra ID P1/P2 license" -ForegroundColor Yellow
     }
 
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

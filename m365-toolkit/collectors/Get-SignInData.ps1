@@ -48,42 +48,10 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
 # MAIN COLLECTION LOGIC
@@ -111,16 +79,16 @@ try {
         # Get risk detections within the configured time window
         $riskDetections = Invoke-GraphWithRetry -ScriptBlock {
             Get-MgRiskDetection -Filter "detectedDateTime ge $filterDate" -All
-        }
+        } -OperationName "Risk detection retrieval"
         Write-Host "      Retrieved $($riskDetections.Count) risk detections" -ForegroundColor Gray
     }
     catch {
         if ($_.Exception.Message -match "license|subscription|P2|Premium") {
-            Write-Host "      ⚠ Risk detections require Entra ID P2 license" -ForegroundColor Yellow
+            Write-Host "      [!] Risk detections require Entra ID P2 license" -ForegroundColor Yellow
             $errors += "Risk detections require Entra ID P2 license"
         }
         else {
-            Write-Host "      ⚠ Could not retrieve risk detections: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "      [!] Could not retrieve risk detections: $($_.Exception.Message)" -ForegroundColor Yellow
             $errors += "Risk detections error: $($_.Exception.Message)"
         }
     }
@@ -133,14 +101,14 @@ try {
     try {
         $riskyUserList = Invoke-GraphWithRetry -ScriptBlock {
             Get-MgRiskyUser -All
-        }
+        } -OperationName "Risky user retrieval"
         foreach ($ru in $riskyUserList) {
             $riskyUsers[$ru.Id] = $ru
         }
         Write-Host "      Retrieved $($riskyUserList.Count) risky users" -ForegroundColor Gray
     }
     catch {
-        Write-Host "      ⚠ Could not retrieve risky users: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "      [!] Could not retrieve risky users: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 
     # Process risk detections
@@ -184,8 +152,8 @@ try {
     # Sort by detected date descending (most recent first)
     $processedRisks = $processedRisks | Sort-Object -Property detectedDateTime -Descending
 
-    # Write results to JSON file
-    $processedRisks | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedRisks -OutputPath $OutputPath | Out-Null
 
     # Determine success - partial success if we have errors but some data
     $success = $true
@@ -193,13 +161,9 @@ try {
         $success = $false
     }
 
-    Write-Host "    ✓ Collected $riskCount risk detections" -ForegroundColor Green
+    Write-Host "    [OK] Collected $riskCount risk detections" -ForegroundColor Green
 
-    return @{
-        Success = $success
-        Count   = $riskCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $success -Count $riskCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
@@ -207,17 +171,13 @@ catch {
 
     # Check if this is a licensing issue
     if ($errorMessage -match "license|subscription|P2|Premium|not available|feature") {
-        Write-Host "    ⚠ Identity Protection requires Entra ID P2 license" -ForegroundColor Yellow
+        Write-Host "    [!] Identity Protection requires Entra ID P2 license" -ForegroundColor Yellow
     }
 
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

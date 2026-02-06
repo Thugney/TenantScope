@@ -239,6 +239,55 @@ function Get-ConfigValidation {
     return $true
 }
 
+function Test-TenantIdFormat {
+    <#
+    .SYNOPSIS
+        Validates that the tenant ID is a valid GUID and not a placeholder.
+
+    .DESCRIPTION
+        Checks that the provided tenant ID:
+        1. Is a valid GUID format
+        2. Is not the placeholder value (all zeros)
+        Provides clear error messages with instructions for finding the tenant ID.
+
+    .PARAMETER TenantId
+        The tenant ID string to validate.
+
+    .OUTPUTS
+        Returns $true if valid, throws an error if invalid.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$TenantId
+    )
+
+    # Check if it's a valid GUID format
+    try {
+        [guid]::Parse($TenantId) | Out-Null
+    }
+    catch {
+        throw "Invalid tenantId format: '$TenantId' is not a valid GUID. Expected format: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+    }
+
+    # Check if it's the placeholder value
+    if ($TenantId -eq "00000000-0000-0000-0000-000000000000") {
+        throw @"
+Tenant ID not configured. Please update config.json with your actual tenant ID.
+
+To find your tenant ID:
+  1. Go to Azure Portal (https://portal.azure.com)
+  2. Navigate to Azure Active Directory > Overview
+  3. Copy the 'Tenant ID' value
+
+Or use PowerShell:
+  Connect-MgGraph
+  (Get-MgContext).TenantId
+"@
+    }
+
+    return $true
+}
+
 function Merge-MfaDataIntoUsers {
     <#
     .SYNOPSIS
@@ -388,6 +437,7 @@ if (-not (Test-Path $ConfigPath)) {
 try {
     $configContent = Get-Content $ConfigPath -Raw | ConvertFrom-Json -AsHashtable
     Get-ConfigValidation -Config $configContent | Out-Null
+    Test-TenantIdFormat -TenantId $configContent.tenantId | Out-Null
     Write-Host "  ✓ Configuration loaded and validated" -ForegroundColor Green
 }
 catch {

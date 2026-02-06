@@ -56,67 +56,14 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Get-DaysSinceDate {
-    <#
-    .SYNOPSIS
-        Calculates days between a given date and now.
-    #>
-    param(
-        [Parameter()]
-        [AllowNull()]
-        $DateValue
-    )
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
-    if ($null -eq $DateValue) {
-        return $null
-    }
-
-    try {
-        $date = if ($DateValue -is [DateTime]) { $DateValue } else { [DateTime]::Parse($DateValue) }
-        $days = ((Get-Date) - $date).Days
-        return [Math]::Max(0, $days)
-    }
-    catch {
-        return $null
-    }
-}
-
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
 
 function Get-SiteTemplate {
     <#
@@ -193,7 +140,7 @@ try {
         Invoke-MgGraphRequest -Method GET `
             -Uri "https://graph.microsoft.com/beta/reports/getSharePointSiteUsageDetail(period='D30')" `
             -OutputFilePath $tempCsvPath
-    }
+    } -OperationName "SharePoint usage report"
 
     if (-not (Test-Path $tempCsvPath)) {
         throw "SharePoint usage report was not downloaded"
@@ -227,7 +174,7 @@ try {
             while ($sitesUri) {
                 $response = Invoke-GraphWithRetry -ScriptBlock {
                     Invoke-MgGraphRequest -Method GET -Uri $sitesUri
-                }
+                } -OperationName "SharePoint sites enumeration"
                 if ($response.value) {
                     $allSites += $response.value
                 }
@@ -429,27 +376,23 @@ try {
         }
     }, @{Expression = "storageUsedGB"; Descending = $true}
 
-    # Write results to JSON file
-    $processedSites | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedSites -OutputPath $OutputPath | Out-Null
 
     Write-Host "      Skipped $skippedCount sites with empty URL" -ForegroundColor Gray
-    Write-Host "    Collected $siteCount SharePoint sites" -ForegroundColor Green
+    Write-Host "    [OK] Collected $siteCount SharePoint sites" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $siteCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $siteCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
 
     if ($errorMessage -match "permission|forbidden|unauthorized") {
-        Write-Host "    SharePoint collection requires Reports.Read.All and Sites.Read.All permissions" -ForegroundColor Yellow
+        Write-Host "    [!] SharePoint collection requires Reports.Read.All and Sites.Read.All permissions" -ForegroundColor Yellow
     }
 
-    Write-Host "    Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Clean up temp file if it exists
     if ($tempCsvPath -and (Test-Path $tempCsvPath)) {
@@ -457,11 +400,7 @@ catch {
     }
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

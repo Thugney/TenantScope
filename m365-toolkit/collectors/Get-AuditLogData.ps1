@@ -47,42 +47,10 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
 # MAIN COLLECTION LOGIC
@@ -106,7 +74,7 @@ try {
     # Fetch audit logs from Graph API
     $auditLogs = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgAuditLogDirectoryAudit -All -Filter "activityDateTime ge $filterDate" -Top 999
-    }
+    } -OperationName "Audit log retrieval"
 
     Write-Host "      Retrieved $($auditLogs.Count) audit log entries" -ForegroundColor Gray
 
@@ -171,28 +139,20 @@ try {
     # Sort by date descending (most recent first)
     $processedEntries = $processedEntries | Sort-Object -Property activityDateTime -Descending
 
-    # Write results to JSON file
-    $processedEntries | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedEntries -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    + Collected $entryCount audit log entries" -ForegroundColor Green
+    Write-Host "    [OK] Collected $entryCount audit log entries" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $entryCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $entryCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
-    Write-Host "    x Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

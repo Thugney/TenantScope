@@ -51,33 +51,14 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Get-DaysUntilDate {
-    <#
-    .SYNOPSIS
-        Calculates days from now until a given date. Returns negative for past dates.
-    #>
-    param(
-        [Parameter()]
-        [AllowNull()]
-        $DateValue
-    )
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
-    if ($null -eq $DateValue) {
-        return $null
-    }
-
-    try {
-        $date = if ($DateValue -is [DateTime]) { $DateValue } else { [DateTime]::Parse($DateValue) }
-        $days = ($date - (Get-Date)).Days
-        return $days
-    }
-    catch {
-        return $null
-    }
-}
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
 
 function Get-CredentialStatus {
     <#
@@ -102,40 +83,6 @@ function Get-CredentialStatus {
     return "healthy"
 }
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
-
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -151,7 +98,7 @@ try {
     # -----------------------------------------------------------------------
     $appRegistrations = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgApplication -All -Property Id, AppId, DisplayName, PasswordCredentials, KeyCredentials, CreatedDateTime, SignInAudience
-    }
+    } -OperationName "App registration retrieval"
 
     Write-Host "      Retrieved $($appRegistrations.Count) app registrations" -ForegroundColor Gray
 
@@ -166,7 +113,7 @@ try {
     # -----------------------------------------------------------------------
     $servicePrincipals = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgServicePrincipal -All -Property Id, AppId, DisplayName, AccountEnabled, AppOwnerOrganizationId, CreatedDateTime, PublisherName, ServicePrincipalType, Tags, ReplyUrls, LoginUrl
-    }
+    } -OperationName "Service principal retrieval"
 
     Write-Host "      Retrieved $($servicePrincipals.Count) service principals" -ForegroundColor Gray
 
@@ -281,33 +228,25 @@ try {
         }
     }}, @{Expression = "nearestExpiryDays"; Ascending = $true}
 
-    # Write results to JSON file
-    $processedApps | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedApps -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    Done - Collected $appCount enterprise apps" -ForegroundColor Green
+    Write-Host "    [OK] Collected $appCount enterprise apps" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $appCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $appCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
 
     if ($errorMessage -match "permission|forbidden|Authorization") {
-        Write-Host "    Warning: Enterprise app collection requires Application.Read.All permission" -ForegroundColor Yellow
+        Write-Host "    [!] Enterprise app collection requires Application.Read.All permission" -ForegroundColor Yellow
     }
 
-    Write-Host "    Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

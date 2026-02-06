@@ -45,42 +45,14 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
 
 function Get-SeverityName {
     <#
@@ -175,7 +147,7 @@ try {
     try {
         $alerts = Invoke-GraphWithRetry -ScriptBlock {
             Get-MgSecurityAlert -Filter "createdDateTime ge $filterDate" -All
-        }
+        } -OperationName "Security alert retrieval"
         Write-Host "      Retrieved $($alerts.Count) alerts via Get-MgSecurityAlert" -ForegroundColor Gray
     }
     catch {
@@ -185,7 +157,7 @@ try {
         try {
             $response = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/security/alerts_v2?`$filter=createdDateTime ge $filterDate" -OutputType PSObject
-            }
+            } -OperationName "Security alert retrieval (v2 API)"
 
             if ($response.value) {
                 $alerts = $response.value
@@ -204,7 +176,7 @@ try {
             try {
                 $response = Invoke-GraphWithRetry -ScriptBlock {
                     Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/security/alerts?`$filter=createdDateTime ge $filterDate" -OutputType PSObject
-                }
+                } -OperationName "Security alert retrieval (legacy API)"
 
                 if ($response.value) {
                     $alerts = $response.value
@@ -280,16 +252,12 @@ try {
         }
     }}, @{Expression = "createdDateTime"; Descending = $true}
 
-    # Write results to JSON file
-    $processedAlerts | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedAlerts -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    ✓ Collected $alertCount security alerts" -ForegroundColor Green
+    Write-Host "    [OK] Collected $alertCount security alerts" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $alertCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $alertCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
@@ -297,17 +265,13 @@ catch {
 
     # Check if this is a licensing/permission issue
     if ($errorMessage -match "Defender|license|subscription|permission|forbidden|security") {
-        Write-Host "    ⚠ Security alerts may require Microsoft Defender license" -ForegroundColor Yellow
+        Write-Host "    [!] Security alerts may require Microsoft Defender license" -ForegroundColor Yellow
     }
 
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

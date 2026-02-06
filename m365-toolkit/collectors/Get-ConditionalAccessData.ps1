@@ -45,42 +45,14 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
 
 function Get-PolicyTargetSummary {
     <#
@@ -281,7 +253,7 @@ try {
     # Retrieve all CA policies
     $policies = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgIdentityConditionalAccessPolicy -All
-    }
+    } -OperationName "CA policy retrieval"
 
     Write-Host "      Retrieved $($policies.Count) policies from Graph API" -ForegroundColor Gray
 
@@ -369,16 +341,12 @@ try {
         }
     }}, displayName
 
-    # Write results to JSON file
-    $processedPolicies | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedPolicies -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    OK Collected $policyCount Conditional Access policies" -ForegroundColor Green
+    Write-Host "    [OK] Collected $policyCount Conditional Access policies" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $policyCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $policyCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
@@ -386,17 +354,13 @@ catch {
 
     # Check if this is a licensing/permission issue
     if ($errorMessage -match "Premium|license|subscription|permission|forbidden|Entra ID P1|P2") {
-        Write-Host "    WARNING CA policy collection requires Entra ID P1/P2 and Policy.Read.All permission" -ForegroundColor Yellow
+        Write-Host "    [!] CA policy collection requires Entra ID P1/P2 and Policy.Read.All permission" -ForegroundColor Yellow
     }
 
-    Write-Host "    FAILED: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

@@ -106,7 +106,13 @@ $skuNameMap = @{
 }
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
+# ============================================================================
+
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
+
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
 # ============================================================================
 
 function Get-FriendlySkuName {
@@ -134,40 +140,6 @@ function Get-FriendlySkuName {
     }
 }
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
-
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
-
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -181,7 +153,7 @@ try {
     # Retrieve all subscribed SKUs
     $subscribedSkus = Invoke-GraphWithRetry -ScriptBlock {
         Get-MgSubscribedSku -All
-    }
+    } -OperationName "License SKU retrieval"
 
     Write-Host "      Retrieved $($subscribedSkus.Count) SKUs from Graph API" -ForegroundColor Gray
 
@@ -194,7 +166,7 @@ try {
         Write-Host "      Loaded $($users.Count) users for cross-reference" -ForegroundColor Gray
     }
     else {
-        Write-Host "      ⚠ Users data not found - waste calculations will be incomplete" -ForegroundColor Yellow
+        Write-Host "      [!] Users data not found - waste calculations will be incomplete" -ForegroundColor Yellow
     }
 
     # Build lookup of user license assignments
@@ -366,28 +338,20 @@ try {
     # Sort by total purchased descending for easier reading
     $processedSkus = $processedSkus | Sort-Object -Property totalPurchased -Descending
 
-    # Write results to JSON file
-    $processedSkus | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedSkus -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    ✓ Collected $skuCount license SKUs" -ForegroundColor Green
+    Write-Host "    [OK] Collected $skuCount license SKUs" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $skuCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $skuCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

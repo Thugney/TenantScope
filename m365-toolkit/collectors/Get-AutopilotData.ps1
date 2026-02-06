@@ -45,42 +45,14 @@ param(
 )
 
 # ============================================================================
-# HELPER FUNCTIONS
+# IMPORT SHARED UTILITIES
 # ============================================================================
 
-function Invoke-GraphWithRetry {
-    <#
-    .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
-    #>
-    param(
-        [Parameter(Mandatory)]
-        [scriptblock]$ScriptBlock,
+. "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
-        [Parameter()]
-        [int]$MaxRetries = 5,
-
-        [Parameter()]
-        [int]$BaseBackoffSeconds = 60
-    )
-
-    $attempt = 0
-    while ($attempt -le $MaxRetries) {
-        try {
-            return & $ScriptBlock
-        }
-        catch {
-            if ($_.Exception.Message -match "429|throttl|TooManyRequests|Too many retries") {
-                $attempt++
-                if ($attempt -gt $MaxRetries) { throw }
-                $wait = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${wait}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
-                Start-Sleep -Seconds $wait
-            }
-            else { throw }
-        }
-    }
-}
+# ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
 
 function Get-EnrollmentStateName {
     <#
@@ -131,7 +103,7 @@ try {
         # Try the dedicated cmdlet first
         $autopilotDevices = Invoke-GraphWithRetry -ScriptBlock {
             Get-MgDeviceManagementWindowsAutopilotDeviceIdentity -All
-        }
+        } -OperationName "Autopilot device retrieval"
     }
     catch {
         # If cmdlet fails, try direct API call
@@ -152,7 +124,7 @@ try {
                 }
             }
             return $allDevices
-        }
+        } -OperationName "Autopilot device retrieval (direct API)"
     }
 
     if ($null -eq $autopilotDevices) {
@@ -246,16 +218,12 @@ try {
         }
     }}, @{Expression = "lastContacted"; Descending = $false}
 
-    # Write results to JSON file
-    $processedDevices | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+    # Save data using shared utility
+    Save-CollectorData -Data $processedDevices -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    ✓ Collected $autopilotCount Autopilot devices" -ForegroundColor Green
+    Write-Host "    [OK] Collected $autopilotCount Autopilot devices" -ForegroundColor Green
 
-    return @{
-        Success = $true
-        Count   = $autopilotCount
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $true -Count $autopilotCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
@@ -263,17 +231,13 @@ catch {
 
     # Check if this is a licensing/permission issue
     if ($errorMessage -match "Intune|license|subscription|permission|forbidden|Autopilot") {
-        Write-Host "    ⚠ Autopilot collection requires appropriate Intune permissions" -ForegroundColor Yellow
+        Write-Host "    [!] Autopilot collection requires appropriate Intune permissions" -ForegroundColor Yellow
     }
 
-    Write-Host "    ✗ Failed: $errorMessage" -ForegroundColor Red
+    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
     # Write empty array to prevent dashboard errors
-    "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
 
-    return @{
-        Success = $false
-        Count   = 0
-        Errors  = $errors
-    }
+    return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }

@@ -201,6 +201,8 @@ const DataLoader = (function() {
 
                 if (!hasData) {
                     console.warn('DataLoader: No data found. Run Build-Dashboard.ps1 after data collection.');
+                    // Show user-friendly error message
+                    this.showNoDataMessage();
                     return false;
                 }
 
@@ -346,7 +348,127 @@ const DataLoader = (function() {
         /**
          * Utility: Format date for display
          */
-        formatDate: formatDate
+        formatDate: formatDate,
+
+        /**
+         * Shows a user-friendly message when no data is available.
+         * Provides clear next steps for the user.
+         */
+        showNoDataMessage: function() {
+            const pageContainer = document.getElementById('page-container');
+            if (!pageContainer) return;
+
+            // Clear existing content
+            while (pageContainer.firstChild) {
+                pageContainer.removeChild(pageContainer.firstChild);
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'error-state';
+
+            const icon = document.createElement('div');
+            icon.className = 'error-state-icon';
+            icon.textContent = '!';
+            wrapper.appendChild(icon);
+
+            const title = document.createElement('h2');
+            title.className = 'error-state-title';
+            title.textContent = 'No Data Available';
+            wrapper.appendChild(title);
+
+            const desc = document.createElement('p');
+            desc.className = 'error-state-description';
+            desc.textContent = 'The dashboard has no data to display. Please run data collection first.';
+            wrapper.appendChild(desc);
+
+            const steps = document.createElement('div');
+            steps.className = 'error-state-details';
+            steps.style.maxWidth = '500px';
+            steps.style.margin = '1rem auto 0';
+            steps.style.textAlign = 'left';
+
+            const stepsTitle = document.createElement('strong');
+            stepsTitle.textContent = 'To collect data:';
+            steps.appendChild(stepsTitle);
+
+            const stepsList = document.createElement('ol');
+            stepsList.style.margin = '0.5rem 0 0 1rem';
+            stepsList.style.padding = '0';
+
+            var stepItems = [
+                'Update config.json with your tenant ID',
+                'Run: .\\Invoke-DataCollection.ps1',
+                'The dashboard will automatically open when complete'
+            ];
+
+            stepItems.forEach(function(text) {
+                var li = document.createElement('li');
+                li.style.marginBottom = '0.25rem';
+                li.textContent = text;
+                stepsList.appendChild(li);
+            });
+
+            steps.appendChild(stepsList);
+            wrapper.appendChild(steps);
+
+            pageContainer.appendChild(wrapper);
+
+            // Also show a toast notification if available
+            if (window.Toast) {
+                window.Toast.warning(
+                    'No data found',
+                    'Run Invoke-DataCollection.ps1 to collect tenant data.'
+                );
+            }
+        },
+
+        /**
+         * Shows an error state in the page container with details.
+         * @param {string} title - Error title
+         * @param {string} message - Error message
+         * @param {string} details - Technical details (optional)
+         */
+        showError: function(title, message, details) {
+            const pageContainer = document.getElementById('page-container');
+            if (!pageContainer) return;
+
+            // Clear existing content
+            while (pageContainer.firstChild) {
+                pageContainer.removeChild(pageContainer.firstChild);
+            }
+
+            const wrapper = document.createElement('div');
+            wrapper.className = 'error-state';
+
+            const icon = document.createElement('div');
+            icon.className = 'error-state-icon';
+            icon.textContent = 'X';
+            wrapper.appendChild(icon);
+
+            const titleEl = document.createElement('h2');
+            titleEl.className = 'error-state-title';
+            titleEl.textContent = title || 'Error';
+            wrapper.appendChild(titleEl);
+
+            const desc = document.createElement('p');
+            desc.className = 'error-state-description';
+            desc.textContent = message || 'An unexpected error occurred.';
+            wrapper.appendChild(desc);
+
+            if (details) {
+                const detailsEl = document.createElement('pre');
+                detailsEl.className = 'error-state-details';
+                detailsEl.textContent = details;
+                wrapper.appendChild(detailsEl);
+            }
+
+            pageContainer.appendChild(wrapper);
+
+            // Also show a toast notification if available
+            if (window.Toast) {
+                window.Toast.error(title || 'Error', message);
+            }
+        }
     };
 
 })();

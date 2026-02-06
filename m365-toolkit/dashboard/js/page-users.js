@@ -21,6 +21,130 @@ const PageUsers = (function() {
     /** Column selector instance */
     var colSelector = null;
 
+    /** Filter chips instance */
+    var filterChipsInstance = null;
+
+    /**
+     * Updates filter chips display with current filter values.
+     */
+    function updateFilterChips() {
+        if (!filterChipsInstance) return;
+
+        var activeFilters = {};
+
+        var search = Filters.getValue('users-search');
+        if (search && search.trim()) {
+            activeFilters.search = search.trim();
+        }
+
+        var domain = Filters.getValue('users-domain');
+        if (domain && domain !== 'all') {
+            activeFilters.domain = domain;
+        }
+
+        var status = Filters.getValue('users-status');
+        if (status && status !== 'all') {
+            activeFilters.accountEnabled = status;
+        }
+
+        var source = Filters.getValue('users-source');
+        if (source && source !== 'all') {
+            activeFilters.userSource = source;
+        }
+
+        var flags = Filters.getValue('users-flags');
+        if (flags && flags.length > 0) {
+            activeFilters.flags = flags;
+        }
+
+        var createdRange = Filters.getValue('users-created-range');
+        if (createdRange && (createdRange.from || createdRange.to)) {
+            activeFilters.created = createdRange;
+        }
+
+        var signinRange = Filters.getValue('users-signin-range');
+        if (signinRange && (signinRange.from || signinRange.to)) {
+            activeFilters.lastSignIn = signinRange;
+        }
+
+        filterChipsInstance.update(activeFilters);
+    }
+
+    /**
+     * Handles filter removal from chips.
+     * @param {string} removedKey - Key of removed filter (null if clearing all)
+     * @param {object} remainingFilters - Remaining active filters
+     * @param {Array} allRemovedKeys - All removed keys when clearing all
+     */
+    function handleFilterChipRemove(removedKey, remainingFilters, allRemovedKeys) {
+        if (removedKey === null) {
+            // Clear all filters
+            Filters.setValue('users-search', '');
+            Filters.setValue('users-domain', 'all');
+            Filters.setValue('users-status', 'all');
+            Filters.setValue('users-source', 'all');
+
+            // Clear checkbox group
+            var flagsEl = document.getElementById('users-flags');
+            if (flagsEl) {
+                var checkboxes = flagsEl.querySelectorAll('input[type="checkbox"]');
+                checkboxes.forEach(function(cb) { cb.checked = false; });
+            }
+
+            // Clear date ranges
+            var createdEl = document.getElementById('users-created-range');
+            if (createdEl) {
+                var createdInputs = createdEl.querySelectorAll('input');
+                createdInputs.forEach(function(i) { i.value = ''; });
+            }
+            var signinEl = document.getElementById('users-signin-range');
+            if (signinEl) {
+                var signinInputs = signinEl.querySelectorAll('input');
+                signinInputs.forEach(function(i) { i.value = ''; });
+            }
+        } else {
+            // Clear specific filter
+            switch (removedKey) {
+                case 'search':
+                    Filters.setValue('users-search', '');
+                    break;
+                case 'domain':
+                    Filters.setValue('users-domain', 'all');
+                    break;
+                case 'accountEnabled':
+                    Filters.setValue('users-status', 'all');
+                    break;
+                case 'userSource':
+                    Filters.setValue('users-source', 'all');
+                    break;
+                case 'flags':
+                    var flagsEl = document.getElementById('users-flags');
+                    if (flagsEl) {
+                        var checkboxes = flagsEl.querySelectorAll('input[type="checkbox"]');
+                        checkboxes.forEach(function(cb) { cb.checked = false; });
+                    }
+                    break;
+                case 'created':
+                    var createdEl = document.getElementById('users-created-range');
+                    if (createdEl) {
+                        var inputs = createdEl.querySelectorAll('input');
+                        inputs.forEach(function(i) { i.value = ''; });
+                    }
+                    break;
+                case 'lastSignIn':
+                    var signinEl = document.getElementById('users-signin-range');
+                    if (signinEl) {
+                        var inputs = signinEl.querySelectorAll('input');
+                        inputs.forEach(function(i) { i.value = ''; });
+                    }
+                    break;
+            }
+        }
+
+        // Re-apply filters
+        applyFilters();
+    }
+
     /**
      * Applies current filters and re-renders the table.
      */
@@ -86,6 +210,9 @@ const PageUsers = (function() {
 
         // Render table
         renderTable(filteredData);
+
+        // Update filter chips
+        updateFilterChips();
     }
 
     /**
@@ -355,6 +482,9 @@ const PageUsers = (function() {
             <!-- Filters -->
             <div id="users-filter"></div>
 
+            <!-- Active Filter Chips -->
+            <div id="users-filter-chips"></div>
+
             <!-- Column Selector + Export -->
             <div class="table-toolbar">
                 <div id="users-col-selector"></div>
@@ -458,6 +588,12 @@ const PageUsers = (function() {
             ],
             onFilter: applyFilters
         });
+
+        // Initialize filter chips
+        if (typeof FilterChips !== 'undefined') {
+            filterChipsInstance = Object.create(FilterChips);
+            filterChipsInstance.init('users-filter-chips', handleFilterChipRemove);
+        }
 
         // Setup Column Selector
         if (typeof ColumnSelector !== 'undefined') {
