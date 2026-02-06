@@ -36,11 +36,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `DeviceManagementApps.Read.All` - For app deployment data
 - `BitLockerKey.Read.All` - For BitLocker recovery key metadata
 
+#### New Dashboard Pages (9 total)
+
+**Endpoint Management:**
+- Compliance Policies - Device compliance policies with compliance rates
+- Configuration Profiles - Intune device configuration profiles
+- Windows Update - Update rings, feature updates, quality updates
+- BitLocker Status - Encryption status and recovery key tracking
+- App Deployments - Application deployment status with failure tracking
+- Endpoint Analytics - Device health scores and startup performance
+
+**Security:**
+- Sign-In Logs - Detailed sign-in logs with MFA/CA evaluation
+- ASR Rules - Attack Surface Reduction rule configuration
+- Credential Expiry - Service principal secret and certificate expiry tracking
+
 ### Changed
+- Dashboard now has 27 pages (up from 18)
 - Orchestrator now runs 26 collectors (up from 17)
 - Collectors organized by category in orchestrator (Identity, Security, Device, Apps, Collaboration)
 - Dashboard data-loader updated to handle all new data types
 - Improved collector comments and organization
+- Navigation reorganized with expanded Endpoints and Security sections
 
 ### Fixed
 - Removed `Export-ModuleMember` from `CollectorBase.ps1` (caused errors when dot-sourced)

@@ -38,7 +38,17 @@
         'app-usage': PageAppUsage,
         'conditional-access': PageConditionalAccess,
         'organization': PageOrganization,
-        'license-analysis': PageLicenseAnalysis
+        'license-analysis': PageLicenseAnalysis,
+        // New v2.0 pages
+        'compliance-policies': PageCompliancePolicies,
+        'configuration-profiles': PageConfigurationProfiles,
+        'windows-update': PageWindowsUpdate,
+        'bitlocker': PageBitLocker,
+        'app-deployments': PageAppDeployments,
+        'endpoint-analytics': PageEndpointAnalytics,
+        'credential-expiry': PageCredentialExpiry,
+        'asr-rules': PageASRRules,
+        'signin-logs': PageSignInLogs
     };
 
     // ========================================================================
