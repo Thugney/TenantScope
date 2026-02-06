@@ -305,6 +305,32 @@ const Filters = (function() {
         },
 
         /**
+         * Sets up event listeners on an existing filter element.
+         * This is a convenience method for pages that create their own filter HTML.
+         *
+         * @param {string} controlId - ID of the filter control element
+         * @param {Function} callback - Function to call when filter value changes
+         */
+        setup(controlId, callback) {
+            const element = document.getElementById(controlId);
+            if (!element) {
+                console.warn('Filters.setup: Element not found:', controlId);
+                return;
+            }
+
+            if (element.tagName === 'INPUT' && element.type === 'text') {
+                // Text input - debounce
+                element.addEventListener('input', debounce(callback, DEBOUNCE_MS));
+            } else if (element.tagName === 'SELECT') {
+                // Select - immediate
+                element.addEventListener('change', callback);
+            } else if (element.tagName === 'INPUT' && element.type === 'checkbox') {
+                // Checkbox - immediate
+                element.addEventListener('change', callback);
+            }
+        },
+
+        /**
          * Gets the current value of a filter control.
          *
          * @param {string} controlId - ID of the filter control
