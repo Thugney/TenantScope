@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.7] - 2026-02-06
+
+### Fixed
+- **App Usage column rendering**: Fixed Interactive and Status columns showing "[object HTMLSpanElement]" - formatters now return HTML strings
+
+### Added
+- **App Inventory table**: New table on App Usage page showing all applications with user counts, sign-in counts, interactive/non-interactive breakdown, and last used date
+
 ## [1.5.6] - 2026-02-06
 
 ### Fixed
