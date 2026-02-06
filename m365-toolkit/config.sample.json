@@ -1,8 +1,8 @@
 {
   "tenantId": "your-tenant-id",
   "domains": {
-    "employees": "@yourdomain.com",
-    "students": "@students.yourdomain.com"
+    "employees": "@modum.kommune.no",
+    "students": "@skole.modum.kommune.no"
   },
   "thresholds": {
     "inactiveDays": 90,
@@ -24,19 +24,32 @@
     "locale": "nb-NO"
   },
   "licensePricing": {
+    "_comment_E3": "Managers in Helse og Velferd + all other etater (Teknisk, IT, PPT, etc.) with laptop",
     "SPE_E3": 350,
-    "SPE_E5": 580,
-    "M365EDU_A3_FACULTY": 70,
-    "M365EDU_A1": 0,
-    "M365EDU_A3_STUUSEBNFT": 30,
-    "ENTERPRISEPACK": 270,
-    "EXCHANGESTANDARD": 55,
-    "POWER_BI_PRO": 105,
-    "INTUNE_A": 90,
-    "AAD_PREMIUM": 65,
-    "AAD_PREMIUM_P2": 100,
-    "VISIOCLIENT": 165,
-    "PROJECTPREMIUM": 520,
+
+    "_comment_F1": "Non-managers in Helse og Velferd on ThinOS (no laptop as primary device)",
+    "SPE_F1": 85,
+
+    "_comment_A5": "Undervisning: Teachers, students, barnehager",
+    "M365EDU_A5_FACULTY": 120,
+    "M365EDU_A5_STUDENT": 0,
+
+    "_comment_A1": "Office 365 A1 - Free education licenses",
+    "STANDARDWOFFPACK_FACULTY": 0,
+    "STANDARDWOFFPACK_STUDENT": 0,
+
+    "_comment_F3": "Office 365 F3 - Frontline workers",
+    "DESKLESSPACK": 95,
+
+    "_comment_Defender": "Microsoft Defender products",
+    "DEFENDER_ENDPOINT_P1": 30,
+    "MDE_SMB": 30,
+
+    "_comment_TeamsRooms": "Microsoft Teams Rooms",
+    "MTR_PREM": 150,
+    "Microsoft_Teams_Rooms_Basic": 0,
+
+    "_comment_Free": "Free/Trial licenses - set to 0",
     "TEAMS_EXPLORATORY": 0,
     "FLOW_FREE": 0,
     "POWERAPPS_VIRAL": 0,
@@ -44,11 +57,33 @@
     "POWER_BI_STANDARD": 0
   },
   "licenseOverlapRules": [
-    { "name": "E3 + E5", "higherSku": "SPE_E5", "lowerSku": "SPE_E3", "description": "E5 includes all E3 capabilities" },
-    { "name": "A3 Faculty + E3", "higherSku": "SPE_E3", "lowerSku": "M365EDU_A3_FACULTY", "description": "E3 includes overlapping functionality" }
+    {
+      "name": "F1 + E3 (Role mismatch)",
+      "higherSku": "SPE_E3",
+      "lowerSku": "SPE_F1",
+      "description": "User has both F1 and E3 - Helse og Velferd: managers get E3, non-managers get F1"
+    },
+    {
+      "name": "A5 Faculty + E3 (Dept mismatch)",
+      "higherSku": "SPE_E3",
+      "lowerSku": "M365EDU_A5_FACULTY",
+      "description": "Undervisning staff should have A5 only, not commercial E3"
+    },
+    {
+      "name": "A5 Student + E3 (Dept mismatch)",
+      "higherSku": "SPE_E3",
+      "lowerSku": "M365EDU_A5_STUDENT",
+      "description": "Students should have A5 only, not commercial E3"
+    },
+    {
+      "name": "A5 + F1 (Dept mismatch)",
+      "higherSku": "M365EDU_A5_FACULTY",
+      "lowerSku": "SPE_F1",
+      "description": "Undervisning staff should not have F1 frontline license"
+    }
   ],
   "dashboard": {
     "title": "TenantScope",
-    "subtitle": "M365 Tenant Dashboard"
+    "subtitle": "Modum kommune - M365 Tenant Dashboard"
   }
 }
