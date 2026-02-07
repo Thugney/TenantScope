@@ -240,11 +240,25 @@ const PageDevices = (function() {
         html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Compliant: <strong>' + compliant + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Non-Compliant: <strong>' + noncompliant + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Unknown: <strong>' + unknown + '</strong></div>';
-        html += '<div class="legend-item">Stale: <strong>' + summary.staleDevices + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid
         html += '<div class="analytics-grid">';
+
+        // Priority Signals
+        var certRisk = (summary.certExpired || 0) + (summary.certCritical || 0);
+        var unsupportedWindows = summary.winUnsupportedCount || 0;
+        var notEncrypted = summary.notEncryptedDevices || 0;
+        var stale = summary.staleDevices || 0;
+        html += '<div class="analytics-card">';
+        html += '<h4>Priority Signals</h4>';
+        html += '<div class="compliance-legend">';
+        html += '<div class="legend-item"><span class="legend-dot ' + (noncompliant > 0 ? 'bg-critical' : 'bg-success') + '"></span> Non-Compliant: <strong>' + noncompliant + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot ' + (notEncrypted > 0 ? 'bg-critical' : 'bg-success') + '"></span> Not Encrypted: <strong>' + notEncrypted + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot ' + (stale > 0 ? 'bg-warning' : 'bg-success') + '"></span> Stale Devices: <strong>' + stale + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot ' + (certRisk > 0 ? 'bg-critical' : 'bg-success') + '"></span> Cert Expired/Critical: <strong>' + certRisk + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot ' + (unsupportedWindows > 0 ? 'bg-warning' : 'bg-success') + '"></span> Unsupported Windows: <strong>' + unsupportedWindows + '</strong></div>';
+        html += '</div></div>';
 
         // OS Breakdown
         html += '<div class="analytics-card">';

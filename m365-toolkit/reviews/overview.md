@@ -3,4 +3,4 @@
 **Dashboard page**: Overview
 
 ## UI Notes
-- Resolved (2026-02-07): legend dots now map to Healthy/Issues; other metrics are listed without dots.
+- Resolved (2026-02-07): legend dots map to Healthy/Issues; other signals are now listed in a dedicated "Operational Signals" card with colored dots.

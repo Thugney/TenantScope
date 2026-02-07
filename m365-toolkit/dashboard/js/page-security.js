@@ -159,12 +159,25 @@ const PageSecurity = (function() {
         html += '<div class="compliance-legend">';
         html += '<div class="legend-item"><span class="legend-dot bg-success"></span> MFA Enrolled: <strong>' + mfaRegistered + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> No MFA: <strong>' + data.noMfaUsers.length + '</strong></div>';
-        html += '<div class="legend-item">High Risk Sign-ins: <strong>' + data.highRiskCount + '</strong></div>';
-        html += '<div class="legend-item">Active Alerts: <strong>' + (newAlerts + inProgressAlerts) + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid with platform-list pattern
         html += '<div class="analytics-grid">';
+
+        // Operational signals card
+        html += '<div class="analytics-card"><h4>Risk & Alerts Signals</h4>';
+        html += '<div class="compliance-legend">';
+        var activeAlertCount = newAlerts + inProgressAlerts;
+        var signalItems = [
+            { cls: data.highRiskCount > 0 ? 'bg-critical' : 'bg-success', label: 'High Risk Sign-ins', value: data.highRiskCount },
+            { cls: data.mediumRiskCount > 0 ? 'bg-warning' : 'bg-success', label: 'Medium Risk Sign-ins', value: data.mediumRiskCount },
+            { cls: activeAlertCount > 0 ? 'bg-critical' : 'bg-success', label: 'Active Alerts', value: activeAlertCount },
+            { cls: data.highAlerts.length > 0 ? 'bg-critical' : 'bg-success', label: 'High Severity Alerts', value: data.highAlerts.length }
+        ];
+        signalItems.forEach(function(item) {
+            html += '<div class="legend-item"><span class="legend-dot ' + item.cls + '"></span> ' + item.label + ': <strong>' + item.value + '</strong></div>';
+        });
+        html += '</div></div>';
 
         // Risk Level Distribution
         html += '<div class="analytics-card"><h4>Risky Sign-ins by Level</h4>';

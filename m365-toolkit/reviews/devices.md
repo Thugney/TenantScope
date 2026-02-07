@@ -57,4 +57,4 @@ PASS (expanded to include Entra-only devices)
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
 
 ## UI Notes
-- Resolved (2026-02-07): donut segments now include Compliant/Non-Compliant/Unknown; Stale is listed without a dot.
+- Resolved (2026-02-07): donut segments include Compliant/Non-Compliant/Unknown; Stale and other priority signals moved to a dedicated card with colored dots.

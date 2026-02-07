@@ -217,6 +217,42 @@ const PageOverview = (function() {
         // Analytics grid
         var analyticsGrid = el('div', 'analytics-grid');
 
+        // Operational signals (not part of health donut)
+        var signalCard = el('div', 'analytics-card');
+        signalCard.appendChild(el('h4', null, 'Operational Signals'));
+        var signalList = el('div', 'compliance-legend');
+        var signalItems = [
+            {
+                cls: s.mfaPct >= 90 ? 'bg-success' : s.mfaPct >= 70 ? 'bg-warning' : 'bg-critical',
+                label: 'MFA Coverage',
+                value: s.mfaPct + '%'
+            },
+            {
+                cls: s.compliancePct >= 90 ? 'bg-success' : s.compliancePct >= 70 ? 'bg-warning' : 'bg-critical',
+                label: 'Device Compliance',
+                value: s.compliancePct + '%'
+            },
+            {
+                cls: s.activeAlerts > 0 ? 'bg-critical' : 'bg-success',
+                label: 'Active Alerts',
+                value: String(s.activeAlerts)
+            },
+            {
+                cls: 'bg-neutral',
+                label: 'Total Users',
+                value: s.totalUsers.toLocaleString()
+            }
+        ];
+        signalItems.forEach(function(item) {
+            var row = el('div', 'legend-item');
+            row.appendChild(el('span', 'legend-dot ' + item.cls));
+            row.appendChild(document.createTextNode(' ' + item.label + ': '));
+            row.appendChild(el('strong', null, item.value));
+            signalList.appendChild(row);
+        });
+        signalCard.appendChild(signalList);
+        analyticsGrid.appendChild(signalCard);
+
         // Users card
         var maxUsers = Math.max(s.employeeCount, s.studentCount, s.guestCount, 1);
         analyticsGrid.appendChild(createPlatformCard('User Composition', [
