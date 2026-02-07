@@ -315,11 +315,11 @@ const DataLoader = (function() {
          */
         getSummary() {
             // Always compute from raw data to ensure all fields are present
-            const users = dataStore.users || [];
-            const guests = dataStore.guests || [];
-            const devices = dataStore.devices || [];
-            const alerts = dataStore.defenderAlerts || [];
-            const licenseSkus = dataStore.licenseSkus || [];
+            const users = Array.isArray(dataStore.users) ? dataStore.users : [];
+            const guests = Array.isArray(dataStore.guests) ? dataStore.guests : [];
+            const devices = Array.isArray(dataStore.devices) ? dataStore.devices : [];
+            const alerts = Array.isArray(dataStore.defenderAlerts) ? dataStore.defenderAlerts : [];
+            const licenseSkus = Array.isArray(dataStore.licenseSkus) ? dataStore.licenseSkus : [];
 
             const compliantDevices = devices.filter(d => d.complianceState === 'compliant').length;
             const staleDevices = devices.filter(d => d.isStale).length;
