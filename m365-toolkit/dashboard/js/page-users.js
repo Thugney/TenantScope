@@ -15,6 +15,9 @@
 const PageUsers = (function() {
     'use strict';
 
+    /** Current tab */
+    var currentTab = 'overview';
+
     /** Current filter state */
     let currentFilters = {};
 
@@ -23,6 +26,9 @@ const PageUsers = (function() {
 
     /** Filter chips instance */
     var filterChipsInstance = null;
+
+    /** Cached page state */
+    var usersState = null;
 
     /**
      * Updates filter chips display with current filter values.
@@ -553,7 +559,7 @@ const PageUsers = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -563,7 +569,7 @@ const PageUsers = (function() {
             mfaCircle.setAttribute('cy', '50');
             mfaCircle.setAttribute('r', '40');
             mfaCircle.setAttribute('fill', 'none');
-            mfaCircle.setAttribute('stroke', 'var(--success)');
+            mfaCircle.setAttribute('stroke', 'var(--color-success)');
             mfaCircle.setAttribute('stroke-width', '12');
             mfaCircle.setAttribute('stroke-dasharray', mfaDash + ' ' + circumference);
             mfaCircle.setAttribute('stroke-dashoffset', '0');
@@ -576,7 +582,7 @@ const PageUsers = (function() {
             noMfaCircle.setAttribute('cy', '50');
             noMfaCircle.setAttribute('r', '40');
             noMfaCircle.setAttribute('fill', 'none');
-            noMfaCircle.setAttribute('stroke', 'var(--critical)');
+            noMfaCircle.setAttribute('stroke', 'var(--color-critical)');
             noMfaCircle.setAttribute('stroke-width', '12');
             noMfaCircle.setAttribute('stroke-dasharray', noMfaDash + ' ' + circumference);
             noMfaCircle.setAttribute('stroke-dashoffset', String(-mfaDash));
@@ -704,61 +710,51 @@ const PageUsers = (function() {
     }
 
     /**
-     * Renders the users page content.
-     *
-     * @param {HTMLElement} container - The page container element
+     * Switches to a different tab.
      */
-    function render(container) {
-        const users = DataLoader.getData('users');
-        const summary = DataLoader.getSummary();
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        renderContent();
+    }
 
-        // Get unique departments for filter
-        const departments = [...new Set(users.map(u => u.department).filter(Boolean))].sort();
+    /**
+     * Renders the content for the current tab.
+     */
+    function renderContent() {
+        var container = document.getElementById('users-content');
+        if (!container || !usersState) return;
 
-        // Calculate additional stats
-        var enabledCount = users.filter(function(u) { return u.accountEnabled; }).length;
-        var disabledCount = users.filter(function(u) { return !u.accountEnabled; }).length;
-        var mfaCount = users.filter(function(u) { return u.mfaRegistered; }).length;
-        var noMfaCount = users.filter(function(u) { return !u.mfaRegistered; }).length;
-        var inactiveCount = users.filter(function(u) { return u.isInactive; }).length;
-        var cloudUsers = users.filter(function(u) { return u.userSource === 'Cloud'; }).length;
-        var syncedUsers = users.filter(function(u) { return u.userSource === 'On-premises synced'; }).length;
+        switch (currentTab) {
+            case 'overview':
+                renderOverviewTab(container);
+                break;
+            case 'analysis':
+                renderAnalysisTab(container);
+                break;
+            case 'users':
+                renderUsersTab(container);
+                break;
+        }
+    }
 
-        var total = users.length;
-        var mfaPct = total > 0 ? Math.round((mfaCount / total) * 100) : 0;
-        var enabledPct = total > 0 ? Math.round((enabledCount / total) * 100) : 0;
+    /**
+     * Renders the Overview tab with ASR Rules pattern.
+     */
+    function renderOverviewTab(container) {
+        container.textContent = '';
+        renderUsersOverview(container, usersState.stats);
+    }
 
-        // Build page structure using DOM methods
+    /**
+     * Renders the Analysis tab with focus/breakdown tables.
+     */
+    function renderAnalysisTab(container) {
         container.textContent = '';
 
-        // Page header
-        var header = document.createElement('div');
-        header.className = 'page-header';
-        var h2 = document.createElement('h2');
-        h2.className = 'page-title';
-        h2.textContent = 'Users';
-        header.appendChild(h2);
-        var desc = document.createElement('p');
-        desc.className = 'page-description';
-        desc.textContent = 'All member accounts in your tenant';
-        header.appendChild(desc);
-        container.appendChild(header);
-
-        // Summary cards
-        var cardsGrid = document.createElement('div');
-        cardsGrid.className = 'cards-grid';
-        cardsGrid.appendChild(createSummaryCard('Total Users', summary.totalUsers, ''));
-        cardsGrid.appendChild(createSummaryCard('Employees', summary.employeeCount, ''));
-        cardsGrid.appendChild(createSummaryCard('Students', summary.studentCount, ''));
-        cardsGrid.appendChild(createSummaryCard('Without MFA', summary.noMfaUsers, summary.noMfaUsers > 0 ? 'critical' : 'success'));
-        container.appendChild(cardsGrid);
-
-        // Overview section
-        var overviewDiv = document.createElement('div');
-        overviewDiv.id = 'users-overview';
-        container.appendChild(overviewDiv);
-
-        // Focus/Breakdown section
+        // Section header
         var sectionHeader = document.createElement('div');
         sectionHeader.className = 'section-header';
         var analysisH3 = document.createElement('h3');
@@ -778,6 +774,18 @@ const PageUsers = (function() {
         breakdownTable.id = 'users-breakdown-table';
         fbRow.appendChild(breakdownTable);
         container.appendChild(fbRow);
+
+        // Render focus/breakdown tables
+        var allUsers = DataLoader.getData('users');
+        var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
+        renderFocusBreakdown(users);
+    }
+
+    /**
+     * Renders the Users tab with filters and data table.
+     */
+    function renderUsersTab(container) {
+        container.textContent = '';
 
         // Filters
         var filterDiv = document.createElement('div');
@@ -807,84 +815,34 @@ const PageUsers = (function() {
         tableDiv.id = 'users-table';
         container.appendChild(tableDiv);
 
-        // Render overview section with ASR Rules pattern
-        renderUsersOverview(overviewDiv, {
-            total: total,
-            enabledCount: enabledCount,
-            disabledCount: disabledCount,
-            mfaCount: mfaCount,
-            noMfaCount: noMfaCount,
-            inactiveCount: inactiveCount,
-            cloudUsers: cloudUsers,
-            syncedUsers: syncedUsers,
-            mfaPct: mfaPct,
-            enabledPct: enabledPct,
-            employeeCount: summary.employeeCount,
-            studentCount: summary.studentCount,
-            otherCount: summary.otherCount || 0
-        });
-
         // Create filter bar
         Filters.createFilterBar({
             containerId: 'users-filter',
             controls: [
-                {
-                    type: 'search',
-                    id: 'users-search',
-                    label: 'Search',
-                    placeholder: 'Search users...'
-                },
-                {
-                    type: 'select',
-                    id: 'users-domain',
-                    label: 'Domain',
-                    options: [
-                        { value: 'all', label: 'All Domains' },
-                        { value: 'employee', label: 'Employees' },
-                        { value: 'student', label: 'Students' },
-                        { value: 'other', label: 'Other' }
-                    ]
-                },
-                {
-                    type: 'select',
-                    id: 'users-status',
-                    label: 'Status',
-                    options: [
-                        { value: 'all', label: 'All Status' },
-                        { value: 'enabled', label: 'Enabled' },
-                        { value: 'disabled', label: 'Disabled' }
-                    ]
-                },
-                {
-                    type: 'select',
-                    id: 'users-source',
-                    label: 'Source',
-                    options: [
-                        { value: 'all', label: 'All Sources' },
-                        { value: 'Cloud', label: 'Cloud' },
-                        { value: 'On-premises synced', label: 'On-prem Synced' }
-                    ]
-                },
-                {
-                    type: 'checkbox-group',
-                    id: 'users-flags',
-                    label: 'Flags',
-                    options: [
-                        { value: 'inactive', label: 'Inactive' },
-                        { value: 'no-mfa', label: 'No MFA' },
-                        { value: 'admin', label: 'Admin' }
-                    ]
-                },
-                {
-                    type: 'date-range',
-                    id: 'users-created-range',
-                    label: 'Created'
-                },
-                {
-                    type: 'date-range',
-                    id: 'users-signin-range',
-                    label: 'Last Sign-In'
-                }
+                { type: 'search', id: 'users-search', label: 'Search', placeholder: 'Search users...' },
+                { type: 'select', id: 'users-domain', label: 'Domain', options: [
+                    { value: 'all', label: 'All Domains' },
+                    { value: 'employee', label: 'Employees' },
+                    { value: 'student', label: 'Students' },
+                    { value: 'other', label: 'Other' }
+                ]},
+                { type: 'select', id: 'users-status', label: 'Status', options: [
+                    { value: 'all', label: 'All Status' },
+                    { value: 'enabled', label: 'Enabled' },
+                    { value: 'disabled', label: 'Disabled' }
+                ]},
+                { type: 'select', id: 'users-source', label: 'Source', options: [
+                    { value: 'all', label: 'All Sources' },
+                    { value: 'Cloud', label: 'Cloud' },
+                    { value: 'On-premises synced', label: 'On-prem Synced' }
+                ]},
+                { type: 'checkbox-group', id: 'users-flags', label: 'Flags', options: [
+                    { value: 'inactive', label: 'Inactive' },
+                    { value: 'no-mfa', label: 'No MFA' },
+                    { value: 'admin', label: 'Admin' }
+                ]},
+                { type: 'date-range', id: 'users-created-range', label: 'Created' },
+                { type: 'date-range', id: 'users-signin-range', label: 'Last Sign-In' }
             ],
             onFilter: applyFilters
         });
@@ -935,6 +893,106 @@ const PageUsers = (function() {
 
         // Initial render
         applyFilters();
+    }
+
+    /**
+     * Renders the users page content.
+     *
+     * @param {HTMLElement} container - The page container element
+     */
+    function render(container) {
+        var users = DataLoader.getData('users') || [];
+        var summary = DataLoader.getSummary() || {};
+
+        // Calculate stats
+        var enabledCount = users.filter(function(u) { return u.accountEnabled; }).length;
+        var disabledCount = users.filter(function(u) { return !u.accountEnabled; }).length;
+        var mfaCount = users.filter(function(u) { return u.mfaRegistered; }).length;
+        var noMfaCount = users.filter(function(u) { return !u.mfaRegistered; }).length;
+        var inactiveCount = users.filter(function(u) { return u.isInactive; }).length;
+        var cloudUsers = users.filter(function(u) { return u.userSource === 'Cloud'; }).length;
+        var syncedUsers = users.filter(function(u) { return u.userSource === 'On-premises synced'; }).length;
+
+        var total = users.length;
+        var mfaPct = total > 0 ? Math.round((mfaCount / total) * 100) : 0;
+        var enabledPct = total > 0 ? Math.round((enabledCount / total) * 100) : 0;
+
+        // Cache state for tab rendering
+        usersState = {
+            users: users,
+            summary: summary,
+            stats: {
+                total: total,
+                enabledCount: enabledCount,
+                disabledCount: disabledCount,
+                mfaCount: mfaCount,
+                noMfaCount: noMfaCount,
+                inactiveCount: inactiveCount,
+                cloudUsers: cloudUsers,
+                syncedUsers: syncedUsers,
+                mfaPct: mfaPct,
+                enabledPct: enabledPct,
+                employeeCount: summary.employeeCount || 0,
+                studentCount: summary.studentCount || 0,
+                otherCount: summary.otherCount || 0
+            }
+        };
+
+        container.textContent = '';
+
+        // Page header
+        var header = document.createElement('div');
+        header.className = 'page-header';
+        var h2 = document.createElement('h2');
+        h2.className = 'page-title';
+        h2.textContent = 'Users';
+        header.appendChild(h2);
+        var desc = document.createElement('p');
+        desc.className = 'page-description';
+        desc.textContent = 'All member accounts in your tenant';
+        header.appendChild(desc);
+        container.appendChild(header);
+
+        // Summary cards
+        var cardsGrid = document.createElement('div');
+        cardsGrid.className = 'summary-cards';
+        cardsGrid.appendChild(createSummaryCard('Total Users', summary.totalUsers || total, ''));
+        cardsGrid.appendChild(createSummaryCard('Employees', summary.employeeCount || 0, ''));
+        cardsGrid.appendChild(createSummaryCard('Students', summary.studentCount || 0, ''));
+        cardsGrid.appendChild(createSummaryCard('Without MFA', noMfaCount, noMfaCount > 0 ? 'critical' : 'success'));
+        container.appendChild(cardsGrid);
+
+        // Tab bar
+        var tabBar = document.createElement('div');
+        tabBar.className = 'tab-bar';
+        var tabs = [
+            { id: 'overview', label: 'Overview' },
+            { id: 'analysis', label: 'Analysis' },
+            { id: 'users', label: 'All Users (' + total + ')' }
+        ];
+        tabs.forEach(function(t) {
+            var btn = document.createElement('button');
+            btn.className = 'tab-btn' + (t.id === 'overview' ? ' active' : '');
+            btn.dataset.tab = t.id;
+            btn.textContent = t.label;
+            tabBar.appendChild(btn);
+        });
+        container.appendChild(tabBar);
+
+        // Content area
+        var contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.id = 'users-content';
+        container.appendChild(contentArea);
+
+        // Tab handlers
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+        });
+
+        // Initial tab render
+        currentTab = 'overview';
+        renderContent();
     }
 
     // Public API

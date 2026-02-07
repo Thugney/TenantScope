@@ -15,6 +15,12 @@
 const PageOrganization = (function() {
     'use strict';
 
+    /** Current tab */
+    var currentTab = 'overview';
+
+    /** Cached page state */
+    var orgState = null;
+
     /**
      * Analyzes the organization hierarchy from user data.
      *
@@ -129,38 +135,50 @@ const PageOrganization = (function() {
     }
 
     /**
-     * Renders the page.
+     * Switches to a different tab.
      */
-    function render(container) {
-        var users = DataLoader.getData('users') || [];
-        if (typeof DepartmentFilter !== 'undefined') {
-            users = DepartmentFilter.filterData(users, 'department');
-        }
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        renderContent();
+    }
 
-        var hierarchy = analyzeHierarchy(users);
+    /**
+     * Renders the content for the current tab.
+     */
+    function renderContent() {
+        var container = document.getElementById('org-content');
+        if (!container || !orgState) return;
+
+        switch (currentTab) {
+            case 'overview':
+                renderOverviewTab(container);
+                break;
+            case 'analysis':
+                renderAnalysisTab(container);
+                break;
+            case 'managers':
+                renderManagersTab(container);
+                break;
+        }
+    }
+
+    /**
+     * Renders the Overview tab.
+     */
+    function renderOverviewTab(container) {
+        container.textContent = '';
+        renderOrgOverview(container, orgState.hierarchy, orgState.totalUsers);
+    }
+
+    /**
+     * Renders the Analysis tab.
+     */
+    function renderAnalysisTab(container) {
         container.textContent = '';
 
-        // Page header
-        var header = el('div', 'page-header');
-        header.appendChild(el('h2', 'page-title', 'Organization Structure'));
-        header.appendChild(el('p', 'page-description', 'Management hierarchy, span of control, and department analysis'));
-        container.appendChild(header);
-
-        // Summary cards
-        var cards = el('div', 'summary-cards');
-        cards.appendChild(createCard('Total Users', users.length, 'primary'));
-        cards.appendChild(createCard('Managers', hierarchy.totalManagers, 'info'));
-        cards.appendChild(createCard('Orphan Users', hierarchy.totalOrphans, hierarchy.totalOrphans > 0 ? 'warning' : 'success'));
-        cards.appendChild(createCard('Departments', hierarchy.departments.length, 'secondary'));
-        container.appendChild(cards);
-
-        // Overview section with ASR Rules pattern
-        var overviewDiv = el('div');
-        overviewDiv.id = 'org-overview';
-        container.appendChild(overviewDiv);
-        renderOrgOverview(overviewDiv, hierarchy, users.length);
-
-        // Focus/Breakdown section
         var fbRow = el('div', 'focus-breakdown-row');
         var focusPanel = el('div', 'focus-panel');
         focusPanel.appendChild(el('h3', 'panel-title', 'Focus: Managers by Direct Reports'));
@@ -176,6 +194,16 @@ const PageOrganization = (function() {
         breakdownPanel.appendChild(breakdownTable);
         fbRow.appendChild(breakdownPanel);
         container.appendChild(fbRow);
+
+        renderManagerFocus(orgState.hierarchy.managers);
+        renderDeptBreakdown(orgState.hierarchy.departments);
+    }
+
+    /**
+     * Renders the Managers tab with tables.
+     */
+    function renderManagersTab(container) {
+        container.textContent = '';
 
         // Managers table section
         var mgrSection = el('div', 'table-section');
@@ -193,10 +221,10 @@ const PageOrganization = (function() {
         container.appendChild(mgrSection);
 
         // Orphan users table
-        if (hierarchy.totalOrphans > 0) {
+        if (orgState.hierarchy.totalOrphans > 0) {
             var orphanSection = el('div', 'table-section');
             var orphanHeader = el('div', 'table-header');
-            orphanHeader.appendChild(el('h3', 'table-title', 'Users Without Manager (' + hierarchy.totalOrphans + ')'));
+            orphanHeader.appendChild(el('h3', 'table-title', 'Users Without Manager (' + orgState.hierarchy.totalOrphans + ')'));
             var exportOrphanBtn = el('button', 'btn btn-secondary', 'Export CSV');
             exportOrphanBtn.id = 'export-orphans-btn';
             orphanHeader.appendChild(exportOrphanBtn);
@@ -207,17 +235,14 @@ const PageOrganization = (function() {
             container.appendChild(orphanSection);
         }
 
-        // Render focus tables
-        renderManagerFocus(hierarchy.managers);
-        renderDeptBreakdown(hierarchy.departments);
-        renderManagersTable(hierarchy.managers);
-        if (hierarchy.totalOrphans > 0) {
-            renderOrphansTable(hierarchy.orphanUsers);
+        renderManagersTable(orgState.hierarchy.managers);
+        if (orgState.hierarchy.totalOrphans > 0) {
+            renderOrphansTable(orgState.hierarchy.orphanUsers);
         }
 
         // Export buttons
         document.getElementById('export-managers-btn').addEventListener('click', function() {
-            var exportData = hierarchy.managers.map(function(m) {
+            var exportData = orgState.hierarchy.managers.map(function(m) {
                 return {
                     Manager: m.name,
                     Department: m.department || '',
@@ -231,7 +256,7 @@ const PageOrganization = (function() {
         var orphanBtn = document.getElementById('export-orphans-btn');
         if (orphanBtn) {
             orphanBtn.addEventListener('click', function() {
-                var exportData = hierarchy.orphanUsers.map(function(u) {
+                var exportData = orgState.hierarchy.orphanUsers.map(function(u) {
                     return {
                         Name: u.displayName,
                         Email: u.userPrincipalName,
@@ -243,6 +268,69 @@ const PageOrganization = (function() {
                 Export.toCSV(exportData, 'tenantscope-orphan-users.csv');
             });
         }
+    }
+
+    /**
+     * Renders the page.
+     */
+    function render(container) {
+        var users = DataLoader.getData('users') || [];
+        if (typeof DepartmentFilter !== 'undefined') {
+            users = DepartmentFilter.filterData(users, 'department');
+        }
+
+        var hierarchy = analyzeHierarchy(users);
+
+        // Cache state
+        orgState = {
+            users: users,
+            totalUsers: users.length,
+            hierarchy: hierarchy
+        };
+
+        container.textContent = '';
+
+        // Page header
+        var header = el('div', 'page-header');
+        header.appendChild(el('h2', 'page-title', 'Organization Structure'));
+        header.appendChild(el('p', 'page-description', 'Management hierarchy, span of control, and department analysis'));
+        container.appendChild(header);
+
+        // Summary cards
+        var cards = el('div', 'summary-cards');
+        cards.appendChild(createCard('Total Users', users.length, 'primary'));
+        cards.appendChild(createCard('Managers', hierarchy.totalManagers, 'info'));
+        cards.appendChild(createCard('Orphan Users', hierarchy.totalOrphans, hierarchy.totalOrphans > 0 ? 'warning' : 'success'));
+        cards.appendChild(createCard('Departments', hierarchy.departments.length, 'secondary'));
+        container.appendChild(cards);
+
+        // Tab bar
+        var tabBar = el('div', 'tab-bar');
+        var tabs = [
+            { id: 'overview', label: 'Overview' },
+            { id: 'analysis', label: 'Analysis' },
+            { id: 'managers', label: 'All Managers (' + hierarchy.totalManagers + ')' }
+        ];
+        tabs.forEach(function(t) {
+            var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
+            btn.dataset.tab = t.id;
+            btn.textContent = t.label;
+            tabBar.appendChild(btn);
+        });
+        container.appendChild(tabBar);
+
+        // Content area
+        var contentArea = el('div', 'content-area');
+        contentArea.id = 'org-content';
+        container.appendChild(contentArea);
+
+        // Tab handlers
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+        });
+
+        currentTab = 'overview';
+        renderContent();
     }
 
     function createCard(label, value, variant) {
@@ -329,7 +417,7 @@ const PageOrganization = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -339,7 +427,7 @@ const PageOrganization = (function() {
             mgrCircle.setAttribute('cy', '50');
             mgrCircle.setAttribute('r', '40');
             mgrCircle.setAttribute('fill', 'none');
-            mgrCircle.setAttribute('stroke', 'var(--success)');
+            mgrCircle.setAttribute('stroke', 'var(--color-success)');
             mgrCircle.setAttribute('stroke-width', '12');
             mgrCircle.setAttribute('stroke-dasharray', withMgrDash + ' ' + circumference);
             mgrCircle.setAttribute('stroke-dashoffset', '0');
@@ -352,7 +440,7 @@ const PageOrganization = (function() {
             orphCircle.setAttribute('cy', '50');
             orphCircle.setAttribute('r', '40');
             orphCircle.setAttribute('fill', 'none');
-            orphCircle.setAttribute('stroke', 'var(--warning)');
+            orphCircle.setAttribute('stroke', 'var(--color-warning)');
             orphCircle.setAttribute('stroke-width', '12');
             orphCircle.setAttribute('stroke-dasharray', orphanDash + ' ' + circumference);
             orphCircle.setAttribute('stroke-dashoffset', String(-withMgrDash));

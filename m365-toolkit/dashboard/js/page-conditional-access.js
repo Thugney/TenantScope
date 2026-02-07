@@ -372,10 +372,10 @@ const PageConditionalAccess = (function() {
         if (gapsList.length > 0) {
             var alertDiv = document.createElement('div');
             alertDiv.className = 'alert alert-critical';
-            alertDiv.style.cssText = 'margin-bottom: 1.5rem; padding: 1rem; background: var(--critical-bg); border-radius: 6px; border-left: 4px solid var(--critical);';
+            alertDiv.style.cssText = 'margin-bottom: 1.5rem; padding: 1rem; background: var(--critical-bg); border-radius: 6px; border-left: 4px solid var(--color-critical);';
 
             var alertTitle = document.createElement('h4');
-            alertTitle.style.cssText = 'margin: 0 0 0.5rem 0; color: var(--critical);';
+            alertTitle.style.cssText = 'margin: 0 0 0.5rem 0; color: var(--color-critical);';
             alertTitle.textContent = 'Security Gaps Detected';
             alertDiv.appendChild(alertTitle);
 

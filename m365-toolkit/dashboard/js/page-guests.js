@@ -15,11 +15,17 @@
 const PageGuests = (function() {
     'use strict';
 
+    /** Current tab */
+    var currentTab = 'overview';
+
     /** Column selector instance */
     var colSelector = null;
 
     /** Current breakdown dimension */
     var currentBreakdown = 'sourceDomain';
+
+    /** Cached page state */
+    var guestsState = null;
 
     /**
      * Applies current filters and re-renders the table.
@@ -396,7 +402,7 @@ const PageGuests = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -407,7 +413,7 @@ const PageGuests = (function() {
             activeCircle.setAttribute('cy', '50');
             activeCircle.setAttribute('r', '40');
             activeCircle.setAttribute('fill', 'none');
-            activeCircle.setAttribute('stroke', 'var(--success)');
+            activeCircle.setAttribute('stroke', 'var(--color-success)');
             activeCircle.setAttribute('stroke-width', '12');
             activeCircle.setAttribute('stroke-dasharray', activeDash + ' ' + circumference);
             activeCircle.setAttribute('stroke-dashoffset', String(-offset));
@@ -421,7 +427,7 @@ const PageGuests = (function() {
             staleCircle.setAttribute('cy', '50');
             staleCircle.setAttribute('r', '40');
             staleCircle.setAttribute('fill', 'none');
-            staleCircle.setAttribute('stroke', 'var(--warning)');
+            staleCircle.setAttribute('stroke', 'var(--color-warning)');
             staleCircle.setAttribute('stroke-width', '12');
             staleCircle.setAttribute('stroke-dasharray', staleDash + ' ' + circumference);
             staleCircle.setAttribute('stroke-dashoffset', String(-offset));
@@ -449,7 +455,7 @@ const PageGuests = (function() {
             neverCircle.setAttribute('cy', '50');
             neverCircle.setAttribute('r', '40');
             neverCircle.setAttribute('fill', 'none');
-            neverCircle.setAttribute('stroke', 'var(--critical)');
+            neverCircle.setAttribute('stroke', 'var(--color-critical)');
             neverCircle.setAttribute('stroke-width', '12');
             neverCircle.setAttribute('stroke-dasharray', neverDash + ' ' + circumference);
             neverCircle.setAttribute('stroke-dashoffset', String(-offset));
@@ -576,82 +582,50 @@ const PageGuests = (function() {
     }
 
     /**
-     * Renders the guests page content.
-     *
-     * @param {HTMLElement} container - The page container element
+     * Switches to a different tab.
      */
-    function render(container) {
-        var guests = DataLoader.getData('guests');
-
-        // Calculate stats
-        var activeCount = guests.filter(function(g) { return !g.isStale && !g.neverSignedIn && g.invitationState === 'Accepted'; }).length;
-        var staleCount = guests.filter(function(g) { return g.isStale; }).length;
-        var neverSignedInCount = guests.filter(function(g) { return g.neverSignedIn; }).length;
-        var pendingCount = guests.filter(function(g) { return g.invitationState === 'PendingAcceptance'; }).length;
-        var acceptedCount = guests.filter(function(g) { return g.invitationState === 'Accepted'; }).length;
-
-        var total = guests.length;
-        var activePct = total > 0 ? Math.round((activeCount / total) * 100) : 0;
-        var stalePct = total > 0 ? Math.round((staleCount / total) * 100) : 0;
-        var pendingPct = total > 0 ? Math.round((pendingCount / total) * 100) : 0;
-        var neverPct = total > 0 ? Math.round((neverSignedInCount / total) * 100) : 0;
-
-        // Get top source domains
-        var domainCounts = {};
-        guests.forEach(function(g) {
-            var domain = g.sourceDomain || 'Unknown';
-            domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
         });
-        var topDomains = Object.entries(domainCounts).map(function(e) {
-            return { domain: e[0], count: e[1] };
-        }).sort(function(a, b) { return b.count - a.count; });
+        renderContent();
+    }
 
-        // Build page structure using DOM methods
+    /**
+     * Renders the content for the current tab.
+     */
+    function renderContent() {
+        var container = document.getElementById('guests-content');
+        if (!container || !guestsState) return;
+
+        switch (currentTab) {
+            case 'overview':
+                renderOverviewTab(container);
+                break;
+            case 'analysis':
+                renderAnalysisTab(container);
+                break;
+            case 'guests':
+                renderGuestsTab(container);
+                break;
+        }
+    }
+
+    /**
+     * Renders the Overview tab.
+     */
+    function renderOverviewTab(container) {
+        container.textContent = '';
+        renderGuestsOverview(container, guestsState.stats);
+    }
+
+    /**
+     * Renders the Analysis tab.
+     */
+    function renderAnalysisTab(container) {
         container.textContent = '';
 
-        // Page header
-        var header = document.createElement('div');
-        header.className = 'page-header';
-        var h2 = document.createElement('h2');
-        h2.className = 'page-title';
-        h2.textContent = 'Guest Accounts';
-        header.appendChild(h2);
-        var desc = document.createElement('p');
-        desc.className = 'page-description';
-        desc.textContent = 'External users with access to your tenant';
-        header.appendChild(desc);
-        container.appendChild(header);
-
-        // Summary cards
-        var cardsGrid = document.createElement('div');
-        cardsGrid.className = 'cards-grid';
-        cardsGrid.appendChild(createSummaryCard('Total Guests', total, ''));
-        cardsGrid.appendChild(createSummaryCard('Active', activeCount, 'success'));
-        cardsGrid.appendChild(createSummaryCard('Stale', staleCount, staleCount > 0 ? 'warning' : '', '60+ days inactive'));
-        cardsGrid.appendChild(createSummaryCard('Pending', pendingCount, pendingCount > 0 ? 'warning' : '', 'Awaiting acceptance'));
-        container.appendChild(cardsGrid);
-
-        // Overview section
-        var overviewDiv = document.createElement('div');
-        overviewDiv.id = 'guests-overview';
-        container.appendChild(overviewDiv);
-
-        // Render overview with ASR Rules pattern
-        renderGuestsOverview(overviewDiv, {
-            total: total,
-            activeCount: activeCount,
-            staleCount: staleCount,
-            pendingCount: pendingCount,
-            neverSignedInCount: neverSignedInCount,
-            acceptedCount: acceptedCount,
-            activePct: activePct,
-            stalePct: stalePct,
-            pendingPct: pendingPct,
-            neverPct: neverPct,
-            topDomains: topDomains
-        });
-
-        // Focus/Breakdown section
         var sectionHeader = document.createElement('div');
         sectionHeader.className = 'section-header';
         var analysisH3 = document.createElement('h3');
@@ -671,6 +645,16 @@ const PageGuests = (function() {
         breakdownTable.id = 'guests-breakdown-table';
         fbRow.appendChild(breakdownTable);
         container.appendChild(fbRow);
+
+        // Render focus/breakdown
+        renderFocusBreakdown(guestsState.guests);
+    }
+
+    /**
+     * Renders the Guests tab with filters and table.
+     */
+    function renderGuestsTab(container) {
+        container.textContent = '';
 
         // Filters
         var filterDiv = document.createElement('div');
@@ -699,34 +683,16 @@ const PageGuests = (function() {
         Filters.createFilterBar({
             containerId: 'guests-filter',
             controls: [
-                {
-                    type: 'search',
-                    id: 'guests-search',
-                    label: 'Search',
-                    placeholder: 'Search guests...'
-                },
-                {
-                    type: 'select',
-                    id: 'guests-status',
-                    label: 'Status',
-                    options: [
-                        { value: 'all', label: 'All Status' },
-                        { value: 'active', label: 'Active' },
-                        { value: 'stale', label: 'Stale' },
-                        { value: 'never', label: 'Never Signed In' },
-                        { value: 'pending', label: 'Pending' }
-                    ]
-                },
-                {
-                    type: 'date-range',
-                    id: 'guests-created-range',
-                    label: 'Invited'
-                },
-                {
-                    type: 'date-range',
-                    id: 'guests-signin-range',
-                    label: 'Last Sign-In'
-                }
+                { type: 'search', id: 'guests-search', label: 'Search', placeholder: 'Search guests...' },
+                { type: 'select', id: 'guests-status', label: 'Status', options: [
+                    { value: 'all', label: 'All Status' },
+                    { value: 'active', label: 'Active' },
+                    { value: 'stale', label: 'Stale' },
+                    { value: 'never', label: 'Never Signed In' },
+                    { value: 'pending', label: 'Pending' }
+                ]},
+                { type: 'date-range', id: 'guests-created-range', label: 'Invited' },
+                { type: 'date-range', id: 'guests-signin-range', label: 'Last Sign-In' }
             ],
             onFilter: applyFilters
         });
@@ -755,11 +721,111 @@ const PageGuests = (function() {
             });
         }
 
-        // Bind export button
         Export.bindExportButton('guests-table', 'guests');
-
-        // Initial render
         applyFilters();
+    }
+
+    /**
+     * Renders the guests page content.
+     */
+    function render(container) {
+        var guests = DataLoader.getData('guests') || [];
+
+        // Calculate stats
+        var activeCount = guests.filter(function(g) { return !g.isStale && !g.neverSignedIn && g.invitationState === 'Accepted'; }).length;
+        var staleCount = guests.filter(function(g) { return g.isStale; }).length;
+        var neverSignedInCount = guests.filter(function(g) { return g.neverSignedIn; }).length;
+        var pendingCount = guests.filter(function(g) { return g.invitationState === 'PendingAcceptance'; }).length;
+        var acceptedCount = guests.filter(function(g) { return g.invitationState === 'Accepted'; }).length;
+
+        var total = guests.length;
+        var activePct = total > 0 ? Math.round((activeCount / total) * 100) : 0;
+        var stalePct = total > 0 ? Math.round((staleCount / total) * 100) : 0;
+        var pendingPct = total > 0 ? Math.round((pendingCount / total) * 100) : 0;
+        var neverPct = total > 0 ? Math.round((neverSignedInCount / total) * 100) : 0;
+
+        // Get top source domains
+        var domainCounts = {};
+        guests.forEach(function(g) {
+            var domain = g.sourceDomain || 'Unknown';
+            domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+        });
+        var topDomains = Object.entries(domainCounts).map(function(e) {
+            return { domain: e[0], count: e[1] };
+        }).sort(function(a, b) { return b.count - a.count; });
+
+        // Cache state
+        guestsState = {
+            guests: guests,
+            stats: {
+                total: total,
+                activeCount: activeCount,
+                staleCount: staleCount,
+                pendingCount: pendingCount,
+                neverSignedInCount: neverSignedInCount,
+                acceptedCount: acceptedCount,
+                activePct: activePct,
+                stalePct: stalePct,
+                pendingPct: pendingPct,
+                neverPct: neverPct,
+                topDomains: topDomains
+            }
+        };
+
+        container.textContent = '';
+
+        // Page header
+        var header = document.createElement('div');
+        header.className = 'page-header';
+        var h2 = document.createElement('h2');
+        h2.className = 'page-title';
+        h2.textContent = 'Guest Accounts';
+        header.appendChild(h2);
+        var desc = document.createElement('p');
+        desc.className = 'page-description';
+        desc.textContent = 'External users with access to your tenant';
+        header.appendChild(desc);
+        container.appendChild(header);
+
+        // Summary cards
+        var cardsGrid = document.createElement('div');
+        cardsGrid.className = 'summary-cards';
+        cardsGrid.appendChild(createSummaryCard('Total Guests', total, ''));
+        cardsGrid.appendChild(createSummaryCard('Active', activeCount, 'success'));
+        cardsGrid.appendChild(createSummaryCard('Stale', staleCount, staleCount > 0 ? 'warning' : '', '60+ days inactive'));
+        cardsGrid.appendChild(createSummaryCard('Pending', pendingCount, pendingCount > 0 ? 'warning' : '', 'Awaiting acceptance'));
+        container.appendChild(cardsGrid);
+
+        // Tab bar
+        var tabBar = document.createElement('div');
+        tabBar.className = 'tab-bar';
+        var tabs = [
+            { id: 'overview', label: 'Overview' },
+            { id: 'analysis', label: 'Analysis' },
+            { id: 'guests', label: 'All Guests (' + total + ')' }
+        ];
+        tabs.forEach(function(t) {
+            var btn = document.createElement('button');
+            btn.className = 'tab-btn' + (t.id === 'overview' ? ' active' : '');
+            btn.dataset.tab = t.id;
+            btn.textContent = t.label;
+            tabBar.appendChild(btn);
+        });
+        container.appendChild(tabBar);
+
+        // Content area
+        var contentArea = document.createElement('div');
+        contentArea.className = 'content-area';
+        contentArea.id = 'guests-content';
+        container.appendChild(contentArea);
+
+        // Tab handlers
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+        });
+
+        currentTab = 'overview';
+        renderContent();
     }
 
     // Public API

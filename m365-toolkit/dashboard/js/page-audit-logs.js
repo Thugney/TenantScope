@@ -82,7 +82,7 @@ const PageAuditLogs = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -92,7 +92,7 @@ const PageAuditLogs = (function() {
             successCircle.setAttribute('cy', '50');
             successCircle.setAttribute('r', '40');
             successCircle.setAttribute('fill', 'none');
-            successCircle.setAttribute('stroke', 'var(--success)');
+            successCircle.setAttribute('stroke', 'var(--color-success)');
             successCircle.setAttribute('stroke-width', '12');
             successCircle.setAttribute('stroke-dasharray', successDash + ' ' + circumference);
             successCircle.setAttribute('stroke-dashoffset', '0');
@@ -105,7 +105,7 @@ const PageAuditLogs = (function() {
             failCircle.setAttribute('cy', '50');
             failCircle.setAttribute('r', '40');
             failCircle.setAttribute('fill', 'none');
-            failCircle.setAttribute('stroke', 'var(--critical)');
+            failCircle.setAttribute('stroke', 'var(--color-critical)');
             failCircle.setAttribute('stroke-width', '12');
             failCircle.setAttribute('stroke-dasharray', failureDash + ' ' + circumference);
             failCircle.setAttribute('stroke-dashoffset', String(-successDash));

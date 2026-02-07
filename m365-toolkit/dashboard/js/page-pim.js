@@ -392,7 +392,7 @@ const PagePIM = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -402,7 +402,7 @@ const PagePIM = (function() {
             provCircle.setAttribute('cy', '50');
             provCircle.setAttribute('r', '40');
             provCircle.setAttribute('fill', 'none');
-            provCircle.setAttribute('stroke', 'var(--success)');
+            provCircle.setAttribute('stroke', 'var(--color-success)');
             provCircle.setAttribute('stroke-width', '12');
             provCircle.setAttribute('stroke-dasharray', provisionedDash + ' ' + circumference);
             provCircle.setAttribute('stroke-dashoffset', '0');
@@ -415,7 +415,7 @@ const PagePIM = (function() {
             pendCircle.setAttribute('cy', '50');
             pendCircle.setAttribute('r', '40');
             pendCircle.setAttribute('fill', 'none');
-            pendCircle.setAttribute('stroke', 'var(--warning)');
+            pendCircle.setAttribute('stroke', 'var(--color-warning)');
             pendCircle.setAttribute('stroke-width', '12');
             pendCircle.setAttribute('stroke-dasharray', pendingDash + ' ' + circumference);
             pendCircle.setAttribute('stroke-dashoffset', String(-provisionedDash));

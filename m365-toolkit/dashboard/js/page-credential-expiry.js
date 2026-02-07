@@ -151,7 +151,7 @@ const PageCredentialExpiry = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -162,7 +162,7 @@ const PageCredentialExpiry = (function() {
             healthyCircle.setAttribute('cy', '50');
             healthyCircle.setAttribute('r', '40');
             healthyCircle.setAttribute('fill', 'none');
-            healthyCircle.setAttribute('stroke', 'var(--success)');
+            healthyCircle.setAttribute('stroke', 'var(--color-success)');
             healthyCircle.setAttribute('stroke-width', '12');
             healthyCircle.setAttribute('stroke-dasharray', healthyDash + ' ' + circumference);
             healthyCircle.setAttribute('stroke-dashoffset', String(-offset));
@@ -176,7 +176,7 @@ const PageCredentialExpiry = (function() {
             warningCircle.setAttribute('cy', '50');
             warningCircle.setAttribute('r', '40');
             warningCircle.setAttribute('fill', 'none');
-            warningCircle.setAttribute('stroke', 'var(--warning)');
+            warningCircle.setAttribute('stroke', 'var(--color-warning)');
             warningCircle.setAttribute('stroke-width', '12');
             warningCircle.setAttribute('stroke-dasharray', warningDash + ' ' + circumference);
             warningCircle.setAttribute('stroke-dashoffset', String(-offset));
@@ -190,7 +190,7 @@ const PageCredentialExpiry = (function() {
             critCircle.setAttribute('cy', '50');
             critCircle.setAttribute('r', '40');
             critCircle.setAttribute('fill', 'none');
-            critCircle.setAttribute('stroke', 'var(--orange)');
+            critCircle.setAttribute('stroke', 'var(--color-orange)');
             critCircle.setAttribute('stroke-width', '12');
             critCircle.setAttribute('stroke-dasharray', criticalDash + ' ' + circumference);
             critCircle.setAttribute('stroke-dashoffset', String(-offset));
@@ -204,7 +204,7 @@ const PageCredentialExpiry = (function() {
             expCircle.setAttribute('cy', '50');
             expCircle.setAttribute('r', '40');
             expCircle.setAttribute('fill', 'none');
-            expCircle.setAttribute('stroke', 'var(--critical)');
+            expCircle.setAttribute('stroke', 'var(--color-critical)');
             expCircle.setAttribute('stroke-width', '12');
             expCircle.setAttribute('stroke-dasharray', expiredDash + ' ' + circumference);
             expCircle.setAttribute('stroke-dashoffset', String(-offset));

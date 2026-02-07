@@ -20,6 +20,12 @@
 const PageLifecycle = (function() {
     'use strict';
 
+    /** Current tab */
+    var currentTab = 'overview';
+
+    /** Cached page state */
+    var lifecycleState = null;
+
     /**
      * Creates an element with className and textContent.
      */
@@ -105,7 +111,7 @@ const PageLifecycle = (function() {
         bgCircle.setAttribute('cy', '50');
         bgCircle.setAttribute('r', '40');
         bgCircle.setAttribute('fill', 'none');
-        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
         bgCircle.setAttribute('stroke-width', '12');
         svg.appendChild(bgCircle);
 
@@ -115,7 +121,7 @@ const PageLifecycle = (function() {
             healthyCircle.setAttribute('cy', '50');
             healthyCircle.setAttribute('r', '40');
             healthyCircle.setAttribute('fill', 'none');
-            healthyCircle.setAttribute('stroke', 'var(--success)');
+            healthyCircle.setAttribute('stroke', 'var(--color-success)');
             healthyCircle.setAttribute('stroke-width', '12');
             healthyCircle.setAttribute('stroke-dasharray', healthyDash + ' ' + circumference);
             healthyCircle.setAttribute('stroke-dashoffset', '0');
@@ -128,7 +134,7 @@ const PageLifecycle = (function() {
             issuesCircle.setAttribute('cy', '50');
             issuesCircle.setAttribute('r', '40');
             issuesCircle.setAttribute('fill', 'none');
-            issuesCircle.setAttribute('stroke', 'var(--warning)');
+            issuesCircle.setAttribute('stroke', 'var(--color-warning)');
             issuesCircle.setAttribute('stroke-width', '12');
             issuesCircle.setAttribute('stroke-dasharray', issuesDash + ' ' + circumference);
             issuesCircle.setAttribute('stroke-dashoffset', String(-healthyDash));
@@ -240,6 +246,171 @@ const PageLifecycle = (function() {
         }
 
         container.appendChild(insightsList);
+    }
+
+    /**
+     * Switches to a different tab.
+     */
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        renderContent();
+    }
+
+    /**
+     * Renders the content for the current tab.
+     */
+    function renderContent() {
+        var container = document.getElementById('lifecycle-content');
+        if (!container || !lifecycleState) return;
+
+        switch (currentTab) {
+            case 'overview':
+                renderOverviewTab(container);
+                break;
+            case 'issues':
+                renderIssuesTab(container);
+                break;
+        }
+    }
+
+    /**
+     * Renders the Overview tab.
+     */
+    function renderOverviewTab(container) {
+        container.textContent = '';
+        renderLifecycleOverview(container, lifecycleState.stats);
+    }
+
+    /**
+     * Renders the Issues tab with all detail sections.
+     */
+    function renderIssuesTab(container) {
+        container.textContent = '';
+        var data = lifecycleState;
+
+        // Offboarding Issues Section
+        container.appendChild(createSection('Offboarding Issues', 'Disabled accounts that still have licenses or admin roles assigned', [
+            { title: 'Disabled Accounts with Licenses', count: data.disabledWithLicenses.length, tableId: 'offboarding-licenses-table', isFirst: true },
+            { title: 'Inactive Users Still Enabled', count: data.inactiveStillEnabled.length, tableId: 'offboarding-inactive-table' }
+        ]));
+
+        // Onboarding Gaps Section
+        container.appendChild(createSection('Onboarding Gaps', 'New users (last 30 days) missing required setup', [
+            { title: 'New Users Never Signed In', count: data.newUsersNoSignIn.length, tableId: 'onboarding-nosignin-table', isFirst: true },
+            { title: 'New Users Without MFA', count: data.newUsersNoMfa.length, tableId: 'onboarding-nomfa-table' }
+        ]));
+
+        // Role Hygiene Section
+        container.appendChild(createSection('Role Hygiene', 'Admin accounts with security concerns', [
+            { title: 'Inactive Admins', count: data.inactiveAdmins.length, tableId: 'role-inactive-table', isFirst: true },
+            { title: 'Admins Without MFA', count: data.adminsNoMfa.length, tableId: 'role-nomfa-table' }
+        ]));
+
+        // Guest Cleanup Section
+        container.appendChild(createSection('Guest Cleanup', 'External users requiring review or removal', [
+            { title: 'Stale Guests', count: data.staleGuests.length, tableId: 'guest-stale-table', isFirst: true },
+            { title: 'Pending Invitations', count: data.pendingGuests.length, tableId: 'guest-pending-table' }
+        ]));
+
+        // Teams Governance Section
+        container.appendChild(createSection('Teams Governance', 'Teams requiring ownership or access review', [
+            { title: 'Ownerless Teams', count: data.ownerlessTeams.length, tableId: 'teams-ownerless-table', isFirst: true },
+            { title: 'Inactive Teams with Guest Access', count: data.inactiveTeamsWithGuests.length, tableId: 'teams-inactive-guests-table' }
+        ]));
+
+        // SharePoint Governance Section
+        container.appendChild(createSection('SharePoint Governance', 'Sites with sharing exposure, missing labels, or inactive external access', [
+            { title: 'Sites with Anonymous Links', count: data.sitesWithAnonymousLinks.length, tableId: 'sp-anon-links-table', isFirst: true },
+            { title: 'Inactive Sites with External Sharing', count: data.externalInactiveSites.length, tableId: 'sp-external-inactive-table' },
+            { title: 'Sites Without Sensitivity Labels', count: data.sitesWithoutLabels.length, tableId: 'sp-no-labels-table' }
+        ]));
+
+        // Render all tables
+        renderAllTables(data);
+    }
+
+    /**
+     * Renders all issue detail tables.
+     */
+    function renderAllTables(data) {
+        Tables.render({ containerId: 'offboarding-licenses-table', data: data.disabledWithLicenses, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'department', label: 'Department' }, { key: 'licenseCount', label: 'Licenses' },
+            { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'offboarding-inactive-table', data: data.inactiveStillEnabled, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'department', label: 'Department' }, { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+            { key: 'licenseCount', label: 'Licenses' }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'onboarding-nosignin-table', data: data.newUsersNoSignIn, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date }, { key: 'department', label: 'Department' }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'onboarding-nomfa-table', data: data.newUsersNoMfa, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
+            { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'role-inactive-table', data: data.inactiveAdmins, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'roleName', label: 'Role' }, { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'role-nomfa-table', data: data.adminsNoMfa, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'roleName', label: 'Role' }, { key: 'accountEnabled', label: 'Enabled' }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'guest-stale-table', data: data.staleGuests, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'mail', label: 'Email', className: 'cell-truncate' },
+            { key: 'sourceDomain', label: 'Source' }, { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'guest-pending-table', data: data.pendingGuests, columns: [
+            { key: 'displayName', label: 'Name' }, { key: 'mail', label: 'Email', className: 'cell-truncate' },
+            { key: 'sourceDomain', label: 'Source' }, { key: 'createdDateTime', label: 'Invited', formatter: Tables.formatters.date }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'teams-ownerless-table', data: data.ownerlessTeams, columns: [
+            { key: 'displayName', label: 'Team Name' }, { key: 'visibility', label: 'Visibility' },
+            { key: 'memberCount', label: 'Members', className: 'cell-right' },
+            { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+            { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'teams-inactive-guests-table', data: data.inactiveTeamsWithGuests, columns: [
+            { key: 'displayName', label: 'Team Name' }, { key: 'guestCount', label: 'Guests', className: 'cell-right' },
+            { key: 'memberCount', label: 'Members', className: 'cell-right' },
+            { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+            { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'sp-anon-links-table', data: data.sitesWithAnonymousLinks, columns: [
+            { key: 'displayName', label: 'Site Name' }, { key: 'anonymousLinkCount', label: 'Anonymous Links', className: 'cell-right' },
+            { key: 'guestLinkCount', label: 'Guest Links', className: 'cell-right' },
+            { key: 'ownerDisplayName', label: 'Owner' }, { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right' }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'sp-external-inactive-table', data: data.externalInactiveSites, columns: [
+            { key: 'displayName', label: 'Site Name' }, { key: 'externalSharing', label: 'Sharing Policy' },
+            { key: 'totalSharingLinks', label: 'Total Links', className: 'cell-right' },
+            { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+            { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right' }
+        ], pageSize: 10 });
+
+        Tables.render({ containerId: 'sp-no-labels-table', data: data.sitesWithoutLabels, columns: [
+            { key: 'displayName', label: 'Site Name' }, { key: 'template', label: 'Template' },
+            { key: 'ownerDisplayName', label: 'Owner' }, { key: 'externalSharing', label: 'Sharing Policy' },
+            { key: 'fileCount', label: 'Files', className: 'cell-right' }
+        ], pageSize: 10 });
     }
 
     /**
@@ -365,18 +536,16 @@ const PageLifecycle = (function() {
         container.appendChild(pageHeader);
 
         // Summary cards
-        var cardsGrid = el('div', 'cards-grid');
+        var cardsGrid = el('div', 'summary-cards');
         cardsGrid.appendChild(createSummaryCard('Total Issues', totalIssues, totalIssues > 0 ? 'warning' : 'success', totalIssues > 0 ? 'card-warning' : 'card-success'));
-        cardsGrid.appendChild(createSummaryCard('Offboarding Issues', offboardingCount, null, offboardingCount > 0 ? 'card-warning' : null));
+        cardsGrid.appendChild(createSummaryCard('Offboarding', offboardingCount, null, offboardingCount > 0 ? 'card-warning' : null));
         cardsGrid.appendChild(createSummaryCard('Role Hygiene', roleCount, null, roleCount > 0 ? 'card-critical' : null));
         cardsGrid.appendChild(createSummaryCard('Guest Cleanup', guestCount, null, guestCount > 0 ? 'card-warning' : null));
-        cardsGrid.appendChild(createSummaryCard('Teams Governance', teamsIssueCount, teamsIssueCount > 0 ? 'warning' : null, teamsIssueCount > 0 ? 'card-warning' : null));
-        cardsGrid.appendChild(createSummaryCard('SharePoint Governance', spGovernanceCount, spGovernanceCount > 0 ? 'warning' : null, spGovernanceCount > 0 ? 'card-warning' : null));
         container.appendChild(cardsGrid);
 
-        // Lifecycle Overview section
-        var overviewContainer = el('div');
-        var stats = {
+        // Cache state for tab rendering
+        lifecycleState = {
+            stats: {
             totalIssues: totalIssues,
             totalEntities: users.length + guests.length + teams.length + spNonPersonal.length,
             offboardingCount: offboardingCount,
@@ -394,10 +563,52 @@ const PageLifecycle = (function() {
             ownerlessTeams: ownerlessTeams.length,
             anonLinkSites: sitesWithAnonymousLinks.length,
             noLabelSites: sitesWithoutLabels.length
+            },
+            disabledWithLicenses: disabledWithLicenses,
+            inactiveStillEnabled: inactiveStillEnabled,
+            newUsersNoSignIn: newUsersNoSignIn,
+            newUsersNoMfa: newUsersNoMfa,
+            inactiveAdmins: inactiveAdmins,
+            adminsNoMfa: adminsNoMfa,
+            staleGuests: staleGuests,
+            pendingGuests: pendingGuests,
+            ownerlessTeams: ownerlessTeams,
+            inactiveTeamsWithGuests: inactiveTeamsWithGuests,
+            sitesWithAnonymousLinks: sitesWithAnonymousLinks,
+            externalInactiveSites: externalInactiveSites,
+            sitesWithoutLabels: sitesWithoutLabels
         };
-        renderLifecycleOverview(overviewContainer, stats);
-        container.appendChild(overviewContainer);
 
+        // Tab bar
+        var tabBar = el('div', 'tab-bar');
+        var tabs = [
+            { id: 'overview', label: 'Overview' },
+            { id: 'issues', label: 'All Issues (' + totalIssues + ')' }
+        ];
+        tabs.forEach(function(t) {
+            var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
+            btn.dataset.tab = t.id;
+            btn.textContent = t.label;
+            tabBar.appendChild(btn);
+        });
+        container.appendChild(tabBar);
+
+        // Content area
+        var contentArea = el('div', 'content-area');
+        contentArea.id = 'lifecycle-content';
+        container.appendChild(contentArea);
+
+        // Tab handlers
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
+        });
+
+        currentTab = 'overview';
+        renderContent();
+    }
+
+    // Remove old code - the tab functions handle rendering now
+    function legacyCode() {
         // Offboarding Issues Section
         container.appendChild(createSection('Offboarding Issues', 'Disabled accounts that still have licenses or admin roles assigned', [
             { title: 'Disabled Accounts with Licenses', count: disabledWithLicenses.length, tableId: 'offboarding-licenses-table', isFirst: true },
