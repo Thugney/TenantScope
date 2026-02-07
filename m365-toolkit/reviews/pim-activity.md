@@ -22,8 +22,15 @@ PASS with minor risk (principal data depends on Graph expand response)
 - Sample action/status values are compatible with the badge formatters.
 
 ## Gaps / Risks
-- `principalDisplayName` and `principalUpn` rely on `Principal.AdditionalProperties` from `-ExpandProperty "principal"`. If Graph omits those properties, names can become empty. UI still renders but rows show `--`.
+## Status Update (2026-02-07)
+- Resolved: principal identity now falls back to typed properties when `AdditionalProperties` are missing.
+
+## Gaps / Risks
+- If Graph omits both `AdditionalProperties` and typed principal fields, names can still be empty. UI renders but rows show `--`.
 - Sorting uses `createdDateTime` and expects ISO strings; collector uses `.ToString('o')` so format is fine.
+
+## UI Notes
+- Resolved (2026-02-07): donut segments match Provisioned/Pending/Revoked; Total Requests and Eligible Roles are listed without dots.
 
 ## Graph Collection Details
 - Endpoints: `GET /roleManagement/directory/roleAssignmentScheduleRequests`, `GET /roleManagement/directory/roleEligibilitySchedules`

@@ -39,3 +39,6 @@ PASS (no required-field gaps found)
 
 ## Duplicate Code Check
 - Credential expiry status logic now uses shared `Get-CredentialStatus` (duplicate removed).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Expired/Critical/Warning/Attention/Healthy; No Creds is listed without a dot.

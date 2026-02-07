@@ -49,10 +49,15 @@ const PageSecurity = (function() {
         const scoreTextClass = scorePct >= 70 ? 'text-success' : (scorePct >= 40 ? 'text-warning' : 'text-critical');
         const scoreCardClass = scorePct >= 70 ? 'card-success' : (scorePct >= 40 ? 'card-warning' : 'card-danger');
 
-        // Total admins (unique)
+        // Total admins (unique) - user principals only
         const adminUserIds = new Set();
         adminRoles.forEach(role => {
-            (role.members || []).forEach(m => adminUserIds.add(m.userId));
+            (role.members || []).forEach(m => {
+                if (m && m.memberType && m.memberType !== 'User') return;
+                if (m && m.userId) {
+                    adminUserIds.add(m.userId);
+                }
+            });
         });
 
         return {
@@ -130,14 +135,22 @@ const PageSecurity = (function() {
         // Donut chart for MFA coverage
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var mfaOffset = circumference - (mfaPct / 100) * circumference;
-        var mfaColor = mfaPct >= 90 ? 'var(--color-success)' : mfaPct >= 70 ? 'var(--color-warning)' : 'var(--color-critical)';
+        var totalForChart = mfaRegistered + data.noMfaUsers.length;
+        var mfaDash = totalForChart > 0 ? (mfaRegistered / totalForChart) * circumference : 0;
+        var noMfaDash = totalForChart > 0 ? (data.noMfaUsers.length / totalForChart) * circumference : 0;
 
         html += '<div class="compliance-chart">';
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + mfaColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + mfaOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (mfaRegistered > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + mfaDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += mfaDash;
+        }
+        if (data.noMfaUsers.length > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + noMfaDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + mfaClass + '">' + mfaPct + '%</span><span class="donut-label">MFA Coverage</span></div>';
         html += '</div></div>';
@@ -146,8 +159,8 @@ const PageSecurity = (function() {
         html += '<div class="compliance-legend">';
         html += '<div class="legend-item"><span class="legend-dot bg-success"></span> MFA Enrolled: <strong>' + mfaRegistered + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> No MFA: <strong>' + data.noMfaUsers.length + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> High Risk Sign-ins: <strong>' + data.highRiskCount + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Active Alerts: <strong>' + (newAlerts + inProgressAlerts) + '</strong></div>';
+        html += '<div class="legend-item">High Risk Sign-ins: <strong>' + data.highRiskCount + '</strong></div>';
+        html += '<div class="legend-item">Active Alerts: <strong>' + (newAlerts + inProgressAlerts) + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid with platform-list pattern

@@ -61,11 +61,22 @@ try {
     Write-Host "    Collecting Microsoft Secure Score..." -ForegroundColor Gray
 
     # Fetch the most recent secure score
-    $response = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/v1.0/security/secureScores?`$top=1" `
-            -OutputType PSObject
-    } -OperationName "Secure Score retrieval"
+    $response = $null
+    try {
+        $response = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET `
+                -Uri "https://graph.microsoft.com/v1.0/security/secureScores?`$orderby=createdDateTime desc&`$top=1" `
+                -OutputType PSObject
+        } -OperationName "Secure Score retrieval"
+    }
+    catch {
+        Write-Host "    [!] Secure Score orderby not supported, falling back to default ordering" -ForegroundColor Yellow
+        $response = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET `
+                -Uri "https://graph.microsoft.com/v1.0/security/secureScores?`$top=1" `
+                -OutputType PSObject
+        } -OperationName "Secure Score retrieval (fallback)"
+    }
 
     $scores = $response.value
     if (-not $scores -or $scores.Count -eq 0) {

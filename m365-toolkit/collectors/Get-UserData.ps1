@@ -126,6 +126,9 @@ try {
     # Transform users into our output schema
     $processedUsers = @()
     $inactiveThreshold = $Config.thresholds.inactiveDays
+    if ($null -eq $inactiveThreshold -or $inactiveThreshold -le 0) {
+        $inactiveThreshold = 90
+    }
 
     foreach ($user in $graphUsers) {
         # Skip Guest users - they're collected separately
@@ -180,6 +183,7 @@ try {
                 $assignmentState = "Active"
                 $assignmentError = $null
 
+                $assignmentCounted = $false
                 if ($user.LicenseAssignmentStates) {
                     $state = $user.LicenseAssignmentStates | Where-Object { $_.SkuId -eq $license.SkuId } | Select-Object -First 1
                     if ($state) {
@@ -193,7 +197,11 @@ try {
                         }
                         $assignmentState = $state.State
                         $assignmentError = $state.Error
+                        $assignmentCounted = $true
                     }
+                }
+                if (-not $assignmentCounted) {
+                    $directLicenseCount++
                 }
 
                 $assignedLicenses += [PSCustomObject]@{
@@ -229,6 +237,10 @@ try {
             $managerId = $user.Manager.Id
             $managerUpn = $user.Manager.AdditionalProperties.userPrincipalName
             $managerMail = $user.Manager.AdditionalProperties.mail
+
+            if (-not $managerName -and $user.Manager.DisplayName) { $managerName = $user.Manager.DisplayName }
+            if (-not $managerUpn -and $user.Manager.UserPrincipalName) { $managerUpn = $user.Manager.UserPrincipalName }
+            if (-not $managerMail -and $user.Manager.Mail) { $managerMail = $user.Manager.Mail }
         }
 
         # Determine user source (cloud-only vs on-premises synced)

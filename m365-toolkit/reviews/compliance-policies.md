@@ -42,3 +42,6 @@ PASS (no required-field gaps found)
 
 ## Duplicate Code Check
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Compliant/Non-Compliant/Errors.

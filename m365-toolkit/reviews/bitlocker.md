@@ -4,7 +4,7 @@
 **Dashboard pages**: BitLocker Status
 
 ## Status
-PASS (no required-field gaps found)
+PASS
 
 ## Required Dashboard Fields (BitLocker)
 **Device rows**
@@ -23,8 +23,10 @@ PASS (no required-field gaps found)
 - `recoveryKeyEscrowed` is derived from recovery key presence for UI compatibility.
 - Uses live Graph data (no sample/static data paths).
 
+## Status Update (2026-02-07)
+- Resolved: `isEncrypted` now preserves `$null` when Graph returns `null` instead of coercing to `false`.
+
 ## Risks / Notes
-- `isEncrypted` is forced to `[bool]`; if Graph returns `null`, it becomes `false` and can over-count “Not Encrypted”.
 - Recovery keys retrieval needs `BitLockerKey.ReadBasic.All` or `BitLockerKey.Read.All`; without it, `recoveryKeyEscrowed` will be false for all devices.
 
 ## Graph Collection Details
@@ -36,3 +38,6 @@ PASS (no required-field gaps found)
 
 ## Duplicate Code Check
 - No new duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Encrypted/Not Encrypted/Unknown; Keys Escrowed is listed without a dot.

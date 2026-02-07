@@ -203,6 +203,9 @@ const PageDevices = (function() {
         var insights = data.insights || [];
 
         var rateClass = summary.complianceRate >= 90 ? 'text-success' : summary.complianceRate >= 70 ? 'text-warning' : 'text-critical';
+        var compliant = summary.compliantDevices || 0;
+        var noncompliant = summary.noncompliantDevices || 0;
+        var unknown = summary.unknownDevices || 0;
 
         var html = '<div class="analytics-section">';
         html += '<h3>Device Compliance Overview</h3>';
@@ -210,20 +213,34 @@ const PageDevices = (function() {
         html += '<div class="compliance-chart">';
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var compliantOffset = circumference - (summary.complianceRate / 100) * circumference;
+        var totalForChart = compliant + noncompliant + unknown;
+        var compliantDash = totalForChart > 0 ? (compliant / totalForChart) * circumference : 0;
+        var noncompliantDash = totalForChart > 0 ? (noncompliant / totalForChart) * circumference : 0;
+        var unknownDash = totalForChart > 0 ? (unknown / totalForChart) * circumference : 0;
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + compliantOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (compliant > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + compliantDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += compliantDash;
+        }
+        if (noncompliant > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + noncompliantDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += noncompliantDash;
+        }
+        if (unknown > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + unknownDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(summary.complianceRate) + '%</span><span class="donut-label">Compliant</span></div>';
         html += '</div>';
         html += '</div>';
         html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Compliant: <strong>' + summary.compliantDevices + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Non-Compliant: <strong>' + summary.noncompliantDevices + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Unknown: <strong>' + summary.unknownDevices + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Stale: <strong>' + summary.staleDevices + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Compliant: <strong>' + compliant + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Non-Compliant: <strong>' + noncompliant + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Unknown: <strong>' + unknown + '</strong></div>';
+        html += '<div class="legend-item">Stale: <strong>' + summary.staleDevices + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid
@@ -406,6 +423,7 @@ const PageDevices = (function() {
                 // Compliance
                 { key: 'complianceState', label: 'Compliance' },
                 { key: 'inGracePeriod', label: 'In Grace Period' },
+                { key: 'nonCompliantPolicyCount', label: 'Non-Compliant Policies' },
                 // Activity
                 { key: 'lastSync', label: 'Last Sync' },
                 { key: 'daysSinceSync', label: 'Days Since Sync' },
@@ -433,6 +451,7 @@ const PageDevices = (function() {
                 // Management
                 { key: 'joinType', label: 'Join Type' },
                 { key: 'managementAgent', label: 'Mgmt Agent' },
+                { key: 'managementSource', label: 'Source' },
                 // Certificates
                 { key: 'certStatus', label: 'Cert Status' },
                 { key: 'daysUntilCertExpiry', label: 'Cert Days' },
@@ -518,6 +537,7 @@ const PageDevices = (function() {
             // Compliance
             { key: 'complianceState', label: 'Compliance', formatter: formatCompliance },
             { key: 'inGracePeriod', label: 'In Grace Period', formatter: formatBoolean },
+            { key: 'nonCompliantPolicyCount', label: 'Non-Compliant Policies', formatter: function(v) { return v === null || v === undefined ? '--' : v; } },
             // Activity
             { key: 'lastSync', label: 'Last Sync', formatter: formatDate },
             { key: 'daysSinceSync', label: 'Days Since Sync', formatter: formatDaysSinceSync },
@@ -545,6 +565,7 @@ const PageDevices = (function() {
             // Management
             { key: 'joinType', label: 'Join Type' },
             { key: 'managementAgent', label: 'Mgmt Agent' },
+            { key: 'managementSource', label: 'Source' },
             // Certificates
             { key: 'certStatus', label: 'Cert Status', formatter: formatCertStatus },
             { key: 'daysUntilCertExpiry', label: 'Cert Days', formatter: formatCertDays },
@@ -823,7 +844,9 @@ const PageDevices = (function() {
     }
 
     function formatOwnership(v) {
-        return v === 'corporate' ? '<span class="badge badge-info">Corporate</span>' : '<span class="badge badge-neutral">Personal</span>';
+        if (v === 'corporate') return '<span class="badge badge-info">Corporate</span>';
+        if (v === 'personal') return '<span class="badge badge-neutral">Personal</span>';
+        return '<span class="badge badge-neutral">Unknown</span>';
     }
 
     function formatBoolean(v) {
@@ -987,6 +1010,12 @@ const PageDevices = (function() {
         if (device.complianceGraceDays) {
             html += '<dt>Grace Period Ends</dt><dd>' + device.complianceGraceDays + ' days</dd>';
         }
+        if (device.nonCompliantPolicyCount !== null && device.nonCompliantPolicyCount !== undefined) {
+            html += '<dt>Non-Compliant Policies</dt><dd>' + device.nonCompliantPolicyCount + '</dd>';
+            if (device.nonCompliantPolicies && device.nonCompliantPolicies.length > 0) {
+                html += '<dt>Policy Names</dt><dd>' + device.nonCompliantPolicies.join(', ') + '</dd>';
+            }
+        }
         html += '</dl></div>';
 
         // Enrollment & Management
@@ -997,8 +1026,14 @@ const PageDevices = (function() {
         html += '<dt>Enrollment Profile</dt><dd>' + (device.enrollmentProfileName || '--') + '</dd>';
         html += '<dt>Join Type</dt><dd>' + (device.joinType || '--') + '</dd>';
         html += '<dt>Management Agent</dt><dd>' + (device.managementAgent || '--') + '</dd>';
+        html += '<dt>Management Source</dt><dd>' + (device.managementSource || '--') + '</dd>';
         html += '<dt>Enrolled</dt><dd>' + (device.enrolledDateTime ? new Date(device.enrolledDateTime).toLocaleDateString() : '--') + '</dd>';
-        html += '<dt>Autopilot Enrolled</dt><dd>' + (device.autopilotEnrolled ? '<span class="text-success">Yes</span>' : 'No') + '</dd>';
+        var autopilotLabel = device.autopilotEnrolled === true
+            ? '<span class="text-success">Yes</span>'
+            : device.autopilotEnrolled === false
+                ? 'No'
+                : '--';
+        html += '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>';
         html += '</dl></div>';
 
         // Sync & Certificates

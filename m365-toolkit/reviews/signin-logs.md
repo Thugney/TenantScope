@@ -27,3 +27,6 @@ PASS (no required-field gaps found)
 ## Risks / Notes
 - Sign-in log access requires Entra ID P1/P2; without it, the collector writes an empty structure.
 - The 2000-record cap is intentional for performance, but will truncate large tenants (documented behavior).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Success/Failed/Interrupted; Risky is listed without a dot.

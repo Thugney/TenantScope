@@ -142,16 +142,29 @@ const PageEndpointAnalytics = (function() {
         if (total > 0) {
             var healthRadius = 40;
             var healthCircum = 2 * Math.PI * healthRadius;
-            var excellentPct = (summary.excellent / total) * 100;
-            var goodPct = (summary.good / total) * 100;
-            var fairPct = (summary.fair / total) * 100;
-            var poorPct = (summary.poor / total) * 100;
-            var excellentOffset = healthCircum - (excellentPct / 100) * healthCircum;
+            var excellentDash = (summary.excellent / total) * healthCircum;
+            var goodDash = (summary.good / total) * healthCircum;
+            var fairDash = (summary.fair / total) * healthCircum;
+            var poorDash = (summary.poor / total) * healthCircum;
             html += '<div class="donut-chart">';
             html += '<svg viewBox="0 0 100 100" class="donut">';
             html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-            // Excellent (green)
-            html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + healthCircum + '" stroke-dashoffset="' + excellentOffset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+            var offset = 0;
+            if (summary.excellent > 0) {
+                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + excellentDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+                offset += excellentDash;
+            }
+            if (summary.good > 0) {
+                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-accent)" stroke-width="10" stroke-dasharray="' + goodDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+                offset += goodDash;
+            }
+            if (summary.fair > 0) {
+                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + fairDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+                offset += fairDash;
+            }
+            if (summary.poor > 0) {
+                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + poorDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+            }
             html += '</svg>';
             html += '<div class="donut-center"><span class="donut-value">' + total + '</span><span class="donut-label">Devices</span></div>';
             html += '</div>';

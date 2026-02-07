@@ -208,10 +208,10 @@ const PageEnterpriseApps = (function() {
         var apps = data.apps;
         var insights = data.insights || [];
 
-        // Calculate rates for third-party apps with credentials
-        var thirdPartyWithCreds = apps.filter(function(a) { return !a.isMicrosoft && a.hasCredentials; }).length;
-        var healthyRate = thirdPartyWithCreds > 0
-            ? Math.round((summary.healthyCredentials / thirdPartyWithCreds) * 100)
+        // Calculate rates for third-party apps with credentials (status distribution)
+        var statusTotal = summary.expiredCredentials + summary.criticalIn7Days + summary.warningIn30Days + summary.attentionIn90Days + summary.healthyCredentials;
+        var healthyRate = statusTotal > 0
+            ? Math.round((summary.healthyCredentials / statusTotal) * 100)
             : 0;
         var rateClass = healthyRate >= 80 ? 'text-success' : healthyRate >= 50 ? 'text-warning' : 'text-critical';
 
@@ -224,11 +224,34 @@ const PageEnterpriseApps = (function() {
         html += '<div class="compliance-chart">';
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var healthyOffset = circumference - (healthyRate / 100) * circumference;
+        var expiredDash = statusTotal > 0 ? (summary.expiredCredentials / statusTotal) * circumference : 0;
+        var criticalDash = statusTotal > 0 ? (summary.criticalIn7Days / statusTotal) * circumference : 0;
+        var warningDash = statusTotal > 0 ? (summary.warningIn30Days / statusTotal) * circumference : 0;
+        var attentionDash = statusTotal > 0 ? (summary.attentionIn90Days / statusTotal) * circumference : 0;
+        var healthyDash = statusTotal > 0 ? (summary.healthyCredentials / statusTotal) * circumference : 0;
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + healthyOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (summary.expiredCredentials > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + expiredDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += expiredDash;
+        }
+        if (summary.criticalIn7Days > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="#ea580c" stroke-width="10" stroke-dasharray="' + criticalDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += criticalDash;
+        }
+        if (summary.warningIn30Days > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + warningDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += warningDash;
+        }
+        if (summary.attentionIn90Days > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-accent)" stroke-width="10" stroke-dasharray="' + attentionDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += attentionDash;
+        }
+        if (summary.healthyCredentials > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + healthyDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + healthyRate + '%</span><span class="donut-label">Healthy</span></div>';
         html += '</div></div>';
@@ -236,9 +259,11 @@ const PageEnterpriseApps = (function() {
         // Legend
         html += '<div class="compliance-legend">';
         html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Expired: <strong>' + summary.expiredCredentials + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot bg-orange"></span> Critical (7d): <strong>' + summary.criticalIn7Days + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Warning (30d): <strong>' + summary.warningIn30Days + '</strong></div>';
+        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Attention (90d): <strong>' + summary.attentionIn90Days + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Healthy: <strong>' + summary.healthyCredentials + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> No Creds: <strong>' + summary.appsWithNoCredentials + '</strong></div>';
+        html += '<div class="legend-item">No Creds: <strong>' + summary.appsWithNoCredentials + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid - matching Devices page pattern

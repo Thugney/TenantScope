@@ -50,3 +50,6 @@ PASS (no required-field gaps found)
 
 ## Duplicate Code Check
 - No new duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): device health donut now renders Excellent/Good/Fair/Poor segments; legend aligns with the ring.

@@ -148,6 +148,7 @@ const PageConfigurationProfiles = (function() {
         var successPct = totalDevices > 0 ? Math.round((successDevices / totalDevices) * 100) : 0;
         var errorPct = totalDevices > 0 ? Math.round((errorDevices / totalDevices) * 100) : 0;
         var conflictPct = totalDevices > 0 ? Math.round((conflictDevices / totalDevices) * 100) : 0;
+        var pendingPct = totalDevices > 0 ? Math.round((pendingDevices / totalDevices) * 100) : 0;
 
         var rateClass = overallSuccessRate >= 90 ? 'text-success' : overallSuccessRate >= 70 ? 'text-warning' : 'text-critical';
 
@@ -159,12 +160,31 @@ const PageConfigurationProfiles = (function() {
         // Create SVG donut chart
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var successOffset = circumference - (successPct / 100) * circumference;
+        var totalForChart = successDevices + errorDevices + conflictDevices + pendingDevices;
+        var successDash = totalForChart > 0 ? (successDevices / totalForChart) * circumference : 0;
+        var errorDash = totalForChart > 0 ? (errorDevices / totalForChart) * circumference : 0;
+        var conflictDash = totalForChart > 0 ? (conflictDevices / totalForChart) * circumference : 0;
+        var pendingDash = totalForChart > 0 ? (pendingDevices / totalForChart) * circumference : 0;
 
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + successOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (successDevices > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + successDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += successDash;
+        }
+        if (errorDevices > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + errorDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += errorDash;
+        }
+        if (conflictDevices > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + conflictDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += conflictDash;
+        }
+        if (pendingDevices > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + pendingDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(overallSuccessRate) + '%</span><span class="donut-label">Success</span></div>';
         html += '</div>';

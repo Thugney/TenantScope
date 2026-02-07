@@ -215,8 +215,7 @@ const PageLicenses = (function() {
         var legendItems = [
             { cls: 'bg-success', label: 'Active Use', value: activeUse.toLocaleString() },
             { cls: 'bg-critical', label: 'Wasted', value: data.totals.waste.toLocaleString() },
-            { cls: 'bg-warning', label: 'Available', value: (data.totals.purchased - data.totals.assigned).toLocaleString() },
-            { cls: 'bg-info', label: 'Total Purchased', value: data.totals.purchased.toLocaleString() }
+            { cls: 'bg-warning', label: 'Available', value: (data.totals.purchased - data.totals.assigned).toLocaleString() }
         ];
         legendItems.forEach(function(item) {
             var legendItem = el('div', 'legend-item');
@@ -225,6 +224,10 @@ const PageLicenses = (function() {
             legendItem.appendChild(el('strong', null, item.value));
             legend.appendChild(legendItem);
         });
+        var metricItem = el('div', 'legend-item');
+        metricItem.appendChild(document.createTextNode('Total Purchased: '));
+        metricItem.appendChild(el('strong', null, data.totals.purchased.toLocaleString()));
+        legend.appendChild(metricItem);
         complianceOverview.appendChild(legend);
         section.appendChild(complianceOverview);
         container.appendChild(section);

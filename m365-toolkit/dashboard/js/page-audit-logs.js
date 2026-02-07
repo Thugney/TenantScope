@@ -44,6 +44,15 @@ const PageAuditLogs = (function() {
         }
     }
 
+    function isSuccessResult(result) {
+        return (result || '').toLowerCase() === 'success';
+    }
+
+    function isFailureResult(result) {
+        if (!result) return false;
+        return (result || '').toLowerCase() !== 'success';
+    }
+
     function renderOverview(container, state) {
         container.textContent = '';
 
@@ -134,9 +143,7 @@ const PageAuditLogs = (function() {
         legend.className = 'compliance-legend';
         var legendItems = [
             { cls: 'bg-success', label: 'Successful', value: state.successCount },
-            { cls: 'bg-critical', label: 'Failed', value: state.failureCount },
-            { cls: 'bg-info', label: 'Total Events', value: total },
-            { cls: 'bg-primary', label: 'Categories', value: Object.keys(state.categories).length }
+            { cls: 'bg-critical', label: 'Failed', value: state.failureCount }
         ];
         legendItems.forEach(function(item) {
             var legendItem = document.createElement('div');
@@ -145,6 +152,19 @@ const PageAuditLogs = (function() {
             dot.className = 'legend-dot ' + item.cls;
             legendItem.appendChild(dot);
             legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            var strong = document.createElement('strong');
+            strong.textContent = item.value;
+            legendItem.appendChild(strong);
+            legend.appendChild(legendItem);
+        });
+        var metricItems = [
+            { label: 'Total Events', value: total },
+            { label: 'Categories', value: Object.keys(state.categories).length }
+        ];
+        metricItems.forEach(function(item) {
+            var legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            legendItem.appendChild(document.createTextNode(item.label + ': '));
             var strong = document.createElement('strong');
             strong.textContent = item.value;
             legendItem.appendChild(strong);
@@ -256,7 +276,7 @@ const PageAuditLogs = (function() {
         container.appendChild(insightsList);
 
         // Failed events table
-        var failedEvents = state.auditLogs.filter(function(e) { return e.result === 'failure'; });
+        var failedEvents = state.auditLogs.filter(function(e) { return isFailureResult(e.result); });
         if (failedEvents.length > 0) {
             var failSection = document.createElement('div');
             failSection.className = 'analytics-section';
@@ -390,8 +410,8 @@ const PageAuditLogs = (function() {
 
         // Calculate stats
         var totalEvents = auditLogs.length;
-        var successCount = auditLogs.filter(function(e) { return e.result === 'success'; }).length;
-        var failureCount = auditLogs.filter(function(e) { return e.result === 'failure'; }).length;
+        var successCount = auditLogs.filter(function(e) { return isSuccessResult(e.result); }).length;
+        var failureCount = auditLogs.filter(function(e) { return isFailureResult(e.result); }).length;
 
         // Count categories
         var categories = {};

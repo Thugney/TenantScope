@@ -150,6 +150,48 @@ function Get-GraphPropertyValue {
     return $null
 }
 
+function Get-GraphAllPages {
+    <#
+    .SYNOPSIS
+        Retrieves all pages for a Graph request that uses @odata.nextLink.
+
+    .PARAMETER Uri
+        The initial request URI.
+
+    .PARAMETER OperationName
+        Name used for logging/retry context.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri,
+
+        [Parameter(Mandatory)]
+        [string]$OperationName
+    )
+
+    $results = @()
+    $response = Invoke-GraphWithRetry -ScriptBlock {
+        Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
+    } -OperationName $OperationName
+
+    if ($response.value) {
+        $results += $response.value
+    }
+
+    while ($response.'@odata.nextLink') {
+        $response = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
+        } -OperationName "$OperationName pagination"
+
+        if ($response.value) {
+            $results += $response.value
+        }
+    }
+
+    return $results
+}
+
 function Get-GroupDisplayName {
     <#
     .SYNOPSIS

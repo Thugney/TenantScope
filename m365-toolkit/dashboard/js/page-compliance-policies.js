@@ -149,12 +149,26 @@ const PageCompliancePolicies = (function() {
 
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var compliantOffset = circumference - (rate / 100) * circumference;
+        var totalForChart = compliant + nonCompliant + error;
+        var compliantDash = totalForChart > 0 ? (compliant / totalForChart) * circumference : 0;
+        var nonCompliantDash = totalForChart > 0 ? (nonCompliant / totalForChart) * circumference : 0;
+        var errorDash = totalForChart > 0 ? (error / totalForChart) * circumference : 0;
 
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + compliantOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (compliant > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + compliantDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += compliantDash;
+        }
+        if (nonCompliant > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + nonCompliantDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += nonCompliantDash;
+        }
+        if (error > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + errorDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(rate) + '%</span><span class="donut-label">Compliant</span></div>';
         html += '</div>';

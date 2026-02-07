@@ -21,9 +21,8 @@ PASS (no field gaps detected)
 - Sample includes all dashboard-required fields and matches collector naming.
 - Sample does **not** include `targetResourceId`, `targetResources`, or `modifiedProperties`, which are extra fields in the collector output.
 
-## Gaps / Risks
-- The UI counts failures using `result === 'failure'`. If Graph returns `timeout` or other non-success statuses, they will not be counted as failures in the summary.
-- `activityDateTime` uses ISO 8601 with fractional seconds from `ToString('o')`; ensure consumers tolerate that format (DataLoader formatting currently does).
+## Status Update (2026-02-07)
+- Resolved: UI now treats any non-success `result` as a failure in summaries and failure tables.
 
 ## Graph Collection Details
 - Endpoint: `GET /auditLogs/directoryAudits`
@@ -33,3 +32,6 @@ PASS (no field gaps detected)
 
 ## Duplicate Code Check
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): legend dots now only represent Success/Failure segments; totals are listed without dots.

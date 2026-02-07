@@ -235,8 +235,7 @@ const PageCredentialExpiry = (function() {
             { cls: 'bg-success', label: 'Healthy', value: state.healthy },
             { cls: 'bg-warning', label: 'Warning (< 60 days)', value: state.warning },
             { cls: 'bg-orange', label: 'Critical (< 30 days)', value: state.critical },
-            { cls: 'bg-critical', label: 'Expired', value: state.expired },
-            { cls: 'bg-info', label: 'Total Credentials', value: total }
+            { cls: 'bg-critical', label: 'Expired', value: state.expired }
         ];
         legendItems.forEach(function(item) {
             var legendItem = document.createElement('div');
@@ -250,6 +249,13 @@ const PageCredentialExpiry = (function() {
             legendItem.appendChild(strong);
             legend.appendChild(legendItem);
         });
+        var metricItem = document.createElement('div');
+        metricItem.className = 'legend-item';
+        metricItem.appendChild(document.createTextNode('Total Credentials: '));
+        var totalStrong = document.createElement('strong');
+        totalStrong.textContent = total;
+        metricItem.appendChild(totalStrong);
+        legend.appendChild(metricItem);
         complianceOverview.appendChild(legend);
         section.appendChild(complianceOverview);
         container.appendChild(section);

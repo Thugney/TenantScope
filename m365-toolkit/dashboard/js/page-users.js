@@ -611,10 +611,7 @@ const PageUsers = (function() {
         legend.className = 'compliance-legend';
         var legendItems = [
             { cls: 'bg-success', label: 'MFA Enrolled', value: stats.mfaCount },
-            { cls: 'bg-critical', label: 'Without MFA', value: stats.noMfaCount },
-            { cls: 'bg-info', label: 'Enabled', value: stats.enabledCount },
-            { cls: 'bg-neutral', label: 'Disabled', value: stats.disabledCount },
-            { cls: 'bg-warning', label: 'Inactive', value: stats.inactiveCount }
+            { cls: 'bg-critical', label: 'Without MFA', value: stats.noMfaCount }
         ];
         legendItems.forEach(function(item) {
             var legendItem = document.createElement('div');
@@ -623,6 +620,21 @@ const PageUsers = (function() {
             dot.className = 'legend-dot ' + item.cls;
             legendItem.appendChild(dot);
             legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            var strong = document.createElement('strong');
+            strong.textContent = item.value;
+            legendItem.appendChild(strong);
+            legend.appendChild(legendItem);
+        });
+
+        var metricItems = [
+            { label: 'Enabled', value: stats.enabledCount },
+            { label: 'Disabled', value: stats.disabledCount },
+            { label: 'Inactive', value: stats.inactiveCount }
+        ];
+        metricItems.forEach(function(item) {
+            var legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            legendItem.appendChild(document.createTextNode(item.label + ': '));
             var strong = document.createElement('strong');
             strong.textContent = item.value;
             legendItem.appendChild(strong);

@@ -458,9 +458,7 @@ const PagePIM = (function() {
         var legendItems = [
             { cls: 'bg-success', label: 'Provisioned', value: provisionedCount },
             { cls: 'bg-warning', label: 'Pending', value: pendingCount },
-            { cls: 'bg-neutral', label: 'Revoked', value: revokedCount },
-            { cls: 'bg-info', label: 'Total Requests', value: total },
-            { cls: 'bg-primary', label: 'Eligible Roles', value: eligible.length }
+            { cls: 'bg-neutral', label: 'Revoked', value: revokedCount }
         ];
         legendItems.forEach(function(item) {
             var legendItem = document.createElement('div');
@@ -469,6 +467,19 @@ const PagePIM = (function() {
             dot.className = 'legend-dot ' + item.cls;
             legendItem.appendChild(dot);
             legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            var strong = document.createElement('strong');
+            strong.textContent = item.value;
+            legendItem.appendChild(strong);
+            legend.appendChild(legendItem);
+        });
+        var metricItems = [
+            { label: 'Total Requests', value: total },
+            { label: 'Eligible Roles', value: eligible.length }
+        ];
+        metricItems.forEach(function(item) {
+            var legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            legendItem.appendChild(document.createTextNode(item.label + ': '));
             var strong = document.createElement('strong');
             strong.textContent = item.value;
             legendItem.appendChild(strong);

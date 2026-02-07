@@ -4,7 +4,7 @@
 **Dashboard pages**: Users, Data Quality, Organization, Security, Lifecycle, App Usage, License Analysis, Overview
 
 ## Status
-PASS with risks (sign-in licensing + inactive threshold + direct/group license counts)
+PASS with risks (sign-in licensing + MFA cross-reference dependency)
 
 ## Required Dashboard Fields (Users)
 `id`, `displayName`, `userPrincipalName`, `mail`, `domain`, `accountEnabled`, `userSource`,
@@ -23,11 +23,13 @@ PASS with risks (sign-in licensing + inactive threshold + direct/group license c
 - Sample includes all dashboard-required fields and matches collector naming.
 - Sample includes `flags: ["admin"]`, which the collector does **not** set directly; this relies on the admin-role cross‑reference step.
 
+## Status Update (2026-02-07)
+- Resolved: Inactive threshold now defaults to `90` days when config is missing or invalid.
+- Resolved: Direct/group license counts now fall back to direct counts when `licenseAssignmentStates` is missing.
+- Resolved: Manager fields now fallback to typed properties when `AdditionalProperties` are missing.
+
 ## Gaps / Risks
-- **Sign‑in licensing**: `signInActivity` requires Entra ID P1/P2. If unavailable, `lastSignIn` is null and `Get-ActivityStatus` treats activity as `unknown`, resulting in `isInactive = false` for all users. Inactive user counts will be under‑reported.
-- **Inactive threshold**: `inactiveThreshold` is pulled from `config.json`. If missing or null, PowerShell treats the int parameter as `0`, which can mark all users inactive. Current sample config sets `inactiveDays: 90`, so this is only a risk if config is altered or missing.
-- **Direct vs group license counts**: `directLicenseCount` and `groupLicenseCount` are only incremented when `licenseAssignmentStates` is populated. If Graph omits `licenseAssignmentStates`, counts stay `0` even when licenses exist (while `assignedLicenses` still shows `assignmentSource: Direct`).
-- **Manager expansion**: manager fields rely on `-ExpandProperty "manager"`. If the Graph response omits `AdditionalProperties`, org hierarchy will show more orphan users.
+- **Sign‑in licensing**: `signInActivity` requires Entra ID P1/P2. If unavailable, `lastSignIn` is null and `Get-ActivityStatus` marks activity as `unknown`, resulting in `isInactive = false` for all users. Inactive user counts will be under‑reported.
 - **MFA cross‑reference dependency**: if MFA collection fails, all users remain `mfaRegistered = true`, and security/MFA insights will be inaccurate.
 
 ## Graph Collection Details
@@ -37,3 +39,6 @@ PASS with risks (sign-in licensing + inactive threshold + direct/group license c
 
 ## Duplicate Code Check
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments match MFA Enrolled/Without MFA; Enabled/Disabled/Inactive are listed without dots.

@@ -159,13 +159,10 @@ const PageLifecycle = (function() {
 
         // Legend
         var legend = el('div', 'compliance-legend');
+        var healthyCount = Math.max((stats.totalEntities || 0) - (stats.totalIssues || 0), 0);
         var legendItems = [
-            { cls: 'bg-warning', label: 'Offboarding Issues', value: stats.offboardingCount },
-            { cls: 'bg-info', label: 'Onboarding Gaps', value: stats.onboardingCount },
-            { cls: 'bg-critical', label: 'Role Hygiene', value: stats.roleCount },
-            { cls: 'bg-orange', label: 'Guest Cleanup', value: stats.guestCount },
-            { cls: 'bg-purple', label: 'Teams Governance', value: stats.teamsCount },
-            { cls: 'bg-primary', label: 'SharePoint', value: stats.spCount }
+            { cls: 'bg-success', label: 'Healthy', value: healthyCount },
+            { cls: 'bg-warning', label: 'Issues', value: stats.totalIssues }
         ];
         legendItems.forEach(function(item) {
             var legendItem = el('div', 'legend-item');
@@ -195,7 +192,16 @@ const PageLifecycle = (function() {
             { name: 'Disabled w/ Licenses', count: stats.disabledWithLicenses, pct: stats.offboardingCount > 0 ? Math.round((stats.disabledWithLicenses / stats.offboardingCount) * 100) : 0, cls: 'bg-warning', showCount: true },
             { name: 'Disabled Admins', count: stats.disabledAdmins, pct: stats.offboardingCount > 0 ? Math.round((stats.disabledAdmins / stats.offboardingCount) * 100) : 0, cls: 'bg-critical', showCount: true },
             { name: 'Inactive Still Enabled', count: stats.inactiveEnabled, pct: stats.offboardingCount > 0 ? Math.round((stats.inactiveEnabled / stats.offboardingCount) * 100) : 0, cls: 'bg-info', showCount: true },
+            { name: 'Leave Date Passed', count: stats.overdueLeavers || 0, pct: stats.offboardingCount > 0 ? Math.round(((stats.overdueLeavers || 0) / stats.offboardingCount) * 100) : 0, cls: 'bg-critical', showCount: true },
+            { name: 'Leaving in 30d', count: stats.upcomingLeavers || 0, pct: stats.offboardingCount > 0 ? Math.round(((stats.upcomingLeavers || 0) / stats.offboardingCount) * 100) : 0, cls: 'bg-warning', showCount: true },
             { name: 'Deleted Pending Purge', count: stats.deletedUsers, pct: stats.offboardingCount > 0 ? Math.round((stats.deletedUsers / stats.offboardingCount) * 100) : 0, cls: 'bg-orange', showCount: true }
+        ]));
+
+        // Onboarding Details card
+        analyticsGrid.appendChild(createPlatformCard('Onboarding Details', [
+            { name: 'Never Signed In', count: stats.newUsersNoSignIn || 0, pct: stats.onboardingCount > 0 ? Math.round(((stats.newUsersNoSignIn || 0) / stats.onboardingCount) * 100) : 0, cls: 'bg-info', showCount: true },
+            { name: 'No MFA Registered', count: stats.newUsersNoMfa || 0, pct: stats.onboardingCount > 0 ? Math.round(((stats.newUsersNoMfa || 0) / stats.onboardingCount) * 100) : 0, cls: 'bg-warning', showCount: true },
+            { name: 'Missing Profile', count: stats.newUsersMissingProfile || 0, pct: stats.onboardingCount > 0 ? Math.round(((stats.newUsersMissingProfile || 0) / stats.onboardingCount) * 100) : 0, cls: 'bg-orange', showCount: true }
         ]));
 
         // Guest Status card
@@ -222,6 +228,17 @@ const PageLifecycle = (function() {
             insightsList.appendChild(createInsightCard('warning', 'CLEANUP', 'Offboarding Issues',
                 stats.offboardingCount + ' offboarding issue' + (stats.offboardingCount !== 1 ? 's' : '') + ' detected. Disabled accounts, risky admin roles, and pending deletions need attention.',
                 'Remove licenses from disabled accounts, revoke admin roles, and review deleted users before permanent purge.'));
+        }
+
+        // Leave date insight
+        if (stats.overdueLeavers > 0) {
+            insightsList.appendChild(createInsightCard('critical', 'OFFBOARD', 'Leave Date Passed',
+                stats.overdueLeavers + ' account' + (stats.overdueLeavers !== 1 ? 's have' : ' has') + ' a leave date in the past but remain enabled.',
+                'Disable accounts and complete offboarding for past leave dates.'));
+        } else if (stats.upcomingLeavers > 0) {
+            insightsList.appendChild(createInsightCard('info', 'PLANNING', 'Leaving Soon',
+                stats.upcomingLeavers + ' account' + (stats.upcomingLeavers !== 1 ? 's are' : ' is') + ' scheduled to leave within 30 days.',
+                'Begin offboarding preparation and access reviews.'));
         }
 
         // Deleted users insight (purge window)
@@ -343,6 +360,44 @@ const PageLifecycle = (function() {
             });
         });
 
+        // Offboarding - Leave Date Passed
+        (data.overdueLeavers || []).forEach(function(u) {
+            issues.push({
+                category: 'Offboarding',
+                issueType: 'Leave Date Passed',
+                severity: 'critical',
+                entityType: 'User',
+                displayName: u.displayName,
+                identifier: u.userPrincipalName,
+                department: u.department || '',
+                detail1: u.employeeLeaveDateTime ? ('Leave date: ' + u.employeeLeaveDateTime) : 'Leave date passed',
+                detail2: (u.daysUntilLeave !== null && u.daysUntilLeave !== undefined) ? ('Days overdue: ' + Math.abs(u.daysUntilLeave)) : '',
+                daysInactive: u.daysSinceLastSignIn || 0,
+                lastActivity: u.lastSignIn,
+                createdDate: u.employeeLeaveDateTime,
+                _original: u
+            });
+        });
+
+        // Offboarding - Leaving Soon
+        (data.upcomingLeavers || []).forEach(function(u) {
+            issues.push({
+                category: 'Offboarding',
+                issueType: 'Leaving Soon',
+                severity: 'warning',
+                entityType: 'User',
+                displayName: u.displayName,
+                identifier: u.userPrincipalName,
+                department: u.department || '',
+                detail1: u.employeeLeaveDateTime ? ('Leave date: ' + u.employeeLeaveDateTime) : 'Leave date soon',
+                detail2: (u.daysUntilLeave !== null && u.daysUntilLeave !== undefined) ? ('Days until leave: ' + u.daysUntilLeave) : '',
+                daysInactive: u.daysSinceLastSignIn || 0,
+                lastActivity: u.lastSignIn,
+                createdDate: u.employeeLeaveDateTime,
+                _original: u
+            });
+        });
+
         // Offboarding - Deleted Users Pending Purge
         data.deletedUsers.forEach(function(u) {
             var severity = 'info';
@@ -400,6 +455,26 @@ const PageLifecycle = (function() {
                 identifier: u.userPrincipalName,
                 department: u.department || '',
                 detail1: 'MFA not set up',
+                detail2: '',
+                daysInactive: u.daysSinceLastSignIn || 0,
+                lastActivity: u.lastSignIn,
+                createdDate: u.createdDateTime,
+                _original: u
+            });
+        });
+
+        // Onboarding - Missing Profile
+        (data.newUsersMissingProfile || []).forEach(function(u) {
+            var missing = u.missingProfileFields ? u.missingProfileFields.join(', ') : 'Profile incomplete';
+            issues.push({
+                category: 'Onboarding',
+                issueType: 'Missing Profile',
+                severity: 'info',
+                entityType: 'User',
+                displayName: u.displayName,
+                identifier: u.userPrincipalName,
+                department: u.department || '',
+                detail1: missing,
                 detail2: '',
                 daysInactive: u.daysSinceLastSignIn || 0,
                 lastActivity: u.lastSignIn,
@@ -815,14 +890,60 @@ const PageLifecycle = (function() {
         var spSites = DataLoader.getData('sharepointSites');
         var deletedUsers = DataLoader.getData('deletedUsers');
 
+        function isUserMember(member) {
+            if (!member) return false;
+            if (member.memberType === 'User') return true;
+            if (!member.memberType) {
+                return !!(member.userId || member.userPrincipalName || member.accountEnabled !== undefined);
+            }
+            return false;
+        }
+
+        function getLeaveDays(user) {
+            if (!user) return null;
+            if (typeof user.daysUntilLeave === 'number') return user.daysUntilLeave;
+            if (typeof user.daysUntilLeave === 'string' && user.daysUntilLeave.trim() !== '') {
+                var parsed = parseInt(user.daysUntilLeave, 10);
+                if (!isNaN(parsed)) return parsed;
+            }
+            if (!user.employeeLeaveDateTime) return null;
+            var leaveDate = new Date(user.employeeLeaveDateTime);
+            if (isNaN(leaveDate)) return null;
+            return Math.floor((leaveDate - new Date()) / 86400000);
+        }
+
+        function getMissingProfileFields(user) {
+            var missing = [];
+            if (!user) return missing;
+            if (!user.manager && !user.managerId && !user.managerUpn) missing.push('Manager');
+            if (!user.department) missing.push('Department');
+            if (!user.jobTitle) missing.push('Job Title');
+            return missing;
+        }
+
         // Calculate offboarding issues
         var disabledWithLicenses = users.filter(function(u) { return !u.accountEnabled && u.licenseCount > 0; });
         var inactiveStillEnabled = users.filter(function(u) { return u.isInactive && u.accountEnabled; });
+
+        var upcomingLeavers = [];
+        var overdueLeavers = [];
+        users.forEach(function(u) {
+            if (!u.accountEnabled) return;
+            var daysUntilLeave = getLeaveDays(u);
+            if (daysUntilLeave === null || daysUntilLeave === undefined || isNaN(daysUntilLeave)) return;
+            var enriched = Object.assign({}, u, { daysUntilLeave: daysUntilLeave });
+            if (daysUntilLeave < 0) {
+                overdueLeavers.push(enriched);
+            } else if (daysUntilLeave <= 30) {
+                upcomingLeavers.push(enriched);
+            }
+        });
 
         // Find disabled users with admin roles
         var disabledAdmins = [];
         adminRoles.forEach(function(role) {
             role.members.forEach(function(member) {
+                if (!isUserMember(member)) return;
                 if (!member.accountEnabled) {
                     disabledAdmins.push(Object.assign({}, member, { roleName: role.roleName }));
                 }
@@ -841,6 +962,13 @@ const PageLifecycle = (function() {
 
         var newUsersNoSignIn = newUsers.filter(function(u) { return !u.lastSignIn; });
         var newUsersNoMfa = newUsers.filter(function(u) { return !u.mfaRegistered; });
+        var newUsersMissingProfile = [];
+        newUsers.forEach(function(u) {
+            var missing = getMissingProfileFields(u);
+            if (missing.length > 0) {
+                newUsersMissingProfile.push(Object.assign({}, u, { missingProfileFields: missing }));
+            }
+        });
 
         // Calculate role hygiene issues
         var inactiveAdmins = [];
@@ -848,6 +976,7 @@ const PageLifecycle = (function() {
 
         adminRoles.forEach(function(role) {
             role.members.forEach(function(member) {
+                if (!isUserMember(member)) return;
                 if (member.isInactive) {
                     inactiveAdmins.push(Object.assign({}, member, { roleName: role.roleName }));
                 }
@@ -883,8 +1012,8 @@ const PageLifecycle = (function() {
         var spGovernanceCount = sitesWithAnonymousLinks.length + externalInactiveSites.length + sitesWithoutLabels.length;
 
         // Calculate total issues
-        var offboardingCount = disabledWithLicenses.length + disabledAdmins.length + inactiveStillEnabled.length + deletedUsers.length;
-        var onboardingCount = newUsersNoSignIn.length + newUsersNoMfa.length;
+        var offboardingCount = disabledWithLicenses.length + disabledAdmins.length + inactiveStillEnabled.length + deletedUsers.length + upcomingLeavers.length + overdueLeavers.length;
+        var onboardingCount = newUsersNoSignIn.length + newUsersNoMfa.length + newUsersMissingProfile.length;
         var roleCount = inactiveAdmins.length + adminsNoMfa.length;
         var guestCount = staleGuests.length + pendingGuests.length + neverSignedInGuests.length;
         var totalIssues = offboardingCount + onboardingCount + roleCount + guestCount + teamsIssueCount + spGovernanceCount;
@@ -918,6 +1047,11 @@ const PageLifecycle = (function() {
             disabledAdmins: disabledAdmins.length,
             inactiveEnabled: inactiveStillEnabled.length,
             deletedUsers: deletedUsers.length,
+            overdueLeavers: overdueLeavers.length,
+            upcomingLeavers: upcomingLeavers.length,
+            newUsersNoSignIn: newUsersNoSignIn.length,
+            newUsersNoMfa: newUsersNoMfa.length,
+            newUsersMissingProfile: newUsersMissingProfile.length,
             deletedCritical: deletedCritical.length,
             deletedHigh: deletedHigh.length,
             deletedMedium: deletedMedium.length,
@@ -930,6 +1064,8 @@ const PageLifecycle = (function() {
             },
             disabledWithLicenses: disabledWithLicenses,
             inactiveStillEnabled: inactiveStillEnabled,
+            overdueLeavers: overdueLeavers,
+            upcomingLeavers: upcomingLeavers,
             deletedUsers: deletedUsers,
             deletedCritical: deletedCritical,
             deletedHigh: deletedHigh,
@@ -937,6 +1073,7 @@ const PageLifecycle = (function() {
             deletedNormal: deletedNormal,
             newUsersNoSignIn: newUsersNoSignIn,
             newUsersNoMfa: newUsersNoMfa,
+            newUsersMissingProfile: newUsersMissingProfile,
             inactiveAdmins: inactiveAdmins,
             adminsNoMfa: adminsNoMfa,
             staleGuests: staleGuests,

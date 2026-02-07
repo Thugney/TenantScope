@@ -4,7 +4,7 @@
 **Dashboard pages**: ASR Rules
 
 ## Status
-PASS with risks (counts are policy-based, not device-based)
+PASS with clarified semantics (policy counts)
 
 ## Required Dashboard Fields (ASR Rules)
 **Rules summary (rulesArray)**
@@ -19,8 +19,10 @@ PASS with risks (counts are policy-based, not device-based)
 - Settings catalog policies populate `policies[]` with rule lists and **now update** `rulesSummary`/`rulesArray` counters.
 - Uses live Graph data (no sample/static data paths).
 
+## Status Update (2026-02-07)
+- Resolved: UI labels now describe `blockCount/auditCount/warnCount` as **policy counts**, not device counts.
+
 ## Gaps / Risks
-- **Semantic mismatch**: `blockCount`, `auditCount`, `warnCount` represent **policy occurrences**, not device counts; the UI labels these as device counts in rule details and uses them to infer coverage (currently always 100% once deployed).
 - Uses beta endpoints (`/beta/deviceManagement/*`); schema changes can break parsing.
 
 ## Graph Collection Details
@@ -28,8 +30,8 @@ PASS with risks (counts are policy-based, not device-based)
 - Required scopes: `DeviceManagementConfiguration.Read.All`.
 - Output file: `data/asr-rules.json`.
 
-## Suggested Fix (to close gaps)
-- If device-level coverage is required, pull per-policy assignment targets and device counts (or clearly relabel counts as “policy count”).
-
 ## Duplicate Code Check
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now reflect Block/Audit/Warn/Not Configured distribution; deployed % remains in the center label.

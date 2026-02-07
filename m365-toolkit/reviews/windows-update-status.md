@@ -4,7 +4,7 @@
 **Dashboard pages**: Windows Update Status
 
 ## Status
-PASS with risks (device compliance uses heuristic logic)
+PASS with partial risk (reports API not used)
 
 ## Required Dashboard Fields (Windows Update)
 **Update Rings**
@@ -41,15 +41,16 @@ PASS with risks (device compliance uses heuristic logic)
 
 ## Collector Coverage
 - All required **ring/feature/quality/driver/deviceCompliance** fields are produced.
-- Summary now includes `driversNeedingReview`.
+- Summary includes `driversNeedingReview` and reflects deviceCompliance counts when available.
 - Uses live Graph data (no sample/static data paths).
 
+## Status Update (2026-02-07)
+- Resolved: Device compliance now prefers per-device update states from feature/quality/driver policies, with last-sync fallback.
+- Resolved: `updateRing` is mapped via ring `deviceStatuses` instead of placeholder assignment.
+- Resolved: Feature update version now uses shared Windows lifecycle mapping (no hard-coded build mapping).
+
 ## Gaps / Risks
-- **Device compliance logic is placeholder**:
-  - `updateStatus` is derived from **last sync recency**, not true update state.
-  - `updateRing` is assigned to the **first ring** as a placeholder (no group membership resolution).
-  These make real-tenant outputs misleading for device compliance and error lists.
-- Summary now uses the deviceCompliance counts when available, but the underlying heuristic remains.
+- **Reports API not used**: Intune Windows Update compliance report exports are not yet pulled, so status is still derived from policy state endpoints. Consider adding reports export for authoritative compliance and ring reporting.
 
 ## Graph Collection Details
 - Endpoints (beta-heavy):
@@ -58,11 +59,12 @@ PASS with risks (device compliance uses heuristic logic)
   - `/beta/deviceManagement/windowsQualityUpdateProfiles`
   - `/beta/deviceManagement/windowsDriverUpdateProfiles`
   - `/beta/deviceManagement/managedDevices` (Windows only)
+  - `/beta/deviceManagement/deviceConfigurations/{id}/deviceStatuses` (ring assignment)
 - Required scopes: `DeviceManagementConfiguration.Read.All`.
 - Output file: `data/windows-update-status.json`.
 
-## Suggested Fix (to close gaps)
-- Replace device compliance heuristics with **real update state** (e.g., device update states per ring/profile) and resolve ring membership via assignments + group membership.
-
 ## Duplicate Code Check
 - No new duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Up-to-Date/Pending/Errors.

@@ -110,11 +110,25 @@ const PageBitLocker = (function() {
         html += '<div class="compliance-chart">';
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var encryptedOffset = circumference - (rate / 100) * circumference;
+        var totalForChart = encrypted + notEncrypted + unknown;
+        var encryptedDash = totalForChart > 0 ? (encrypted / totalForChart) * circumference : 0;
+        var notEncryptedDash = totalForChart > 0 ? (notEncrypted / totalForChart) * circumference : 0;
+        var unknownDash = totalForChart > 0 ? (unknown / totalForChart) * circumference : 0;
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + encryptedOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (encrypted > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + encryptedDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += encryptedDash;
+        }
+        if (notEncrypted > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + notEncryptedDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += notEncryptedDash;
+        }
+        if (unknown > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + unknownDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(rate) + '%</span><span class="donut-label">Encrypted</span></div>';
         html += '</div>';
@@ -125,7 +139,7 @@ const PageBitLocker = (function() {
         if (unknown > 0) {
             html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Unknown: <strong>' + unknown + '</strong></div>';
         }
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Keys Escrowed: <strong>' + withKeys + '</strong></div>';
+        html += '<div class="legend-item">Keys Escrowed: <strong>' + withKeys + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid

@@ -634,14 +634,27 @@ const PageConditionalAccess = (function() {
         // Donut chart for enabled policies
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var enabledOffset = circumference - (enabledPct / 100) * circumference;
-        var enabledColor = enabledPct >= 80 ? 'var(--color-success)' : enabledPct >= 50 ? 'var(--color-warning)' : 'var(--color-critical)';
+        var totalForChart = caState.enabledCount + caState.reportOnlyCount + caState.disabledCount;
+        var enabledDash = totalForChart > 0 ? (caState.enabledCount / totalForChart) * circumference : 0;
+        var reportDash = totalForChart > 0 ? (caState.reportOnlyCount / totalForChart) * circumference : 0;
+        var disabledDash = totalForChart > 0 ? (caState.disabledCount / totalForChart) * circumference : 0;
 
         html += '<div class="compliance-chart">';
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + enabledColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + enabledOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (caState.enabledCount > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + enabledDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += enabledDash;
+        }
+        if (caState.reportOnlyCount > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + reportDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += reportDash;
+        }
+        if (caState.disabledCount > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + disabledDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + enabledClass + '">' + enabledPct + '%</span><span class="donut-label">Enabled</span></div>';
         html += '</div></div>';
@@ -651,7 +664,7 @@ const PageConditionalAccess = (function() {
         html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Enabled: <strong>' + caState.enabledCount + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Report Only: <strong>' + caState.reportOnlyCount + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Disabled: <strong>' + caState.disabledCount + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> MFA Policies: <strong>' + caState.mfaPolicies + '</strong></div>';
+        html += '<div class="legend-item">MFA Policies: <strong>' + caState.mfaPolicies + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid with platform-list pattern

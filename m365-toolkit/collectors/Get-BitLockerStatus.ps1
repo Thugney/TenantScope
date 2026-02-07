@@ -211,7 +211,7 @@ try {
             lastSyncDateTime  = Format-IsoDate -DateValue $device.lastSyncDateTime
             daysSinceSync     = $daysSinceSync
             # Encryption info
-            isEncrypted       = [bool]$device.isEncrypted
+            isEncrypted       = if ($null -eq $device.isEncrypted) { $null } else { [bool]$device.isEncrypted }
             encryptionState   = $encryptionState
             # Recovery keys (use recoveryKeyEscrowed for dashboard compatibility)
             hasRecoveryKey    = $hasRecoveryKey

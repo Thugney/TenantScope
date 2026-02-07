@@ -24,3 +24,6 @@ PASS (no required-field gaps found)
 ## Risks / Notes
 - Per-guest `memberOf` lookups are N+1 and can be slow at scale.
 - `signInActivity` requires Entra ID P1/P2; if missing, stale detection is less accurate.
+
+## UI Notes
+- Resolved (2026-02-07): donut segments match Active/Stale/Pending/Never; Total Guests is listed without a dot.

@@ -219,6 +219,21 @@ function Get-ChassisType {
     return $null
 }
 
+function Get-DirectoryOwnership {
+    <#
+    .SYNOPSIS
+        Maps Entra directory device ownership values to our schema.
+    #>
+    param([string]$OwnerType)
+
+    switch ($OwnerType) {
+        "company"   { return "corporate" }
+        "corporate" { return "corporate" }
+        "personal"  { return "personal" }
+        default     { return "unknown" }
+    }
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -270,8 +285,40 @@ try {
 
     Write-Host "      Retrieved $($managedDevices.Count) devices from Intune" -ForegroundColor Gray
 
+    # Build lookup for Azure AD device IDs to avoid duplicates when adding Entra-only devices
+    $managedAzureAdIds = @{}
+    foreach ($device in $managedDevices) {
+        $aadId = $device.AzureADDeviceId
+        if (-not [string]::IsNullOrWhiteSpace($aadId)) {
+            $managedAzureAdIds[$aadId] = $true
+        }
+    }
+
+    # Retrieve Entra ID devices that are not Intune-managed
+    $entraDevices = @()
+    try {
+        Write-Host "    Collecting Entra ID registered devices..." -ForegroundColor Gray
+        $entraDevices = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/devices?`$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,registrationDateTime,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,deviceOwnership" -OperationName "Entra device retrieval"
+
+        if ($entraDevices.Count -gt 0) {
+            $entraDevices = $entraDevices | Where-Object {
+                $entraAadId = $_.deviceId
+                if ([string]::IsNullOrWhiteSpace($entraAadId)) { return $true }
+                return -not $managedAzureAdIds.ContainsKey($entraAadId)
+            }
+            Write-Host "      Retrieved $($entraDevices.Count) Entra-only devices (not managed by Intune)" -ForegroundColor Gray
+        }
+    }
+    catch {
+        Write-Host "      [!] Could not retrieve Entra ID devices: $($_.Exception.Message)" -ForegroundColor Yellow
+        $errors += "Entra devices: $($_.Exception.Message)"
+        $entraDevices = @()
+    }
+
     # Process each device
     $processedDevices = @()
+    $policyStateSupported = $true
+    $policyStateErrorLogged = $false
 
     foreach ($device in $managedDevices) {
         # Calculate days since last sync using shared utility
@@ -312,6 +359,33 @@ try {
         # Calculate compliance grace period days
         $graceExpiryDays = Get-DaysUntilDate -DateValue $device.ComplianceGracePeriodExpirationDateTime
         $inGracePeriod = $null -ne $graceExpiryDays -and $graceExpiryDays -gt 0
+
+        # Optional: compliance policy state details (only for non-compliant/unknown)
+        $nonCompliantPolicyCount = $null
+        $nonCompliantPolicies = @()
+        if ($policyStateSupported -and $complianceState -ne "compliant") {
+            try {
+                $policyStates = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$($device.Id)/deviceCompliancePolicyStates" -OperationName "Device compliance policy states"
+                if ($policyStates.Count -gt 0) {
+                    foreach ($state in $policyStates) {
+                        $stateValue = $state.state
+                        if ($stateValue -and $stateValue -ne "compliant") {
+                            if ($state.displayName) {
+                                $nonCompliantPolicies += $state.displayName
+                            }
+                        }
+                    }
+                    $nonCompliantPolicyCount = $nonCompliantPolicies.Count
+                }
+            }
+            catch {
+                if (-not $policyStateErrorLogged) {
+                    $errors += "Compliance policy states: $($_.Exception.Message)"
+                    $policyStateErrorLogged = $true
+                }
+                $policyStateSupported = $false
+            }
+        }
 
         # Determine threat level severity
         $threatSeverity = $null
@@ -356,6 +430,8 @@ try {
             complianceGracePeriodExpiry = Format-IsoDate -DateValue $device.ComplianceGracePeriodExpirationDateTime
             complianceGraceDays    = $graceExpiryDays
             inGracePeriod          = $inGracePeriod
+            nonCompliantPolicyCount = $nonCompliantPolicyCount
+            nonCompliantPolicies   = $nonCompliantPolicies
 
             # ===== SYNC & ACTIVITY =====
             lastSync               = Format-IsoDate -DateValue $device.LastSyncDateTime
@@ -390,6 +466,7 @@ try {
 
             # ===== MANAGEMENT =====
             managementAgent        = $managementAgent
+            managementSource       = "Intune"
             joinType               = $device.JoinType
             autopilotEnrolled      = [bool]$device.AutopilotEnrolled
 
@@ -441,6 +518,154 @@ try {
         if ($deviceCount % 50 -eq 0) {
             Write-Host "      Processed $deviceCount devices..." -ForegroundColor Gray
         }
+    }
+
+    # Process Entra-only devices (not managed by Intune)
+    $entraDeviceCount = 0
+    foreach ($device in $entraDevices) {
+        $entraDeviceId = Get-GraphPropertyValue -Object $device -PropertyNames @("id", "Id")
+        $entraAadDeviceId = Get-GraphPropertyValue -Object $device -PropertyNames @("deviceId", "DeviceId")
+        $entraName = Get-GraphPropertyValue -Object $device -PropertyNames @("displayName", "DisplayName")
+        $entraOs = Get-GraphPropertyValue -Object $device -PropertyNames @("operatingSystem", "OperatingSystem")
+        $entraOsVersion = Get-GraphPropertyValue -Object $device -PropertyNames @("operatingSystemVersion", "OperatingSystemVersion")
+        $entraTrustType = Get-GraphPropertyValue -Object $device -PropertyNames @("trustType", "TrustType")
+        $entraRegDate = Get-GraphPropertyValue -Object $device -PropertyNames @("registrationDateTime", "RegistrationDateTime")
+        $entraLastSignIn = Get-GraphPropertyValue -Object $device -PropertyNames @("approximateLastSignInDateTime", "ApproximateLastSignInDateTime")
+        $entraIsCompliant = Get-GraphPropertyValue -Object $device -PropertyNames @("isCompliant", "IsCompliant")
+        $entraIsManaged = Get-GraphPropertyValue -Object $device -PropertyNames @("isManaged", "IsManaged")
+        $entraOwnership = Get-GraphPropertyValue -Object $device -PropertyNames @("deviceOwnership", "DeviceOwnership")
+        $entraAccountEnabled = Get-GraphPropertyValue -Object $device -PropertyNames @("accountEnabled", "AccountEnabled")
+
+        $daysSinceSync = Get-DaysSinceDate -DateValue $entraLastSignIn
+        $activityStatus = Get-ActivityStatus -DaysSinceActivity $daysSinceSync -InactiveThreshold $staleThreshold
+        $isStale = $activityStatus.isInactive
+
+        $simplifiedOS = Get-SimplifiedOS -OperatingSystem $entraOs
+        $winLifecycle = Get-WindowsLifecycleInfo -OsVersion $entraOsVersion
+
+        $complianceState = "unknown"
+        if ($entraIsCompliant -eq $true) { $complianceState = "compliant" }
+        elseif ($entraIsCompliant -eq $false) { $complianceState = "noncompliant" }
+
+        $ownership = Get-DirectoryOwnership -OwnerType $entraOwnership
+        $enrollmentTypeDisplay = switch ($entraTrustType) {
+            "AzureAD"  { "Entra Joined" }
+            "ServerAD" { "Hybrid Joined" }
+            "Workplace" { "Entra Registered" }
+            default    { $entraTrustType }
+        }
+
+        $processedDevice = [PSCustomObject]@{
+            # ===== CORE IDENTITY =====
+            id                     = $entraDeviceId
+            deviceName             = $entraName
+            managedDeviceName      = $null
+            userPrincipalName      = $null
+            primaryUserDisplayName = $null
+            userId                 = $null
+            emailAddress           = $null
+
+            # ===== AZURE AD INTEGRATION =====
+            azureAdDeviceId        = $entraAadDeviceId
+            azureAdRegistered      = $null
+
+            # ===== OPERATING SYSTEM =====
+            os                     = $simplifiedOS
+            osVersion              = $entraOsVersion
+            windowsType            = $winLifecycle.windowsType
+            windowsRelease         = $winLifecycle.windowsRelease
+            windowsBuild           = $winLifecycle.windowsBuild
+            windowsEOL             = $winLifecycle.windowsEOL
+            windowsSupported       = $winLifecycle.windowsSupported
+            androidSecurityPatchLevel = $null
+
+            # ===== COMPLIANCE =====
+            complianceState        = $complianceState
+            complianceGracePeriodExpiry = $null
+            complianceGraceDays    = $null
+            inGracePeriod          = $false
+            nonCompliantPolicyCount = $null
+            nonCompliantPolicies   = @()
+
+            # ===== SYNC & ACTIVITY =====
+            lastSync               = Format-IsoDate -DateValue $entraLastSignIn
+            daysSinceSync          = $daysSinceSync
+            isStale                = $isStale
+            enrolledDateTime       = Format-IsoDate -DateValue $entraRegDate
+
+            # ===== OWNERSHIP & ENROLLMENT =====
+            ownership              = $ownership
+            deviceEnrollmentType   = $null
+            enrollmentTypeDisplay  = $enrollmentTypeDisplay
+            deviceRegistrationState = $null
+            registrationStateDisplay = $null
+            enrollmentProfileName  = $null
+
+            # ===== HARDWARE =====
+            manufacturer           = $null
+            model                  = $null
+            serialNumber           = $null
+            chassisType            = $null
+            deviceCategory         = $null
+            physicalMemoryGB       = $null
+
+            # ===== SECURITY =====
+            isEncrypted            = $null
+            jailBroken             = $null
+            isSupervised           = $null
+            partnerThreatState     = $null
+            threatStateDisplay     = $null
+            threatSeverity         = $null
+            activationLockBypass   = $false
+
+            # ===== MANAGEMENT =====
+            managementAgent        = if ($entraIsManaged -eq $true) { "mdm" } else { "entra" }
+            managementSource       = "Entra"
+            joinType               = $entraTrustType
+            autopilotEnrolled      = $null
+
+            # ===== CERTIFICATES =====
+            certExpiryDate         = $null
+            daysUntilCertExpiry    = $null
+            certStatus             = "unknown"
+
+            # ===== EXCHANGE (EAS) =====
+            exchangeAccessState    = $null
+            exchangeAccessDisplay  = $null
+            exchangeAccessReason   = $null
+            exchangeLastSync       = $null
+            easActivated           = $null
+            easDeviceId            = $null
+
+            # ===== STORAGE =====
+            totalStorageGB         = $null
+            freeStorageGB          = $null
+            storageUsedPct         = $null
+
+            # ===== NETWORK =====
+            wifiMacAddress         = $null
+            ethernetMacAddress     = $null
+            phoneNumber            = $null
+            subscriberCarrier      = $null
+
+            # ===== MOBILE IDENTIFIERS =====
+            imei                   = $null
+            meid                   = $null
+            iccid                  = $null
+            udid                   = $null
+
+            # ===== ADMIN NOTES =====
+            notes                  = $null
+        }
+
+        # Track if the directory device is disabled
+        if ($null -ne $entraAccountEnabled) {
+            $processedDevice | Add-Member -NotePropertyName "accountEnabled" -NotePropertyValue ([bool]$entraAccountEnabled) -Force
+        }
+
+        $processedDevices += $processedDevice
+        $deviceCount++
+        $entraDeviceCount++
     }
 
     # Sort by compliance state (non-compliant first) then by last sync
@@ -608,6 +833,9 @@ try {
         }
     }
 
+    # Management source counts
+    $intuneDeviceCount = $deviceCount - $entraDeviceCount
+
     # Build summary object
     $complianceRate = if ($deviceCount -gt 0) {
         [Math]::Round(($compliantCount / $deviceCount) * 100, 1)
@@ -661,6 +889,10 @@ try {
         personal               = $personalCount
         corporateDevices       = $corporateCount
         personalDevices        = $personalCount
+
+        # Management source
+        intuneDevices          = $intuneDeviceCount
+        entraDevices           = $entraDeviceCount
 
         # Enrollment
         autopilotEnrolled      = $autopilotCount
@@ -846,6 +1078,18 @@ try {
             affectedDevices   = $unknownCount
             recommendedAction = "Review devices with unknown compliance - they may need policy assignment or sync"
             category          = "Compliance"
+        }
+    }
+
+    # Medium: Entra-only devices (not Intune managed)
+    if ($entraDeviceCount -gt 0) {
+        $insights += [PSCustomObject]@{
+            id                = "entra-only-devices"
+            severity          = "medium"
+            description       = "$entraDeviceCount device$(if($entraDeviceCount -ne 1){'s'}) registered in Entra ID but not managed by Intune"
+            affectedDevices   = $entraDeviceCount
+            recommendedAction = "Review if these devices should be enrolled into Intune for compliance and security policies"
+            category          = "Inventory"
         }
     }
 

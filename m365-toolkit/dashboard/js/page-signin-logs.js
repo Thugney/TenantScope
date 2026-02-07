@@ -165,14 +165,27 @@ const PageSignInLogs = (function() {
         // Donut chart for success rate
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var successOffset = circumference - (successPct / 100) * circumference;
-        var successColor = successPct >= 95 ? 'var(--color-success)' : successPct >= 80 ? 'var(--color-warning)' : 'var(--color-critical)';
+        var totalForChart = state.success + state.failure + interrupted;
+        var successDash = totalForChart > 0 ? (state.success / totalForChart) * circumference : 0;
+        var failureDash = totalForChart > 0 ? (state.failure / totalForChart) * circumference : 0;
+        var interruptedDash = totalForChart > 0 ? (interrupted / totalForChart) * circumference : 0;
 
         html += '<div class="compliance-chart">';
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + successColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + successOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (state.success > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + successDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += successDash;
+        }
+        if (state.failure > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + failureDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += failureDash;
+        }
+        if (interrupted > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + interruptedDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + successClass + '">' + successPct + '%</span><span class="donut-label">Success Rate</span></div>';
         html += '</div></div>';
@@ -182,7 +195,7 @@ const PageSignInLogs = (function() {
         html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Successful: <strong>' + state.success + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Failed: <strong>' + state.failure + '</strong></div>';
         html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Interrupted: <strong>' + interrupted + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Risky: <strong>' + (high + medium) + '</strong></div>';
+        html += '<div class="legend-item">Risky: <strong>' + (high + medium) + '</strong></div>';
         html += '</div></div></div>';
 
         // Analytics Grid with platform-list pattern

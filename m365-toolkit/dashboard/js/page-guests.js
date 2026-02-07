@@ -486,8 +486,7 @@ const PageGuests = (function() {
             { cls: 'bg-success', label: 'Active', value: stats.activeCount },
             { cls: 'bg-warning', label: 'Stale (60+ days)', value: stats.staleCount },
             { cls: 'bg-orange', label: 'Pending', value: stats.pendingCount },
-            { cls: 'bg-critical', label: 'Never Signed In', value: stats.neverSignedInCount },
-            { cls: 'bg-info', label: 'Total Guests', value: stats.total }
+            { cls: 'bg-critical', label: 'Never Signed In', value: stats.neverSignedInCount }
         ];
         legendItems.forEach(function(item) {
             var legendItem = document.createElement('div');
@@ -501,6 +500,13 @@ const PageGuests = (function() {
             legendItem.appendChild(strong);
             legend.appendChild(legendItem);
         });
+        var metricItem = document.createElement('div');
+        metricItem.className = 'legend-item';
+        metricItem.appendChild(document.createTextNode('Total Guests: '));
+        var totalStrong = document.createElement('strong');
+        totalStrong.textContent = stats.total;
+        metricItem.appendChild(totalStrong);
+        legend.appendChild(metricItem);
         complianceOverview.appendChild(legend);
         section.appendChild(complianceOverview);
         container.appendChild(section);

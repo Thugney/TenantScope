@@ -53,6 +53,60 @@ param(
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
+# LOCAL HELPER FUNCTIONS
+# ============================================================================
+
+function Add-DeviceUpdateStates {
+    <#
+    .SYNOPSIS
+        Aggregates device update states into a status map.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$StateMap,
+
+        [Parameter(Mandatory)]
+        [array]$States,
+
+        [Parameter(Mandatory)]
+        [string[]]$StatusPropertyNames
+    )
+
+    foreach ($state in $States) {
+        $deviceId = Get-GraphPropertyValue -Object $state -PropertyNames @("deviceId", "managedDeviceId", "id")
+        if ([string]::IsNullOrWhiteSpace($deviceId)) {
+            continue
+        }
+
+        if (-not $StateMap.ContainsKey($deviceId)) {
+            $StateMap[$deviceId] = @{ pending = 0; failed = 0; succeeded = 0 }
+        }
+
+        $statusValue = Get-GraphPropertyValue -Object $state -PropertyNames $StatusPropertyNames
+        if ($null -eq $statusValue) { continue }
+        $status = $statusValue.ToString().ToLowerInvariant()
+
+        switch ($status) {
+            "failed" { $StateMap[$deviceId].failed++ }
+            "error" { $StateMap[$deviceId].failed++ }
+            "pending" { $StateMap[$deviceId].pending++ }
+            "downloading" { $StateMap[$deviceId].pending++ }
+            "installing" { $StateMap[$deviceId].pending++ }
+            "inprogress" { $StateMap[$deviceId].pending++ }
+            "rebootrequired" { $StateMap[$deviceId].pending++ }
+            "rebootpending" { $StateMap[$deviceId].pending++ }
+            "restartrequired" { $StateMap[$deviceId].pending++ }
+            "offeringreceived" { $StateMap[$deviceId].succeeded++ }
+            "installed" { $StateMap[$deviceId].succeeded++ }
+            "succeeded" { $StateMap[$deviceId].succeeded++ }
+            "complete" { $StateMap[$deviceId].succeeded++ }
+            "uptodate" { $StateMap[$deviceId].succeeded++ }
+            default { }
+        }
+    }
+}
+
+# ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
 
@@ -86,6 +140,9 @@ try {
     }
 
     $groupNameCache = @{}
+    $deviceUpdateStateMap = @{}
+    $deviceRingAssignments = @{}
+    $ringStatusErrorLogged = $false
 
     # ========================================
     # Collect Windows Update Rings
@@ -102,6 +159,7 @@ try {
             $successCount = 0
             $errorCount = 0
             $pendingCount = 0
+            $ringName = if ($ring.displayName) { $ring.displayName } else { $ring.id }
 
             try {
                 $statusOverview = Invoke-MgGraphRequest -Method GET `
@@ -127,6 +185,30 @@ try {
                 }
             }
             catch { }
+
+            # Build device-to-ring assignments from deviceStatuses (best-effort)
+            try {
+                $deviceStatuses = Get-GraphAllPages `
+                    -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/$($ring.id)/deviceStatuses" `
+                    -OperationName "Update ring device status retrieval"
+
+                foreach ($status in $deviceStatuses) {
+                    $deviceId = Get-GraphPropertyValue -Object $status -PropertyNames @("deviceId", "managedDeviceId", "id")
+                    if ([string]::IsNullOrWhiteSpace($deviceId)) { continue }
+                    if (-not $deviceRingAssignments.ContainsKey($deviceId)) {
+                        $deviceRingAssignments[$deviceId] = @()
+                    }
+                    if ($deviceRingAssignments[$deviceId] -notcontains $ringName) {
+                        $deviceRingAssignments[$deviceId] += $ringName
+                    }
+                }
+            }
+            catch {
+                if (-not $ringStatusErrorLogged) {
+                    $errors += "Update ring device statuses: $($_.Exception.Message)"
+                    $ringStatusErrorLogged = $true
+                }
+            }
 
             # Track paused rings
             if ($ring.qualityUpdatesPaused -or $ring.featureUpdatesPaused) {
@@ -203,6 +285,10 @@ try {
                     pending = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "pending" -or $_.featureUpdateStatus -eq "downloading" }).Count
                     failed = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "failed" }).Count
                     notApplicable = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "notApplicable" -or $_.featureUpdateStatus -eq "notOffered" }).Count
+                }
+
+                if ($stateResponse.value) {
+                    Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $stateResponse.value -StatusPropertyNames @("featureUpdateStatus", "status", "state")
                 }
             }
             catch { }
@@ -297,6 +383,9 @@ try {
                         $deployedDevices = ($states | Where-Object { $_.qualityUpdateState -eq "installed" -or $_.qualityUpdateState -eq "succeeded" }).Count
                         $pendingDevices = ($states | Where-Object { $_.qualityUpdateState -eq "pending" -or $_.qualityUpdateState -eq "downloading" }).Count
                         $failedDevices = ($states | Where-Object { $_.qualityUpdateState -eq "failed" }).Count
+                        if ($states) {
+                            Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $states -StatusPropertyNames @("qualityUpdateState", "status", "state")
+                        }
                         $totalTarget = $deployedDevices + $pendingDevices + $failedDevices
                         if ($totalTarget -gt 0) {
                             $progressPercent = [Math]::Round(($deployedDevices / $totalTarget) * 100, 0)
@@ -384,6 +473,7 @@ try {
                             $deployedDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "installed" -or $_.driverUpdateState -eq "succeeded" }).Count
                             $pendingDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "pending" -or $_.driverUpdateState -eq "downloading" }).Count
                             $failedDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "failed" }).Count
+                            Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $deviceStates.value -StatusPropertyNames @("driverUpdateState", "status", "state")
                         }
                     }
                     catch { }
@@ -442,59 +532,81 @@ try {
             $allDevices += $windowsDevices.value
         }
 
-        # Build a map of update ring assignments for lookup
-        $deviceRingMap = @{}
-        foreach ($ring in $updateData.updateRings) {
-            # Note: In real scenario, you'd need to resolve group membership
-            # For now, we'll use a simplified approach
-            $deviceRingMap[$ring.displayName] = $ring.displayName
-        }
-
         $upToDateCount = 0
         $pendingCount = 0
         $errorCount = 0
 
         foreach ($device in $allDevices) {
-            # Determine update status from OS version and last sync
             $updateStatus = "Unknown"
             $pendingUpdates = 0
             $failedUpdates = 0
             $errorDetails = $null
-            $lastSync = $device.lastSyncDateTime
+            $updateStatusSource = $null
 
-            if ($lastSync) {
-                $daysSinceSync = ((Get-Date) - [DateTime]$lastSync).Days
-                if ($daysSinceSync -le 7) {
+            $deviceState = $deviceUpdateStateMap[$device.id]
+            if ($deviceState) {
+                $pendingUpdates = [int]$deviceState.pending
+                $failedUpdates = [int]$deviceState.failed
+                if ($failedUpdates -gt 0) {
+                    $updateStatus = "error"
+                    $errorDetails = "Failed updates detected"
+                    $errorCount++
+                }
+                elseif ($pendingUpdates -gt 0) {
+                    $updateStatus = "pendingUpdate"
+                    $pendingCount++
+                }
+                elseif ([int]$deviceState.succeeded -gt 0) {
                     $updateStatus = "upToDate"
                     $upToDateCount++
                 }
-                elseif ($daysSinceSync -le 30) {
-                    $updateStatus = "pendingUpdate"
-                    $pendingUpdates = 1  # At least one pending
-                    $pendingCount++
+                $updateStatusSource = "PolicyState"
+            }
+            else {
+                # Fallback to last sync when no update state data is available
+                $lastSync = $device.lastSyncDateTime
+                if ($lastSync) {
+                    $daysSinceSync = ((Get-Date) - [DateTime]$lastSync).Days
+                    if ($daysSinceSync -le 7) {
+                        $updateStatus = "upToDate"
+                        $upToDateCount++
+                    }
+                    elseif ($daysSinceSync -le 30) {
+                        $updateStatus = "pendingUpdate"
+                        $pendingUpdates = 1
+                        $pendingCount++
+                    }
+                    else {
+                        $updateStatus = "error"
+                        $failedUpdates = 1
+                        $errorDetails = "Device has not synced in over 30 days"
+                        $errorCount++
+                    }
                 }
-                else {
-                    $updateStatus = "error"
-                    $failedUpdates = 1
-                    $errorDetails = "Device has not synced in over 30 days"
-                    $errorCount++
-                }
+                $updateStatusSource = "LastSync"
             }
 
-            # Determine feature update version from OS version
+            # Determine feature update version from OS version using shared lifecycle mapping
             $featureUpdateVersion = "Unknown"
             $osVer = $device.osVersion
-            if ($osVer -match "10\.0\.26100") { $featureUpdateVersion = "Windows 11, version 24H2" }
-            elseif ($osVer -match "10\.0\.22631") { $featureUpdateVersion = "Windows 11, version 23H2" }
-            elseif ($osVer -match "10\.0\.22621") { $featureUpdateVersion = "Windows 11, version 22H2" }
-            elseif ($osVer -match "10\.0\.19045") { $featureUpdateVersion = "Windows 10, version 22H2" }
-            elseif ($osVer -match "10\.0\.19044") { $featureUpdateVersion = "Windows 10, version 21H2" }
+            $winLifecycle = Get-WindowsLifecycleInfo -OsVersion $osVer
+            if ($winLifecycle.windowsType -and $winLifecycle.windowsRelease) {
+                $featureUpdateVersion = "$($winLifecycle.windowsType), version $($winLifecycle.windowsRelease)"
+            }
 
-            # Try to determine update ring (simplified - would need group membership check in real scenario)
+            # Determine update ring assignment from deviceStatuses (if available)
             $updateRing = $null
-            if ($updateData.updateRings.Count -gt 0) {
-                # Assign to first ring as placeholder - real implementation needs group membership
-                $updateRing = $updateData.updateRings[0].displayName
+            $updateRingAssignments = $null
+            if ($deviceRingAssignments.ContainsKey($device.id)) {
+                $updateRingAssignments = $deviceRingAssignments[$device.id]
+            }
+            if ($updateRingAssignments -and $updateRingAssignments.Count -gt 0) {
+                if ($updateRingAssignments.Count -eq 1) {
+                    $updateRing = $updateRingAssignments[0]
+                }
+                else {
+                    $updateRing = "Multiple ($($updateRingAssignments.Count))"
+                }
             }
 
             $deviceEntry = [PSCustomObject]@{
@@ -509,6 +621,8 @@ try {
                 pendingUpdates      = $pendingUpdates
                 failedUpdates       = $failedUpdates
                 updateRing          = $updateRing
+                updateRingAssignments = $updateRingAssignments
+                updateStatusSource  = $updateStatusSource
             }
 
             # Add errorDetails only if there's an error

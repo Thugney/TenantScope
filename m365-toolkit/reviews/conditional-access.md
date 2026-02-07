@@ -28,3 +28,6 @@ PASS (no required-field gaps found)
 - If permissions/licensing are missing, collector returns an empty array and the dashboard will render zero policies.
 - `riskLevel` is heuristic-based (grant controls + targets). Treat as internal classification, not a Graph-provided severity.
 - Duplicate code check: no duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Enabled/Report Only/Disabled; MFA Policies is listed without a dot.

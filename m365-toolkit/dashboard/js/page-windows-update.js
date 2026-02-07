@@ -120,11 +120,25 @@ const PageWindowsUpdate = (function() {
         html += '<div class="compliance-chart">';
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var compliantOffset = circumference - (summary.complianceRate / 100) * circumference;
+        var totalForChart = summary.devicesUpToDate + summary.devicesPendingUpdate + summary.devicesWithErrors;
+        var upToDateDash = totalForChart > 0 ? (summary.devicesUpToDate / totalForChart) * circumference : 0;
+        var pendingDash = totalForChart > 0 ? (summary.devicesPendingUpdate / totalForChart) * circumference : 0;
+        var errorDash = totalForChart > 0 ? (summary.devicesWithErrors / totalForChart) * circumference : 0;
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + compliantOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (summary.devicesUpToDate > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + upToDateDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += upToDateDash;
+        }
+        if (summary.devicesPendingUpdate > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + pendingDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += pendingDash;
+        }
+        if (summary.devicesWithErrors > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + errorDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(summary.complianceRate) + '%</span><span class="donut-label">Up to Date</span></div>';
         html += '</div>';

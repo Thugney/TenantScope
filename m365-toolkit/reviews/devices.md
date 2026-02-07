@@ -4,7 +4,7 @@
 **Dashboard pages**: Devices, Overview, Executive Report
 
 ## Status
-PASS
+PASS (expanded to include Entra-only devices)
 
 ## Required Dashboard Fields (Devices)
 **Device rows**
@@ -32,27 +32,29 @@ PASS
 
 ## Collector Coverage
 - All required **device row** fields are produced.
-- Summary now includes **both** collector-style and UI-style keys (`compliant` + `compliantDevices`, etc.), so the Devices page renders correctly regardless of which schema it reads.
-- Breakdown shapes now include **maps** (`osBreakdown`, `manufacturerBreakdown`) and **arrays** (`osBreakdownArray`, `manufacturerBreakdownArray`) for compatibility.
-- `isEncrypted` now preserves `$null` when unknown instead of coercing to `false`.
-- Uses live Graph data (no sample/static data paths).
+- Summary includes **both** collector-style and UI-style keys (`compliant` + `compliantDevices`, etc.).
+- Breakdown shapes include **maps** (`osBreakdown`, `manufacturerBreakdown`) and **arrays** (`osBreakdownArray`, `manufacturerBreakdownArray`).
+- `isEncrypted` preserves `$null` when unknown.
+- Inventory now includes **Entra-only** devices (not Intune-managed) with `managementSource = "Entra"` and safe nulls for Intune-only fields.
 
 ## Sample Data Comparison
 **Sample file**: `data/sample/devices.json`
 - Sample **device rows** align with collector output (field names match).
-- Sample **summary** uses the collector schema (`compliant`, `noncompliant`, `windows10`, etc.); collector now emits both schemas and UI normalizes both.
-- Sample **breakdowns** (`osBreakdown`, `manufacturerBreakdown`) are arrays of `{ name, count }`; collector now emits both arrays and maps and UI accepts both.
+- Sample **summary** uses the collector schema (`compliant`, `noncompliant`, `windows10`, etc.); collector emits both schemas and UI normalizes both.
+- Sample **breakdowns** (`osBreakdown`, `manufacturerBreakdown`) are arrays of `{ name, count }`; collector emits both arrays and maps and UI accepts both.
 
 ## Gaps / Risks
-- No material gaps detected after schema alignment and encryption null handling.
+- Entra-only devices do not include compliance policy or encryption detail (Graph does not expose that via the directory device resource). These devices are still valuable for inventory visibility.
 
 ## Graph Collection Details
-- Endpoint: `GET /deviceManagement/managedDevices` (extended properties via `-Property`).
-- Required scopes: `DeviceManagementManagedDevices.Read.All`.
+- Endpoints: 
+  - `GET /deviceManagement/managedDevices` (Intune)
+  - `GET /devices` (Entra-only devices)
+- Required scopes: `DeviceManagementManagedDevices.Read.All`, `Directory.Read.All`.
 - Output file: `data/devices.json`.
-
-## Suggested Fix (to close gaps)
-- Implemented: summary key alignment, breakdown map support, and `isEncrypted` null preservation.
 
 ## Duplicate Code Check
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Compliant/Non-Compliant/Unknown; Stale is listed without a dot.

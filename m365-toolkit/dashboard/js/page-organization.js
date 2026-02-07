@@ -30,39 +30,100 @@ const PageOrganization = (function() {
     function analyzeHierarchy(users) {
         var managerMap = {};
         var orphanUsers = [];
-        var allManagers = new Set();
+        var allManagerKeys = new Set();
+        var userById = {};
+        var userByUpn = {};
+        var userByName = {};
 
         users.forEach(function(u) {
-            if (u.manager) {
-                allManagers.add(u.manager);
+            if (u.id) userById[u.id] = u;
+            if (u.userPrincipalName) userByUpn[u.userPrincipalName.toLowerCase()] = u;
+            if (u.displayName && !userByName[u.displayName.toLowerCase()]) {
+                userByName[u.displayName.toLowerCase()] = u;
+            }
+        });
+
+        function getManagerRef(user) {
+            var managerId = user.managerId || null;
+            var managerUpn = user.managerUpn || null;
+            var managerName = user.manager || null;
+            var key = null;
+            if (managerId) key = managerId;
+            else if (managerUpn) key = 'upn:' + managerUpn.toLowerCase();
+            else if (managerName) key = 'name:' + managerName.toLowerCase();
+            if (!key) return null;
+            return {
+                key: key,
+                id: managerId || null,
+                upn: managerUpn || null,
+                name: managerName || managerUpn || managerId || 'Unknown'
+            };
+        }
+
+        function getUserManagerKeys(user) {
+            var keys = [];
+            if (user.id) keys.push(user.id);
+            if (user.userPrincipalName) keys.push('upn:' + user.userPrincipalName.toLowerCase());
+            if (user.displayName) keys.push('name:' + user.displayName.toLowerCase());
+            return keys;
+        }
+
+        users.forEach(function(u) {
+            var ref = getManagerRef(u);
+            if (ref) {
+                allManagerKeys.add(ref.key);
             }
         });
 
         users.forEach(function(u) {
-            var mgrName = u.manager || null;
-            if (!mgrName) {
-                if (!allManagers.has(u.displayName)) {
+            var ref = getManagerRef(u);
+            if (!ref) {
+                var isManager = getUserManagerKeys(u).some(function(k) { return allManagerKeys.has(k); });
+                if (!isManager) {
                     orphanUsers.push(u);
                 }
             } else {
-                if (!managerMap[mgrName]) {
-                    managerMap[mgrName] = {
-                        name: mgrName,
+                if (!managerMap[ref.key]) {
+                    managerMap[ref.key] = {
+                        key: ref.key,
+                        name: ref.name,
+                        managerId: ref.id,
+                        managerUpn: ref.upn,
                         directReports: [],
                         department: null,
+                        companyName: null,
+                        officeLocation: null,
+                        city: null,
+                        country: null,
                         isUser: false,
                         userData: null
                     };
                 }
-                managerMap[mgrName].directReports.push(u);
+                managerMap[ref.key].directReports.push(u);
             }
         });
 
-        users.forEach(function(u) {
-            if (managerMap[u.displayName]) {
-                managerMap[u.displayName].isUser = true;
-                managerMap[u.displayName].userData = u;
-                managerMap[u.displayName].department = u.department;
+        Object.values(managerMap).forEach(function(manager) {
+            var managerUser = null;
+            if (manager.managerId && userById[manager.managerId]) {
+                managerUser = userById[manager.managerId];
+            } else if (manager.managerUpn && userByUpn[manager.managerUpn.toLowerCase()]) {
+                managerUser = userByUpn[manager.managerUpn.toLowerCase()];
+            } else if (manager.name && userByName[manager.name.toLowerCase()]) {
+                managerUser = userByName[manager.name.toLowerCase()];
+            }
+
+            if (managerUser) {
+                manager.isUser = true;
+                manager.userData = managerUser;
+                manager.name = managerUser.displayName || manager.name;
+                manager.department = managerUser.department;
+                manager.companyName = managerUser.companyName;
+                manager.officeLocation = managerUser.officeLocation;
+                manager.city = managerUser.city;
+                manager.country = managerUser.country;
+                manager.userPrincipalName = managerUser.userPrincipalName;
+                manager.jobTitle = managerUser.jobTitle;
             }
         });
 
@@ -94,11 +155,15 @@ const PageOrganization = (function() {
                 };
             }
             deptAnalysis[dept].totalUsers++;
-            if (u.manager) {
+            var ref = getManagerRef(u);
+            if (ref) {
                 deptAnalysis[dept].withManager++;
-                deptAnalysis[dept].managers.add(u.manager);
-            } else if (!allManagers.has(u.displayName)) {
-                deptAnalysis[dept].withoutManager++;
+                deptAnalysis[dept].managers.add(ref.key);
+            } else {
+                var isManager = getUserManagerKeys(u).some(function(k) { return allManagerKeys.has(k); });
+                if (!isManager) {
+                    deptAnalysis[dept].withoutManager++;
+                }
             }
             if (u.mfaRegistered) deptAnalysis[dept].mfaEnabled++;
             if (u.isInactive) deptAnalysis[dept].inactive++;
@@ -245,7 +310,11 @@ const PageOrganization = (function() {
             var exportData = orgState.hierarchy.managers.map(function(m) {
                 return {
                     Manager: m.name,
+                    Email: m.userPrincipalName || m.managerUpn || '',
+                    JobTitle: m.jobTitle || '',
                     Department: m.department || '',
+                    Office: m.officeLocation || '',
+                    Company: m.companyName || '',
                     DirectReports: m.directReports.length,
                     InTenant: m.isUser ? 'Yes' : 'No'
                 };
@@ -262,6 +331,10 @@ const PageOrganization = (function() {
                         Email: u.userPrincipalName,
                         Department: u.department || '',
                         JobTitle: u.jobTitle || '',
+                        Office: u.officeLocation || '',
+                        Company: u.companyName || '',
+                        City: u.city || '',
+                        Country: u.country || '',
                         Status: u.accountEnabled ? 'Enabled' : 'Disabled'
                     };
                 });
@@ -461,14 +534,22 @@ const PageOrganization = (function() {
         var legend = el('div', 'compliance-legend');
         var legendItems = [
             { cls: 'bg-success', label: 'With Manager', value: withManager },
-            { cls: 'bg-warning', label: 'Orphan Users', value: hierarchy.totalOrphans },
-            { cls: 'bg-info', label: 'Total Managers', value: hierarchy.totalManagers },
-            { cls: 'bg-primary', label: 'Departments', value: hierarchy.departments.length }
+            { cls: 'bg-warning', label: 'Orphan Users', value: hierarchy.totalOrphans }
         ];
         legendItems.forEach(function(item) {
             var legendItem = el('div', 'legend-item');
             legendItem.appendChild(el('span', 'legend-dot ' + item.cls));
             legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            legendItem.appendChild(el('strong', null, String(item.value)));
+            legend.appendChild(legendItem);
+        });
+        var metricItems = [
+            { label: 'Total Managers', value: hierarchy.totalManagers },
+            { label: 'Departments', value: hierarchy.departments.length }
+        ];
+        metricItems.forEach(function(item) {
+            var legendItem = el('div', 'legend-item');
+            legendItem.appendChild(document.createTextNode(item.label + ': '));
             legendItem.appendChild(el('strong', null, String(item.value)));
             legend.appendChild(legendItem);
         });
@@ -714,7 +795,11 @@ const PageOrganization = (function() {
 
         var columns = [
             { key: 'name', label: 'Manager', sortable: true },
+            { key: 'email', label: 'Email', sortable: true, formatter: function(v) { return v || '-'; } },
+            { key: 'jobTitle', label: 'Job Title', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'department', label: 'Department', sortable: true, formatter: function(v) { return v || '-'; } },
+            { key: 'officeLocation', label: 'Office', sortable: true, formatter: function(v) { return v || '-'; } },
+            { key: 'companyName', label: 'Company', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'directReportsCount', label: 'Direct Reports', sortable: true },
             { key: 'isUser', label: 'In Tenant', sortable: true, formatter: function(v) {
                 return v ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">External</span>';
@@ -725,9 +810,14 @@ const PageOrganization = (function() {
         var tableData = managers.map(function(m) {
             var topReports = m.directReports.slice(0, 3).map(function(r) { return r.displayName; }).join(', ');
             if (m.directReports.length > 3) topReports += '...';
+            var email = m.userPrincipalName || m.managerUpn || '';
             return {
                 name: m.name,
+                email: email,
+                jobTitle: m.jobTitle || '',
                 department: m.department,
+                officeLocation: m.officeLocation || '',
+                companyName: m.companyName || '',
                 directReportsCount: m.directReports.length,
                 isUser: m.isUser,
                 topReports: topReports || '-',
@@ -755,6 +845,8 @@ const PageOrganization = (function() {
             { key: 'userPrincipalName', label: 'Email', sortable: true },
             { key: 'department', label: 'Department', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'jobTitle', label: 'Job Title', sortable: true, formatter: function(v) { return v || '-'; } },
+            { key: 'officeLocation', label: 'Office', sortable: true, formatter: function(v) { return v || '-'; } },
+            { key: 'companyName', label: 'Company', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'accountEnabled', label: 'Status', sortable: true, formatter: function(v) {
                 return v ? '<span class="badge badge-success">Enabled</span>' : '<span class="badge badge-danger">Disabled</span>';
             }}
@@ -786,8 +878,18 @@ const PageOrganization = (function() {
         infoSection.appendChild(el('h4', null, 'Manager Info'));
         var grid = el('div', 'detail-grid');
 
+        var locationParts = [];
+        if (manager.city) locationParts.push(manager.city);
+        if (manager.country) locationParts.push(manager.country);
+        var locationDisplay = locationParts.length > 0 ? locationParts.join(', ') : 'N/A';
+
         var items = [
+            ['Email', manager.userPrincipalName || manager.managerUpn || 'N/A'],
+            ['Job Title', manager.jobTitle || 'N/A'],
             ['Department', manager.department || 'N/A'],
+            ['Office', manager.officeLocation || 'N/A'],
+            ['Company', manager.companyName || 'N/A'],
+            ['Location', locationDisplay],
             ['Direct Reports', manager.directReports.length],
             ['In Tenant', manager.isUser ? 'Yes' : 'No (External)']
         ];
@@ -843,3 +945,5 @@ const PageOrganization = (function() {
 
     return { render: render };
 })();
+
+

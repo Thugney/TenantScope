@@ -186,16 +186,27 @@ const PageOverview = (function() {
 
         // Legend
         var legend = el('div', 'compliance-legend');
+        var issueClass = healthScore >= 70 ? 'bg-warning' : 'bg-critical';
         var legendItems = [
-            { cls: 'bg-success', label: 'MFA Coverage', value: s.mfaPct + '%' },
-            { cls: 'bg-info', label: 'Device Compliance', value: s.compliancePct + '%' },
-            { cls: s.activeAlerts > 0 ? 'bg-critical' : 'bg-success', label: 'Active Alerts', value: String(s.activeAlerts) },
-            { cls: 'bg-neutral', label: 'Total Users', value: s.totalUsers.toLocaleString() }
+            { cls: 'bg-success', label: 'Healthy', value: healthyPct + '%' },
+            { cls: issueClass, label: 'Issues', value: issuesPct + '%' }
         ];
         legendItems.forEach(function(item) {
             var legendItem = el('div', 'legend-item');
             legendItem.appendChild(el('span', 'legend-dot ' + item.cls));
             legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            legendItem.appendChild(el('strong', null, item.value));
+            legend.appendChild(legendItem);
+        });
+        var metricItems = [
+            { label: 'MFA Coverage', value: s.mfaPct + '%' },
+            { label: 'Device Compliance', value: s.compliancePct + '%' },
+            { label: 'Active Alerts', value: String(s.activeAlerts) },
+            { label: 'Total Users', value: s.totalUsers.toLocaleString() }
+        ];
+        metricItems.forEach(function(item) {
+            var legendItem = el('div', 'legend-item');
+            legendItem.appendChild(document.createTextNode(item.label + ': '));
             legendItem.appendChild(el('strong', null, item.value));
             legend.appendChild(legendItem);
         });

@@ -55,6 +55,40 @@ param(
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
 # ============================================================================
+# LOCAL HELPERS
+# ============================================================================
+
+function Resolve-PrincipalIdentity {
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [object]$Principal
+    )
+
+    if ($null -eq $Principal) {
+        return @{
+            displayName       = $null
+            userPrincipalName = $null
+        }
+    }
+
+    $displayName = Get-GraphPropertyValue -Object $Principal -PropertyNames @("displayName", "DisplayName")
+    $userPrincipalName = Get-GraphPropertyValue -Object $Principal -PropertyNames @("userPrincipalName", "UserPrincipalName")
+
+    if ((-not $displayName) -and $Principal.AdditionalProperties) {
+        $displayName = $Principal.AdditionalProperties.displayName
+    }
+    if ((-not $userPrincipalName) -and $Principal.AdditionalProperties) {
+        $userPrincipalName = $Principal.AdditionalProperties.userPrincipalName
+    }
+
+    return @{
+        displayName       = $displayName
+        userPrincipalName = $userPrincipalName
+    }
+}
+
+# ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
 
@@ -92,12 +126,9 @@ try {
 
         foreach ($request in $assignmentRequests) {
             # Extract principal info
-            $principalName = ""
-            $principalUpn = ""
-            if ($request.Principal) {
-                $principalName = $request.Principal.AdditionalProperties.displayName
-                $principalUpn = $request.Principal.AdditionalProperties.userPrincipalName
-            }
+            $principalIdentity = Resolve-PrincipalIdentity -Principal $request.Principal
+            $principalName = $principalIdentity.displayName
+            $principalUpn = $principalIdentity.userPrincipalName
 
             # Lookup role name
             $roleName = $roleLookup[$request.RoleDefinitionId]
@@ -178,12 +209,9 @@ try {
         Write-Host "      Retrieved $($eligibleSchedules.Count) eligible assignments" -ForegroundColor Gray
 
         foreach ($schedule in $eligibleSchedules) {
-            $principalName = ""
-            $principalUpn = ""
-            if ($schedule.Principal) {
-                $principalName = $schedule.Principal.AdditionalProperties.displayName
-                $principalUpn = $schedule.Principal.AdditionalProperties.userPrincipalName
-            }
+            $principalIdentity = Resolve-PrincipalIdentity -Principal $schedule.Principal
+            $principalName = $principalIdentity.displayName
+            $principalUpn = $principalIdentity.userPrincipalName
 
             $roleName = $roleLookup[$schedule.RoleDefinitionId]
             if (-not $roleName) { $roleName = "Unknown Role" }

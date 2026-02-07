@@ -289,14 +289,22 @@ const PageLicenseAnalysis = (function() {
         var legend = el('div', 'compliance-legend');
         var legendItems = [
             { cls: 'bg-success', label: 'Clean Users', value: (totalUsers - data.analysis.totalOverlapCount).toLocaleString() },
-            { cls: 'bg-critical', label: 'With Overlaps', value: data.analysis.totalOverlapCount.toLocaleString() },
-            { cls: 'bg-warning', label: 'Monthly Waste', value: formatCurrency(data.analysis.totalMonthlyWaste, data.currency) },
-            { cls: 'bg-info', label: 'Annual Waste', value: formatCurrency(data.analysis.totalAnnualWaste, data.currency) }
+            { cls: 'bg-critical', label: 'With Overlaps', value: data.analysis.totalOverlapCount.toLocaleString() }
         ];
         legendItems.forEach(function(item) {
             var legendItem = el('div', 'legend-item');
             legendItem.appendChild(el('span', 'legend-dot ' + item.cls));
             legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            legendItem.appendChild(el('strong', null, item.value));
+            legend.appendChild(legendItem);
+        });
+        var metricItems = [
+            { label: 'Monthly Waste', value: formatCurrency(data.analysis.totalMonthlyWaste, data.currency) },
+            { label: 'Annual Waste', value: formatCurrency(data.analysis.totalAnnualWaste, data.currency) }
+        ];
+        metricItems.forEach(function(item) {
+            var legendItem = el('div', 'legend-item');
+            legendItem.appendChild(document.createTextNode(item.label + ': '));
             legendItem.appendChild(el('strong', null, item.value));
             legend.appendChild(legendItem);
         });

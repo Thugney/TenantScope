@@ -43,7 +43,7 @@ const PageASRRules = (function() {
             else if (r.disabledCount > 0) mode = 'off';
             else if (r.mode) mode = r.mode.toLowerCase();
 
-            // Map or compute device counts
+            // Map or compute policy counts (not device counts)
             var blockDevices = r.enabledDevices || r.blockCount || 0;
             var auditDevices = r.auditDevices || r.auditCount || 0;
             var warnDevices = r.warnCount || 0;
@@ -147,11 +147,30 @@ const PageASRRules = (function() {
         html += '<div class="compliance-chart">';
         var radius = 40;
         var circumference = 2 * Math.PI * radius;
-        var deployedOffset = circumference - (deployedPct / 100) * circumference;
+        var totalForChart = totalRules;
+        var blockDash = totalForChart > 0 ? (blockMode / totalForChart) * circumference : 0;
+        var auditDash = totalForChart > 0 ? (auditMode / totalForChart) * circumference : 0;
+        var warnDash = totalForChart > 0 ? (warnMode / totalForChart) * circumference : 0;
+        var notConfiguredDash = totalForChart > 0 ? (notConfigured / totalForChart) * circumference : 0;
         html += '<div class="donut-chart">';
         html += '<svg viewBox="0 0 100 100" class="donut">';
         html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + deployedOffset + '" stroke-linecap="round"/>';
+        var offset = 0;
+        if (blockMode > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + blockDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += blockDash;
+        }
+        if (auditMode > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-accent)" stroke-width="10" stroke-dasharray="' + auditDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += auditDash;
+        }
+        if (warnMode > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + warnDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+            offset += warnDash;
+        }
+        if (notConfigured > 0) {
+            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + notConfiguredDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
+        }
         html += '</svg>';
         html += '<div class="donut-center"><span class="donut-value ' + deployedClass + '">' + deployedPct + '%</span><span class="donut-label">Deployed</span></div>';
         html += '</div>';
@@ -225,7 +244,7 @@ const PageASRRules = (function() {
                 html += '<span class="badge badge-warning">MEDIUM</span>';
                 html += '<span class="insight-category">Configuration Gap</span>';
                 html += '</div>';
-                html += '<p class="insight-description">' + notDeployed.length + ' ASR rules are not deployed to any devices.</p>';
+                html += '<p class="insight-description">' + notDeployed.length + ' ASR rules are not deployed to any policies.</p>';
                 html += '<p class="insight-action"><strong>Action:</strong> Review and deploy critical ASR rules to improve endpoint security posture.</p>';
                 html += '</div>';
             }
@@ -473,12 +492,12 @@ const PageASRRules = (function() {
         html += '<dt>Coverage</dt><dd>' + (Fmt.formatPercentage ? Fmt.formatPercentage(rule.coverage, { inverse: true }) : formatCoverage(rule.coverage)) + '</dd>';
         html += '</dl></div>';
 
-        // Device Counts
-        html += '<div class="detail-section"><h4>Device Counts</h4><dl class="detail-list">';
+        // Policy Counts
+        html += '<div class="detail-section"><h4>Policy Counts</h4><dl class="detail-list">';
         html += '<dt>Block Mode</dt><dd>' + (Fmt.formatCount ? Fmt.formatCount(rule.blockCount) : rule.blockCount || 0) + '</dd>';
         html += '<dt>Audit Mode</dt><dd>' + (Fmt.formatCount ? Fmt.formatCount(rule.auditCount) : rule.auditCount || 0) + '</dd>';
         html += '<dt>Warn Mode</dt><dd>' + (Fmt.formatCount ? Fmt.formatCount(rule.warnCount) : rule.warnCount || 0) + '</dd>';
-        html += '<dt>Total Assigned</dt><dd>' + (rule.assignedDevices || 0) + '</dd>';
+        html += '<dt>Total Policies</dt><dd>' + (rule.assignedDevices || 0) + '</dd>';
         html += '</dl></div>';
 
         // Recommendations

@@ -41,3 +41,6 @@ PASS (no required-field gaps found)
 
 ## Duplicate Code Check
 - Assignment target parsing now uses shared `Resolve-AssignmentTarget` (duplicate removed).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments align with Installed/Failed/Pending legend items.

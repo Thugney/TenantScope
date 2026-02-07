@@ -50,3 +50,6 @@ PASS (collector output matches dashboard usage and sample data)
 
 ## Duplicate Code Check
 - No duplicate patterns detected in this collector (see `reviews/duplicates.md` for global duplicates).
+
+## UI Notes
+- Resolved (2026-02-07): donut segments now include Success/Errors/Conflicts/Pending.
