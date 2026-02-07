@@ -21,262 +21,419 @@ const PageLifecycle = (function() {
     'use strict';
 
     /**
+     * Creates an element with className and textContent.
+     */
+    function el(tag, className, textContent) {
+        var elem = document.createElement(tag);
+        if (className) elem.className = className;
+        if (textContent !== undefined) elem.textContent = textContent;
+        return elem;
+    }
+
+    /**
+     * Creates a platform-style analytics card with mini-bars.
+     */
+    function createPlatformCard(title, rows) {
+        var card = el('div', 'analytics-card');
+        card.appendChild(el('h4', null, title));
+        var list = el('div', 'platform-list');
+        rows.forEach(function(row) {
+            var rowDiv = el('div', 'platform-row');
+            rowDiv.appendChild(el('span', 'platform-name', row.name));
+            rowDiv.appendChild(el('span', 'platform-policies', String(row.count)));
+            var miniBar = el('div', 'mini-bar');
+            var fill = el('div', 'mini-bar-fill ' + row.cls);
+            fill.style.width = row.pct + '%';
+            miniBar.appendChild(fill);
+            rowDiv.appendChild(miniBar);
+            rowDiv.appendChild(el('span', 'platform-rate', row.showCount ? String(row.count) : (row.pct + '%')));
+            list.appendChild(rowDiv);
+        });
+        card.appendChild(list);
+        return card;
+    }
+
+    /**
+     * Creates an insight card with badge, description, and action.
+     */
+    function createInsightCard(type, badge, category, description, action) {
+        var card = el('div', 'insight-card insight-' + type);
+        var header = el('div', 'insight-header');
+        header.appendChild(el('span', 'badge badge-' + type, badge));
+        header.appendChild(el('span', 'insight-category', category));
+        card.appendChild(header);
+        card.appendChild(el('p', 'insight-description', description));
+        if (action) {
+            var actionP = el('p', 'insight-action');
+            actionP.appendChild(el('strong', null, 'Action: '));
+            actionP.appendChild(document.createTextNode(action));
+            card.appendChild(actionP);
+        }
+        return card;
+    }
+
+    /**
+     * Renders the lifecycle overview section with ASR Rules pattern.
+     */
+    function renderLifecycleOverview(container, stats) {
+        container.textContent = '';
+
+        // Calculate healthy percentage
+        var healthyPct = stats.totalIssues === 0 ? 100 : Math.max(0, 100 - Math.round((stats.totalIssues / Math.max(stats.totalEntities, 1)) * 100));
+
+        // Build analytics section with donut chart
+        var section = el('div', 'analytics-section');
+        section.appendChild(el('h3', null, 'Lifecycle Health Overview'));
+
+        var complianceOverview = el('div', 'compliance-overview');
+
+        // Donut chart
+        var chartContainer = el('div', 'compliance-chart');
+        var donutDiv = el('div', 'donut-chart');
+
+        var circumference = 2 * Math.PI * 40;
+        var issuesPct = 100 - healthyPct;
+        var healthyDash = (healthyPct / 100) * circumference;
+        var issuesDash = (issuesPct / 100) * circumference;
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('class', 'donut');
+
+        var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', '50');
+        bgCircle.setAttribute('cy', '50');
+        bgCircle.setAttribute('r', '40');
+        bgCircle.setAttribute('fill', 'none');
+        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke-width', '12');
+        svg.appendChild(bgCircle);
+
+        if (healthyPct > 0) {
+            var healthyCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            healthyCircle.setAttribute('cx', '50');
+            healthyCircle.setAttribute('cy', '50');
+            healthyCircle.setAttribute('r', '40');
+            healthyCircle.setAttribute('fill', 'none');
+            healthyCircle.setAttribute('stroke', 'var(--success)');
+            healthyCircle.setAttribute('stroke-width', '12');
+            healthyCircle.setAttribute('stroke-dasharray', healthyDash + ' ' + circumference);
+            healthyCircle.setAttribute('stroke-dashoffset', '0');
+            healthyCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(healthyCircle);
+        }
+        if (issuesPct > 0) {
+            var issuesCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            issuesCircle.setAttribute('cx', '50');
+            issuesCircle.setAttribute('cy', '50');
+            issuesCircle.setAttribute('r', '40');
+            issuesCircle.setAttribute('fill', 'none');
+            issuesCircle.setAttribute('stroke', 'var(--warning)');
+            issuesCircle.setAttribute('stroke-width', '12');
+            issuesCircle.setAttribute('stroke-dasharray', issuesDash + ' ' + circumference);
+            issuesCircle.setAttribute('stroke-dashoffset', String(-healthyDash));
+            issuesCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(issuesCircle);
+        }
+
+        donutDiv.appendChild(svg);
+
+        var donutCenter = el('div', 'donut-center');
+        donutCenter.appendChild(el('span', 'donut-value', stats.totalIssues));
+        donutCenter.appendChild(el('span', 'donut-label', 'Issues'));
+        donutDiv.appendChild(donutCenter);
+        chartContainer.appendChild(donutDiv);
+        complianceOverview.appendChild(chartContainer);
+
+        // Legend
+        var legend = el('div', 'compliance-legend');
+        var legendItems = [
+            { cls: 'bg-warning', label: 'Offboarding Issues', value: stats.offboardingCount },
+            { cls: 'bg-info', label: 'Onboarding Gaps', value: stats.onboardingCount },
+            { cls: 'bg-critical', label: 'Role Hygiene', value: stats.roleCount },
+            { cls: 'bg-orange', label: 'Guest Cleanup', value: stats.guestCount },
+            { cls: 'bg-purple', label: 'Teams Governance', value: stats.teamsCount },
+            { cls: 'bg-primary', label: 'SharePoint', value: stats.spCount }
+        ];
+        legendItems.forEach(function(item) {
+            var legendItem = el('div', 'legend-item');
+            legendItem.appendChild(el('span', 'legend-dot ' + item.cls));
+            legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            legendItem.appendChild(el('strong', null, String(item.value)));
+            legend.appendChild(legendItem);
+        });
+        complianceOverview.appendChild(legend);
+        section.appendChild(complianceOverview);
+        container.appendChild(section);
+
+        // Analytics grid
+        var analyticsGrid = el('div', 'analytics-grid');
+
+        // Issue Categories card
+        var maxIssue = Math.max(stats.offboardingCount, stats.onboardingCount, stats.roleCount, stats.guestCount, stats.teamsCount, stats.spCount, 1);
+        analyticsGrid.appendChild(createPlatformCard('Issue Categories', [
+            { name: 'Offboarding', count: stats.offboardingCount, pct: Math.round((stats.offboardingCount / maxIssue) * 100), cls: 'bg-warning', showCount: true },
+            { name: 'Onboarding', count: stats.onboardingCount, pct: Math.round((stats.onboardingCount / maxIssue) * 100), cls: 'bg-info', showCount: true },
+            { name: 'Role Hygiene', count: stats.roleCount, pct: Math.round((stats.roleCount / maxIssue) * 100), cls: 'bg-critical', showCount: true },
+            { name: 'Guest Cleanup', count: stats.guestCount, pct: Math.round((stats.guestCount / maxIssue) * 100), cls: 'bg-orange', showCount: true }
+        ]));
+
+        // Offboarding Details card
+        analyticsGrid.appendChild(createPlatformCard('Offboarding Details', [
+            { name: 'Disabled w/ Licenses', count: stats.disabledWithLicenses, pct: stats.offboardingCount > 0 ? Math.round((stats.disabledWithLicenses / stats.offboardingCount) * 100) : 0, cls: 'bg-warning', showCount: true },
+            { name: 'Disabled Admins', count: stats.disabledAdmins, pct: stats.offboardingCount > 0 ? Math.round((stats.disabledAdmins / stats.offboardingCount) * 100) : 0, cls: 'bg-critical', showCount: true },
+            { name: 'Inactive Still Enabled', count: stats.inactiveEnabled, pct: stats.offboardingCount > 0 ? Math.round((stats.inactiveEnabled / stats.offboardingCount) * 100) : 0, cls: 'bg-info', showCount: true }
+        ]));
+
+        // Guest Status card
+        analyticsGrid.appendChild(createPlatformCard('Guest Status', [
+            { name: 'Stale Guests', count: stats.staleGuests, pct: stats.guestCount > 0 ? Math.round((stats.staleGuests / stats.guestCount) * 100) : 0, cls: 'bg-warning', showCount: true },
+            { name: 'Pending Invites', count: stats.pendingGuests, pct: stats.guestCount > 0 ? Math.round((stats.pendingGuests / stats.guestCount) * 100) : 0, cls: 'bg-orange', showCount: true },
+            { name: 'Never Signed In', count: stats.neverSignedIn, pct: stats.guestCount > 0 ? Math.round((stats.neverSignedIn / stats.guestCount) * 100) : 0, cls: 'bg-critical', showCount: true }
+        ]));
+
+        // Governance Issues card
+        analyticsGrid.appendChild(createPlatformCard('Governance Issues', [
+            { name: 'Ownerless Teams', count: stats.ownerlessTeams, pct: stats.teamsCount > 0 ? Math.round((stats.ownerlessTeams / stats.teamsCount) * 100) : 0, cls: 'bg-warning', showCount: true },
+            { name: 'Sites w/ Anon Links', count: stats.anonLinkSites, pct: stats.spCount > 0 ? Math.round((stats.anonLinkSites / stats.spCount) * 100) : 0, cls: 'bg-critical', showCount: true },
+            { name: 'Sites w/o Labels', count: stats.noLabelSites, pct: stats.spCount > 0 ? Math.round((stats.noLabelSites / stats.spCount) * 100) : 0, cls: 'bg-info', showCount: true }
+        ]));
+
+        container.appendChild(analyticsGrid);
+
+        // Insights section
+        var insightsList = el('div', 'insights-list');
+
+        // Offboarding insight
+        if (stats.offboardingCount > 0) {
+            insightsList.appendChild(createInsightCard('warning', 'CLEANUP', 'Offboarding Issues',
+                stats.offboardingCount + ' offboarding issue' + (stats.offboardingCount !== 1 ? 's' : '') + ' detected. Disabled accounts with licenses or admin roles need attention.',
+                'Remove licenses from disabled accounts and revoke admin roles to reduce costs and security exposure.'));
+        }
+
+        // Role hygiene insight
+        if (stats.roleCount > 0) {
+            insightsList.appendChild(createInsightCard('critical', 'SECURITY', 'Role Hygiene',
+                stats.roleCount + ' admin account' + (stats.roleCount !== 1 ? 's' : '') + ' with security concerns. Inactive admins or admins without MFA pose significant risk.',
+                'Review admin accounts and enforce MFA for all privileged roles.'));
+        }
+
+        // Guest cleanup insight
+        if (stats.guestCount > 0) {
+            insightsList.appendChild(createInsightCard('info', 'REVIEW', 'Guest Lifecycle',
+                stats.guestCount + ' guest' + (stats.guestCount !== 1 ? 's' : '') + ' require review. Stale or pending guests increase external exposure.',
+                'Run access reviews for external users and remove stale guest accounts.'));
+        }
+
+        // Teams/SP governance insight
+        if (stats.teamsCount > 0 || stats.spCount > 0) {
+            insightsList.appendChild(createInsightCard('info', 'GOVERNANCE', 'Collaboration Issues',
+                (stats.teamsCount + stats.spCount) + ' Teams and SharePoint governance issue' + ((stats.teamsCount + stats.spCount) !== 1 ? 's' : '') + ' found.',
+                'Assign owners to orphan teams and review sites with anonymous links.'));
+        }
+
+        // Healthy state
+        if (stats.totalIssues === 0) {
+            insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'Lifecycle Status',
+                'No lifecycle issues detected. User, guest, and collaboration governance is healthy.',
+                null));
+        }
+
+        container.appendChild(insightsList);
+    }
+
+    /**
+     * Creates a summary card for the header.
+     */
+    function createSummaryCard(label, value, valueClass, cardClass) {
+        var card = el('div', 'card' + (cardClass ? ' ' + cardClass : ''));
+        card.appendChild(el('div', 'card-label', label));
+        card.appendChild(el('div', 'card-value' + (valueClass ? ' ' + valueClass : ''), String(value)));
+        return card;
+    }
+
+    /**
+     * Creates a section with header and table container.
+     */
+    function createSection(title, subtitle, subsections) {
+        var section = el('div', 'section');
+        var header = el('div', 'section-header');
+        var headerInner = el('div');
+        headerInner.appendChild(el('h3', 'section-title', title));
+        headerInner.appendChild(el('p', 'section-subtitle', subtitle));
+        header.appendChild(headerInner);
+        section.appendChild(header);
+
+        subsections.forEach(function(sub) {
+            var h4 = el('h4', sub.isFirst ? 'mb-sm' : 'mb-sm mt-lg', sub.title + ' (' + sub.count + ')');
+            section.appendChild(h4);
+            var tableDiv = el('div');
+            tableDiv.id = sub.tableId;
+            section.appendChild(tableDiv);
+        });
+
+        return section;
+    }
+
+    /**
      * Renders the lifecycle page content.
      *
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
+        container.textContent = '';
+
         var allUsers = DataLoader.getData('users');
         var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
-        const guests = DataLoader.getData('guests');
-        const adminRoles = DataLoader.getData('adminRoles');
-        const teams = DataLoader.getData('teams');
-        const spSites = DataLoader.getData('sharepointSites');
+        var guests = DataLoader.getData('guests');
+        var adminRoles = DataLoader.getData('adminRoles');
+        var teams = DataLoader.getData('teams');
+        var spSites = DataLoader.getData('sharepointSites');
 
         // Calculate offboarding issues
-        const disabledWithLicenses = users.filter(u => !u.accountEnabled && u.licenseCount > 0);
-        const inactiveStillEnabled = users.filter(u => u.isInactive && u.accountEnabled);
+        var disabledWithLicenses = users.filter(function(u) { return !u.accountEnabled && u.licenseCount > 0; });
+        var inactiveStillEnabled = users.filter(function(u) { return u.isInactive && u.accountEnabled; });
 
         // Find disabled users with admin roles
-        const disabledAdmins = [];
-        adminRoles.forEach(role => {
-            role.members.forEach(member => {
+        var disabledAdmins = [];
+        adminRoles.forEach(function(role) {
+            role.members.forEach(function(member) {
                 if (!member.accountEnabled) {
-                    disabledAdmins.push({
-                        ...member,
-                        roleName: role.roleName
-                    });
+                    disabledAdmins.push(Object.assign({}, member, { roleName: role.roleName }));
                 }
             });
         });
 
         // Calculate onboarding gaps (created in last 30 days)
-        const thirtyDaysAgo = new Date();
+        var thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        const newUsers = users.filter(u => {
+        var newUsers = users.filter(function(u) {
             if (!u.createdDateTime) return false;
-            const created = new Date(u.createdDateTime);
+            var created = new Date(u.createdDateTime);
             return created >= thirtyDaysAgo;
         });
 
-        const newUsersNoSignIn = newUsers.filter(u => !u.lastSignIn);
-        const newUsersNoMfa = newUsers.filter(u => !u.mfaRegistered);
-        const newUsersNoLicense = newUsers.filter(u => u.licenseCount === 0);
+        var newUsersNoSignIn = newUsers.filter(function(u) { return !u.lastSignIn; });
+        var newUsersNoMfa = newUsers.filter(function(u) { return !u.mfaRegistered; });
 
         // Calculate role hygiene issues
-        const inactiveAdmins = [];
-        const adminsNoMfa = [];
+        var inactiveAdmins = [];
+        var adminsNoMfa = [];
 
-        adminRoles.forEach(role => {
-            role.members.forEach(member => {
+        adminRoles.forEach(function(role) {
+            role.members.forEach(function(member) {
                 if (member.isInactive) {
-                    inactiveAdmins.push({
-                        ...member,
-                        roleName: role.roleName
-                    });
+                    inactiveAdmins.push(Object.assign({}, member, { roleName: role.roleName }));
                 }
                 // Check MFA from users data
-                const userData = users.find(u => u.id === member.userId);
+                var userData = users.find(function(u) { return u.id === member.userId; });
                 if (userData && !userData.mfaRegistered) {
-                    adminsNoMfa.push({
-                        ...member,
-                        roleName: role.roleName
-                    });
+                    adminsNoMfa.push(Object.assign({}, member, { roleName: role.roleName }));
                 }
             });
         });
 
         // Calculate guest cleanup
-        const staleGuests = guests.filter(g => g.isStale);
-        const pendingGuests = guests.filter(g => g.invitationState === 'PendingAcceptance');
-        const neverSignedInGuests = guests.filter(g => g.neverSignedIn && g.invitationState === 'Accepted');
+        var staleGuests = guests.filter(function(g) { return g.isStale; });
+        var pendingGuests = guests.filter(function(g) { return g.invitationState === 'PendingAcceptance'; });
+        var neverSignedInGuests = guests.filter(function(g) { return g.neverSignedIn && g.invitationState === 'Accepted'; });
 
         // Calculate teams governance issues
-        const ownerlessTeams = teams.filter(function(t) { return t.hasNoOwner; });
-        const inactiveTeamsWithGuests = teams.filter(function(t) { return t.isInactive && t.hasGuests; });
-        const teamsIssueCount = ownerlessTeams.length + inactiveTeamsWithGuests.length;
+        var ownerlessTeams = teams.filter(function(t) { return t.hasNoOwner; });
+        var inactiveTeamsWithGuests = teams.filter(function(t) { return t.isInactive && t.hasGuests; });
+        var teamsIssueCount = ownerlessTeams.length + inactiveTeamsWithGuests.length;
 
         // Calculate SharePoint governance issues (non-personal sites only)
-        const spNonPersonal = spSites.filter(function(s) { return !s.isPersonalSite; });
-        const sitesWithAnonymousLinks = spNonPersonal.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; });
-        const externalInactiveSites = spNonPersonal.filter(function(s) { return s.isInactive && s.hasExternalSharing; });
-        const sitesWithoutLabels = spNonPersonal.filter(function(s) { return !s.sensitivityLabelId; });
-        const spGovernanceCount = sitesWithAnonymousLinks.length + externalInactiveSites.length + sitesWithoutLabels.length;
+        var spNonPersonal = spSites.filter(function(s) { return !s.isPersonalSite; });
+        var sitesWithAnonymousLinks = spNonPersonal.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; });
+        var externalInactiveSites = spNonPersonal.filter(function(s) { return s.isInactive && s.hasExternalSharing; });
+        var sitesWithoutLabels = spNonPersonal.filter(function(s) { return !s.sensitivityLabelId; });
+        var spGovernanceCount = sitesWithAnonymousLinks.length + externalInactiveSites.length + sitesWithoutLabels.length;
 
         // Calculate total issues
-        const totalIssues = disabledWithLicenses.length + disabledAdmins.length +
-                           inactiveStillEnabled.length + newUsersNoSignIn.length +
-                           inactiveAdmins.length + adminsNoMfa.length +
-                           staleGuests.length + pendingGuests.length +
-                           teamsIssueCount + spGovernanceCount;
+        var offboardingCount = disabledWithLicenses.length + disabledAdmins.length + inactiveStillEnabled.length;
+        var onboardingCount = newUsersNoSignIn.length + newUsersNoMfa.length;
+        var roleCount = inactiveAdmins.length + adminsNoMfa.length;
+        var guestCount = staleGuests.length + pendingGuests.length + neverSignedInGuests.length;
+        var totalIssues = offboardingCount + onboardingCount + roleCount + guestCount + teamsIssueCount + spGovernanceCount;
 
-        container.innerHTML = `
-            <div class="page-header">
-                <h2 class="page-title">Lifecycle Management</h2>
-                <p class="page-description">Account lifecycle issues requiring attention</p>
-            </div>
+        // Page header
+        var pageHeader = el('div', 'page-header');
+        pageHeader.appendChild(el('h2', 'page-title', 'Lifecycle Management'));
+        pageHeader.appendChild(el('p', 'page-description', 'Account lifecycle issues requiring attention'));
+        container.appendChild(pageHeader);
 
-            <!-- Summary Cards -->
-            <div class="cards-grid">
-                <div class="card ${totalIssues > 0 ? 'card-warning' : 'card-success'}">
-                    <div class="card-label">Total Issues</div>
-                    <div class="card-value ${totalIssues > 0 ? 'warning' : 'success'}">${totalIssues}</div>
-                </div>
-                <div class="card ${disabledWithLicenses.length > 0 ? 'card-warning' : ''}">
-                    <div class="card-label">Offboarding Issues</div>
-                    <div class="card-value">${disabledWithLicenses.length + disabledAdmins.length}</div>
-                </div>
-                <div class="card ${inactiveAdmins.length > 0 ? 'card-critical' : ''}">
-                    <div class="card-label">Role Hygiene</div>
-                    <div class="card-value">${inactiveAdmins.length + adminsNoMfa.length}</div>
-                </div>
-                <div class="card ${staleGuests.length > 0 ? 'card-warning' : ''}">
-                    <div class="card-label">Guest Cleanup</div>
-                    <div class="card-value">${staleGuests.length + pendingGuests.length}</div>
-                </div>
-                <div class="card ${teamsIssueCount > 0 ? 'card-warning' : ''}">
-                    <div class="card-label">Teams Governance</div>
-                    <div class="card-value ${teamsIssueCount > 0 ? 'warning' : ''}">${teamsIssueCount}</div>
-                </div>
-                <div class="card ${spGovernanceCount > 0 ? 'card-warning' : ''}">
-                    <div class="card-label">SharePoint Governance</div>
-                    <div class="card-value ${spGovernanceCount > 0 ? 'warning' : ''}">${spGovernanceCount}</div>
-                </div>
-            </div>
+        // Summary cards
+        var cardsGrid = el('div', 'cards-grid');
+        cardsGrid.appendChild(createSummaryCard('Total Issues', totalIssues, totalIssues > 0 ? 'warning' : 'success', totalIssues > 0 ? 'card-warning' : 'card-success'));
+        cardsGrid.appendChild(createSummaryCard('Offboarding Issues', offboardingCount, null, offboardingCount > 0 ? 'card-warning' : null));
+        cardsGrid.appendChild(createSummaryCard('Role Hygiene', roleCount, null, roleCount > 0 ? 'card-critical' : null));
+        cardsGrid.appendChild(createSummaryCard('Guest Cleanup', guestCount, null, guestCount > 0 ? 'card-warning' : null));
+        cardsGrid.appendChild(createSummaryCard('Teams Governance', teamsIssueCount, teamsIssueCount > 0 ? 'warning' : null, teamsIssueCount > 0 ? 'card-warning' : null));
+        cardsGrid.appendChild(createSummaryCard('SharePoint Governance', spGovernanceCount, spGovernanceCount > 0 ? 'warning' : null, spGovernanceCount > 0 ? 'card-warning' : null));
+        container.appendChild(cardsGrid);
 
-            <!-- Charts -->
-            <div class="charts-row" id="lifecycle-charts"></div>
+        // Lifecycle Overview section
+        var overviewContainer = el('div');
+        var stats = {
+            totalIssues: totalIssues,
+            totalEntities: users.length + guests.length + teams.length + spNonPersonal.length,
+            offboardingCount: offboardingCount,
+            onboardingCount: onboardingCount,
+            roleCount: roleCount,
+            guestCount: guestCount,
+            teamsCount: teamsIssueCount,
+            spCount: spGovernanceCount,
+            disabledWithLicenses: disabledWithLicenses.length,
+            disabledAdmins: disabledAdmins.length,
+            inactiveEnabled: inactiveStillEnabled.length,
+            staleGuests: staleGuests.length,
+            pendingGuests: pendingGuests.length,
+            neverSignedIn: neverSignedInGuests.length,
+            ownerlessTeams: ownerlessTeams.length,
+            anonLinkSites: sitesWithAnonymousLinks.length,
+            noLabelSites: sitesWithoutLabels.length
+        };
+        renderLifecycleOverview(overviewContainer, stats);
+        container.appendChild(overviewContainer);
 
-            <!-- Offboarding Issues Section -->
-            <div class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title">Offboarding Issues</h3>
-                        <p class="section-subtitle">Disabled accounts that still have licenses or admin roles assigned</p>
-                    </div>
-                </div>
+        // Offboarding Issues Section
+        container.appendChild(createSection('Offboarding Issues', 'Disabled accounts that still have licenses or admin roles assigned', [
+            { title: 'Disabled Accounts with Licenses', count: disabledWithLicenses.length, tableId: 'offboarding-licenses-table', isFirst: true },
+            { title: 'Inactive Users Still Enabled', count: inactiveStillEnabled.length, tableId: 'offboarding-inactive-table' }
+        ]));
 
-                <h4 class="mb-sm mt-md">Disabled Accounts with Licenses (${disabledWithLicenses.length})</h4>
-                <div id="offboarding-licenses-table"></div>
+        // Onboarding Gaps Section
+        container.appendChild(createSection('Onboarding Gaps', 'New users (last 30 days) missing required setup', [
+            { title: 'New Users Never Signed In', count: newUsersNoSignIn.length, tableId: 'onboarding-nosignin-table', isFirst: true },
+            { title: 'New Users Without MFA', count: newUsersNoMfa.length, tableId: 'onboarding-nomfa-table' }
+        ]));
 
-                <h4 class="mb-sm mt-lg">Inactive Users Still Enabled (${inactiveStillEnabled.length})</h4>
-                <div id="offboarding-inactive-table"></div>
-            </div>
+        // Role Hygiene Section
+        container.appendChild(createSection('Role Hygiene', 'Admin accounts with security concerns', [
+            { title: 'Inactive Admins', count: inactiveAdmins.length, tableId: 'role-inactive-table', isFirst: true },
+            { title: 'Admins Without MFA', count: adminsNoMfa.length, tableId: 'role-nomfa-table' }
+        ]));
 
-            <!-- Onboarding Gaps Section -->
-            <div class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title">Onboarding Gaps</h3>
-                        <p class="section-subtitle">New users (last 30 days) missing required setup</p>
-                    </div>
-                </div>
+        // Guest Cleanup Section
+        container.appendChild(createSection('Guest Cleanup', 'External users requiring review or removal', [
+            { title: 'Stale Guests', count: staleGuests.length, tableId: 'guest-stale-table', isFirst: true },
+            { title: 'Pending Invitations', count: pendingGuests.length, tableId: 'guest-pending-table' }
+        ]));
 
-                <h4 class="mb-sm">New Users Never Signed In (${newUsersNoSignIn.length})</h4>
-                <div id="onboarding-nosignin-table"></div>
+        // Teams Governance Section
+        container.appendChild(createSection('Teams Governance', 'Teams requiring ownership or access review', [
+            { title: 'Ownerless Teams', count: ownerlessTeams.length, tableId: 'teams-ownerless-table', isFirst: true },
+            { title: 'Inactive Teams with Guest Access', count: inactiveTeamsWithGuests.length, tableId: 'teams-inactive-guests-table' }
+        ]));
 
-                <h4 class="mb-sm mt-lg">New Users Without MFA (${newUsersNoMfa.length})</h4>
-                <div id="onboarding-nomfa-table"></div>
-            </div>
-
-            <!-- Role Hygiene Section -->
-            <div class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title">Role Hygiene</h3>
-                        <p class="section-subtitle">Admin accounts with security concerns</p>
-                    </div>
-                </div>
-
-                <h4 class="mb-sm">Inactive Admins (${inactiveAdmins.length})</h4>
-                <div id="role-inactive-table"></div>
-
-                <h4 class="mb-sm mt-lg">Admins Without MFA (${adminsNoMfa.length})</h4>
-                <div id="role-nomfa-table"></div>
-            </div>
-
-            <!-- Guest Cleanup Section -->
-            <div class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title">Guest Cleanup</h3>
-                        <p class="section-subtitle">External users requiring review or removal</p>
-                    </div>
-                </div>
-
-                <h4 class="mb-sm">Stale Guests (${staleGuests.length})</h4>
-                <div id="guest-stale-table"></div>
-
-                <h4 class="mb-sm mt-lg">Pending Invitations (${pendingGuests.length})</h4>
-                <div id="guest-pending-table"></div>
-            </div>
-
-            <!-- Teams Governance Section -->
-            <div class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title">Teams Governance</h3>
-                        <p class="section-subtitle">Teams requiring ownership or access review</p>
-                    </div>
-                </div>
-
-                <h4 class="mb-sm">Ownerless Teams (${ownerlessTeams.length})</h4>
-                <div id="teams-ownerless-table"></div>
-
-                <h4 class="mb-sm mt-lg">Inactive Teams with Guest Access (${inactiveTeamsWithGuests.length})</h4>
-                <div id="teams-inactive-guests-table"></div>
-            </div>
-
-            <!-- SharePoint Governance Section -->
-            <div class="section">
-                <div class="section-header">
-                    <div>
-                        <h3 class="section-title">SharePoint Governance</h3>
-                        <p class="section-subtitle">Sites with sharing exposure, missing labels, or inactive external access</p>
-                    </div>
-                </div>
-
-                <h4 class="mb-sm">Sites with Anonymous Links (${sitesWithAnonymousLinks.length})</h4>
-                <div id="sp-anon-links-table"></div>
-
-                <h4 class="mb-sm mt-lg">Inactive Sites with External Sharing (${externalInactiveSites.length})</h4>
-                <div id="sp-external-inactive-table"></div>
-
-                <h4 class="mb-sm mt-lg">Sites Without Sensitivity Labels (${sitesWithoutLabels.length})</h4>
-                <div id="sp-no-labels-table"></div>
-            </div>
-        `;
-
-        // Render charts
-        var chartsRow = document.getElementById('lifecycle-charts');
-        if (chartsRow) {
-            var C = DashboardCharts.colors;
-
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Issue Categories',
-                [
-                    { value: disabledWithLicenses.length + disabledAdmins.length, label: 'Offboarding', color: C.orange },
-                    { value: newUsersNoSignIn.length + newUsersNoMfa.length, label: 'Onboarding', color: C.blue },
-                    { value: inactiveAdmins.length + adminsNoMfa.length, label: 'Role Hygiene', color: C.red },
-                    { value: staleGuests.length + pendingGuests.length, label: 'Guest Cleanup', color: C.yellow },
-                    { value: teamsIssueCount, label: 'Teams', color: C.purple },
-                    { value: spGovernanceCount, label: 'SharePoint', color: C.teal }
-                ],
-                String(totalIssues), 'total issues'
-            ));
-
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Guest Status',
-                [
-                    { value: guests.length - staleGuests.length - pendingGuests.length - neverSignedInGuests.length, label: 'Active', color: C.green },
-                    { value: staleGuests.length, label: 'Stale', color: C.yellow },
-                    { value: pendingGuests.length, label: 'Pending', color: C.orange },
-                    { value: neverSignedInGuests.length, label: 'Never Signed In', color: C.red }
-                ],
-                String(guests.length), 'total guests'
-            ));
-        }
+        // SharePoint Governance Section
+        container.appendChild(createSection('SharePoint Governance', 'Sites with sharing exposure, missing labels, or inactive external access', [
+            { title: 'Sites with Anonymous Links', count: sitesWithAnonymousLinks.length, tableId: 'sp-anon-links-table', isFirst: true },
+            { title: 'Inactive Sites with External Sharing', count: externalInactiveSites.length, tableId: 'sp-external-inactive-table' },
+            { title: 'Sites Without Sensitivity Labels', count: sitesWithoutLabels.length, tableId: 'sp-no-labels-table' }
+        ]));
 
         // Render offboarding tables
         Tables.render({

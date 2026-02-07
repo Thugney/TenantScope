@@ -154,22 +154,11 @@ const PageOrganization = (function() {
         cards.appendChild(createCard('Departments', hierarchy.departments.length, 'secondary'));
         container.appendChild(cards);
 
-        // Charts row
-        var chartsRow = el('div', 'charts-row');
-        chartsRow.id = 'org-charts-row';
-        container.appendChild(chartsRow);
-
-        // Render charts using DashboardCharts
-        renderCharts(hierarchy, chartsRow);
-
-        // Alert for orphan users
-        if (hierarchy.totalOrphans > 0) {
-            var alert = el('div', 'alert-box alert-warning');
-            var strong = el('strong', null, 'Governance Alert: ');
-            alert.appendChild(strong);
-            alert.appendChild(document.createTextNode(hierarchy.totalOrphans + ' users have no manager assigned. This creates visibility gaps for access reviews and reporting chains.'));
-            container.appendChild(alert);
-        }
+        // Overview section with ASR Rules pattern
+        var overviewDiv = el('div');
+        overviewDiv.id = 'org-overview';
+        container.appendChild(overviewDiv);
+        renderOrgOverview(overviewDiv, hierarchy, users.length);
 
         // Focus/Breakdown section
         var fbRow = el('div', 'focus-breakdown-row');
@@ -261,6 +250,220 @@ const PageOrganization = (function() {
         card.appendChild(el('div', 'card-value', (value || 0).toLocaleString()));
         card.appendChild(el('div', 'card-label', label));
         return card;
+    }
+
+    /**
+     * Creates a platform-style analytics card with mini-bars.
+     */
+    function createPlatformCard(title, rows) {
+        var card = el('div', 'analytics-card');
+        card.appendChild(el('h4', null, title));
+        var list = el('div', 'platform-list');
+        rows.forEach(function(row) {
+            var rowDiv = el('div', 'platform-row');
+            rowDiv.appendChild(el('span', 'platform-name', row.name));
+            rowDiv.appendChild(el('span', 'platform-policies', String(row.count)));
+            var miniBar = el('div', 'mini-bar');
+            var fill = el('div', 'mini-bar-fill ' + row.cls);
+            fill.style.width = row.pct + '%';
+            miniBar.appendChild(fill);
+            rowDiv.appendChild(miniBar);
+            rowDiv.appendChild(el('span', 'platform-rate', row.showCount ? String(row.count) : (row.pct + '%')));
+            list.appendChild(rowDiv);
+        });
+        card.appendChild(list);
+        return card;
+    }
+
+    /**
+     * Creates an insight card with badge, description, and action.
+     */
+    function createInsightCard(type, badge, category, description, action) {
+        var card = el('div', 'insight-card insight-' + type);
+        var header = el('div', 'insight-header');
+        var badgeSpan = el('span', 'badge badge-' + type, badge);
+        header.appendChild(badgeSpan);
+        header.appendChild(el('span', 'insight-category', category));
+        card.appendChild(header);
+        card.appendChild(el('p', 'insight-description', description));
+        if (action) {
+            var actionP = el('p', 'insight-action');
+            actionP.appendChild(el('strong', null, 'Action: '));
+            actionP.appendChild(document.createTextNode(action));
+            card.appendChild(actionP);
+        }
+        return card;
+    }
+
+    /**
+     * Renders the organization overview section with ASR Rules pattern.
+     */
+    function renderOrgOverview(container, hierarchy, totalUsers) {
+        container.textContent = '';
+
+        // Calculate stats
+        var withManager = totalUsers - hierarchy.totalOrphans;
+        var withManagerPct = totalUsers > 0 ? Math.round((withManager / totalUsers) * 100) : 0;
+        var orphanPct = totalUsers > 0 ? Math.round((hierarchy.totalOrphans / totalUsers) * 100) : 0;
+
+        // Build analytics section with donut chart
+        var section = el('div', 'analytics-section');
+        section.appendChild(el('h3', null, 'Organization Health Overview'));
+
+        var complianceOverview = el('div', 'compliance-overview');
+
+        // Donut chart showing manager coverage
+        var chartContainer = el('div', 'compliance-chart');
+        var donutDiv = el('div', 'donut-chart');
+
+        var circumference = 2 * Math.PI * 40;
+        var withMgrDash = (withManagerPct / 100) * circumference;
+        var orphanDash = (orphanPct / 100) * circumference;
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('class', 'donut');
+
+        var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', '50');
+        bgCircle.setAttribute('cy', '50');
+        bgCircle.setAttribute('r', '40');
+        bgCircle.setAttribute('fill', 'none');
+        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke-width', '12');
+        svg.appendChild(bgCircle);
+
+        if (withManagerPct > 0) {
+            var mgrCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            mgrCircle.setAttribute('cx', '50');
+            mgrCircle.setAttribute('cy', '50');
+            mgrCircle.setAttribute('r', '40');
+            mgrCircle.setAttribute('fill', 'none');
+            mgrCircle.setAttribute('stroke', 'var(--success)');
+            mgrCircle.setAttribute('stroke-width', '12');
+            mgrCircle.setAttribute('stroke-dasharray', withMgrDash + ' ' + circumference);
+            mgrCircle.setAttribute('stroke-dashoffset', '0');
+            mgrCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(mgrCircle);
+        }
+        if (orphanPct > 0) {
+            var orphCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            orphCircle.setAttribute('cx', '50');
+            orphCircle.setAttribute('cy', '50');
+            orphCircle.setAttribute('r', '40');
+            orphCircle.setAttribute('fill', 'none');
+            orphCircle.setAttribute('stroke', 'var(--warning)');
+            orphCircle.setAttribute('stroke-width', '12');
+            orphCircle.setAttribute('stroke-dasharray', orphanDash + ' ' + circumference);
+            orphCircle.setAttribute('stroke-dashoffset', String(-withMgrDash));
+            orphCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(orphCircle);
+        }
+
+        donutDiv.appendChild(svg);
+
+        var donutCenter = el('div', 'donut-center');
+        donutCenter.appendChild(el('span', 'donut-value', withManagerPct + '%'));
+        donutCenter.appendChild(el('span', 'donut-label', 'Have Manager'));
+        donutDiv.appendChild(donutCenter);
+        chartContainer.appendChild(donutDiv);
+        complianceOverview.appendChild(chartContainer);
+
+        // Legend
+        var legend = el('div', 'compliance-legend');
+        var legendItems = [
+            { cls: 'bg-success', label: 'With Manager', value: withManager },
+            { cls: 'bg-warning', label: 'Orphan Users', value: hierarchy.totalOrphans },
+            { cls: 'bg-info', label: 'Total Managers', value: hierarchy.totalManagers },
+            { cls: 'bg-primary', label: 'Departments', value: hierarchy.departments.length }
+        ];
+        legendItems.forEach(function(item) {
+            var legendItem = el('div', 'legend-item');
+            legendItem.appendChild(el('span', 'legend-dot ' + item.cls));
+            legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            legendItem.appendChild(el('strong', null, String(item.value)));
+            legend.appendChild(legendItem);
+        });
+        complianceOverview.appendChild(legend);
+        section.appendChild(complianceOverview);
+        container.appendChild(section);
+
+        // Analytics grid
+        var analyticsGrid = el('div', 'analytics-grid');
+
+        // Span of Control card
+        var spanRows = [
+            { name: '1-3 reports', count: hierarchy.spanBuckets['1-3'], pct: hierarchy.totalManagers > 0 ? Math.round((hierarchy.spanBuckets['1-3'] / hierarchy.totalManagers) * 100) : 0, cls: 'bg-success' },
+            { name: '4-7 reports', count: hierarchy.spanBuckets['4-7'], pct: hierarchy.totalManagers > 0 ? Math.round((hierarchy.spanBuckets['4-7'] / hierarchy.totalManagers) * 100) : 0, cls: 'bg-info' },
+            { name: '8-15 reports', count: hierarchy.spanBuckets['8-15'], pct: hierarchy.totalManagers > 0 ? Math.round((hierarchy.spanBuckets['8-15'] / hierarchy.totalManagers) * 100) : 0, cls: 'bg-warning' },
+            { name: '16+ reports', count: hierarchy.spanBuckets['16+'], pct: hierarchy.totalManagers > 0 ? Math.round((hierarchy.spanBuckets['16+'] / hierarchy.totalManagers) * 100) : 0, cls: 'bg-critical' }
+        ];
+        analyticsGrid.appendChild(createPlatformCard('Span of Control', spanRows));
+
+        // Top Departments card
+        var topDepts = hierarchy.departments.slice(0, 4);
+        var maxDeptUsers = topDepts.length > 0 ? topDepts[0].totalUsers : 1;
+        var deptRows = topDepts.map(function(d) {
+            return { name: d.name, count: d.totalUsers, pct: Math.round((d.totalUsers / maxDeptUsers) * 100), cls: 'bg-info', showCount: true };
+        });
+        if (deptRows.length === 0) {
+            deptRows = [{ name: 'No departments', count: '--', pct: 0, cls: 'bg-neutral' }];
+        }
+        analyticsGrid.appendChild(createPlatformCard('Top Departments', deptRows));
+
+        // Top Managers card
+        var topMgrs = hierarchy.managers.slice(0, 4);
+        var maxReports = topMgrs.length > 0 ? topMgrs[0].directReports.length : 1;
+        var mgrRows = topMgrs.map(function(m) {
+            return { name: m.name, count: m.directReports.length, pct: Math.round((m.directReports.length / maxReports) * 100), cls: 'bg-primary', showCount: true };
+        });
+        if (mgrRows.length === 0) {
+            mgrRows = [{ name: 'No managers', count: '--', pct: 0, cls: 'bg-neutral' }];
+        }
+        analyticsGrid.appendChild(createPlatformCard('Top Managers', mgrRows));
+
+        // Manager Coverage card
+        analyticsGrid.appendChild(createPlatformCard('Manager Coverage', [
+            { name: 'With Manager', count: withManager, pct: withManagerPct, cls: 'bg-success' },
+            { name: 'Orphan Users', count: hierarchy.totalOrphans, pct: orphanPct, cls: 'bg-warning' }
+        ]));
+
+        container.appendChild(analyticsGrid);
+
+        // Insights section
+        var insightsList = el('div', 'insights-list');
+
+        // Orphan users insight
+        if (hierarchy.totalOrphans > 0) {
+            insightsList.appendChild(createInsightCard('warning', 'GOVERNANCE', 'Orphan Users',
+                hierarchy.totalOrphans + ' user' + (hierarchy.totalOrphans !== 1 ? 's have' : ' has') + ' no manager assigned. This creates visibility gaps for access reviews and reporting chains.',
+                'Assign managers to orphan users to enable proper governance and access reviews.'));
+        }
+
+        // Wide span of control insight
+        var wideSpan = hierarchy.spanBuckets['16+'];
+        if (wideSpan > 0) {
+            insightsList.appendChild(createInsightCard('info', 'ATTENTION', 'Wide Span of Control',
+                wideSpan + ' manager' + (wideSpan !== 1 ? 's have' : ' has') + ' 16+ direct reports. Consider if delegation is needed.',
+                'Review managers with wide span of control and consider organizational restructuring.'));
+        }
+
+        // External managers insight
+        var externalMgrs = hierarchy.managers.filter(function(m) { return !m.isUser; });
+        if (externalMgrs.length > 0) {
+            insightsList.appendChild(createInsightCard('info', 'INFO', 'External Managers',
+                externalMgrs.length + ' manager' + (externalMgrs.length !== 1 ? 's are' : ' is') + ' not found in the tenant. These may be external or former employees.',
+                'Verify external manager references and update or remove as needed.'));
+        }
+
+        // Healthy state
+        if (hierarchy.totalOrphans === 0 && wideSpan === 0) {
+            insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'Organization Status',
+                'All users have managers assigned and span of control is within recommended limits.',
+                null));
+        }
+
+        container.appendChild(insightsList);
     }
 
     /**

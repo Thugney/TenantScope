@@ -429,6 +429,281 @@ const PageUsers = (function() {
     }
 
     /**
+     * Creates a summary card element.
+     */
+    function createSummaryCard(label, value, variant) {
+        var card = document.createElement('div');
+        card.className = 'card' + (variant ? ' card-' + variant : '');
+        var labelDiv = document.createElement('div');
+        labelDiv.className = 'card-label';
+        labelDiv.textContent = label;
+        var valueDiv = document.createElement('div');
+        valueDiv.className = 'card-value' + (variant ? ' ' + variant : '');
+        valueDiv.textContent = value;
+        card.appendChild(labelDiv);
+        card.appendChild(valueDiv);
+        return card;
+    }
+
+    /**
+     * Creates a platform-style analytics card with mini-bars.
+     */
+    function createPlatformCard(title, rows) {
+        var card = document.createElement('div');
+        card.className = 'analytics-card';
+        var h4 = document.createElement('h4');
+        h4.textContent = title;
+        card.appendChild(h4);
+        var list = document.createElement('div');
+        list.className = 'platform-list';
+        rows.forEach(function(row) {
+            var rowDiv = document.createElement('div');
+            rowDiv.className = 'platform-row';
+            var name = document.createElement('span');
+            name.className = 'platform-name';
+            name.textContent = row.name;
+            rowDiv.appendChild(name);
+            var policies = document.createElement('span');
+            policies.className = 'platform-policies';
+            policies.textContent = row.count;
+            rowDiv.appendChild(policies);
+            var miniBar = document.createElement('div');
+            miniBar.className = 'mini-bar';
+            var fill = document.createElement('div');
+            fill.className = 'mini-bar-fill ' + row.cls;
+            fill.style.width = row.pct + '%';
+            miniBar.appendChild(fill);
+            rowDiv.appendChild(miniBar);
+            var rate = document.createElement('span');
+            rate.className = 'platform-rate';
+            rate.textContent = row.showCount ? row.count : (row.pct + '%');
+            rowDiv.appendChild(rate);
+            list.appendChild(rowDiv);
+        });
+        card.appendChild(list);
+        return card;
+    }
+
+    /**
+     * Creates an insight card with badge, description, and action.
+     */
+    function createInsightCard(type, badge, category, description, action) {
+        var card = document.createElement('div');
+        card.className = 'insight-card insight-' + type;
+        var header = document.createElement('div');
+        header.className = 'insight-header';
+        var badgeSpan = document.createElement('span');
+        badgeSpan.className = 'badge badge-' + type;
+        badgeSpan.textContent = badge;
+        header.appendChild(badgeSpan);
+        var catSpan = document.createElement('span');
+        catSpan.className = 'insight-category';
+        catSpan.textContent = category;
+        header.appendChild(catSpan);
+        card.appendChild(header);
+        var descP = document.createElement('p');
+        descP.className = 'insight-description';
+        descP.textContent = description;
+        card.appendChild(descP);
+        if (action) {
+            var actionP = document.createElement('p');
+            actionP.className = 'insight-action';
+            var strong = document.createElement('strong');
+            strong.textContent = 'Action: ';
+            actionP.appendChild(strong);
+            actionP.appendChild(document.createTextNode(action));
+            card.appendChild(actionP);
+        }
+        return card;
+    }
+
+    /**
+     * Renders the users overview section with ASR Rules pattern.
+     */
+    function renderUsersOverview(container, stats) {
+        container.textContent = '';
+
+        // Build analytics section with donut chart
+        var section = document.createElement('div');
+        section.className = 'analytics-section';
+
+        var sectionTitle = document.createElement('h3');
+        sectionTitle.textContent = 'User Health Overview';
+        section.appendChild(sectionTitle);
+
+        var complianceOverview = document.createElement('div');
+        complianceOverview.className = 'compliance-overview';
+
+        // Donut chart showing MFA coverage
+        var chartContainer = document.createElement('div');
+        chartContainer.className = 'compliance-chart';
+        var donutDiv = document.createElement('div');
+        donutDiv.className = 'donut-chart';
+
+        var circumference = 2 * Math.PI * 40;
+        var mfaDash = (stats.mfaPct / 100) * circumference;
+        var noMfaDash = ((100 - stats.mfaPct) / 100) * circumference;
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('class', 'donut');
+
+        var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', '50');
+        bgCircle.setAttribute('cy', '50');
+        bgCircle.setAttribute('r', '40');
+        bgCircle.setAttribute('fill', 'none');
+        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke-width', '12');
+        svg.appendChild(bgCircle);
+
+        if (stats.mfaPct > 0) {
+            var mfaCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            mfaCircle.setAttribute('cx', '50');
+            mfaCircle.setAttribute('cy', '50');
+            mfaCircle.setAttribute('r', '40');
+            mfaCircle.setAttribute('fill', 'none');
+            mfaCircle.setAttribute('stroke', 'var(--success)');
+            mfaCircle.setAttribute('stroke-width', '12');
+            mfaCircle.setAttribute('stroke-dasharray', mfaDash + ' ' + circumference);
+            mfaCircle.setAttribute('stroke-dashoffset', '0');
+            mfaCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(mfaCircle);
+        }
+        if (stats.noMfaCount > 0) {
+            var noMfaCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            noMfaCircle.setAttribute('cx', '50');
+            noMfaCircle.setAttribute('cy', '50');
+            noMfaCircle.setAttribute('r', '40');
+            noMfaCircle.setAttribute('fill', 'none');
+            noMfaCircle.setAttribute('stroke', 'var(--critical)');
+            noMfaCircle.setAttribute('stroke-width', '12');
+            noMfaCircle.setAttribute('stroke-dasharray', noMfaDash + ' ' + circumference);
+            noMfaCircle.setAttribute('stroke-dashoffset', String(-mfaDash));
+            noMfaCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(noMfaCircle);
+        }
+
+        donutDiv.appendChild(svg);
+
+        var donutCenter = document.createElement('div');
+        donutCenter.className = 'donut-center';
+        var donutValue = document.createElement('span');
+        donutValue.className = 'donut-value';
+        donutValue.textContent = stats.mfaPct + '%';
+        var donutLabel = document.createElement('span');
+        donutLabel.className = 'donut-label';
+        donutLabel.textContent = 'MFA Enrolled';
+        donutCenter.appendChild(donutValue);
+        donutCenter.appendChild(donutLabel);
+        donutDiv.appendChild(donutCenter);
+        chartContainer.appendChild(donutDiv);
+        complianceOverview.appendChild(chartContainer);
+
+        // Legend
+        var legend = document.createElement('div');
+        legend.className = 'compliance-legend';
+        var legendItems = [
+            { cls: 'bg-success', label: 'MFA Enrolled', value: stats.mfaCount },
+            { cls: 'bg-critical', label: 'Without MFA', value: stats.noMfaCount },
+            { cls: 'bg-info', label: 'Enabled', value: stats.enabledCount },
+            { cls: 'bg-neutral', label: 'Disabled', value: stats.disabledCount },
+            { cls: 'bg-warning', label: 'Inactive', value: stats.inactiveCount }
+        ];
+        legendItems.forEach(function(item) {
+            var legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            var dot = document.createElement('span');
+            dot.className = 'legend-dot ' + item.cls;
+            legendItem.appendChild(dot);
+            legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            var strong = document.createElement('strong');
+            strong.textContent = item.value;
+            legendItem.appendChild(strong);
+            legend.appendChild(legendItem);
+        });
+        complianceOverview.appendChild(legend);
+        section.appendChild(complianceOverview);
+        container.appendChild(section);
+
+        // Analytics grid
+        var analyticsGrid = document.createElement('div');
+        analyticsGrid.className = 'analytics-grid';
+
+        // Account Status card
+        var disabledPct = stats.total > 0 ? Math.round((stats.disabledCount / stats.total) * 100) : 0;
+        analyticsGrid.appendChild(createPlatformCard('Account Status', [
+            { name: 'Enabled', count: stats.enabledCount, pct: stats.enabledPct, cls: 'bg-success' },
+            { name: 'Disabled', count: stats.disabledCount, pct: disabledPct, cls: 'bg-neutral' }
+        ]));
+
+        // Domain Distribution card
+        var empPct = stats.total > 0 ? Math.round((stats.employeeCount / stats.total) * 100) : 0;
+        var stuPct = stats.total > 0 ? Math.round((stats.studentCount / stats.total) * 100) : 0;
+        var othPct = stats.total > 0 ? Math.round((stats.otherCount / stats.total) * 100) : 0;
+        analyticsGrid.appendChild(createPlatformCard('Domain Distribution', [
+            { name: 'Employees', count: stats.employeeCount, pct: empPct, cls: 'bg-info' },
+            { name: 'Students', count: stats.studentCount, pct: stuPct, cls: 'bg-primary' },
+            { name: 'Other', count: stats.otherCount, pct: othPct, cls: 'bg-neutral' }
+        ]));
+
+        // User Source card
+        var cloudPct = stats.total > 0 ? Math.round((stats.cloudUsers / stats.total) * 100) : 0;
+        var syncPct = stats.total > 0 ? Math.round((stats.syncedUsers / stats.total) * 100) : 0;
+        analyticsGrid.appendChild(createPlatformCard('User Source', [
+            { name: 'Cloud', count: stats.cloudUsers, pct: cloudPct, cls: 'bg-info' },
+            { name: 'On-prem Synced', count: stats.syncedUsers, pct: syncPct, cls: 'bg-neutral' }
+        ]));
+
+        // Security Posture card
+        var inactivePct = stats.total > 0 ? Math.round((stats.inactiveCount / stats.total) * 100) : 0;
+        var noMfaPct = 100 - stats.mfaPct;
+        analyticsGrid.appendChild(createPlatformCard('Security Posture', [
+            { name: 'MFA Enrolled', count: stats.mfaCount, pct: stats.mfaPct, cls: 'bg-success' },
+            { name: 'Without MFA', count: stats.noMfaCount, pct: noMfaPct, cls: 'bg-critical' },
+            { name: 'Inactive (90+ days)', count: stats.inactiveCount, pct: inactivePct, cls: 'bg-warning' }
+        ]));
+
+        container.appendChild(analyticsGrid);
+
+        // Insights section
+        var insightsList = document.createElement('div');
+        insightsList.className = 'insights-list';
+
+        // No MFA insight
+        if (stats.noMfaCount > 0) {
+            var severity = stats.noMfaCount > 10 ? 'critical' : 'warning';
+            var badge = stats.noMfaCount > 10 ? 'CRITICAL' : 'WARNING';
+            insightsList.appendChild(createInsightCard(severity, badge, 'MFA Coverage',
+                stats.noMfaCount + ' user' + (stats.noMfaCount !== 1 ? 's are' : ' is') + ' not enrolled in MFA. This is a significant security risk.',
+                'Enforce MFA registration through Conditional Access policies.'));
+        }
+
+        // Inactive users insight
+        if (stats.inactiveCount > 0) {
+            insightsList.appendChild(createInsightCard('warning', 'REVIEW', 'Inactive Accounts',
+                stats.inactiveCount + ' user' + (stats.inactiveCount !== 1 ? 's have' : ' has') + ' not signed in for 90+ days. These may be candidates for offboarding.',
+                'Review inactive accounts and disable or remove as appropriate.'));
+        }
+
+        // Disabled accounts insight
+        if (stats.disabledCount > 0) {
+            insightsList.appendChild(createInsightCard('info', 'INFO', 'Disabled Accounts',
+                stats.disabledCount + ' account' + (stats.disabledCount !== 1 ? 's are' : ' is') + ' currently disabled. Ensure licenses are reclaimed.',
+                'Review disabled accounts for license reclamation opportunities.'));
+        }
+
+        // Healthy state
+        if (stats.noMfaCount === 0 && stats.inactiveCount === 0) {
+            insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'User Status',
+                'All users have MFA enrolled and no inactive accounts detected. User security posture is strong.',
+                null));
+        }
+
+        container.appendChild(insightsList);
+    }
+
+    /**
      * Renders the users page content.
      *
      * @param {HTMLElement} container - The page container element
@@ -440,89 +715,114 @@ const PageUsers = (function() {
         // Get unique departments for filter
         const departments = [...new Set(users.map(u => u.department).filter(Boolean))].sort();
 
-        container.innerHTML = `
-            <div class="page-header">
-                <h2 class="page-title">Users</h2>
-                <p class="page-description">All member accounts in your tenant</p>
-            </div>
+        // Calculate additional stats
+        var enabledCount = users.filter(function(u) { return u.accountEnabled; }).length;
+        var disabledCount = users.filter(function(u) { return !u.accountEnabled; }).length;
+        var mfaCount = users.filter(function(u) { return u.mfaRegistered; }).length;
+        var noMfaCount = users.filter(function(u) { return !u.mfaRegistered; }).length;
+        var inactiveCount = users.filter(function(u) { return u.isInactive; }).length;
+        var cloudUsers = users.filter(function(u) { return u.userSource === 'Cloud'; }).length;
+        var syncedUsers = users.filter(function(u) { return u.userSource === 'On-premises synced'; }).length;
 
-            <!-- Summary Cards -->
-            <div class="cards-grid">
-                <div class="card">
-                    <div class="card-label">Total Users</div>
-                    <div class="card-value">${summary.totalUsers}</div>
-                </div>
-                <div class="card">
-                    <div class="card-label">Employees</div>
-                    <div class="card-value">${summary.employeeCount}</div>
-                </div>
-                <div class="card">
-                    <div class="card-label">Students</div>
-                    <div class="card-value">${summary.studentCount}</div>
-                </div>
-                <div class="card ${summary.noMfaUsers > 0 ? 'card-critical' : 'card-success'}">
-                    <div class="card-label">Without MFA</div>
-                    <div class="card-value ${summary.noMfaUsers > 0 ? 'critical' : 'success'}">${summary.noMfaUsers}</div>
-                </div>
-            </div>
+        var total = users.length;
+        var mfaPct = total > 0 ? Math.round((mfaCount / total) * 100) : 0;
+        var enabledPct = total > 0 ? Math.round((enabledCount / total) * 100) : 0;
 
-            <!-- Charts -->
-            <div class="charts-row" id="users-charts"></div>
+        // Build page structure using DOM methods
+        container.textContent = '';
 
-            <!-- Focus/Breakdown Analysis -->
-            <div class="section-header">
-                <h3>User Analysis</h3>
-                <div id="users-breakdown-filter"></div>
-            </div>
-            <div class="focus-breakdown-row">
-                <div id="users-focus-table"></div>
-                <div id="users-breakdown-table"></div>
-            </div>
+        // Page header
+        var header = document.createElement('div');
+        header.className = 'page-header';
+        var h2 = document.createElement('h2');
+        h2.className = 'page-title';
+        h2.textContent = 'Users';
+        header.appendChild(h2);
+        var desc = document.createElement('p');
+        desc.className = 'page-description';
+        desc.textContent = 'All member accounts in your tenant';
+        header.appendChild(desc);
+        container.appendChild(header);
 
-            <!-- Filters -->
-            <div id="users-filter"></div>
+        // Summary cards
+        var cardsGrid = document.createElement('div');
+        cardsGrid.className = 'cards-grid';
+        cardsGrid.appendChild(createSummaryCard('Total Users', summary.totalUsers, ''));
+        cardsGrid.appendChild(createSummaryCard('Employees', summary.employeeCount, ''));
+        cardsGrid.appendChild(createSummaryCard('Students', summary.studentCount, ''));
+        cardsGrid.appendChild(createSummaryCard('Without MFA', summary.noMfaUsers, summary.noMfaUsers > 0 ? 'critical' : 'success'));
+        container.appendChild(cardsGrid);
 
-            <!-- Active Filter Chips -->
-            <div id="users-filter-chips"></div>
+        // Overview section
+        var overviewDiv = document.createElement('div');
+        overviewDiv.id = 'users-overview';
+        container.appendChild(overviewDiv);
 
-            <!-- Column Selector + Export -->
-            <div class="table-toolbar">
-                <div id="users-col-selector"></div>
-                <button class="btn btn-secondary btn-sm" id="export-users-table">Export CSV</button>
-            </div>
+        // Focus/Breakdown section
+        var sectionHeader = document.createElement('div');
+        sectionHeader.className = 'section-header';
+        var analysisH3 = document.createElement('h3');
+        analysisH3.textContent = 'User Analysis';
+        sectionHeader.appendChild(analysisH3);
+        var breakdownFilter = document.createElement('div');
+        breakdownFilter.id = 'users-breakdown-filter';
+        sectionHeader.appendChild(breakdownFilter);
+        container.appendChild(sectionHeader);
 
-            <!-- Data Table -->
-            <div id="users-table"></div>
-        `;
+        var fbRow = document.createElement('div');
+        fbRow.className = 'focus-breakdown-row';
+        var focusTable = document.createElement('div');
+        focusTable.id = 'users-focus-table';
+        fbRow.appendChild(focusTable);
+        var breakdownTable = document.createElement('div');
+        breakdownTable.id = 'users-breakdown-table';
+        fbRow.appendChild(breakdownTable);
+        container.appendChild(fbRow);
 
-        // Render charts
-        var chartsRow = document.getElementById('users-charts');
-        if (chartsRow) {
-            var C = DashboardCharts.colors;
-            var enabledCount = users.filter(u => u.accountEnabled).length;
-            var disabledCount = users.filter(u => !u.accountEnabled).length;
-            var mfaCount = users.filter(u => u.mfaRegistered).length;
-            var noMfaCount = users.filter(u => !u.mfaRegistered).length;
+        // Filters
+        var filterDiv = document.createElement('div');
+        filterDiv.id = 'users-filter';
+        container.appendChild(filterDiv);
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Account Status',
-                [
-                    { value: enabledCount, label: 'Enabled', color: C.green },
-                    { value: disabledCount, label: 'Disabled', color: C.red }
-                ],
-                String(enabledCount), 'enabled'
-            ));
+        // Filter chips
+        var chipsDiv = document.createElement('div');
+        chipsDiv.id = 'users-filter-chips';
+        container.appendChild(chipsDiv);
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Domain Distribution',
-                [
-                    { value: summary.employeeCount, label: 'Employees', color: C.blue },
-                    { value: summary.studentCount, label: 'Students', color: C.teal },
-                    { value: summary.otherCount || 0, label: 'Other', color: C.gray }
-                ],
-                String(users.length), 'total users'
-            ));
-        }
+        // Table toolbar
+        var toolbar = document.createElement('div');
+        toolbar.className = 'table-toolbar';
+        var colSelectorDiv = document.createElement('div');
+        colSelectorDiv.id = 'users-col-selector';
+        toolbar.appendChild(colSelectorDiv);
+        var exportBtn = document.createElement('button');
+        exportBtn.className = 'btn btn-secondary btn-sm';
+        exportBtn.id = 'export-users-table';
+        exportBtn.textContent = 'Export CSV';
+        toolbar.appendChild(exportBtn);
+        container.appendChild(toolbar);
+
+        // Data table
+        var tableDiv = document.createElement('div');
+        tableDiv.id = 'users-table';
+        container.appendChild(tableDiv);
+
+        // Render overview section with ASR Rules pattern
+        renderUsersOverview(overviewDiv, {
+            total: total,
+            enabledCount: enabledCount,
+            disabledCount: disabledCount,
+            mfaCount: mfaCount,
+            noMfaCount: noMfaCount,
+            inactiveCount: inactiveCount,
+            cloudUsers: cloudUsers,
+            syncedUsers: syncedUsers,
+            mfaPct: mfaPct,
+            enabledPct: enabledPct,
+            employeeCount: summary.employeeCount,
+            studentCount: summary.studentCount,
+            otherCount: summary.otherCount || 0
+        });
 
         // Create filter bar
         Filters.createFilterBar({

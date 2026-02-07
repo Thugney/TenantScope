@@ -264,103 +264,436 @@ const PageGuests = (function() {
     }
 
     /**
+     * Creates a summary card element.
+     */
+    function createSummaryCard(label, value, variant, subtext) {
+        var card = document.createElement('div');
+        card.className = 'card' + (variant ? ' card-' + variant : '');
+        var labelDiv = document.createElement('div');
+        labelDiv.className = 'card-label';
+        labelDiv.textContent = label;
+        var valueDiv = document.createElement('div');
+        valueDiv.className = 'card-value' + (variant ? ' ' + variant : '');
+        valueDiv.textContent = value;
+        card.appendChild(labelDiv);
+        card.appendChild(valueDiv);
+        if (subtext) {
+            var changeDiv = document.createElement('div');
+            changeDiv.className = 'card-change';
+            changeDiv.textContent = subtext;
+            card.appendChild(changeDiv);
+        }
+        return card;
+    }
+
+    /**
+     * Creates a platform-style analytics card with mini-bars.
+     */
+    function createPlatformCard(title, rows) {
+        var card = document.createElement('div');
+        card.className = 'analytics-card';
+        var h4 = document.createElement('h4');
+        h4.textContent = title;
+        card.appendChild(h4);
+        var list = document.createElement('div');
+        list.className = 'platform-list';
+        rows.forEach(function(row) {
+            var rowDiv = document.createElement('div');
+            rowDiv.className = 'platform-row';
+            var name = document.createElement('span');
+            name.className = 'platform-name';
+            name.textContent = row.name;
+            rowDiv.appendChild(name);
+            var policies = document.createElement('span');
+            policies.className = 'platform-policies';
+            policies.textContent = row.count;
+            rowDiv.appendChild(policies);
+            var miniBar = document.createElement('div');
+            miniBar.className = 'mini-bar';
+            var fill = document.createElement('div');
+            fill.className = 'mini-bar-fill ' + row.cls;
+            fill.style.width = row.pct + '%';
+            miniBar.appendChild(fill);
+            rowDiv.appendChild(miniBar);
+            var rate = document.createElement('span');
+            rate.className = 'platform-rate';
+            rate.textContent = row.showCount ? row.count : (row.pct + '%');
+            rowDiv.appendChild(rate);
+            list.appendChild(rowDiv);
+        });
+        card.appendChild(list);
+        return card;
+    }
+
+    /**
+     * Creates an insight card with badge, description, and action.
+     */
+    function createInsightCard(type, badge, category, description, action) {
+        var card = document.createElement('div');
+        card.className = 'insight-card insight-' + type;
+        var header = document.createElement('div');
+        header.className = 'insight-header';
+        var badgeSpan = document.createElement('span');
+        badgeSpan.className = 'badge badge-' + type;
+        badgeSpan.textContent = badge;
+        header.appendChild(badgeSpan);
+        var catSpan = document.createElement('span');
+        catSpan.className = 'insight-category';
+        catSpan.textContent = category;
+        header.appendChild(catSpan);
+        card.appendChild(header);
+        var descP = document.createElement('p');
+        descP.className = 'insight-description';
+        descP.textContent = description;
+        card.appendChild(descP);
+        if (action) {
+            var actionP = document.createElement('p');
+            actionP.className = 'insight-action';
+            var strong = document.createElement('strong');
+            strong.textContent = 'Action: ';
+            actionP.appendChild(strong);
+            actionP.appendChild(document.createTextNode(action));
+            card.appendChild(actionP);
+        }
+        return card;
+    }
+
+    /**
+     * Renders the guests overview section with ASR Rules pattern.
+     */
+    function renderGuestsOverview(container, stats) {
+        container.textContent = '';
+
+        // Build analytics section with donut chart
+        var section = document.createElement('div');
+        section.className = 'analytics-section';
+
+        var sectionTitle = document.createElement('h3');
+        sectionTitle.textContent = 'Guest Health Overview';
+        section.appendChild(sectionTitle);
+
+        var complianceOverview = document.createElement('div');
+        complianceOverview.className = 'compliance-overview';
+
+        // Donut chart showing active rate
+        var chartContainer = document.createElement('div');
+        chartContainer.className = 'compliance-chart';
+        var donutDiv = document.createElement('div');
+        donutDiv.className = 'donut-chart';
+
+        var circumference = 2 * Math.PI * 40;
+        var activeDash = (stats.activePct / 100) * circumference;
+        var staleDash = (stats.stalePct / 100) * circumference;
+        var pendingDash = (stats.pendingPct / 100) * circumference;
+        var neverDash = (stats.neverPct / 100) * circumference;
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('class', 'donut');
+
+        var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', '50');
+        bgCircle.setAttribute('cy', '50');
+        bgCircle.setAttribute('r', '40');
+        bgCircle.setAttribute('fill', 'none');
+        bgCircle.setAttribute('stroke', 'var(--bg-tertiary)');
+        bgCircle.setAttribute('stroke-width', '12');
+        svg.appendChild(bgCircle);
+
+        var offset = 0;
+        if (stats.activePct > 0) {
+            var activeCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            activeCircle.setAttribute('cx', '50');
+            activeCircle.setAttribute('cy', '50');
+            activeCircle.setAttribute('r', '40');
+            activeCircle.setAttribute('fill', 'none');
+            activeCircle.setAttribute('stroke', 'var(--success)');
+            activeCircle.setAttribute('stroke-width', '12');
+            activeCircle.setAttribute('stroke-dasharray', activeDash + ' ' + circumference);
+            activeCircle.setAttribute('stroke-dashoffset', String(-offset));
+            activeCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(activeCircle);
+            offset += activeDash;
+        }
+        if (stats.stalePct > 0) {
+            var staleCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            staleCircle.setAttribute('cx', '50');
+            staleCircle.setAttribute('cy', '50');
+            staleCircle.setAttribute('r', '40');
+            staleCircle.setAttribute('fill', 'none');
+            staleCircle.setAttribute('stroke', 'var(--warning)');
+            staleCircle.setAttribute('stroke-width', '12');
+            staleCircle.setAttribute('stroke-dasharray', staleDash + ' ' + circumference);
+            staleCircle.setAttribute('stroke-dashoffset', String(-offset));
+            staleCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(staleCircle);
+            offset += staleDash;
+        }
+        if (stats.pendingPct > 0) {
+            var pendCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            pendCircle.setAttribute('cx', '50');
+            pendCircle.setAttribute('cy', '50');
+            pendCircle.setAttribute('r', '40');
+            pendCircle.setAttribute('fill', 'none');
+            pendCircle.setAttribute('stroke', 'var(--orange)');
+            pendCircle.setAttribute('stroke-width', '12');
+            pendCircle.setAttribute('stroke-dasharray', pendingDash + ' ' + circumference);
+            pendCircle.setAttribute('stroke-dashoffset', String(-offset));
+            pendCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(pendCircle);
+            offset += pendingDash;
+        }
+        if (stats.neverPct > 0) {
+            var neverCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            neverCircle.setAttribute('cx', '50');
+            neverCircle.setAttribute('cy', '50');
+            neverCircle.setAttribute('r', '40');
+            neverCircle.setAttribute('fill', 'none');
+            neverCircle.setAttribute('stroke', 'var(--critical)');
+            neverCircle.setAttribute('stroke-width', '12');
+            neverCircle.setAttribute('stroke-dasharray', neverDash + ' ' + circumference);
+            neverCircle.setAttribute('stroke-dashoffset', String(-offset));
+            neverCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(neverCircle);
+        }
+
+        donutDiv.appendChild(svg);
+
+        var donutCenter = document.createElement('div');
+        donutCenter.className = 'donut-center';
+        var donutValue = document.createElement('span');
+        donutValue.className = 'donut-value';
+        donutValue.textContent = stats.activePct + '%';
+        var donutLabel = document.createElement('span');
+        donutLabel.className = 'donut-label';
+        donutLabel.textContent = 'Active';
+        donutCenter.appendChild(donutValue);
+        donutCenter.appendChild(donutLabel);
+        donutDiv.appendChild(donutCenter);
+        chartContainer.appendChild(donutDiv);
+        complianceOverview.appendChild(chartContainer);
+
+        // Legend
+        var legend = document.createElement('div');
+        legend.className = 'compliance-legend';
+        var legendItems = [
+            { cls: 'bg-success', label: 'Active', value: stats.activeCount },
+            { cls: 'bg-warning', label: 'Stale (60+ days)', value: stats.staleCount },
+            { cls: 'bg-orange', label: 'Pending', value: stats.pendingCount },
+            { cls: 'bg-critical', label: 'Never Signed In', value: stats.neverSignedInCount },
+            { cls: 'bg-info', label: 'Total Guests', value: stats.total }
+        ];
+        legendItems.forEach(function(item) {
+            var legendItem = document.createElement('div');
+            legendItem.className = 'legend-item';
+            var dot = document.createElement('span');
+            dot.className = 'legend-dot ' + item.cls;
+            legendItem.appendChild(dot);
+            legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            var strong = document.createElement('strong');
+            strong.textContent = item.value;
+            legendItem.appendChild(strong);
+            legend.appendChild(legendItem);
+        });
+        complianceOverview.appendChild(legend);
+        section.appendChild(complianceOverview);
+        container.appendChild(section);
+
+        // Analytics grid
+        var analyticsGrid = document.createElement('div');
+        analyticsGrid.className = 'analytics-grid';
+
+        // Guest Status card
+        analyticsGrid.appendChild(createPlatformCard('Guest Status', [
+            { name: 'Active', count: stats.activeCount, pct: stats.activePct, cls: 'bg-success' },
+            { name: 'Stale', count: stats.staleCount, pct: stats.stalePct, cls: 'bg-warning' },
+            { name: 'Pending', count: stats.pendingCount, pct: stats.pendingPct, cls: 'bg-orange' },
+            { name: 'Never Signed In', count: stats.neverSignedInCount, pct: stats.neverPct, cls: 'bg-critical' }
+        ]));
+
+        // Invitation State card
+        var acceptedPct = stats.total > 0 ? Math.round((stats.acceptedCount / stats.total) * 100) : 0;
+        analyticsGrid.appendChild(createPlatformCard('Invitation State', [
+            { name: 'Accepted', count: stats.acceptedCount, pct: acceptedPct, cls: 'bg-success' },
+            { name: 'Pending', count: stats.pendingCount, pct: stats.pendingPct, cls: 'bg-warning' }
+        ]));
+
+        // Top Source Domains card
+        var topDomains = stats.topDomains.slice(0, 4);
+        var maxDomain = topDomains.length > 0 ? topDomains[0].count : 1;
+        var domainRows = topDomains.map(function(d) {
+            return { name: d.domain, count: d.count, pct: Math.round((d.count / maxDomain) * 100), cls: 'bg-info', showCount: true };
+        });
+        if (domainRows.length === 0) {
+            domainRows = [{ name: 'No domains', count: '--', pct: 0, cls: 'bg-neutral' }];
+        }
+        analyticsGrid.appendChild(createPlatformCard('Top Source Domains', domainRows));
+
+        // Cleanup Candidates card
+        var cleanupTotal = stats.staleCount + stats.neverSignedInCount + stats.pendingCount;
+        var cleanupPct = stats.total > 0 ? Math.round((cleanupTotal / stats.total) * 100) : 0;
+        analyticsGrid.appendChild(createPlatformCard('Cleanup Candidates', [
+            { name: 'Stale Guests', count: stats.staleCount, pct: stats.stalePct, cls: 'bg-warning' },
+            { name: 'Never Signed In', count: stats.neverSignedInCount, pct: stats.neverPct, cls: 'bg-critical' },
+            { name: 'Pending Invites', count: stats.pendingCount, pct: stats.pendingPct, cls: 'bg-orange' }
+        ]));
+
+        container.appendChild(analyticsGrid);
+
+        // Insights section
+        var insightsList = document.createElement('div');
+        insightsList.className = 'insights-list';
+
+        // Stale guests insight
+        if (stats.staleCount > 0) {
+            insightsList.appendChild(createInsightCard('warning', 'CLEANUP', 'Stale Guests',
+                stats.staleCount + ' guest' + (stats.staleCount !== 1 ? 's have' : ' has') + ' not signed in for 60+ days. These accounts should be reviewed for removal.',
+                'Run an access review or remove stale guest accounts to reduce external exposure.'));
+        }
+
+        // Pending invitations insight
+        if (stats.pendingCount > 0) {
+            insightsList.appendChild(createInsightCard('info', 'PENDING', 'Invitation Status',
+                stats.pendingCount + ' invitation' + (stats.pendingCount !== 1 ? 's are' : ' is') + ' still pending acceptance. Consider resending or revoking old invitations.',
+                'Review pending invitations and resend or revoke as appropriate.'));
+        }
+
+        // Never signed in insight
+        if (stats.neverSignedInCount > 0) {
+            insightsList.appendChild(createInsightCard('warning', 'REVIEW', 'Never Signed In',
+                stats.neverSignedInCount + ' guest' + (stats.neverSignedInCount !== 1 ? 's have' : ' has') + ' accepted but never signed in. These may be candidates for removal.',
+                'Verify these guests still need access or remove their accounts.'));
+        }
+
+        // Healthy state
+        if (stats.staleCount === 0 && stats.pendingCount === 0 && stats.neverSignedInCount === 0) {
+            insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'Guest Status',
+                'All guests are active with no stale accounts or pending invitations. Guest lifecycle is well-managed.',
+                null));
+        }
+
+        container.appendChild(insightsList);
+    }
+
+    /**
      * Renders the guests page content.
      *
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        const guests = DataLoader.getData('guests');
+        var guests = DataLoader.getData('guests');
 
         // Calculate stats
-        const activeCount = guests.filter(g => !g.isStale && !g.neverSignedIn && g.invitationState === 'Accepted').length;
-        const staleCount = guests.filter(g => g.isStale).length;
-        const neverSignedInCount = guests.filter(g => g.neverSignedIn).length;
-        const pendingCount = guests.filter(g => g.invitationState === 'PendingAcceptance').length;
+        var activeCount = guests.filter(function(g) { return !g.isStale && !g.neverSignedIn && g.invitationState === 'Accepted'; }).length;
+        var staleCount = guests.filter(function(g) { return g.isStale; }).length;
+        var neverSignedInCount = guests.filter(function(g) { return g.neverSignedIn; }).length;
+        var pendingCount = guests.filter(function(g) { return g.invitationState === 'PendingAcceptance'; }).length;
+        var acceptedCount = guests.filter(function(g) { return g.invitationState === 'Accepted'; }).length;
 
-        // Get unique source domains
-        const sourceDomains = [...new Set(guests.map(g => g.sourceDomain).filter(Boolean))].sort();
+        var total = guests.length;
+        var activePct = total > 0 ? Math.round((activeCount / total) * 100) : 0;
+        var stalePct = total > 0 ? Math.round((staleCount / total) * 100) : 0;
+        var pendingPct = total > 0 ? Math.round((pendingCount / total) * 100) : 0;
+        var neverPct = total > 0 ? Math.round((neverSignedInCount / total) * 100) : 0;
 
-        container.innerHTML = `
-            <div class="page-header">
-                <h2 class="page-title">Guest Accounts</h2>
-                <p class="page-description">External users with access to your tenant</p>
-            </div>
+        // Get top source domains
+        var domainCounts = {};
+        guests.forEach(function(g) {
+            var domain = g.sourceDomain || 'Unknown';
+            domainCounts[domain] = (domainCounts[domain] || 0) + 1;
+        });
+        var topDomains = Object.entries(domainCounts).map(function(e) {
+            return { domain: e[0], count: e[1] };
+        }).sort(function(a, b) { return b.count - a.count; });
 
-            <!-- Summary Cards -->
-            <div class="cards-grid">
-                <div class="card">
-                    <div class="card-label">Total Guests</div>
-                    <div class="card-value">${guests.length}</div>
-                </div>
-                <div class="card card-success">
-                    <div class="card-label">Active</div>
-                    <div class="card-value success">${activeCount}</div>
-                </div>
-                <div class="card ${staleCount > 0 ? 'card-warning' : ''}">
-                    <div class="card-label">Stale</div>
-                    <div class="card-value ${staleCount > 0 ? 'warning' : ''}">${staleCount}</div>
-                    <div class="card-change">60+ days inactive</div>
-                </div>
-                <div class="card ${pendingCount > 0 ? 'card-warning' : ''}">
-                    <div class="card-label">Pending</div>
-                    <div class="card-value ${pendingCount > 0 ? 'warning' : ''}">${pendingCount}</div>
-                    <div class="card-change">Awaiting acceptance</div>
-                </div>
-            </div>
+        // Build page structure using DOM methods
+        container.textContent = '';
 
-            <!-- Charts -->
-            <div class="charts-row" id="guests-charts"></div>
+        // Page header
+        var header = document.createElement('div');
+        header.className = 'page-header';
+        var h2 = document.createElement('h2');
+        h2.className = 'page-title';
+        h2.textContent = 'Guest Accounts';
+        header.appendChild(h2);
+        var desc = document.createElement('p');
+        desc.className = 'page-description';
+        desc.textContent = 'External users with access to your tenant';
+        header.appendChild(desc);
+        container.appendChild(header);
 
-            <!-- Focus/Breakdown Analysis -->
-            <div class="section-header">
-                <h3>Guest Analysis</h3>
-                <div id="guests-breakdown-filter"></div>
-            </div>
-            <div class="focus-breakdown-row">
-                <div id="guests-focus-table"></div>
-                <div id="guests-breakdown-table"></div>
-            </div>
+        // Summary cards
+        var cardsGrid = document.createElement('div');
+        cardsGrid.className = 'cards-grid';
+        cardsGrid.appendChild(createSummaryCard('Total Guests', total, ''));
+        cardsGrid.appendChild(createSummaryCard('Active', activeCount, 'success'));
+        cardsGrid.appendChild(createSummaryCard('Stale', staleCount, staleCount > 0 ? 'warning' : '', '60+ days inactive'));
+        cardsGrid.appendChild(createSummaryCard('Pending', pendingCount, pendingCount > 0 ? 'warning' : '', 'Awaiting acceptance'));
+        container.appendChild(cardsGrid);
 
-            <!-- Filters -->
-            <div id="guests-filter"></div>
+        // Overview section
+        var overviewDiv = document.createElement('div');
+        overviewDiv.id = 'guests-overview';
+        container.appendChild(overviewDiv);
 
-            <!-- Column Selector + Export -->
-            <div class="table-toolbar">
-                <div id="guests-col-selector"></div>
-                <button class="btn btn-secondary btn-sm" id="export-guests-table">Export CSV</button>
-            </div>
+        // Render overview with ASR Rules pattern
+        renderGuestsOverview(overviewDiv, {
+            total: total,
+            activeCount: activeCount,
+            staleCount: staleCount,
+            pendingCount: pendingCount,
+            neverSignedInCount: neverSignedInCount,
+            acceptedCount: acceptedCount,
+            activePct: activePct,
+            stalePct: stalePct,
+            pendingPct: pendingPct,
+            neverPct: neverPct,
+            topDomains: topDomains
+        });
 
-            <!-- Data Table -->
-            <div id="guests-table"></div>
-        `;
+        // Focus/Breakdown section
+        var sectionHeader = document.createElement('div');
+        sectionHeader.className = 'section-header';
+        var analysisH3 = document.createElement('h3');
+        analysisH3.textContent = 'Guest Analysis';
+        sectionHeader.appendChild(analysisH3);
+        var breakdownFilter = document.createElement('div');
+        breakdownFilter.id = 'guests-breakdown-filter';
+        sectionHeader.appendChild(breakdownFilter);
+        container.appendChild(sectionHeader);
 
-        // Render charts
-        var chartsRow = document.getElementById('guests-charts');
-        if (chartsRow) {
-            var C = DashboardCharts.colors;
+        var fbRow = document.createElement('div');
+        fbRow.className = 'focus-breakdown-row';
+        var focusTable = document.createElement('div');
+        focusTable.id = 'guests-focus-table';
+        fbRow.appendChild(focusTable);
+        var breakdownTable = document.createElement('div');
+        breakdownTable.id = 'guests-breakdown-table';
+        fbRow.appendChild(breakdownTable);
+        container.appendChild(fbRow);
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Guest Status',
-                [
-                    { value: activeCount, label: 'Active', color: C.green },
-                    { value: staleCount, label: 'Stale', color: C.yellow },
-                    { value: pendingCount, label: 'Pending', color: C.orange },
-                    { value: neverSignedInCount, label: 'Never Signed In', color: C.red }
-                ],
-                String(guests.length), 'total guests'
-            ));
+        // Filters
+        var filterDiv = document.createElement('div');
+        filterDiv.id = 'guests-filter';
+        container.appendChild(filterDiv);
 
-            var acceptedCount = guests.filter(g => g.invitationState === 'Accepted').length;
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Invitation State',
-                [
-                    { value: acceptedCount, label: 'Accepted', color: C.green },
-                    { value: pendingCount, label: 'Pending', color: C.orange }
-                ],
-                guests.length > 0 ? Math.round((acceptedCount / guests.length) * 100) + '%' : '0%',
-                'accepted'
-            ));
-        }
+        // Table toolbar
+        var toolbar = document.createElement('div');
+        toolbar.className = 'table-toolbar';
+        var colSelectorDiv = document.createElement('div');
+        colSelectorDiv.id = 'guests-col-selector';
+        toolbar.appendChild(colSelectorDiv);
+        var exportBtn = document.createElement('button');
+        exportBtn.className = 'btn btn-secondary btn-sm';
+        exportBtn.id = 'export-guests-table';
+        exportBtn.textContent = 'Export CSV';
+        toolbar.appendChild(exportBtn);
+        container.appendChild(toolbar);
+
+        // Data table
+        var tableDiv = document.createElement('div');
+        tableDiv.id = 'guests-table';
+        container.appendChild(tableDiv);
 
         // Create filter bar
         Filters.createFilterBar({
