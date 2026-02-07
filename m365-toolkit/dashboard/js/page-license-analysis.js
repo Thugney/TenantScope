@@ -25,6 +25,15 @@ const PageLicenseAnalysis = (function() {
         { name: 'Power BI Premium + Pro', higherSku: 'PBI_PREMIUM_EM1_ADDON', lowerSku: 'POWER_BI_PRO', higherName: 'Power BI Premium', lowerName: 'Power BI Pro' }
     ];
 
+    /** Current tab */
+    var currentTab = 'overview';
+
+    /** Cached page state */
+    var analysisState = null;
+
+    /** Column selector instance */
+    var colSelector = null;
+
     /**
      * Creates an element with text content.
      */
@@ -33,6 +42,48 @@ const PageLicenseAnalysis = (function() {
         if (className) elem.className = className;
         if (textContent !== undefined) elem.textContent = textContent;
         return elem;
+    }
+
+    /**
+     * Creates a platform-style analytics card with mini-bars.
+     */
+    function createPlatformCard(title, rows) {
+        var card = el('div', 'analytics-card');
+        card.appendChild(el('h4', null, title));
+        var list = el('div', 'platform-list');
+        rows.forEach(function(row) {
+            var rowDiv = el('div', 'platform-row');
+            rowDiv.appendChild(el('span', 'platform-name', row.name));
+            rowDiv.appendChild(el('span', 'platform-policies', String(row.count)));
+            var miniBar = el('div', 'mini-bar');
+            var fill = el('div', 'mini-bar-fill ' + row.cls);
+            fill.style.width = row.pct + '%';
+            miniBar.appendChild(fill);
+            rowDiv.appendChild(miniBar);
+            rowDiv.appendChild(el('span', 'platform-rate', row.showCount ? String(row.count) : (row.pct + '%')));
+            list.appendChild(rowDiv);
+        });
+        card.appendChild(list);
+        return card;
+    }
+
+    /**
+     * Creates an insight card with badge, description, and action.
+     */
+    function createInsightCard(type, badge, category, description, action) {
+        var card = el('div', 'insight-card insight-' + type);
+        var header = el('div', 'insight-header');
+        header.appendChild(el('span', 'badge badge-' + type, badge));
+        header.appendChild(el('span', 'insight-category', category));
+        card.appendChild(header);
+        card.appendChild(el('p', 'insight-description', description));
+        if (action) {
+            var actionP = el('p', 'insight-action');
+            actionP.appendChild(el('strong', null, 'Action: '));
+            actionP.appendChild(document.createTextNode(action));
+            card.appendChild(actionP);
+        }
+        return card;
     }
 
     /**
@@ -47,10 +98,9 @@ const PageLicenseAnalysis = (function() {
 
         var overlapUsers = [];
         var ruleStats = {};
-        OVERLAP_RULES.forEach(function(r) { ruleStats[r.name] = { count: 0, users: [] }; });
+        OVERLAP_RULES.forEach(function(r) { ruleStats[r.name] = { count: 0, users: [], monthlyCost: 0 }; });
 
         users.forEach(function(user) {
-            // Ensure assignedSkuIds is an array with at least 2 items
             if (!user.assignedSkuIds || !Array.isArray(user.assignedSkuIds) || user.assignedSkuIds.length < 2) return;
 
             var userSkuPartNumbers = user.assignedSkuIds.map(function(id) {
@@ -76,6 +126,7 @@ const PageLicenseAnalysis = (function() {
 
                     ruleStats[rule.name].count++;
                     ruleStats[rule.name].users.push(user);
+                    ruleStats[rule.name].monthlyCost += monthlyCost;
                 }
             });
         });
@@ -103,6 +154,424 @@ const PageLicenseAnalysis = (function() {
         };
     }
 
+    function formatCurrency(value, currency) {
+        return value.toLocaleString() + ' ' + currency;
+    }
+
+    /**
+     * Switches to a different tab.
+     */
+    function switchTab(tab) {
+        currentTab = tab;
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.classList.toggle('active', btn.dataset.tab === tab);
+        });
+        renderContent();
+    }
+
+    /**
+     * Renders the content for the current tab.
+     */
+    function renderContent() {
+        var container = document.getElementById('analysis-content');
+        if (!container || !analysisState) return;
+
+        switch (currentTab) {
+            case 'overview':
+                renderOverviewTab(container);
+                break;
+            case 'overlaps':
+                renderOverlapsTab(container);
+                break;
+        }
+    }
+
+    /**
+     * Renders the Overview tab with analytics.
+     */
+    function renderOverviewTab(container) {
+        container.textContent = '';
+        var data = analysisState;
+
+        // Build analytics section with donut chart
+        var section = el('div', 'analytics-section');
+        section.appendChild(el('h3', null, 'Overlap Analysis Overview'));
+
+        var complianceOverview = el('div', 'compliance-overview');
+
+        // Donut chart
+        var chartContainer = el('div', 'compliance-chart');
+        var donutDiv = el('div', 'donut-chart');
+
+        var circumference = 2 * Math.PI * 40;
+        var totalUsers = data.totalUsers || 1;
+        var overlapPct = Math.round((data.analysis.totalOverlapCount / totalUsers) * 100);
+        var cleanPct = 100 - overlapPct;
+
+        var cleanDash = (cleanPct / 100) * circumference;
+        var overlapDash = (overlapPct / 100) * circumference;
+
+        var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+        svg.setAttribute('viewBox', '0 0 100 100');
+        svg.setAttribute('class', 'donut');
+
+        var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+        bgCircle.setAttribute('cx', '50');
+        bgCircle.setAttribute('cy', '50');
+        bgCircle.setAttribute('r', '40');
+        bgCircle.setAttribute('fill', 'none');
+        bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
+        bgCircle.setAttribute('stroke-width', '12');
+        svg.appendChild(bgCircle);
+
+        if (cleanPct > 0) {
+            var cleanCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            cleanCircle.setAttribute('cx', '50');
+            cleanCircle.setAttribute('cy', '50');
+            cleanCircle.setAttribute('r', '40');
+            cleanCircle.setAttribute('fill', 'none');
+            cleanCircle.setAttribute('stroke', 'var(--color-success)');
+            cleanCircle.setAttribute('stroke-width', '12');
+            cleanCircle.setAttribute('stroke-dasharray', cleanDash + ' ' + circumference);
+            cleanCircle.setAttribute('stroke-dashoffset', '0');
+            cleanCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(cleanCircle);
+        }
+        if (overlapPct > 0) {
+            var overlapCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            overlapCircle.setAttribute('cx', '50');
+            overlapCircle.setAttribute('cy', '50');
+            overlapCircle.setAttribute('r', '40');
+            overlapCircle.setAttribute('fill', 'none');
+            overlapCircle.setAttribute('stroke', 'var(--color-critical)');
+            overlapCircle.setAttribute('stroke-width', '12');
+            overlapCircle.setAttribute('stroke-dasharray', overlapDash + ' ' + circumference);
+            overlapCircle.setAttribute('stroke-dashoffset', String(-cleanDash));
+            overlapCircle.setAttribute('transform', 'rotate(-90 50 50)');
+            svg.appendChild(overlapCircle);
+        }
+
+        donutDiv.appendChild(svg);
+
+        var donutCenter = el('div', 'donut-center');
+        donutCenter.appendChild(el('span', 'donut-value', data.analysis.totalOverlapCount));
+        donutCenter.appendChild(el('span', 'donut-label', 'Overlaps'));
+        donutDiv.appendChild(donutCenter);
+        chartContainer.appendChild(donutDiv);
+        complianceOverview.appendChild(chartContainer);
+
+        // Legend
+        var legend = el('div', 'compliance-legend');
+        var legendItems = [
+            { cls: 'bg-success', label: 'Clean Users', value: (totalUsers - data.analysis.totalOverlapCount).toLocaleString() },
+            { cls: 'bg-critical', label: 'With Overlaps', value: data.analysis.totalOverlapCount.toLocaleString() },
+            { cls: 'bg-warning', label: 'Monthly Waste', value: formatCurrency(data.analysis.totalMonthlyWaste, data.currency) },
+            { cls: 'bg-info', label: 'Annual Waste', value: formatCurrency(data.analysis.totalAnnualWaste, data.currency) }
+        ];
+        legendItems.forEach(function(item) {
+            var legendItem = el('div', 'legend-item');
+            legendItem.appendChild(el('span', 'legend-dot ' + item.cls));
+            legendItem.appendChild(document.createTextNode(' ' + item.label + ': '));
+            legendItem.appendChild(el('strong', null, item.value));
+            legend.appendChild(legendItem);
+        });
+        complianceOverview.appendChild(legend);
+        section.appendChild(complianceOverview);
+        container.appendChild(section);
+
+        // Analytics grid
+        var analyticsGrid = el('div', 'analytics-grid');
+
+        // Overlaps by Rule card
+        var ruleRows = [];
+        var maxRuleCount = 1;
+        Object.keys(data.analysis.ruleStats).forEach(function(ruleName) {
+            var stat = data.analysis.ruleStats[ruleName];
+            if (stat.count > maxRuleCount) maxRuleCount = stat.count;
+        });
+        Object.keys(data.analysis.ruleStats).forEach(function(ruleName) {
+            var stat = data.analysis.ruleStats[ruleName];
+            if (stat.count > 0) {
+                ruleRows.push({
+                    name: ruleName,
+                    count: stat.count,
+                    pct: Math.round((stat.count / maxRuleCount) * 100),
+                    cls: 'bg-critical',
+                    showCount: true
+                });
+            }
+        });
+        if (ruleRows.length > 0) {
+            analyticsGrid.appendChild(createPlatformCard('Overlaps by Rule', ruleRows));
+        }
+
+        // Top Departments card
+        var depts = Object.keys(data.analysis.deptOverlaps).sort(function(a, b) {
+            return data.analysis.deptOverlaps[b].count - data.analysis.deptOverlaps[a].count;
+        }).slice(0, 4);
+        var maxDept = depts.length > 0 ? data.analysis.deptOverlaps[depts[0]].count : 1;
+        var deptRows = depts.map(function(dept) {
+            return {
+                name: dept.substring(0, 20),
+                count: data.analysis.deptOverlaps[dept].count,
+                pct: Math.round((data.analysis.deptOverlaps[dept].count / maxDept) * 100),
+                cls: 'bg-warning',
+                showCount: true
+            };
+        });
+        if (deptRows.length > 0) {
+            analyticsGrid.appendChild(createPlatformCard('Top Departments', deptRows));
+        }
+
+        // Cost Impact card
+        analyticsGrid.appendChild(createPlatformCard('Cost Impact', [
+            { name: 'Monthly Waste', count: formatCurrency(data.analysis.totalMonthlyWaste, data.currency), pct: 100, cls: 'bg-critical', showCount: true },
+            { name: 'Annual Waste', count: formatCurrency(data.analysis.totalAnnualWaste, data.currency), pct: 100, cls: 'bg-critical', showCount: true },
+            { name: 'Avg per User', count: formatCurrency(data.analysis.totalOverlapCount > 0 ? Math.round(data.analysis.totalMonthlyWaste / data.analysis.totalOverlapCount) : 0, data.currency), pct: 50, cls: 'bg-warning', showCount: true }
+        ]));
+
+        // Overlap Rules Checked card
+        var rulesChecked = OVERLAP_RULES.length;
+        var rulesTriggered = Object.keys(data.analysis.ruleStats).filter(function(r) { return data.analysis.ruleStats[r].count > 0; }).length;
+        analyticsGrid.appendChild(createPlatformCard('Rules Analysis', [
+            { name: 'Rules Checked', count: rulesChecked, pct: 100, cls: 'bg-info', showCount: true },
+            { name: 'Rules Triggered', count: rulesTriggered, pct: Math.round((rulesTriggered / rulesChecked) * 100), cls: rulesTriggered > 0 ? 'bg-warning' : 'bg-success', showCount: true },
+            { name: 'Affected Users', count: data.analysis.totalOverlapCount, pct: overlapPct, cls: 'bg-critical', showCount: true }
+        ]));
+
+        container.appendChild(analyticsGrid);
+
+        // Insights section
+        var insightsList = el('div', 'insights-list');
+
+        if (data.analysis.totalOverlapCount > 0) {
+            // Main overlap insight
+            insightsList.appendChild(createInsightCard('critical', 'SAVINGS', 'Cost Optimization Opportunity',
+                data.analysis.totalOverlapCount + ' users have redundant licenses that could save ' + formatCurrency(data.analysis.totalAnnualWaste, data.currency) + ' annually.',
+                'Remove redundant lower-tier licenses from users who already have higher-tier coverage.'));
+
+            // Top rule insight
+            var topRule = Object.keys(data.analysis.ruleStats).reduce(function(max, r) {
+                return data.analysis.ruleStats[r].count > (max ? data.analysis.ruleStats[max].count : 0) ? r : max;
+            }, null);
+            if (topRule && data.analysis.ruleStats[topRule].count > 0) {
+                insightsList.appendChild(createInsightCard('warning', 'TOP ISSUE', 'Most Common Overlap',
+                    'The "' + topRule + '" overlap affects ' + data.analysis.ruleStats[topRule].count + ' users.',
+                    'Focus cleanup efforts on this license combination first.'));
+            }
+
+            // Department insight
+            if (depts.length > 0) {
+                var topDept = depts[0];
+                insightsList.appendChild(createInsightCard('info', 'DEPARTMENT', 'Highest Impact Department',
+                    topDept + ' has ' + data.analysis.deptOverlaps[topDept].count + ' users with overlapping licenses.',
+                    'Coordinate with department managers to review and clean up license assignments.'));
+            }
+        } else {
+            // Healthy state
+            insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'No Overlaps Detected',
+                'All users have optimized license assignments with no redundant licenses detected.',
+                null));
+        }
+
+        container.appendChild(insightsList);
+    }
+
+    /**
+     * Applies filters and renders the overlaps table.
+     */
+    function applyFilters() {
+        var data = analysisState.analysis.overlapUsers;
+
+        // Search filter
+        var search = Filters.getValue('overlaps-search');
+        if (search) {
+            var term = search.toLowerCase();
+            data = data.filter(function(o) {
+                return (o.user.displayName && o.user.displayName.toLowerCase().indexOf(term) !== -1) ||
+                       (o.user.userPrincipalName && o.user.userPrincipalName.toLowerCase().indexOf(term) !== -1) ||
+                       (o.user.department && o.user.department.toLowerCase().indexOf(term) !== -1);
+            });
+        }
+
+        // Rule filter
+        var ruleFilter = Filters.getValue('overlaps-rule');
+        if (ruleFilter && ruleFilter !== 'all') {
+            data = data.filter(function(o) { return o.rule === ruleFilter; });
+        }
+
+        // Department filter
+        var deptFilter = Filters.getValue('overlaps-dept');
+        if (deptFilter && deptFilter !== 'all') {
+            data = data.filter(function(o) { return (o.user.department || 'Unassigned') === deptFilter; });
+        }
+
+        renderTable(data);
+    }
+
+    /**
+     * Renders the overlaps table.
+     */
+    function renderTable(data) {
+        var visible = colSelector ? colSelector.getVisible() : ['displayName', 'department', 'rule', 'higherLicense', 'lowerLicense', 'redundantCost'];
+
+        var allDefs = [
+            { key: 'displayName', label: 'User' },
+            { key: 'userPrincipalName', label: 'Email', className: 'cell-truncate' },
+            { key: 'department', label: 'Department' },
+            { key: 'rule', label: 'Overlap Rule' },
+            { key: 'higherLicense', label: 'Keeps' },
+            { key: 'lowerLicense', label: 'Redundant' },
+            { key: 'redundantCost', label: 'Monthly Waste', className: 'cell-right', formatter: formatCostCell }
+        ];
+
+        var columns = allDefs.filter(function(col) {
+            return visible.indexOf(col.key) !== -1;
+        });
+
+        var tableData = data.map(function(o) {
+            return {
+                displayName: o.user.displayName,
+                userPrincipalName: o.user.userPrincipalName,
+                department: o.user.department || 'Unassigned',
+                rule: o.rule,
+                higherLicense: o.higherLicense,
+                lowerLicense: o.lowerLicense,
+                redundantCost: o.redundantCost
+            };
+        });
+
+        Tables.render({
+            containerId: 'overlaps-table',
+            data: tableData,
+            columns: columns,
+            pageSize: 25
+        });
+
+        // Update count
+        var countDiv = document.getElementById('overlaps-count');
+        if (countDiv) {
+            countDiv.textContent = data.length + ' user' + (data.length !== 1 ? 's' : '') + ' with overlaps';
+        }
+    }
+
+    function formatCostCell(value) {
+        if (!value || value === 0) return '<span class="text-muted">0</span>';
+        return '<span class="text-critical font-bold">' + formatCurrency(value, analysisState.currency) + '</span>';
+    }
+
+    /**
+     * Renders the Overlaps tab with unified table.
+     */
+    function renderOverlapsTab(container) {
+        container.textContent = '';
+
+        if (analysisState.analysis.totalOverlapCount === 0) {
+            var emptyDiv = el('div', 'empty-state');
+            emptyDiv.appendChild(el('div', 'empty-state-icon', '✓'));
+            emptyDiv.appendChild(el('div', 'empty-state-title', 'No License Overlaps Detected'));
+            emptyDiv.appendChild(el('div', 'empty-state-description', 'All users have optimized license assignments.'));
+            container.appendChild(emptyDiv);
+            return;
+        }
+
+        // Get unique rules and departments for filters
+        var rules = Object.keys(analysisState.analysis.ruleStats).filter(function(r) {
+            return analysisState.analysis.ruleStats[r].count > 0;
+        });
+        var depts = Object.keys(analysisState.analysis.deptOverlaps);
+
+        // Filters
+        var filterDiv = el('div');
+        filterDiv.id = 'overlaps-filter';
+        container.appendChild(filterDiv);
+
+        // Table toolbar
+        var toolbar = el('div', 'table-toolbar');
+        var colSelectorDiv = el('div');
+        colSelectorDiv.id = 'overlaps-col-selector';
+        toolbar.appendChild(colSelectorDiv);
+        var exportBtn = el('button', 'btn btn-secondary btn-sm', 'Export CSV');
+        exportBtn.id = 'export-overlaps-table';
+        toolbar.appendChild(exportBtn);
+        container.appendChild(toolbar);
+
+        // Count
+        var countDiv = el('div', 'table-count');
+        countDiv.id = 'overlaps-count';
+        container.appendChild(countDiv);
+
+        // Table
+        var tableDiv = el('div');
+        tableDiv.id = 'overlaps-table';
+        container.appendChild(tableDiv);
+
+        // Create filter bar
+        Filters.createFilterBar({
+            containerId: 'overlaps-filter',
+            controls: [
+                { type: 'search', id: 'overlaps-search', label: 'Search', placeholder: 'Search users...' },
+                { type: 'select', id: 'overlaps-rule', label: 'Overlap Rule', options: [
+                    { value: 'all', label: 'All Rules' }
+                ].concat(rules.map(function(r) { return { value: r, label: r }; })) },
+                { type: 'select', id: 'overlaps-dept', label: 'Department', options: [
+                    { value: 'all', label: 'All Departments' }
+                ].concat(depts.map(function(d) { return { value: d, label: d }; })) }
+            ],
+            onFilter: applyFilters
+        });
+
+        // Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'overlaps-col-selector',
+                storageKey: 'tenantscope-overlaps-columns',
+                allColumns: [
+                    { key: 'displayName', label: 'User' },
+                    { key: 'userPrincipalName', label: 'Email' },
+                    { key: 'department', label: 'Department' },
+                    { key: 'rule', label: 'Overlap Rule' },
+                    { key: 'higherLicense', label: 'Keeps' },
+                    { key: 'lowerLicense', label: 'Redundant' },
+                    { key: 'redundantCost', label: 'Monthly Waste' }
+                ],
+                defaultVisible: ['displayName', 'department', 'rule', 'higherLicense', 'lowerLicense', 'redundantCost'],
+                onColumnsChanged: applyFilters
+            });
+        }
+
+        // Bind export
+        document.getElementById('export-overlaps-table').addEventListener('click', function() {
+            var exportData = analysisState.analysis.overlapUsers.map(function(o) {
+                return {
+                    Name: o.user.displayName,
+                    Email: o.user.userPrincipalName,
+                    Department: o.user.department || '',
+                    OverlapRule: o.rule,
+                    HigherLicense: o.higherLicense,
+                    RedundantLicense: o.lowerLicense,
+                    MonthlyCost: o.redundantCost
+                };
+            });
+            Export.toCSV(exportData, 'tenantscope-license-overlaps.csv');
+        });
+
+        // Initial render
+        applyFilters();
+    }
+
+    /**
+     * Creates a summary card.
+     */
+    function createSummaryCard(label, value, valueClass, cardClass) {
+        var card = el('div', 'card' + (cardClass ? ' ' + cardClass : ''));
+        card.appendChild(el('div', 'card-label', label));
+        var valDiv = el('div', 'card-value' + (valueClass ? ' ' + valueClass : ''));
+        valDiv.textContent = typeof value === 'number' ? value.toLocaleString() : value;
+        card.appendChild(valDiv);
+        return card;
+    }
+
     /**
      * Renders the page.
      */
@@ -117,6 +586,13 @@ const PageLicenseAnalysis = (function() {
         var analysis = analyzeOverlaps(users, licenses);
         var currency = licenses.length > 0 && licenses[0].currency ? licenses[0].currency : 'USD';
 
+        // Cache state
+        analysisState = {
+            analysis: analysis,
+            currency: currency,
+            totalUsers: users.length
+        };
+
         container.textContent = '';
 
         // Page header
@@ -127,335 +603,38 @@ const PageLicenseAnalysis = (function() {
 
         // Summary cards
         var cards = el('div', 'summary-cards');
-        cards.appendChild(createCard('Users with Overlaps', analysis.totalOverlapCount, analysis.totalOverlapCount > 0 ? 'warning' : 'success'));
-        cards.appendChild(createCard('Monthly Waste', formatCurrency(analysis.totalMonthlyWaste, currency), 'danger'));
-        cards.appendChild(createCard('Annual Waste', formatCurrency(analysis.totalAnnualWaste, currency), 'danger'));
-        cards.appendChild(createCard('Overlap Rules Checked', OVERLAP_RULES.length, 'info'));
+        cards.appendChild(createSummaryCard('Users with Overlaps', analysis.totalOverlapCount, analysis.totalOverlapCount > 0 ? 'warning' : 'success', analysis.totalOverlapCount > 0 ? 'card-warning' : 'card-success'));
+        cards.appendChild(createSummaryCard('Monthly Waste', formatCurrency(analysis.totalMonthlyWaste, currency), analysis.totalMonthlyWaste > 0 ? 'critical' : null, analysis.totalMonthlyWaste > 0 ? 'card-critical' : null));
+        cards.appendChild(createSummaryCard('Annual Waste', formatCurrency(analysis.totalAnnualWaste, currency), analysis.totalAnnualWaste > 0 ? 'critical' : null, analysis.totalAnnualWaste > 0 ? 'card-critical' : null));
+        cards.appendChild(createSummaryCard('Rules Checked', OVERLAP_RULES.length, null, null));
         container.appendChild(cards);
 
-        // Alert if overlaps found
-        if (analysis.totalOverlapCount > 0) {
-            var alert = el('div', 'alert-box alert-warning');
-            var strong = el('strong', null, 'Cost Optimization Opportunity: ');
-            alert.appendChild(strong);
-            alert.appendChild(document.createTextNode(
-                analysis.totalOverlapCount + ' users have redundant licenses that could save ' +
-                formatCurrency(analysis.totalAnnualWaste, currency) + ' annually.'
-            ));
-            container.appendChild(alert);
-        }
-
-        // Charts row
-        var chartsRow = el('div', 'charts-row');
-        chartsRow.id = 'license-charts-row';
-        container.appendChild(chartsRow);
-
-        // Render charts using DashboardCharts
-        renderCharts(analysis, currency, chartsRow);
-
-        // Focus/Breakdown section
-        var fbRow = el('div', 'focus-breakdown-row');
-
-        var focusPanel = el('div', 'focus-panel');
-        focusPanel.appendChild(el('h3', 'panel-title', 'Focus: Overlap Rules'));
-        var focusTable = el('div');
-        focusTable.id = 'overlap-rules-table';
-        focusPanel.appendChild(focusTable);
-        fbRow.appendChild(focusPanel);
-
-        var breakdownPanel = el('div', 'breakdown-panel');
-        breakdownPanel.appendChild(el('h3', 'panel-title', 'Breakdown: Department Waste'));
-        var breakdownTable = el('div');
-        breakdownTable.id = 'dept-waste-table';
-        breakdownPanel.appendChild(breakdownTable);
-        fbRow.appendChild(breakdownPanel);
-
-        container.appendChild(fbRow);
-
-        // Users with overlaps table
-        var tableSection = el('div', 'table-section');
-        var tableHeader = el('div', 'table-header');
-        tableHeader.appendChild(el('h3', 'table-title', 'Users with Redundant Licenses (' + analysis.totalOverlapCount + ')'));
-        var tableActions = el('div', 'table-actions');
-        var exportBtn = el('button', 'btn btn-secondary', 'Export CSV');
-        exportBtn.id = 'export-overlaps-btn';
-        tableActions.appendChild(exportBtn);
-        tableHeader.appendChild(tableActions);
-        tableSection.appendChild(tableHeader);
-        var tableDiv = el('div');
-        tableDiv.id = 'overlaps-table';
-        tableSection.appendChild(tableDiv);
-        container.appendChild(tableSection);
-
-        // Render focus tables
-        renderOverlapRulesTable(analysis.ruleStats);
-        renderDeptWasteTable(analysis.deptOverlaps, currency);
-
-        // Render main table
-        renderOverlapsTable(analysis.overlapUsers, currency);
-
-        // Export button
-        document.getElementById('export-overlaps-btn').addEventListener('click', function() {
-            var exportData = analysis.overlapUsers.map(function(o) {
-                return {
-                    Name: o.user.displayName,
-                    Email: o.user.userPrincipalName,
-                    Department: o.user.department || '',
-                    OverlapRule: o.rule,
-                    HigherLicense: o.higherLicense,
-                    RedundantLicense: o.lowerLicense,
-                    MonthlyCost: o.redundantCost
-                };
-            });
-            Export.toCSV(exportData, 'tenantscope-license-overlaps.csv');
-        });
-    }
-
-    function createCard(label, value, variant) {
-        var card = el('div', 'summary-card card-' + variant);
-        var valDiv = el('div', 'card-value');
-        valDiv.textContent = typeof value === 'number' ? value.toLocaleString() : value;
-        card.appendChild(valDiv);
-        card.appendChild(el('div', 'card-label', label));
-        return card;
-    }
-
-    function formatCurrency(value, currency) {
-        return value.toLocaleString() + ' ' + currency;
-    }
-
-    /**
-     * Renders both charts using DashboardCharts.createChartCard.
-     */
-    function renderCharts(analysis, currency, chartsRow) {
-        if (typeof DashboardCharts === 'undefined') return;
-
-        var colors = ['#ef4444', '#f59e0b', '#10b981', '#3b82f6', '#8b5cf6', '#ec4899'];
-
-        // Overlaps by Rule chart
-        var ruleData = [];
-        var i = 0;
-        Object.keys(analysis.ruleStats).forEach(function(ruleName) {
-            var stat = analysis.ruleStats[ruleName];
-            if (stat.count > 0) {
-                ruleData.push({
-                    label: ruleName,
-                    value: stat.count,
-                    color: colors[i % colors.length]
-                });
-                i++;
-            }
-        });
-
-        var ruleTotal = ruleData.reduce(function(sum, d) { return sum + d.value; }, 0);
-
-        if (ruleData.length > 0) {
-            var ruleCard = DashboardCharts.createChartCard(
-                'Overlaps by Rule',
-                ruleData,
-                String(ruleTotal),
-                'Overlaps',
-                { size: 200, strokeWidth: 28 }
-            );
-            chartsRow.appendChild(ruleCard);
-        } else {
-            var emptyRule = el('div', 'chart-container');
-            emptyRule.appendChild(el('div', 'chart-title', 'Overlaps by Rule'));
-            emptyRule.appendChild(el('div', 'empty-state-small', 'No overlaps detected'));
-            chartsRow.appendChild(emptyRule);
-        }
-
-        // Overlaps by Department chart
-        var deptColors = ['#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899'];
-        var deptData = [];
-        var depts = Object.keys(analysis.deptOverlaps).sort(function(a, b) {
-            return analysis.deptOverlaps[b].count - analysis.deptOverlaps[a].count;
-        }).slice(0, 5);
-
-        depts.forEach(function(dept, idx) {
-            deptData.push({
-                label: dept,
-                value: analysis.deptOverlaps[dept].count,
-                color: deptColors[idx % deptColors.length]
-            });
-        });
-
-        var deptTotal = deptData.reduce(function(sum, d) { return sum + d.value; }, 0);
-
-        if (deptData.length > 0) {
-            var deptCard = DashboardCharts.createChartCard(
-                'Overlaps by Department',
-                deptData,
-                String(deptTotal),
-                'Users',
-                { size: 200, strokeWidth: 28 }
-            );
-            chartsRow.appendChild(deptCard);
-        } else {
-            var emptyDept = el('div', 'chart-container');
-            emptyDept.appendChild(el('div', 'chart-title', 'Overlaps by Department'));
-            emptyDept.appendChild(el('div', 'empty-state-small', 'No department data'));
-            chartsRow.appendChild(emptyDept);
-        }
-    }
-
-    function renderOverlapRulesTable(ruleStats) {
-        var container = document.getElementById('overlap-rules-table');
-        if (!container) return;
-
-        var table = document.createElement('table');
-        table.className = 'data-table focus-table';
-
-        var thead = document.createElement('thead');
-        var headerRow = document.createElement('tr');
-        ['Overlap Rule', 'Users', '%'].forEach(function(h) {
-            var th = document.createElement('th');
-            th.textContent = h;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-
-        var tbody = document.createElement('tbody');
-        var total = 0;
-        Object.values(ruleStats).forEach(function(s) { total += s.count; });
-
-        Object.keys(ruleStats).forEach(function(ruleName) {
-            var stat = ruleStats[ruleName];
-            if (stat.count === 0) return;
-
-            var tr = document.createElement('tr');
-            var pct = total > 0 ? Math.round((stat.count / total) * 100) : 0;
-
-            [ruleName, stat.count, pct + '%'].forEach(function(val) {
-                var td = document.createElement('td');
-                td.textContent = val;
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-        });
-
-        if (tbody.children.length === 0) {
-            var tr = document.createElement('tr');
-            var td = document.createElement('td');
-            td.colSpan = 3;
-            td.textContent = 'No overlaps detected';
-            td.className = 'text-muted';
-            tr.appendChild(td);
-            tbody.appendChild(tr);
-        }
-
-        table.appendChild(tbody);
-        container.appendChild(table);
-    }
-
-    function renderDeptWasteTable(deptOverlaps, currency) {
-        var container = document.getElementById('dept-waste-table');
-        if (!container) return;
-
-        var table = document.createElement('table');
-        table.className = 'data-table breakdown-table';
-
-        var thead = document.createElement('thead');
-        var headerRow = document.createElement('tr');
-        ['Department', 'Users', 'Monthly Waste', 'Annual Waste'].forEach(function(h) {
-            var th = document.createElement('th');
-            th.textContent = h;
-            headerRow.appendChild(th);
-        });
-        thead.appendChild(headerRow);
-        table.appendChild(thead);
-
-        var tbody = document.createElement('tbody');
-        var depts = Object.keys(deptOverlaps).sort(function(a, b) {
-            return deptOverlaps[b].cost - deptOverlaps[a].cost;
-        });
-
-        var totals = { count: 0, monthly: 0 };
-
-        depts.forEach(function(dept) {
-            var data = deptOverlaps[dept];
-            var tr = document.createElement('tr');
-
-            var cells = [
-                dept,
-                data.count,
-                formatCurrency(data.cost, currency),
-                formatCurrency(data.cost * 12, currency)
-            ];
-
-            cells.forEach(function(val, idx) {
-                var td = document.createElement('td');
-                if (idx >= 2) td.className = 'text-danger';
-                td.textContent = val;
-                tr.appendChild(td);
-            });
-            tbody.appendChild(tr);
-
-            totals.count += data.count;
-            totals.monthly += data.cost;
-        });
-
-        // Totals row
-        var totalRow = document.createElement('tr');
-        totalRow.className = 'totals-row';
-        ['Total', totals.count, formatCurrency(totals.monthly, currency), formatCurrency(totals.monthly * 12, currency)].forEach(function(val) {
-            var td = document.createElement('td');
-            var strong = document.createElement('strong');
-            strong.textContent = val;
-            td.appendChild(strong);
-            totalRow.appendChild(td);
-        });
-        tbody.appendChild(totalRow);
-
-        table.appendChild(tbody);
-        container.appendChild(table);
-    }
-
-    function renderOverlapsTable(overlapUsers, currency) {
-        var container = document.getElementById('overlaps-table');
-        if (!container) return;
-
-        if (overlapUsers.length === 0) {
-            var emptyDiv = el('div', 'empty-state');
-            emptyDiv.appendChild(el('div', 'empty-state-icon', ''));
-            emptyDiv.appendChild(el('div', 'empty-state-title', 'No License Overlaps Detected'));
-            emptyDiv.appendChild(el('div', 'empty-state-description', 'All users have optimized license assignments.'));
-            container.appendChild(emptyDiv);
-            return;
-        }
-
-        var columns = [
-            { key: 'displayName', label: 'User', sortable: true },
-            { key: 'department', label: 'Department', sortable: true, formatter: function(v) { return v || '-'; } },
-            { key: 'rule', label: 'Overlap', sortable: true },
-            { key: 'higherLicense', label: 'Keeps', sortable: true },
-            { key: 'lowerLicense', label: 'Redundant', sortable: true },
-            { key: 'redundantCost', label: 'Monthly Waste', sortable: true, formatter: function(v) {
-                return '<span class="text-danger">' + formatCurrency(v, currency) + '</span>';
-            }}
+        // Tab bar
+        var tabBar = el('div', 'tab-bar');
+        var tabs = [
+            { id: 'overview', label: 'Overview' },
+            { id: 'overlaps', label: 'All Overlaps (' + analysis.totalOverlapCount + ')' }
         ];
+        tabs.forEach(function(t) {
+            var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
+            btn.dataset.tab = t.id;
+            btn.textContent = t.label;
+            tabBar.appendChild(btn);
+        });
+        container.appendChild(tabBar);
 
-        var tableData = overlapUsers.map(function(o) {
-            return {
-                displayName: o.user.displayName,
-                userPrincipalName: o.user.userPrincipalName,
-                department: o.user.department,
-                rule: o.rule,
-                higherLicense: o.higherLicense,
-                lowerLicense: o.lowerLicense,
-                redundantCost: o.redundantCost
-            };
+        // Content area
+        var contentArea = el('div', 'content-area');
+        contentArea.id = 'analysis-content';
+        container.appendChild(contentArea);
+
+        // Tab handlers
+        document.querySelectorAll('.tab-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        Tables.render({
-            containerId: 'overlaps-table',
-            data: tableData,
-            columns: columns,
-            pageSize: 20,
-            sortable: true,
-            defaultSort: { column: 'redundantCost', direction: 'desc' }
-        });
+        currentTab = 'overview';
+        renderContent();
     }
 
     return { render: render };
