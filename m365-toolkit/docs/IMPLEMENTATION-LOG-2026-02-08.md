@@ -275,15 +275,82 @@ function getUserAuditLogs(user) {
 
 ---
 
-## Updated Scores After Phase 10
+---
+
+## Phase 11: Complete Device-Policy Integration
+
+### Checklist
+- [x] Add getDeviceConfigProfiles() to DataRelationships
+- [x] Add getDeviceAppDeployments() to DataRelationships
+- [x] Add getDeviceCompliancePolicies() to DataRelationships
+- [x] Add getUserDirectReports() to DataRelationships
+- [x] Add getUserManagerChain() to DataRelationships
+- [x] Device modal Security tab: Configuration Profiles table with status
+- [x] Device modal Security tab: App Deployments table with install state
+- [x] Device modal Compliance tab: Detailed policy table with failed settings
+- [x] User modal Overview tab: Org Hierarchy section with manager chain and direct reports
+
+### DataRelationships Functions Added
+```javascript
+// Configuration Profiles - per-device deployment status
+function getDeviceConfigProfiles(deviceName) {
+    // Returns { profiles, failedProfiles, successCount, failedCount }
+}
+
+// App Deployments - per-device install status
+function getDeviceAppDeployments(deviceName) {
+    // Returns { apps, failedApps, installedCount, failedCount }
+}
+
+// Compliance Policies - per-device compliance with setting failures
+function getDeviceCompliancePolicies(deviceName) {
+    // Returns { policies, failedPolicies, compliantCount, nonCompliantCount }
+}
+
+// Direct Reports - computed from manager relationships
+function getUserDirectReports(user) {
+    // Returns array of direct reports
+}
+
+// Manager Chain - upward hierarchy traversal
+function getUserManagerChain(user) {
+    // Returns array of managers up to 10 levels
+}
+```
+
+### Device Modal Enhancements
+- **Security Tab**:
+  - Configuration Profiles table showing profile name, type, category, status (with error/conflict indicators)
+  - App Deployments table showing app name, version, type, install state, error code
+- **Compliance Tab**:
+  - Enhanced policy table showing policy name, platform, category, status, failed settings
+
+### User Modal Enhancements
+- **Overview Tab**:
+  - Org Hierarchy section with clickable manager chain (indented hierarchy)
+  - Direct Reports list with clickable links to user profiles
+
+### Files Modified
+- `dashboard/js/data-relationships.js` - Added 5 new functions
+- `dashboard/js/page-devices.js` - Added config profiles, app deployments, compliance details
+- `dashboard/js/page-users.js` - Added org hierarchy section
+
+### Deferred (Requires Collector Enhancement)
+- [ ] User group memberships - currently not collected, would need Get-UserData.ps1 enhancement
+
+---
+
+## Updated Scores After Phase 11
 
 | Aspect | Before | After | Change |
 |--------|--------|-------|--------|
 | Data Collection | 8/10 | 8/10 | - |
-| UI/Presentation | 8/10 | 9/10 | +1 |
-| Detail Drill-Downs | 8/10 | 9/10 | +1 |
-| Cross-Referencing | 8/10 | 9/10 | +1 |
+| UI/Presentation | 9/10 | 9/10 | - |
+| Detail Drill-Downs | 9/10 | 10/10 | +1 |
+| Cross-Referencing | 9/10 | 10/10 | +1 |
 | Actionability | 1/10 | 1/10 | Deferred |
+
+**Note**: Detail Drill-Downs and Cross-Referencing now at 10/10 - all collected data is fully connected and visible in detail modals.
 
 ---
 

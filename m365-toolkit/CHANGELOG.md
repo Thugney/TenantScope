@@ -88,6 +88,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - User modal Security tab: OAuth App Consents table showing app name, publisher (verified badge), consent type, risk level
   - User modal Activity tab: Audit Logs table showing timestamp, activity, result, category
 
+- **Complete Device-Policy Integration (Phase 11)**:
+  - `getDeviceConfigProfiles()` - Configuration profiles with per-device deployment status
+  - `getDeviceAppDeployments()` - App deployments with per-device install state and error codes
+  - `getDeviceCompliancePolicies()` - Compliance policies with per-device status and failed settings
+  - `getUserDirectReports()` - Direct reports computed from manager relationships
+  - `getUserManagerChain()` - Upward manager hierarchy traversal
+  - Device modal Security tab: Configuration Profiles table showing profile name, type, category, status (error/conflict indicators)
+  - Device modal Security tab: App Deployments table showing app name, version, type, install state, error code
+  - Device modal Compliance tab: Enhanced policy table showing policy name, platform, category, status, failed settings per policy
+  - User modal Overview tab: Org Hierarchy section with clickable manager chain and direct reports list
+
 ### Changed
 - User and Device modals now use tabbed layouts for better organization
 - Teams owners list now uses clickable links instead of plain text

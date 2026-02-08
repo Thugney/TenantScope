@@ -452,10 +452,12 @@ const PageUsers = (function() {
         var caPolicies = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserConditionalAccessPolicies(user, adminRoles) : [];
         var oauthConsents = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserOAuthConsents(user) : [];
         var auditLogs = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAuditLogs(user) : [];
+        var directReports = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserDirectReports(user) : [];
+        var managerChain = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserManagerChain(user) : [];
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -484,13 +486,15 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         alerts = alerts || [];
         adminUrls = adminUrls || {};
         caPolicies = caPolicies || [];
         oauthConsents = oauthConsents || [];
         auditLogs = auditLogs || [];
+        directReports = directReports || [];
+        managerChain = managerChain || [];
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
@@ -500,7 +504,7 @@ const PageUsers = (function() {
             '<button class="modal-tab" data-tab="activity">Activity</button>' +
         '</div>' +
         '<div class="modal-tab-content">' +
-            buildOverviewTab(user, mfa, risks, adminRoles, adminUrls) +
+            buildOverviewTab(user, mfa, risks, adminRoles, adminUrls, directReports, managerChain) +
             buildLicensesTab(licenses) +
             buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents) +
             buildDevicesTab(devices) +
@@ -508,10 +512,12 @@ const PageUsers = (function() {
         '</div>';
     }
 
-    function buildOverviewTab(user, mfa, risks, adminRoles, adminUrls) {
+    function buildOverviewTab(user, mfa, risks, adminRoles, adminUrls, directReports, managerChain) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         var adminBadge = adminRoles.length > 0 ? '<span class="status-badge status-warning">' + adminRoles.length + ' roles</span>' : '<span class="status-badge">None</span>';
         adminUrls = adminUrls || {};
+        directReports = directReports || [];
+        managerChain = managerChain || [];
 
         var adminLinks = '';
         if (adminUrls.entra || adminUrls.defender) {
@@ -523,6 +529,38 @@ const PageUsers = (function() {
                 adminLinks += '<a href="' + adminUrls.defender + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Defender</a>';
             }
             adminLinks += '</div></div>';
+        }
+
+        // Build Org Hierarchy section
+        var orgHierarchy = '';
+        if (managerChain.length > 0 || directReports.length > 0) {
+            orgHierarchy = '<div class="detail-section full-width"><h4>Org Hierarchy</h4>';
+
+            // Manager chain (upward)
+            if (managerChain.length > 0) {
+                orgHierarchy += '<div style="margin-bottom:0.75rem"><strong>Reports To:</strong><ul class="detail-methods-list" style="margin-top:0.25rem">';
+                managerChain.forEach(function(mgr, idx) {
+                    var indent = idx > 0 ? 'style="margin-left:' + (idx * 12) + 'px"' : '';
+                    orgHierarchy += '<li ' + indent + '><a href="#users?search=' + encodeURIComponent(mgr.userPrincipalName) + '" class="text-link">' +
+                        escapeHtml(mgr.displayName) + '</a> <span class="text-muted">(' + escapeHtml(mgr.jobTitle || '--') + ')</span></li>';
+                });
+                orgHierarchy += '</ul></div>';
+            }
+
+            // Direct reports (downward)
+            if (directReports.length > 0) {
+                orgHierarchy += '<div><strong>Direct Reports (' + directReports.length + '):</strong><ul class="detail-methods-list" style="margin-top:0.25rem">';
+                directReports.slice(0, 10).forEach(function(report) {
+                    orgHierarchy += '<li><a href="#users?search=' + encodeURIComponent(report.userPrincipalName) + '" class="text-link">' +
+                        escapeHtml(report.displayName) + '</a> <span class="text-muted">(' + escapeHtml(report.jobTitle || '--') + ')</span></li>';
+                });
+                if (directReports.length > 10) {
+                    orgHierarchy += '<li class="text-muted">...and ' + (directReports.length - 10) + ' more</li>';
+                }
+                orgHierarchy += '</ul></div>';
+            }
+
+            orgHierarchy += '</div>';
         }
 
         return '<div class="modal-tab-pane active" data-tab="overview">' +
@@ -564,6 +602,7 @@ const PageUsers = (function() {
                         '<span class="detail-label">Days Inactive:</span><span class="detail-value">' + (user.daysSinceLastSignIn !== null ? user.daysSinceLastSignIn : '--') + '</span>' +
                     '</div>' +
                 '</div>' +
+                orgHierarchy +
                 adminLinks +
             '</div>' +
         '</div>';

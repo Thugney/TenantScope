@@ -702,6 +702,308 @@ var DataRelationships = (function() {
     }
 
     // ========================================================================
+    // CONFIGURATION PROFILES
+    // ========================================================================
+
+    /**
+     * Get configuration profiles assigned to a device with deployment status.
+     * @param {string} deviceName - Device name
+     * @returns {Object} Object with profiles array and failed profiles
+     */
+    function getDeviceConfigProfiles(deviceName) {
+        if (!deviceName) return { profiles: [], failedProfiles: [], successCount: 0, failedCount: 0 };
+
+        var configData = DataStore.configurationProfiles || {};
+        var profiles = configData.profiles || [];
+        var failedDevices = configData.failedDevices || [];
+        var deviceNameLower = deviceName.toLowerCase();
+
+        // Find this device in failedDevices list
+        var deviceFailure = failedDevices.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var failedProfileNames = deviceFailure ? (deviceFailure.failedProfiles || []) : [];
+
+        // Get profiles that apply to this device (checking deviceStatuses)
+        var deviceProfiles = [];
+        profiles.forEach(function(profile) {
+            var deviceStatuses = profile.deviceStatuses || [];
+            var deviceStatus = deviceStatuses.find(function(ds) {
+                return (ds.deviceName || '').toLowerCase() === deviceNameLower;
+            });
+
+            if (deviceStatus) {
+                deviceProfiles.push({
+                    id: profile.id,
+                    displayName: profile.displayName,
+                    profileType: profile.profileType,
+                    platform: profile.platform,
+                    category: profile.category,
+                    status: deviceStatus.status,
+                    lastReported: deviceStatus.lastReportedDateTime,
+                    hasError: deviceStatus.status === 'error',
+                    hasConflict: deviceStatus.status === 'conflict'
+                });
+            }
+        });
+
+        // Also add profiles from failedProfiles list that weren't in deviceStatuses
+        failedProfileNames.forEach(function(profileName) {
+            var alreadyAdded = deviceProfiles.some(function(p) {
+                return p.displayName === profileName;
+            });
+            if (!alreadyAdded) {
+                var profile = profiles.find(function(p) { return p.displayName === profileName; });
+                if (profile) {
+                    deviceProfiles.push({
+                        id: profile.id,
+                        displayName: profile.displayName,
+                        profileType: profile.profileType,
+                        platform: profile.platform,
+                        category: profile.category,
+                        status: 'failed',
+                        lastReported: null,
+                        hasError: true,
+                        hasConflict: false
+                    });
+                }
+            }
+        });
+
+        var failedCount = deviceProfiles.filter(function(p) { return p.hasError || p.hasConflict; }).length;
+        var successCount = deviceProfiles.length - failedCount;
+
+        return {
+            profiles: deviceProfiles,
+            failedProfiles: failedProfileNames,
+            successCount: successCount,
+            failedCount: failedCount,
+            totalCount: deviceProfiles.length
+        };
+    }
+
+    // ========================================================================
+    // APP DEPLOYMENTS
+    // ========================================================================
+
+    /**
+     * Get app deployments for a device with installation status.
+     * @param {string} deviceName - Device name
+     * @returns {Object} Object with apps array and failed apps
+     */
+    function getDeviceAppDeployments(deviceName) {
+        if (!deviceName) return { apps: [], failedApps: [], installedCount: 0, failedCount: 0 };
+
+        var appData = DataStore.appDeployments || {};
+        var apps = appData.apps || [];
+        var failedDevices = appData.failedDevices || [];
+        var deviceNameLower = deviceName.toLowerCase();
+
+        // Find this device in failedDevices list
+        var deviceFailure = failedDevices.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var failedAppNames = deviceFailure ? (deviceFailure.failedApps || []) : [];
+
+        // Get apps with status for this device
+        var deviceApps = [];
+        apps.forEach(function(app) {
+            var deviceStatuses = app.deviceStatuses || [];
+            var deviceStatus = deviceStatuses.find(function(ds) {
+                return (ds.deviceName || '').toLowerCase() === deviceNameLower;
+            });
+
+            if (deviceStatus) {
+                deviceApps.push({
+                    id: app.id,
+                    displayName: app.displayName,
+                    publisher: app.publisher,
+                    appType: app.appType,
+                    version: app.version,
+                    installState: deviceStatus.installState,
+                    installStateDetail: deviceStatus.installStateDetail,
+                    errorCode: deviceStatus.errorCode,
+                    lastSync: deviceStatus.lastSyncDateTime,
+                    isFailed: deviceStatus.installState === 'failed'
+                });
+            }
+        });
+
+        // Also add apps from failedApps list that weren't in deviceStatuses
+        failedAppNames.forEach(function(appName) {
+            var alreadyAdded = deviceApps.some(function(a) {
+                return a.displayName === appName;
+            });
+            if (!alreadyAdded) {
+                var app = apps.find(function(a) { return a.displayName === appName; });
+                if (app) {
+                    deviceApps.push({
+                        id: app.id,
+                        displayName: app.displayName,
+                        publisher: app.publisher,
+                        appType: app.appType,
+                        version: app.version,
+                        installState: 'failed',
+                        installStateDetail: 'Failed',
+                        errorCode: null,
+                        lastSync: null,
+                        isFailed: true
+                    });
+                }
+            }
+        });
+
+        var failedCount = deviceApps.filter(function(a) { return a.isFailed; }).length;
+        var installedCount = deviceApps.length - failedCount;
+
+        return {
+            apps: deviceApps,
+            failedApps: failedAppNames,
+            installedCount: installedCount,
+            failedCount: failedCount,
+            totalCount: deviceApps.length
+        };
+    }
+
+    // ========================================================================
+    // COMPLIANCE POLICY DETAILS
+    // ========================================================================
+
+    /**
+     * Get compliance policies for a device with failure reasons.
+     * @param {string} deviceName - Device name
+     * @returns {Object} Object with policies array and failed settings
+     */
+    function getDeviceCompliancePolicies(deviceName) {
+        if (!deviceName) return { policies: [], failedSettings: [], compliantCount: 0, nonCompliantCount: 0 };
+
+        var complianceData = DataStore.compliancePolicies || {};
+        var policies = complianceData.policies || [];
+        var nonCompliantDevices = complianceData.nonCompliantDevices || [];
+        var settingFailures = complianceData.settingFailures || [];
+        var deviceNameLower = deviceName.toLowerCase();
+
+        // Find this device in nonCompliantDevices list
+        var deviceNonCompliance = nonCompliantDevices.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var failedPolicyNames = deviceNonCompliance ? (deviceNonCompliance.failedPolicies || []) : [];
+
+        // Get policies with status for this device
+        var devicePolicies = [];
+        policies.forEach(function(policy) {
+            var deviceStatuses = policy.deviceStatuses || [];
+            var deviceStatus = deviceStatuses.find(function(ds) {
+                return (ds.deviceName || '').toLowerCase() === deviceNameLower;
+            });
+
+            // Get setting failures for this policy
+            var policySettingFailures = [];
+            if (policy.settingStatuses) {
+                policy.settingStatuses.forEach(function(ss) {
+                    if (ss.nonCompliantDeviceCount > 0 || ss.errorDeviceCount > 0) {
+                        policySettingFailures.push({
+                            settingName: ss.settingName,
+                            nonCompliant: ss.nonCompliantDeviceCount,
+                            error: ss.errorDeviceCount
+                        });
+                    }
+                });
+            }
+
+            var isNonCompliant = failedPolicyNames.indexOf(policy.displayName) >= 0;
+            var status = deviceStatus ? deviceStatus.status : (isNonCompliant ? 'nonCompliant' : 'compliant');
+
+            devicePolicies.push({
+                id: policy.id,
+                displayName: policy.displayName,
+                platform: policy.platform,
+                category: policy.category,
+                isCritical: policy.isCritical,
+                status: status,
+                lastReported: deviceStatus ? deviceStatus.lastReportedDateTime : null,
+                isNonCompliant: status === 'nonCompliant',
+                isError: status === 'error',
+                settingFailures: policySettingFailures
+            });
+        });
+
+        var nonCompliantCount = devicePolicies.filter(function(p) { return p.isNonCompliant || p.isError; }).length;
+        var compliantCount = devicePolicies.length - nonCompliantCount;
+
+        return {
+            policies: devicePolicies,
+            failedPolicies: failedPolicyNames,
+            compliantCount: compliantCount,
+            nonCompliantCount: nonCompliantCount,
+            totalCount: devicePolicies.length
+        };
+    }
+
+    // ========================================================================
+    // USER DIRECT REPORTS
+    // ========================================================================
+
+    /**
+     * Get users who report to this user (direct reports).
+     * Computed from manager relationships in user data.
+     * @param {Object} user - User object
+     * @returns {Array} Array of direct report user objects
+     */
+    function getUserDirectReports(user) {
+        if (!user || !user.id) return [];
+
+        var users = DataStore.getAllUsers ? DataStore.getAllUsers() : (DataStore.users || []);
+
+        return users.filter(function(u) {
+            return u.managerId === user.id;
+        }).map(function(u) {
+            return {
+                id: u.id,
+                displayName: u.displayName,
+                userPrincipalName: u.userPrincipalName,
+                jobTitle: u.jobTitle,
+                department: u.department,
+                mail: u.mail
+            };
+        });
+    }
+
+    /**
+     * Get manager chain for a user (upward hierarchy).
+     * @param {Object} user - User object
+     * @returns {Array} Array of manager objects in order (direct manager first)
+     */
+    function getUserManagerChain(user) {
+        if (!user) return [];
+        buildIndexes();
+
+        var chain = [];
+        var currentUser = user;
+        var maxDepth = 10; // Prevent infinite loops
+
+        while (currentUser && currentUser.managerId && chain.length < maxDepth) {
+            var manager = userIndex[currentUser.managerId];
+            if (!manager) break;
+
+            chain.push({
+                id: manager.id,
+                displayName: manager.displayName,
+                userPrincipalName: manager.userPrincipalName,
+                jobTitle: manager.jobTitle,
+                department: manager.department
+            });
+
+            currentUser = manager;
+        }
+
+        return chain;
+    }
+
+    // ========================================================================
     // PUBLIC API
     // ========================================================================
 
@@ -758,7 +1060,20 @@ var DataRelationships = (function() {
         getUserOAuthConsents: getUserOAuthConsents,
 
         // Audit Logs
-        getUserAuditLogs: getUserAuditLogs
+        getUserAuditLogs: getUserAuditLogs,
+
+        // Configuration Profiles
+        getDeviceConfigProfiles: getDeviceConfigProfiles,
+
+        // App Deployments
+        getDeviceAppDeployments: getDeviceAppDeployments,
+
+        // Compliance Policies
+        getDeviceCompliancePolicies: getDeviceCompliancePolicies,
+
+        // User Hierarchy
+        getUserDirectReports: getUserDirectReports,
+        getUserManagerChain: getUserManagerChain
     };
 })();
 

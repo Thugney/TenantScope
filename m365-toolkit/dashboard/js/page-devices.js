@@ -997,6 +997,9 @@ const PageDevices = (function() {
         var adminUrls = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAdminUrls(device) : {};
         var asrData = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAsrPolicies() : { policies: [], deployedRules: [] };
         var autopilot = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAutopilot(device) : null;
+        var configProfiles = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceConfigProfiles(device.deviceName) : { profiles: [], failedCount: 0 };
+        var appDeployments = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAppDeployments(device.deviceName) : { apps: [], failedCount: 0 };
+        var compliancePolicies = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceCompliancePolicies(device.deviceName) : { policies: [], nonCompliantCount: 0 };
 
         // Build tabbed interface
         var html = '<div class="modal-tabs">';
@@ -1246,6 +1249,55 @@ const PageDevices = (function() {
             html += '</div>';
         }
 
+        // Configuration Profiles
+        html += '<div class="detail-section full-width"><h4>Configuration Profiles';
+        if (configProfiles.failedCount > 0) {
+            html += ' <span class="status-badge status-danger">' + configProfiles.failedCount + ' failed</span>';
+        }
+        html += '</h4>';
+        if (configProfiles.profiles.length > 0) {
+            html += '<table class="mini-table"><thead><tr><th>Profile</th><th>Type</th><th>Category</th><th>Status</th></tr></thead><tbody>';
+            configProfiles.profiles.forEach(function(p) {
+                var statusClass = p.hasError ? 'text-critical' : p.hasConflict ? 'text-warning' : 'text-success';
+                var statusText = p.hasError ? 'Error' : p.hasConflict ? 'Conflict' : 'Success';
+                html += '<tr>';
+                html += '<td>' + (p.displayName || '--') + '</td>';
+                html += '<td>' + (p.profileType || '--') + '</td>';
+                html += '<td>' + (p.category || '--') + '</td>';
+                html += '<td class="' + statusClass + '">' + statusText + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<p class="empty-state-small">No configuration profile status data for this device</p>';
+        }
+        html += '</div>';
+
+        // App Deployments
+        html += '<div class="detail-section full-width"><h4>App Deployments';
+        if (appDeployments.failedCount > 0) {
+            html += ' <span class="status-badge status-danger">' + appDeployments.failedCount + ' failed</span>';
+        }
+        html += '</h4>';
+        if (appDeployments.apps.length > 0) {
+            html += '<table class="mini-table"><thead><tr><th>App</th><th>Version</th><th>Type</th><th>Status</th><th>Error</th></tr></thead><tbody>';
+            appDeployments.apps.forEach(function(app) {
+                var statusClass = app.isFailed ? 'text-critical' : 'text-success';
+                var statusText = app.isFailed ? 'Failed' : 'Installed';
+                html += '<tr>';
+                html += '<td>' + (app.displayName || '--') + '</td>';
+                html += '<td>' + (app.version || '--') + '</td>';
+                html += '<td>' + (app.appType || '--') + '</td>';
+                html += '<td class="' + statusClass + '">' + statusText + '</td>';
+                html += '<td>' + (app.errorCode || '--') + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<p class="empty-state-small">No app deployment status data for this device</p>';
+        }
+        html += '</div>';
+
         html += '</div>'; // end detail-grid
         html += '</div>'; // end security tab
 
@@ -1262,9 +1314,31 @@ const PageDevices = (function() {
         }
         html += '</dl></div>';
 
-        // Non-Compliant Policies
-        html += '<div class="detail-section"><h4>Policy Compliance</h4>';
-        if (device.nonCompliantPolicyCount !== null && device.nonCompliantPolicyCount !== undefined && device.nonCompliantPolicyCount > 0) {
+        // Compliance Policies with Details
+        html += '<div class="detail-section full-width"><h4>Compliance Policies';
+        if (compliancePolicies.nonCompliantCount > 0) {
+            html += ' <span class="status-badge status-danger">' + compliancePolicies.nonCompliantCount + ' non-compliant</span>';
+        }
+        html += '</h4>';
+        if (compliancePolicies.policies.length > 0) {
+            html += '<table class="mini-table"><thead><tr><th>Policy</th><th>Platform</th><th>Category</th><th>Status</th><th>Failed Settings</th></tr></thead><tbody>';
+            compliancePolicies.policies.forEach(function(p) {
+                var statusClass = p.isNonCompliant ? 'text-critical' : p.isError ? 'text-warning' : 'text-success';
+                var statusText = p.isNonCompliant ? 'Non-Compliant' : p.isError ? 'Error' : 'Compliant';
+                var criticalBadge = p.isCritical ? ' <span class="status-badge status-warning" style="font-size:0.7em">Critical</span>' : '';
+                var failedSettings = p.settingFailures && p.settingFailures.length > 0 ?
+                    p.settingFailures.map(function(s) { return s.settingName; }).join(', ') : '--';
+                html += '<tr>';
+                html += '<td>' + (p.displayName || '--') + criticalBadge + '</td>';
+                html += '<td>' + (p.platform || '--') + '</td>';
+                html += '<td>' + (p.category || '--') + '</td>';
+                html += '<td class="' + statusClass + '">' + statusText + '</td>';
+                html += '<td title="' + failedSettings + '">' + (failedSettings.length > 40 ? failedSettings.substring(0, 40) + '...' : failedSettings) + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else if (device.nonCompliantPolicyCount !== null && device.nonCompliantPolicyCount !== undefined && device.nonCompliantPolicyCount > 0) {
+            // Fallback to basic display if detailed data not available
             html += '<p class="text-critical" style="margin-bottom:0.5rem">Non-Compliant Policies: ' + device.nonCompliantPolicyCount + '</p>';
             if (device.nonCompliantPolicies && device.nonCompliantPolicies.length > 0) {
                 html += '<ul class="detail-methods-list">';
