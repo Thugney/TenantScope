@@ -2,25 +2,116 @@
 
 ![TenantScope](docs/TenantSccope.png)
 
-> A personal IT admin toolkit for Microsoft 365 tenant management and monitoring.
+> A comprehensive IT admin toolkit for Microsoft 365 tenant management, security monitoring, and operational visibility.
 
-**Author:** Robe ([GitHub](https://github.com/Thugney), [X](https://x.com/eriteach))
+**Author:** Robel ([GitHub](https://github.com/Thugney), [X](https://x.com/eriteach))
 **Repository:** https://github.com/Thugney/-M365-TENANT-TOOLKIT
-**Version:** [v1.2.0](https://github.com/Thugney/-M365-TENANT-TOOLKIT/releases/tag/v1.2.0) · [Latest Release](https://github.com/Thugney/-M365-TENANT-TOOLKIT/releases/latest)
+**Version:** 2.1.1
 **License:** MIT
 
 ## Overview
 
-TenantScope is a PowerShell-based solution for collecting and visualizing Microsoft 365 tenant data. It provides IT administrators with insights into:
+TenantScope is a PowerShell-based solution for collecting and visualizing Microsoft 365 tenant data. It provides IT administrators with a single-pane-of-glass view across identity, devices, security, licensing, and collaboration workloads.
 
-- **User Management** - All users, activity status, MFA enrollment
-- **License Optimization** - SKU allocation, waste analysis, utilization metrics
-- **Guest Accounts** - External users, stale guests, pending invitations
-- **Security Posture** - Risky sign-ins, admin roles, MFA gaps, Defender alerts
-- **Device Health** - Intune devices, compliance status, Autopilot enrollment
-- **Lifecycle Management** - Offboarding issues, onboarding gaps, role hygiene
+The toolkit collects data via Microsoft Graph API and presents it in a local HTML dashboard - no cloud services, no external dependencies, all data stays on your machine.
 
-The toolkit collects data via Microsoft Graph API and presents it in a local HTML dashboard - no cloud services, no external dependencies.
+## Key Features
+
+### Dashboard Pages
+
+The dashboard is organized into functional groups:
+
+**Identity**
+- **Overview** - Executive summary with security signals, risk scores, and actionable insights
+- **Problems** - Aggregated critical issues across all data types with prioritized remediation guidance
+- **Users** - Member accounts with activity status, MFA enrollment, admin flags, and license assignments
+- **Organization** - Department-level analytics and organizational hierarchy
+- **Guests** - External users with invitation status, activity tracking, and stale guest identification
+- **Lifecycle** - Computed reports for offboarding issues, onboarding gaps, and role hygiene
+
+**Licensing**
+- **Licenses** - SKU allocation with waste analysis showing licenses assigned to disabled/inactive users
+- **Overlap Analysis** - License overlap detection for cost optimization
+
+**Security**
+- **Security** - Admin roles, MFA gaps, and security posture overview
+- **Sign-In Logs** - Authentication activity with risk levels and conditional access results
+- **Conditional Access** - Policy analysis with coverage gaps and security recommendations
+- **ASR Rules** - Attack Surface Reduction rules deployment status
+- **Credential Expiry** - Service principal and app registration secret expiration tracking
+- **PIM** - Privileged Identity Management activity and role activation tracking
+- **Identity Risk** - Risky users and risk detections from Entra ID Protection
+- **OAuth Consent** - Application consent grants with risk assessment
+- **Vulnerabilities** - Defender for Endpoint vulnerability data
+
+**Compliance**
+- **Data Governance** - Retention policies, sensitivity labels, eDiscovery cases, and access reviews
+
+**Endpoints**
+- **Devices** - Intune managed devices with compliance status, encryption state, and sync recency
+- **Compliance Policies** - Device compliance policy status and failures
+- **Configuration Profiles** - Intune configuration profile deployment status
+- **Windows Update** - Update ring assignments and compliance
+- **BitLocker** - Encryption status and recovery key escrow
+- **App Deployments** - Application installation status across devices
+- **Endpoint Analytics** - Device performance scores and health metrics
+- **Enterprise Apps** - Application permissions and usage analytics
+
+**Collaboration**
+- **Teams** - Team inventory, activity tracking, ownership, and guest access analysis
+- **SharePoint** - Site collections with storage usage and external sharing monitoring
+
+**Reports**
+- **Executive Report** - Printable summary for leadership
+- **App Usage** - Application sign-in analytics and usage patterns
+- **Data Quality** - Data completeness and collection metrics
+
+**Audit**
+- **Audit Logs** - Administrative activity monitoring with search and filtering
+
+### Data Relationships and Cross-Page Navigation
+
+TenantScope links entities across data types for comprehensive context:
+
+- Click a user to see their devices, sign-ins, admin roles, MFA status, Teams membership, and licenses
+- Click a device to see its primary user, compliance status, BitLocker state, Windows Update status, and vulnerabilities
+- Click a Team to see its linked SharePoint site, owners, and guest members
+- Cross-reference vulnerabilities with affected devices
+- View Defender alerts linked to specific users and devices
+
+### Deep Links to Admin Portals
+
+Each entity includes direct links to the corresponding admin portal for immediate action:
+
+- **Users**: Entra ID user profile, authentication methods, devices, groups, directory roles
+- **Devices**: Intune device blade, compliance state, BitLocker keys, Entra device details
+- **Security**: Defender security portal, PIM activation
+- **Teams/SharePoint**: Admin center links for management
+
+### Problem Detection and Signal Cards
+
+The **Problems** page aggregates critical issues with prioritized severity:
+
+**Critical Issues**
+- Non-compliant devices
+- Users without MFA
+- Expired certificates
+- Confirmed compromised accounts
+
+**High Priority**
+- Unencrypted devices
+- Unsupported Windows versions
+- Risky users (high risk level)
+- High-risk OAuth consent grants
+- Expiring app credentials
+
+**Medium Priority**
+- Stale devices (90+ days)
+- Ownerless Teams
+- External sharing on SharePoint sites
+- Configuration profile failures
+
+The **Overview** page displays security signal cards with risk scoring and direct navigation to affected items.
 
 ## Requirements
 
@@ -28,42 +119,61 @@ The toolkit collects data via Microsoft Graph API and presents it in a local HTM
 
 - **PowerShell 7.0+** - Required for running collectors
 - **Microsoft Graph PowerShell SDK** - For Graph API access
-- **Modern Web Browser** - For viewing the dashboard
+- **Modern Web Browser** - For viewing the dashboard (Chrome, Edge, Firefox, Safari)
+
+### Installation
+
+```powershell
+# Run the setup script to install prerequisites
+.\Install-Prerequisites.ps1
+```
+
+This installs the following Graph SDK modules:
+- Microsoft.Graph.Authentication
+- Microsoft.Graph.Users
+- Microsoft.Graph.Identity.DirectoryManagement
+- Microsoft.Graph.DeviceManagement
+- Microsoft.Graph.Security
+- Microsoft.Graph.Reports
 
 ### Permissions
 
-The following Microsoft Graph delegated permissions are required:
+The following Microsoft Graph permissions are required (delegated or application):
 
 | Permission | Purpose |
 |-----------|---------|
 | User.Read.All | Read all user profiles |
-| Directory.Read.All | Read directory data |
-| AuditLog.Read.All | Read sign-in activity |
+| Directory.Read.All | Read directory data including roles |
+| AuditLog.Read.All | Read sign-in activity and audit logs |
 | Reports.Read.All | Read MFA registration reports |
+| ServiceMessage.Read.All | Read service announcements |
+| ServiceHealth.Read.All | Read service health |
 | DeviceManagementManagedDevices.Read.All | Read Intune devices |
-| DeviceManagementConfiguration.Read.All | Read Autopilot data |
+| DeviceManagementConfiguration.Read.All | Read compliance policies and config profiles |
+| DeviceManagementApps.Read.All | Read app deployments |
 | SecurityEvents.Read.All | Read security alerts |
 | IdentityRiskyUser.Read.All | Read risky users |
 | IdentityRiskEvent.Read.All | Read risk detections |
 | RoleManagement.Read.Directory | Read directory roles |
+| RoleAssignmentSchedule.Read.Directory | Read PIM role assignments |
+| RoleEligibilitySchedule.Read.Directory | Read PIM eligible roles |
+| Application.Read.All | Read app registrations and service principals |
+| Policy.Read.All | Read conditional access policies |
+| Team.ReadBasic.All | Read Teams |
+| Channel.ReadBasic.All | Read Teams channels |
+| TeamMember.Read.All | Read Teams membership |
+| Sites.Read.All | Read SharePoint sites |
+| BitLockerKey.Read.All | Read BitLocker recovery keys |
 
-**Note:** Some features require Entra ID P1/P2 or Microsoft 365 E5 licensing:
-- Sign-in activity requires P1+
-- Risk detections require P2
-- Defender alerts require Defender licensing
+**Licensing Notes:**
+- Sign-in activity requires Entra ID P1+
+- Risk detections require Entra ID P2
+- Defender alerts require Microsoft Defender licensing
+- Endpoint Analytics requires Intune licensing
 
 ## Quick Start
 
-### 1. Install Prerequisites
-
-```powershell
-# Run the setup script
-.\Install-Prerequisites.ps1
-```
-
-This installs the Microsoft Graph PowerShell SDK and creates required directories.
-
-### 2. Configure Tenant Settings
+### 1. Configure Tenant Settings
 
 Edit `config.json` with your tenant information:
 
@@ -78,30 +188,113 @@ Edit `config.json` with your tenant information:
     "inactiveDays": 90,
     "staleGuestDays": 60,
     "staleDeviceDays": 90
+  },
+  "collection": {
+    "signInLogDays": 30,
+    "defenderAlertDays": 30,
+    "auditLogDays": 30
   }
 }
 ```
 
-### 3. Collect Data
+### 2. Collect Data
 
 ```powershell
-# Run data collection (interactive sign-in)
+# Run data collection with interactive sign-in
 .\Invoke-DataCollection.ps1
 ```
 
-You'll be prompted to sign in with your admin account. The script collects data from all configured sources.
+You will be prompted to sign in with your admin account. The script runs all collectors, cross-references data, and builds the dashboard automatically.
 
-### 4. View Dashboard
+### 3. View Dashboard
+
+The dashboard opens automatically after collection. To rebuild manually:
 
 ```powershell
-# Build and open the dashboard
 .\scripts\Build-Dashboard.ps1
 ```
 
-Or test with sample data:
+## Usage
+
+### Full Collection (Interactive Authentication)
 
 ```powershell
+# Collect all data with interactive sign-in
+.\Invoke-DataCollection.ps1
+
+# Skip the dashboard prompt after collection
+.\Invoke-DataCollection.ps1 -SkipDashboard
+```
+
+### Selective Collection
+
+Run only specific collectors to reduce collection time:
+
+```powershell
+# Collect only user and license data
+.\Invoke-DataCollection.ps1 -CollectorsToRun @("UserData", "LicenseData")
+
+# Collect only device-related data
+.\Invoke-DataCollection.ps1 -CollectorsToRun @("DeviceData", "CompliancePolicies", "BitLockerStatus")
+
+# Collect only security data
+.\Invoke-DataCollection.ps1 -CollectorsToRun @("SignInData", "DefenderData", "ConditionalAccessData")
+```
+
+**Available collector names:**
+- UserData, LicenseData, GuestData, MFAData, AdminRoleData, DeletedUsers
+- SignInData, SignInLogs, DeviceData, AutopilotData, DefenderData
+- EnterpriseAppData, AuditLogData, PIMData, TeamsData, SharePointData
+- SecureScoreData, AppSignInData, ConditionalAccessData
+- CompliancePolicies, ConfigurationProfiles, WindowsUpdateStatus
+- BitLockerStatus, AppDeployments, EndpointAnalytics
+- ServicePrincipalSecrets, ASRRules, ServiceAnnouncementData
+
+### App-Only Authentication (Scheduled/Unattended)
+
+For scheduled or unattended execution, use certificate-based app authentication:
+
+```powershell
+# Using certificate thumbprint (recommended)
+.\Invoke-DataCollection.ps1 `
+    -ClientId "00000000-0000-0000-0000-000000000000" `
+    -CertificateThumbprint "ABC123DEF456..."
+
+# Using client secret (less secure)
+.\Invoke-DataCollection.ps1 `
+    -ClientId "00000000-0000-0000-0000-000000000000" `
+    -ClientSecret "your-secret-here"
+```
+
+**Note:** App-only authentication requires an Azure AD app registration with application permissions (not delegated) granted with admin consent.
+
+### Scheduled Collection
+
+```powershell
+# Set up daily collection at 6 AM
+.\scripts\Schedule-Collection.ps1 -Schedule Daily -Time "06:00"
+
+# Weekly collection
+.\scripts\Schedule-Collection.ps1 -Schedule Weekly -Time "08:00"
+
+# Remove scheduled task
+.\scripts\Schedule-Collection.ps1 -Remove
+```
+
+### Dashboard Options
+
+```powershell
+# Build with live collected data
+.\scripts\Build-Dashboard.ps1
+
+# Build with sample data (for testing/demo)
 .\scripts\Build-Dashboard.ps1 -UseSampleData
+
+# Build without opening browser
+.\scripts\Build-Dashboard.ps1 -NoBrowser
+
+# Use custom data path
+.\scripts\Build-Dashboard.ps1 -DataPath "C:\path\to\data"
 ```
 
 ## Project Structure
@@ -112,24 +305,18 @@ m365-toolkit/
 ├── Install-Prerequisites.ps1      # Setup script
 ├── Invoke-DataCollection.ps1      # Main collection orchestrator
 │
-├── collectors/                    # Data collection modules (17 scripts)
+├── collectors/                    # Data collection modules (37 scripts)
 │   ├── Get-UserData.ps1
 │   ├── Get-LicenseData.ps1
-│   ├── Get-GuestData.ps1
-│   ├── Get-MFAData.ps1
-│   ├── Get-AdminRoleData.ps1
-│   ├── Get-SignInData.ps1
 │   ├── Get-DeviceData.ps1
-│   ├── Get-AutopilotData.ps1
-│   ├── Get-DefenderData.ps1
-│   ├── Get-EnterpriseAppData.ps1
-│   ├── Get-AuditLogData.ps1
-│   ├── Get-PIMData.ps1
-│   ├── Get-TeamsData.ps1
-│   ├── Get-SharePointData.ps1
-│   ├── Get-SecureScoreData.ps1
-│   ├── Get-AppSignInData.ps1
-│   └── Get-ConditionalAccessData.ps1
+│   ├── Get-ConditionalAccessData.ps1
+│   ├── Get-BitLockerStatus.ps1
+│   ├── Get-EndpointAnalytics.ps1
+│   ├── Get-VulnerabilityData.ps1
+│   └── ... (see collectors/ for full list)
+│
+├── lib/
+│   └── CollectorBase.ps1          # Shared collector utilities
 │
 ├── data/                          # Collected JSON data (gitignored)
 │   └── sample/                    # Sample data for testing
@@ -138,131 +325,35 @@ m365-toolkit/
 │   ├── index.html
 │   ├── css/style.css
 │   ├── js/
-│   │   ├── app.js
-│   │   ├── data-loader.js
-│   │   ├── filters.js
-│   │   ├── tables.js
-│   │   ├── export.js
-│   │   └── page-*.js
-│   └── data/                      # Data files copied for dashboard
+│   │   ├── app.js                 # Main application
+│   │   ├── data-loader.js         # Data loading
+│   │   ├── data-relationships.js  # Cross-entity lookups
+│   │   ├── filters.js             # Filtering utilities
+│   │   ├── tables.js              # Table rendering
+│   │   ├── export.js              # CSV export
+│   │   └── page-*.js              # Individual page modules
+│   └── data/                      # Data files for dashboard
 │
 └── scripts/
     ├── Build-Dashboard.ps1        # Prepares dashboard for viewing
     └── Schedule-Collection.ps1    # Sets up automated collection
 ```
 
-## Usage
+## Performance Considerations
 
-### Manual Collection
+TenantScope loads all collected JSON into memory on dashboard startup. For large tenants:
 
-```powershell
-# Collect all data
-.\Invoke-DataCollection.ps1
+1. **Reduce collection windows** in `config.json`:
+   - Lower `signInLogDays`, `auditLogDays`, `defenderAlertDays` values
 
-# Collect specific data types only
-.\Invoke-DataCollection.ps1 -CollectorsToRun @("UserData", "LicenseData")
+2. **Use selective collection** when you only need specific datasets:
+   ```powershell
+   .\Invoke-DataCollection.ps1 -CollectorsToRun @("UserData", "DeviceData")
+   ```
 
-# Skip dashboard prompt
-.\Invoke-DataCollection.ps1 -SkipDashboard
-```
+3. **Run collection during off-hours** to avoid Graph API throttling
 
-### Scheduled Collection
-
-```powershell
-# Set up daily collection at 6 AM (requires admin)
-.\scripts\Schedule-Collection.ps1 -Schedule Daily -Time "06:00"
-
-# Weekly collection
-.\scripts\Schedule-Collection.ps1 -Schedule Weekly -Time "08:00"
-
-# Remove scheduled task
-.\scripts\Schedule-Collection.ps1 -Remove
-```
-
-### Dashboard
-
-```powershell
-# Use collected data
-.\scripts\Build-Dashboard.ps1
-
-# Use sample data (for testing)
-.\scripts\Build-Dashboard.ps1 -UseSampleData
-
-# Don't open browser
-.\scripts\Build-Dashboard.ps1 -NoBrowser
-```
-
-## Performance Limits
-
-TenantScope is optimized for clarity, not streaming. All collected JSON is loaded into memory on dashboard startup, and large datasets can slow down the browser or cause rendering issues.
-
-Key constraints and recommendations:
-1. **All data loads at once**: Large tenants (many users/devices, long audit/sign-in windows) increase memory use and initial load time.
-2. **Bundle size matters**: `Build-Dashboard.ps1` generates `dashboard/js/data-bundle.js`. If it grows large, page load and search will slow down.
-3. **Tables are client-side**: Very large tables can lag when sorting, filtering, or exporting.
-4. **Graph throttling**: Large collections may take longer or partially fail due to API limits.
-
-Suggested mitigations:
-1. Reduce time windows in `config.json` (`signInLogDays`, `auditLogDays`, `defenderAlertDays`, etc.).
-2. Use selective collection via `-CollectorsToRun` when you only need specific datasets.
-3. Run collection off-hours for large tenants.
-4. If the dashboard feels slow, use smaller sample windows and re-build.
-
-## Dashboard Pages
-
-### Overview
-Summary dashboard with key metrics across all areas - user counts, security status, device compliance.
-
-### Users
-All member accounts with filtering by domain, status, and flags. Export to CSV supported.
-
-### Licenses
-SKU allocation table with waste analysis showing licenses assigned to disabled or inactive users.
-
-### Guests
-External user accounts with invitation status, activity tracking, and stale guest identification.
-
-### Security
-Multi-section view showing risky sign-ins, admin role assignments, MFA gaps, and Defender alerts.
-
-### Devices
-Intune managed devices with compliance status, encryption state, and sync recency.
-
-### Lifecycle
-Computed reports for lifecycle management - offboarding issues, onboarding gaps, role hygiene, guest cleanup.
-
-### Enterprise Apps
-Application permissions and usage analytics with risk assessment.
-
-### Teams
-Microsoft Teams inventory, activity tracking, and guest access analysis.
-
-### SharePoint
-Site collection management with storage usage and external sharing monitoring.
-
-### Audit Logs
-Administrative activity monitoring with search and filtering.
-
-### PIM
-Privileged Identity Management activity and role activation tracking.
-
-### App Usage
-Application sign-in analytics and usage patterns.
-
-### Conditional Access
-Conditional Access policy analysis and security gap detection.
-
-### Data Quality
-Data completeness and quality metrics across all collected data.
-
-### License Analysis
-Advanced license utilization and overlap analysis.
-
-### Organization
-Organizational hierarchy and department-level analytics.
-
-### Report
-Custom report generation and export capabilities.
+4. **Monitor bundle size**: The generated `dashboard/js/data-bundle.js` contains all data. Large bundles may slow initial page load.
 
 ## Troubleshooting
 
@@ -273,9 +364,9 @@ Error: Connect-MgGraph: Access denied
 ```
 
 Ensure your account has the required admin roles:
-- Global Reader (minimum)
+- Global Reader (minimum for read-only access)
 - Intune Administrator (for device data)
-- Security Reader (for risk data)
+- Security Reader (for risk and security data)
 
 ### Missing Data
 
@@ -283,20 +374,30 @@ Some data types require specific licensing:
 - Sign-in activity: Entra ID P1+
 - Risk detections: Entra ID P2
 - Defender alerts: Microsoft Defender license
+- Endpoint Analytics: Intune license
 
 The collectors handle missing data gracefully and create empty JSON files.
 
 ### Throttling
 
-Graph API has rate limits. The collectors include automatic retry logic with exponential backoff. For large tenants, collection may take several minutes.
+Graph API has rate limits. The collectors include automatic retry logic with exponential backoff. For large tenants, collection may take several minutes. Consider running during off-peak hours.
+
+### Dashboard Won't Load
+
+If the dashboard shows a blank page:
+1. Ensure `Build-Dashboard.ps1` completed successfully
+2. Check that `dashboard/js/data-bundle.js` was generated
+3. Try opening in a different browser
+4. Check browser console for JavaScript errors
 
 ## Security Notes
 
-- Data is stored locally as JSON files
+- All data is stored locally as JSON files
 - No data is sent to external services
-- The `data/` directory is gitignored
-- Authentication uses delegated permissions (your admin account)
-- All operations are read-only
+- The `data/` directory is gitignored by default
+- Interactive authentication uses delegated permissions (your admin account)
+- App-only authentication requires application permissions with admin consent
+- All operations are read-only - no modifications to tenant data
 
 ## Contributing
 
