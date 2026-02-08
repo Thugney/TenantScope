@@ -184,4 +184,27 @@ Links use hash-based routing with search parameters:
 
 ---
 
+## Phase 8: Defender Alerts & Admin Portal Links
+
+### Checklist
+- [x] Add getDeviceAlerts() and getUserAlerts() to DataRelationships
+- [x] Device modal: Add Defender alerts section to Security tab
+- [x] User modal: Add Defender alerts section to Security tab
+- [x] Device modal: Add admin portal links (Intune, Entra ID)
+- [x] User modal: Add admin portal links (Entra ID, Defender)
+- [x] Device modal: Show device identity IDs (azureAdDeviceId, intuneDeviceId) - already present
+
+### Admin Portal URL Patterns
+- Intune device: `https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/{deviceId}`
+- Entra device: `https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DeviceDetailsMenuBlade/deviceId/{azureAdDeviceId}`
+- Entra user: `https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/{userId}`
+- Defender user: `https://security.microsoft.com/users/{userId}`
+
+### Files Modified
+- `dashboard/js/data-relationships.js` - Added getDeviceAlerts, getUserAlerts, getDeviceAdminUrls, getUserAdminUrls
+- `dashboard/js/page-devices.js` - Added Defender alerts table, Admin portal links
+- `dashboard/js/page-users.js` - Added Defender alerts table, Admin portal links
+
+---
+
 *Implementation completed: 2026-02-08*

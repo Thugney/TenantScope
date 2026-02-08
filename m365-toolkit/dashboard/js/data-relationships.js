@@ -467,6 +467,80 @@ var DataRelationships = (function() {
     }
 
     // ========================================================================
+    // DEFENDER ALERTS
+    // ========================================================================
+
+    /**
+     * Get Defender alerts for a device.
+     * @param {string} deviceName - Device name
+     * @returns {Array} Alerts affecting this device
+     */
+    function getDeviceAlerts(deviceName) {
+        if (!deviceName) return [];
+        var alerts = DataStore.defenderAlerts || [];
+        var deviceNameLower = deviceName.toLowerCase();
+
+        return alerts.filter(function(alert) {
+            var affected = alert.affectedDevice || '';
+            return affected.toLowerCase() === deviceNameLower;
+        }).sort(function(a, b) {
+            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+        });
+    }
+
+    /**
+     * Get Defender alerts for a user.
+     * @param {string} upn - User principal name
+     * @returns {Array} Alerts affecting this user
+     */
+    function getUserAlerts(upn) {
+        if (!upn) return [];
+        var alerts = DataStore.defenderAlerts || [];
+        var upnLower = upn.toLowerCase();
+
+        return alerts.filter(function(alert) {
+            var affected = alert.affectedUser || '';
+            return affected.toLowerCase() === upnLower;
+        }).sort(function(a, b) {
+            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+        });
+    }
+
+    // ========================================================================
+    // ADMIN PORTAL URLS
+    // ========================================================================
+
+    /**
+     * Get admin portal URLs for a device.
+     * @param {Object} device - Device object
+     * @returns {Object} URLs for Intune, Entra
+     */
+    function getDeviceAdminUrls(device) {
+        if (!device) return {};
+        return {
+            intune: device.id ?
+                'https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(device.id) : null,
+            entra: device.azureAdDeviceId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DeviceDetailsMenuBlade/deviceId/' + encodeURIComponent(device.azureAdDeviceId) : null
+        };
+    }
+
+    /**
+     * Get admin portal URLs for a user.
+     * @param {Object} user - User object
+     * @returns {Object} URLs for Entra, Defender
+     */
+    function getUserAdminUrls(user) {
+        if (!user) return {};
+        return {
+            entra: user.id ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(user.id) : null,
+            defender: user.id ?
+                'https://security.microsoft.com/users/' + encodeURIComponent(user.id) : null
+        };
+    }
+
+    // ========================================================================
     // PUBLIC API
     // ========================================================================
 
@@ -500,7 +574,15 @@ var DataRelationships = (function() {
         getSiteTeam: getSiteTeam,
 
         // Vulnerability lookups
-        getVulnerabilityDevices: getVulnerabilityDevices
+        getVulnerabilityDevices: getVulnerabilityDevices,
+
+        // Defender alerts
+        getDeviceAlerts: getDeviceAlerts,
+        getUserAlerts: getUserAlerts,
+
+        // Admin portal URLs
+        getDeviceAdminUrls: getDeviceAdminUrls,
+        getUserAdminUrls: getUserAdminUrls
     };
 })();
 

@@ -447,10 +447,12 @@ const PageUsers = (function() {
         var devices = profile ? profile.devices : [];
         var signIns = profile ? profile.signIns : [];
         var teams = profile ? profile.teams : [];
+        var alerts = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAlerts(user.userPrincipalName) : [];
+        var adminUrls = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAdminUrls(user) : {};
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -479,8 +481,10 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls) {
         var riskBadge = getRiskBadge(risks.riskLevel);
+        alerts = alerts || [];
+        adminUrls = adminUrls || {};
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
@@ -490,17 +494,30 @@ const PageUsers = (function() {
             '<button class="modal-tab" data-tab="activity">Activity</button>' +
         '</div>' +
         '<div class="modal-tab-content">' +
-            buildOverviewTab(user, mfa, risks, adminRoles) +
+            buildOverviewTab(user, mfa, risks, adminRoles, adminUrls) +
             buildLicensesTab(licenses) +
-            buildSecurityTab(mfa, risks, adminRoles) +
+            buildSecurityTab(mfa, risks, adminRoles, alerts) +
             buildDevicesTab(devices) +
             buildActivityTab(signIns, teams, disableCommand) +
         '</div>';
     }
 
-    function buildOverviewTab(user, mfa, risks, adminRoles) {
+    function buildOverviewTab(user, mfa, risks, adminRoles, adminUrls) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         var adminBadge = adminRoles.length > 0 ? '<span class="status-badge status-warning">' + adminRoles.length + ' roles</span>' : '<span class="status-badge">None</span>';
+        adminUrls = adminUrls || {};
+
+        var adminLinks = '';
+        if (adminUrls.entra || adminUrls.defender) {
+            adminLinks = '<div class="detail-section full-width"><h4>Admin Portals</h4><div class="admin-portal-links">';
+            if (adminUrls.entra) {
+                adminLinks += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Entra ID</a> ';
+            }
+            if (adminUrls.defender) {
+                adminLinks += '<a href="' + adminUrls.defender + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Defender</a>';
+            }
+            adminLinks += '</div></div>';
+        }
 
         return '<div class="modal-tab-pane active" data-tab="overview">' +
             '<div class="detail-grid">' +
@@ -541,6 +558,7 @@ const PageUsers = (function() {
                         '<span class="detail-label">Days Inactive:</span><span class="detail-value">' + (user.daysSinceLastSignIn !== null ? user.daysSinceLastSignIn : '--') + '</span>' +
                     '</div>' +
                 '</div>' +
+                adminLinks +
             '</div>' +
         '</div>';
     }
@@ -560,7 +578,8 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildSecurityTab(mfa, risks, adminRoles) {
+    function buildSecurityTab(mfa, risks, adminRoles, alerts) {
+        alerts = alerts || [];
         var content = '<div class="modal-tab-pane" data-tab="security">';
 
         // MFA Methods section
@@ -605,6 +624,29 @@ const PageUsers = (function() {
             content += '</ul>';
         } else {
             content += '<div class="empty-state-small">No admin roles assigned</div>';
+        }
+        content += '</div>';
+
+        // Defender Alerts section
+        content += '<div class="detail-section full-width"><h4>Defender Alerts (' + alerts.length + ')</h4>';
+        if (alerts.length > 0) {
+            content += '<table class="mini-table"><thead><tr><th>Alert</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+            alerts.slice(0, 10).forEach(function(alert) {
+                var sevClass = alert.severity === 'high' ? 'text-critical' : alert.severity === 'medium' ? 'text-warning' : '';
+                var statusClass = alert.status === 'new' ? 'text-critical' : alert.status === 'inProgress' ? 'text-warning' : 'text-success';
+                content += '<tr>';
+                content += '<td title="' + escapeHtml(alert.description || '') + '">' + escapeHtml(alert.title || '--') + '</td>';
+                content += '<td class="' + sevClass + '">' + (alert.severity || '--') + '</td>';
+                content += '<td class="' + statusClass + '">' + (alert.status || '--') + '</td>';
+                content += '<td>' + (alert.createdDateTime ? DataLoader.formatDate(alert.createdDateTime) : '--') + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+            if (alerts.length > 10) {
+                content += '<p class="text-muted" style="margin-top:0.5rem">...and ' + (alerts.length - 10) + ' more alerts</p>';
+            }
+        } else {
+            content += '<div class="empty-state-small">No Defender alerts for this user</div>';
         }
         content += '</div>';
 

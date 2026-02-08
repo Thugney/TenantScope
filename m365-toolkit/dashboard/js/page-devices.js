@@ -993,6 +993,8 @@ const PageDevices = (function() {
         var windowsUpdate = profile ? profile.windowsUpdate : { ring: 'Unknown', status: 'Unknown' };
         var vulnerabilities = profile ? profile.vulnerabilities : [];
         var signIns = profile ? profile.signIns : [];
+        var alerts = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAlerts(device.deviceName) : [];
+        var adminUrls = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAdminUrls(device) : {};
 
         // Build tabbed interface
         var html = '<div class="modal-tabs">';
@@ -1089,6 +1091,19 @@ const PageDevices = (function() {
         html += '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>';
         html += '</dl></div>';
 
+        // Admin Portal Links
+        if (adminUrls.intune || adminUrls.entra) {
+            html += '<div class="detail-section full-width"><h4>Admin Portals</h4>';
+            html += '<div class="admin-portal-links">';
+            if (adminUrls.intune) {
+                html += '<a href="' + adminUrls.intune + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Intune</a> ';
+            }
+            if (adminUrls.entra) {
+                html += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Entra ID</a>';
+            }
+            html += '</div></div>';
+        }
+
         html += '</div>'; // end detail-grid
         html += '</div>'; // end overview tab
 
@@ -1167,6 +1182,29 @@ const PageDevices = (function() {
             html += '</tbody></table>';
         } else {
             html += '<p class="empty-state-small">No vulnerabilities detected for this device</p>';
+        }
+        html += '</div>';
+
+        // Defender Alerts
+        html += '<div class="detail-section full-width"><h4>Defender Alerts (' + alerts.length + ')</h4>';
+        if (alerts.length > 0) {
+            html += '<table class="mini-table"><thead><tr><th>Alert</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead><tbody>';
+            alerts.slice(0, 10).forEach(function(alert) {
+                var sevClass = alert.severity === 'high' ? 'text-critical' : alert.severity === 'medium' ? 'text-warning' : '';
+                var statusClass = alert.status === 'new' ? 'text-critical' : alert.status === 'inProgress' ? 'text-warning' : 'text-success';
+                html += '<tr>';
+                html += '<td title="' + (alert.description || '').replace(/"/g, '&quot;') + '">' + (alert.title || '--') + '</td>';
+                html += '<td class="' + sevClass + '">' + (alert.severity || '--') + '</td>';
+                html += '<td class="' + statusClass + '">' + (alert.status || '--') + '</td>';
+                html += '<td>' + (alert.createdDateTime ? new Date(alert.createdDateTime).toLocaleDateString() : '--') + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            if (alerts.length > 10) {
+                html += '<p class="text-muted" style="margin-top:0.5rem">...and ' + (alerts.length - 10) + ' more alerts</p>';
+            }
+        } else {
+            html += '<p class="empty-state-small">No Defender alerts for this device</p>';
         }
         html += '</div>';
 
