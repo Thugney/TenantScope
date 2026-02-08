@@ -422,6 +422,14 @@
             });
         }
 
+        // Initialize time range filter
+        if (typeof TimeRangeFilter !== 'undefined') {
+            TimeRangeFilter.init();
+            document.addEventListener('timeRangeChanged', function() {
+                renderCurrentPage();
+            });
+        }
+
         // Initialize global search (Ctrl+K)
         if (typeof GlobalSearch !== 'undefined') {
             GlobalSearch.init();

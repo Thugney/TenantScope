@@ -52,10 +52,21 @@ output/
 .claude/
 bsure/
 nul
-docs/
-!docs/TenantSccope.png/
-m365-toolkit/endpointgraphapi.md/
-M365-TENANT-TOOLKIT-ARCHITECTURE.md/
 nul/
-technical-architecture.png/
-Features.md/
+
+# BMAD output (generated)
+_bmad-output/
+_bmad/
+
+# Root-level docs (use m365-toolkit/docs for project documentation)
+/docs/
+!/docs/TenantSccope.png
+
+# Allow m365-toolkit/docs
+!m365-toolkit/docs/
+
+# Misc temp files (root level only)
+/m365-toolkit/endpointgraphapi.md
+/M365-TENANT-TOOLKIT-ARCHITECTURE.md
+/technical-architecture.png
+/Features.md

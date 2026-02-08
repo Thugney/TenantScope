@@ -287,7 +287,15 @@ const DataLoader = (function() {
             if (!isLoaded) {
                 console.warn('DataLoader: Data not yet loaded');
             }
-            return dataStore[type] || [];
+            var data = dataStore[type];
+            if (typeof TimeRangeFilter !== 'undefined' && TimeRangeFilter.isActive && TimeRangeFilter.isActive()) {
+                try {
+                    data = TimeRangeFilter.applyToType(type, data);
+                } catch (err) {
+                    console.warn('DataLoader: Time range filter failed for', type, err.message || err);
+                }
+            }
+            return data || [];
         },
 
         /**
@@ -341,13 +349,13 @@ const DataLoader = (function() {
             const users = Array.isArray(dataStore.users) ? dataStore.users : [];
             const guests = Array.isArray(dataStore.guests) ? dataStore.guests : [];
             const devices = Array.isArray(dataStore.devices) ? dataStore.devices : [];
-            const alerts = Array.isArray(dataStore.defenderAlerts) ? dataStore.defenderAlerts : [];
+            const alerts = Array.isArray(this.getData('defenderAlerts')) ? this.getData('defenderAlerts') : [];
             const licenseSkus = Array.isArray(dataStore.licenseSkus) ? dataStore.licenseSkus : [];
             const thresholds = (dataStore.metadata && dataStore.metadata.thresholds) ? dataStore.metadata.thresholds : {};
             const spHighStorageThreshold = (typeof thresholds.highStorageThresholdGB === 'number' && thresholds.highStorageThresholdGB > 0)
                 ? thresholds.highStorageThresholdGB
                 : 20;
-            const serviceAnnouncements = dataStore.serviceAnnouncements || {};
+            const serviceAnnouncements = this.getData('serviceAnnouncements') || {};
             const messageCenter = Array.isArray(serviceAnnouncements.messageCenter) ? serviceAnnouncements.messageCenter : [];
             const serviceHealth = Array.isArray(serviceAnnouncements.serviceHealth) ? serviceAnnouncements.serviceHealth : [];
             const healthIssues = serviceHealth.reduce((sum, h) => sum + ((h.issues || []).length), 0);

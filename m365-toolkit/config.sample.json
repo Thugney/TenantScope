@@ -180,5 +180,12 @@
   "dashboard": {
     "title": "TenantScope",
     "subtitle": "Modum kommune - M365 Tenant Dashboard"
+  },
+  "server": {
+    "usageTracking": {
+      "enabled": true,
+      "showStatsToAllUsers": false,
+      "adminUsers": ["DOMAIN\\AdminUser1", "DOMAIN\\AdminUser2"]
+    }
   }
 }

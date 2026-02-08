@@ -46,7 +46,13 @@ param(
     [string]$LogPath,
 
     [Parameter()]
-    [switch]$OpenBrowser
+    [switch]$OpenBrowser,
+
+    [Parameter()]
+    [switch]$NoTracking,
+
+    [Parameter()]
+    [switch]$PublicStats
 )
 
 # ============================================================================
@@ -56,9 +62,41 @@ param(
 $scriptRoot = Split-Path $PSScriptRoot -Parent
 $dashboardPath = Join-Path $scriptRoot "dashboard"
 $dataPath = Join-Path $scriptRoot "data"
+$configPath = Join-Path $scriptRoot "config.json"
 
 if (-not $LogPath) {
     $LogPath = Join-Path $dataPath "usage-log.json"
+}
+
+# Load config for server settings
+$serverConfig = @{
+    usageTracking = @{
+        enabled = $true
+        showStatsToAllUsers = $false
+        adminUsers = @()
+    }
+}
+
+if (Test-Path $configPath) {
+    try {
+        $config = Get-Content -Path $configPath -Raw | ConvertFrom-Json
+        if ($config.server -and $config.server.usageTracking) {
+            $serverConfig.usageTracking.enabled = $config.server.usageTracking.enabled -ne $false
+            $serverConfig.usageTracking.showStatsToAllUsers = $config.server.usageTracking.showStatsToAllUsers -eq $true
+            $serverConfig.usageTracking.adminUsers = @($config.server.usageTracking.adminUsers)
+        }
+    }
+    catch {
+        Write-Warning "Could not load config.json: $($_.Exception.Message)"
+    }
+}
+
+# Command-line switches override config
+if ($NoTracking) {
+    $serverConfig.usageTracking.enabled = $false
+}
+if ($PublicStats) {
+    $serverConfig.usageTracking.showStatsToAllUsers = $true
 }
 
 # Ensure data directory exists
@@ -254,16 +292,26 @@ Write-Host "  Dashboard:  $dashboardPath" -ForegroundColor Gray
 Write-Host "  Usage Log:  $LogPath" -ForegroundColor Gray
 Write-Host "  Started by: $currentUser" -ForegroundColor Gray
 Write-Host ""
+Write-Host "  Settings:" -ForegroundColor White
+Write-Host "    Usage Tracking: $(if ($serverConfig.usageTracking.enabled) { 'ON' } else { 'OFF' })" -ForegroundColor $(if ($serverConfig.usageTracking.enabled) { 'Green' } else { 'Yellow' })
+Write-Host "    Stats Visible:  $(if ($serverConfig.usageTracking.showStatsToAllUsers) { 'Everyone' } else { 'Admins Only' })" -ForegroundColor Gray
+if ($serverConfig.usageTracking.adminUsers.Count -gt 0) {
+    Write-Host "    Admin Users:    $($serverConfig.usageTracking.adminUsers -join ', ')" -ForegroundColor Gray
+}
+Write-Host ""
 Write-Host "  Endpoints:" -ForegroundColor White
 Write-Host "    /              - Dashboard" -ForegroundColor Gray
 Write-Host "    /api/usage     - Usage statistics (JSON)" -ForegroundColor Gray
 Write-Host "    /api/whoami    - Current user info" -ForegroundColor Gray
+Write-Host "    /api/config    - Server config (JSON)" -ForegroundColor Gray
 Write-Host ""
 Write-Host "  Press Ctrl+C to stop the server" -ForegroundColor Yellow
 Write-Host ""
 
-# Log server start
-Write-UsageLog -Username $currentUser -Action "server_start" -Page "/" -Details "Server started on port $Port"
+# Log server start (only if tracking enabled)
+if ($serverConfig.usageTracking.enabled) {
+    Write-UsageLog -Username $currentUser -Action "server_start" -Page "/" -Details "Server started on port $Port"
+}
 
 if ($OpenBrowser) {
     Start-Process "http://localhost:$Port"
@@ -280,7 +328,43 @@ try {
         $username = [System.Security.Principal.WindowsIdentity]::GetCurrent().Name
 
         # Handle API endpoints
+
+        # Config endpoint - tells dashboard what features are enabled
+        if ($requestPath -eq "/api/config") {
+            $isAdmin = $serverConfig.usageTracking.adminUsers.Count -eq 0 -or $username -in $serverConfig.usageTracking.adminUsers
+            $clientConfig = @{
+                usageTracking = @{
+                    enabled = $serverConfig.usageTracking.enabled
+                    canViewStats = $serverConfig.usageTracking.showStatsToAllUsers -or $isAdmin
+                    isAdmin = $isAdmin
+                }
+                username = $username
+                server = $env:COMPUTERNAME
+            } | ConvertTo-Json
+            $buffer = [System.Text.Encoding]::UTF8.GetBytes($clientConfig)
+            $response.ContentType = "application/json"
+            $response.ContentLength64 = $buffer.Length
+            $response.OutputStream.Write($buffer, 0, $buffer.Length)
+            $response.OutputStream.Close()
+            continue
+        }
+
+        # Usage stats endpoint - check permissions
         if ($requestPath -eq "/api/usage") {
+            $isAdmin = $serverConfig.usageTracking.adminUsers.Count -eq 0 -or $username -in $serverConfig.usageTracking.adminUsers
+            $canView = $serverConfig.usageTracking.showStatsToAllUsers -or $isAdmin
+
+            if (-not $canView) {
+                $denied = @{ error = "Access denied"; message = "Usage stats are only visible to admins" } | ConvertTo-Json
+                $buffer = [System.Text.Encoding]::UTF8.GetBytes($denied)
+                $response.StatusCode = 403
+                $response.ContentType = "application/json"
+                $response.ContentLength64 = $buffer.Length
+                $response.OutputStream.Write($buffer, 0, $buffer.Length)
+                $response.OutputStream.Close()
+                continue
+            }
+
             $stats = Get-UsageStats | ConvertTo-Json -Depth 10
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($stats)
             $response.ContentType = "application/json"
@@ -291,10 +375,13 @@ try {
         }
 
         if ($requestPath -eq "/api/whoami") {
+            $isAdmin = $serverConfig.usageTracking.adminUsers.Count -eq 0 -or $username -in $serverConfig.usageTracking.adminUsers
             $userInfo = @{
                 username = $username
                 timestamp = (Get-Date).ToString("o")
                 server = $env:COMPUTERNAME
+                isAdmin = $isAdmin
+                canViewStats = $serverConfig.usageTracking.showStatsToAllUsers -or $isAdmin
             } | ConvertTo-Json
             $buffer = [System.Text.Encoding]::UTF8.GetBytes($userInfo)
             $response.ContentType = "application/json"
@@ -305,6 +392,13 @@ try {
         }
 
         if ($requestPath -eq "/api/log") {
+            # Only log if tracking is enabled
+            if (-not $serverConfig.usageTracking.enabled) {
+                $response.StatusCode = 200
+                $response.OutputStream.Close()
+                continue
+            }
+
             # Allow dashboard to log page views
             if ($request.HttpMethod -eq "POST") {
                 $reader = New-Object System.IO.StreamReader($request.InputStream)

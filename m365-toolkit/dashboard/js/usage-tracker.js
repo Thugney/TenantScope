@@ -13,6 +13,9 @@ const UsageTracker = (function() {
     let currentUser = null;
     let sessionStart = new Date();
     let isServerMode = false;
+    let canViewStats = false;
+    let isAdmin = false;
+    let trackingEnabled = true;
 
     /**
      * Initialize the usage tracker.
@@ -26,12 +29,14 @@ const UsageTracker = (function() {
             return;
         }
 
-        // Get current user info
+        // Get current user info and permissions
         fetch('/api/whoami')
             .then(function(response) { return response.json(); })
             .then(function(data) {
                 currentUser = data.username;
-                console.log('UsageTracker: Initialized for', currentUser);
+                canViewStats = data.canViewStats || false;
+                isAdmin = data.isAdmin || false;
+                console.log('UsageTracker: Initialized for', currentUser, canViewStats ? '(can view stats)' : '(stats hidden)');
                 trackPageView();
             })
             .catch(function(err) {
@@ -108,12 +113,28 @@ const UsageTracker = (function() {
         return isServerMode;
     }
 
+    /**
+     * Check if current user can view usage stats.
+     */
+    function userCanViewStats() {
+        return canViewStats;
+    }
+
+    /**
+     * Check if current user is an admin.
+     */
+    function userIsAdmin() {
+        return isAdmin;
+    }
+
     return {
         init: init,
         trackPageView: trackPageView,
         getStats: getStats,
         getCurrentUser: getCurrentUser,
-        isServer: isServer
+        isServer: isServer,
+        canViewStats: userCanViewStats,
+        isAdmin: userIsAdmin
     };
 })();
 

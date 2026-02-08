@@ -5,6 +5,27 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-02-08
+
+### Added
+- **Dashboard Server** (`Start-DashboardServer.ps1`):
+  - Built-in HTTP server for multi-user shared deployments
+  - Usage tracking: page views, sessions, user identity (Windows auth)
+  - Admin-only usage statistics by default
+  - Configurable via `-NoTracking`, `-PublicStats` switches
+  - API endpoints: `/api/whoami`, `/api/usage`, `/api/config`, `/api/log`
+
+- **Usage Tracker** (`usage-tracker.js`):
+  - Frontend module for tracking dashboard usage in server mode
+  - Permission-aware stats display (admin vs regular user)
+  - Dashboard Usage section in Overview page (admin-only)
+
+### Changed
+- Updated `config.sample.json` with `server.usageTracking` configuration section
+- Updated `docs/USAGE.md` with Dashboard Server documentation
+
+---
+
 ## [2.1.0] - 2026-02-08
 
 ### Added

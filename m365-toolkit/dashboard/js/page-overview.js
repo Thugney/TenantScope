@@ -1567,8 +1567,8 @@ const PageOverview = (function() {
 
         container.innerHTML = html;
 
-        // Add usage stats if running in server mode
-        if (typeof UsageTracker !== 'undefined' && UsageTracker.isServer()) {
+        // Add usage stats if running in server mode and user has permission
+        if (typeof UsageTracker !== 'undefined' && UsageTracker.isServer() && UsageTracker.canViewStats()) {
             renderUsageStats(container);
         }
     }

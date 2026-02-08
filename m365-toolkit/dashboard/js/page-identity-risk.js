@@ -320,7 +320,8 @@ const PageIdentityRisk = (function() {
     }
 
     function buildSummary(data, riskyUsers, detections) {
-        const summary = data.summary || {};
+        var useSummary = !(window.TimeRangeFilter && TimeRangeFilter.isActive && TimeRangeFilter.isActive());
+        const summary = useSummary ? (data.summary || {}) : {};
         const computed = computeSummary(riskyUsers, detections);
 
         return {
