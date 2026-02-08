@@ -20,6 +20,37 @@ const PageTeams = (function() {
     'use strict';
 
     /**
+     * Builds inline SVG donut chart HTML (matching Endpoint Analytics style).
+     *
+     * @param {Array} segments - Array of { count: number, color: string }
+     * @param {number} total - Total count for percentage calculation
+     * @param {string} centerValue - Text shown in center of donut
+     * @param {string} centerLabel - Sub-label below center text
+     * @returns {string} HTML string for the donut chart
+     */
+    function buildDonutSVG(segments, total, centerValue, centerLabel) {
+        var radius = 40;
+        var circumference = 2 * Math.PI * radius;
+        var html = '<div class="donut-chart">';
+        html += '<svg viewBox="0 0 100 100" class="donut">';
+        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
+        if (total > 0) {
+            var offset = 0;
+            for (var i = 0; i < segments.length; i++) {
+                var seg = segments[i];
+                if (seg.count <= 0) continue;
+                var dash = (seg.count / total) * circumference;
+                html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + seg.color + '" stroke-width="10" stroke-dasharray="' + dash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+                offset += dash;
+            }
+        }
+        html += '</svg>';
+        html += '<div class="donut-center"><span class="donut-value">' + centerValue + '</span><span class="donut-label">' + centerLabel + '</span></div>';
+        html += '</div>';
+        return html;
+    }
+
+    /**
      * Applies current filters and re-renders the table.
      */
     function applyFilters() {
@@ -81,7 +112,11 @@ const PageTeams = (function() {
             columns: [
                 { key: 'displayName', label: 'Team Name' },
                 { key: 'visibility', label: 'Visibility', formatter: formatVisibility },
+                { key: 'sensitivityLabelName', label: 'Sensitivity', formatter: formatSensitivityLabel },
                 { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
+                { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: formatMemberCount },
+                { key: 'channelCount', label: 'Channels', className: 'cell-right', formatter: formatChannelCount },
+                { key: 'privateChannelCount', label: 'Private Ch.', className: 'cell-right', formatter: formatChannelCount },
                 { key: 'guestCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
                 { key: 'activeUsers', label: 'Active Users', className: 'cell-right' },
                 { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
@@ -116,6 +151,30 @@ const PageTeams = (function() {
             return '<span class="text-muted">0</span>';
         }
         return '<span class="text-warning font-bold">' + value + '</span>';
+    }
+
+    function formatSensitivityLabel(value) {
+        if (!value) {
+            return '<span class="text-muted">--</span>';
+        }
+        return value;
+    }
+
+    function formatMemberCount(value) {
+        if (!value || value === 0) {
+            return '<span class="text-muted">0</span>';
+        }
+        return String(value);
+    }
+
+    function formatChannelCount(value) {
+        if (value === null || value === undefined) {
+            return '<span class="text-muted">--</span>';
+        }
+        if (!value || value === 0) {
+            return '<span class="text-muted">0</span>';
+        }
+        return String(value);
     }
 
     /**
@@ -155,8 +214,14 @@ const PageTeams = (function() {
             '    <span class="detail-label">Visibility:</span>',
             '    <span class="detail-value">' + team.visibility + '</span>',
             '',
+            '    <span class="detail-label">Sensitivity:</span>',
+            '    <span class="detail-value">' + (team.sensitivityLabelName || '--') + '</span>',
+            '',
             '    <span class="detail-label">Email:</span>',
             '    <span class="detail-value">' + (team.mail || '--') + '</span>',
+            '',
+            '    <span class="detail-label">Linked SharePoint Site ID:</span>',
+            '    <span class="detail-value" style="font-size: 0.8em;">' + (team.linkedSharePointSiteId || '--') + '</span>',
             '',
             '    <span class="detail-label">Created:</span>',
             '    <span class="detail-value">' + DataLoader.formatDate(team.createdDateTime) + '</span>',
@@ -167,8 +232,26 @@ const PageTeams = (function() {
             '    <span class="detail-label">Owners:</span>',
             '    <span class="detail-value' + (team.ownerCount === 0 ? ' text-critical font-bold' : '') + '">' + team.ownerCount + '</span>',
             '',
+            '    <span class="detail-label">Owner Emails:</span>',
+            '    <span class="detail-value">' + (team.ownerUpns && team.ownerUpns.length > 0 ? team.ownerUpns.join(', ') : '--') + '</span>',
+            '',
+            '    <span class="detail-label">Members:</span>',
+            '    <span class="detail-value">' + (team.memberCount || 0) + '</span>',
+            '',
+            '    <span class="detail-label">Channels:</span>',
+            '    <span class="detail-value">' + (team.channelCount !== null && team.channelCount !== undefined ? team.channelCount : '--') + '</span>',
+            '',
+            '    <span class="detail-label">Private Channels:</span>',
+            '    <span class="detail-value">' + (team.privateChannelCount !== null && team.privateChannelCount !== undefined ? team.privateChannelCount : '--') + '</span>',
+            '',
             '    <span class="detail-label">Guests:</span>',
             '    <span class="detail-value' + (team.guestCount > 0 ? ' text-warning' : '') + '">' + team.guestCount + '</span>',
+            '',
+            '    <span class="detail-label">External Domains:</span>',
+            '    <span class="detail-value">' + (team.externalDomains && team.externalDomains.length > 0 ? team.externalDomains.join(', ') : '--') + '</span>',
+            '',
+            '    <span class="detail-label">Suggested Owners:</span>',
+            '    <span class="detail-value">' + (team.suggestedOwners && team.suggestedOwners.length > 0 ? team.suggestedOwners.join(', ') : '--') + '</span>',
             '',
             '    <span class="detail-label">Active Users (30d):</span>',
             '    <span class="detail-value">' + (team.activeUsers || 0) + '</span>',
@@ -214,62 +297,67 @@ const PageTeams = (function() {
         var withGuestsCount = teams.filter(function(t) { return t.hasGuests; }).length;
 
         // Build page HTML - all values are computed integers from trusted collection data
+        var inactiveCardClass = inactiveCount > 0 ? ' card-warning' : '';
+        var inactiveTextClass = inactiveCount > 0 ? ' text-warning' : '';
+        var ownerlessCardClass = ownerlessCount > 0 ? ' card-danger' : '';
+        var ownerlessTextClass = ownerlessCount > 0 ? ' text-critical' : '';
+        var cleanCount = Math.max(0, teams.length - ownerlessCount - withGuestsCount);
+
+        // Summary cards (matching Endpoint Analytics style)
         var pageHtml = [
             '<div class="page-header">',
             '    <h2 class="page-title">Teams Governance</h2>',
             '    <p class="page-description">Governance gaps: inactive, ownerless, and guest access</p>',
             '</div>',
             '',
-            '<div class="cards-grid">',
-            '    <div class="card">',
-            '        <div class="card-label">Total Teams</div>',
-            '        <div class="card-value">' + teams.length + '</div>',
-            '        <div class="card-change">' + withGuestsCount + ' with guests</div>',
-            '    </div>',
-            '    <div class="card">',
-            '        <div class="card-label">Active</div>',
-            '        <div class="card-value">' + activeCount + '</div>',
-            '    </div>',
-            '    <div class="card ' + (inactiveCount > 0 ? 'card-warning' : '') + '">',
-            '        <div class="card-label">Inactive (90d+)</div>',
-            '        <div class="card-value ' + (inactiveCount > 0 ? 'warning' : '') + '">' + inactiveCount + '</div>',
-            '    </div>',
-            '    <div class="card ' + (ownerlessCount > 0 ? 'card-critical' : '') + '">',
-            '        <div class="card-label">Ownerless</div>',
-            '        <div class="card-value ' + (ownerlessCount > 0 ? 'critical' : '') + '">' + ownerlessCount + '</div>',
-            '    </div>',
+            '<div class="summary-cards">',
+            '    <div class="summary-card card-info"><div class="summary-value">' + teams.length + '</div><div class="summary-label">Total Teams</div></div>',
+            '    <div class="summary-card"><div class="summary-value">' + activeCount + '</div><div class="summary-label">Active</div></div>',
+            '    <div class="summary-card' + inactiveCardClass + '"><div class="summary-value' + inactiveTextClass + '">' + inactiveCount + '</div><div class="summary-label">Inactive (90d+)</div></div>',
+            '    <div class="summary-card' + ownerlessCardClass + '"><div class="summary-value' + ownerlessTextClass + '">' + ownerlessCount + '</div><div class="summary-label">Ownerless</div></div>',
             '</div>',
             '',
-            '<div class="charts-row" id="teams-charts"></div>',
+            '<div class="analytics-grid" id="teams-charts"></div>',
             '<div id="teams-filter"></div>',
             '<div id="teams-table"></div>'
         ].join('\n');
 
         container.innerHTML = pageHtml;
 
-        // Render charts
-        var chartsRow = document.getElementById('teams-charts');
-        if (chartsRow) {
-            var C = DashboardCharts.colors;
+        // Render charts using inline SVG in analytics-card (matching Endpoint Analytics)
+        var chartsContainer = document.getElementById('teams-charts');
+        if (chartsContainer) {
+            var totalTeams = teams.length;
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Activity Status',
-                [
-                    { value: activeCount, label: 'Active', color: C.green },
-                    { value: inactiveCount, label: 'Inactive', color: C.yellow }
-                ],
-                String(activeCount), 'active'
-            ));
+            // Activity Status donut
+            var activityHtml = '<div class="analytics-card"><h3>Activity Status</h3>';
+            activityHtml += '<div class="compliance-overview"><div class="compliance-chart">';
+            activityHtml += buildDonutSVG([
+                { count: activeCount, color: 'var(--color-success)' },
+                { count: inactiveCount, color: 'var(--color-warning)' }
+            ], totalTeams, String(activeCount), 'active');
+            activityHtml += '</div>';
+            activityHtml += '<div class="compliance-legend">';
+            activityHtml += '<div class="legend-item"><span class="legend-dot bg-success"></span> Active: <strong>' + activeCount + '</strong></div>';
+            activityHtml += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Inactive: <strong>' + inactiveCount + '</strong></div>';
+            activityHtml += '</div></div></div>';
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Governance Issues',
-                [
-                    { value: ownerlessCount, label: 'Ownerless', color: C.red },
-                    { value: withGuestsCount, label: 'With Guests', color: C.orange },
-                    { value: Math.max(0, teams.length - ownerlessCount - withGuestsCount), label: 'Clean', color: C.green }
-                ],
-                String(ownerlessCount + withGuestsCount), 'issues'
-            ));
+            // Governance Issues donut
+            var govHtml = '<div class="analytics-card"><h3>Governance Issues</h3>';
+            govHtml += '<div class="compliance-overview"><div class="compliance-chart">';
+            govHtml += buildDonutSVG([
+                { count: ownerlessCount, color: 'var(--color-critical)' },
+                { count: withGuestsCount, color: '#ea580c' },
+                { count: cleanCount, color: 'var(--color-success)' }
+            ], totalTeams, String(ownerlessCount + withGuestsCount), 'issues');
+            govHtml += '</div>';
+            govHtml += '<div class="compliance-legend">';
+            govHtml += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Ownerless: <strong>' + ownerlessCount + '</strong></div>';
+            govHtml += '<div class="legend-item"><span class="legend-dot bg-orange"></span> With Guests: <strong>' + withGuestsCount + '</strong></div>';
+            govHtml += '<div class="legend-item"><span class="legend-dot bg-success"></span> Clean: <strong>' + cleanCount + '</strong></div>';
+            govHtml += '</div></div></div>';
+
+            chartsContainer.innerHTML = activityHtml + govHtml;
         }
 
         // Create filter bar

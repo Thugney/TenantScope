@@ -1,0 +1,93 @@
+{
+  "metadata": {
+    "collectedAt": "2026-02-08T08:30:00Z",
+    "messageCount": 3,
+    "serviceCount": 3,
+    "issueCount": 2
+  },
+  "messageCenter": [
+    {
+      "id": "MC-001",
+      "title": "Planned change: Teams meeting policy updates",
+      "severity": "High",
+      "category": "Plan for change",
+      "services": ["Microsoft Teams"],
+      "status": "Active",
+      "tags": ["MajorChange"],
+      "isMajorChange": true,
+      "startDateTime": "2026-02-12T00:00:00Z",
+      "endDateTime": null,
+      "lastModifiedDateTime": "2026-02-07T14:20:00Z",
+      "actionRequiredByDateTime": "2026-02-14T00:00:00Z"
+    },
+    {
+      "id": "MC-002",
+      "title": "Reminder: SharePoint external sharing defaults",
+      "severity": "Medium",
+      "category": "Stay informed",
+      "services": ["SharePoint Online"],
+      "status": "Active",
+      "tags": ["Info"],
+      "isMajorChange": false,
+      "startDateTime": "2026-02-05T00:00:00Z",
+      "endDateTime": null,
+      "lastModifiedDateTime": "2026-02-06T09:15:00Z",
+      "actionRequiredByDateTime": null
+    },
+    {
+      "id": "MC-003",
+      "title": "New audit log retention options",
+      "severity": "Low",
+      "category": "Plan for change",
+      "services": ["Microsoft 365", "Microsoft Purview"],
+      "status": "Active",
+      "tags": ["NewFeature"],
+      "isMajorChange": false,
+      "startDateTime": "2026-02-01T00:00:00Z",
+      "endDateTime": null,
+      "lastModifiedDateTime": "2026-02-02T10:45:00Z",
+      "actionRequiredByDateTime": null
+    }
+  ],
+  "serviceHealth": [
+    {
+      "service": "Microsoft Teams",
+      "status": "serviceDegradation",
+      "issues": [
+        {
+          "id": "TM-INC-001",
+          "title": "Users may experience intermittent call drops",
+          "classification": "incident",
+          "status": "Investigating",
+          "feature": "Calling",
+          "impactDescription": "Some users may see intermittent call drops when using Teams.",
+          "startDateTime": "2026-02-08T06:30:00Z",
+          "endDateTime": null,
+          "lastModifiedDateTime": "2026-02-08T08:10:00Z"
+        }
+      ]
+    },
+    {
+      "service": "Exchange Online",
+      "status": "serviceOperational",
+      "issues": []
+    },
+    {
+      "service": "SharePoint Online",
+      "status": "serviceDegradation",
+      "issues": [
+        {
+          "id": "SP-ADV-002",
+          "title": "Delay in search indexing for new content",
+          "classification": "advisory",
+          "status": "RestoringService",
+          "feature": "Search",
+          "impactDescription": "Newly created content may take longer than usual to appear in search.",
+          "startDateTime": "2026-02-07T18:00:00Z",
+          "endDateTime": null,
+          "lastModifiedDateTime": "2026-02-08T07:50:00Z"
+        }
+      ]
+    }
+  ]
+}

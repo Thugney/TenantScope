@@ -1,0 +1,171 @@
+{
+  "vulnerabilities": [
+    {
+      "id": "CVE-2024-21412",
+      "name": "Windows SmartScreen Security Feature Bypass",
+      "severity": "critical",
+      "cvssScore": 8.1,
+      "affectedDevices": 12,
+      "exploitedInWild": true,
+      "patchAvailable": true,
+      "product": "Windows 11",
+      "publishedDate": "2024-02-13T00:00:00Z",
+      "description": "A security feature bypass vulnerability exists in Windows SmartScreen that could allow an attacker to bypass the SmartScreen user experience.",
+      "recommendedAction": "Apply security update KB5034765"
+    },
+    {
+      "id": "CVE-2024-21351",
+      "name": "Microsoft Defender SmartScreen Bypass",
+      "severity": "high",
+      "cvssScore": 7.6,
+      "affectedDevices": 8,
+      "exploitedInWild": false,
+      "patchAvailable": true,
+      "product": "Microsoft Defender",
+      "publishedDate": "2024-02-13T00:00:00Z",
+      "description": "A security feature bypass vulnerability in Windows Defender SmartScreen.",
+      "recommendedAction": "Apply latest Windows Security updates"
+    },
+    {
+      "id": "CVE-2024-30088",
+      "name": "Windows Kernel Elevation of Privilege",
+      "severity": "high",
+      "cvssScore": 7.8,
+      "affectedDevices": 15,
+      "exploitedInWild": true,
+      "patchAvailable": true,
+      "product": "Windows 10/11",
+      "publishedDate": "2024-06-11T00:00:00Z",
+      "description": "An elevation of privilege vulnerability in the Windows kernel that could allow local privilege escalation.",
+      "recommendedAction": "Apply June 2024 security updates"
+    },
+    {
+      "id": "CVE-2024-38063",
+      "name": "Windows TCP/IP Remote Code Execution",
+      "severity": "critical",
+      "cvssScore": 9.8,
+      "affectedDevices": 3,
+      "exploitedInWild": false,
+      "patchAvailable": true,
+      "product": "Windows Server",
+      "publishedDate": "2024-08-13T00:00:00Z",
+      "description": "A remote code execution vulnerability in Windows TCP/IP stack affecting IPv6.",
+      "recommendedAction": "Apply August 2024 security updates or disable IPv6"
+    },
+    {
+      "id": "CVE-2024-26169",
+      "name": "Windows Error Reporting Service EoP",
+      "severity": "medium",
+      "cvssScore": 6.5,
+      "affectedDevices": 22,
+      "exploitedInWild": false,
+      "patchAvailable": true,
+      "product": "Windows 10/11",
+      "publishedDate": "2024-03-12T00:00:00Z",
+      "description": "An elevation of privilege vulnerability in Windows Error Reporting Service.",
+      "recommendedAction": "Apply March 2024 security updates"
+    },
+    {
+      "id": "CVE-2024-43461",
+      "name": "Windows MSHTML Platform Spoofing",
+      "severity": "medium",
+      "cvssScore": 6.1,
+      "affectedDevices": 18,
+      "exploitedInWild": true,
+      "patchAvailable": true,
+      "product": "Windows 10/11",
+      "publishedDate": "2024-09-10T00:00:00Z",
+      "description": "A spoofing vulnerability in the MSHTML Platform used by Internet Explorer mode.",
+      "recommendedAction": "Apply September 2024 cumulative update"
+    },
+    {
+      "id": "CVE-2024-30051",
+      "name": "Windows DWM Core Library EoP",
+      "severity": "high",
+      "cvssScore": 7.8,
+      "affectedDevices": 10,
+      "exploitedInWild": true,
+      "patchAvailable": true,
+      "product": "Windows 10/11",
+      "publishedDate": "2024-05-14T00:00:00Z",
+      "description": "An elevation of privilege vulnerability in Windows DWM Core Library.",
+      "recommendedAction": "Apply May 2024 security updates"
+    },
+    {
+      "id": "CVE-2023-36884",
+      "name": "Office and Windows HTML RCE",
+      "severity": "high",
+      "cvssScore": 8.3,
+      "affectedDevices": 5,
+      "exploitedInWild": true,
+      "patchAvailable": true,
+      "product": "Microsoft Office",
+      "publishedDate": "2023-07-11T00:00:00Z",
+      "description": "A remote code execution vulnerability affecting Office and Windows via malicious documents.",
+      "recommendedAction": "Update Office to latest version and apply Windows security updates"
+    },
+    {
+      "id": "CVE-2024-20674",
+      "name": "Windows Kerberos Security Bypass",
+      "severity": "critical",
+      "cvssScore": 9.0,
+      "affectedDevices": 2,
+      "exploitedInWild": false,
+      "patchAvailable": true,
+      "product": "Windows Server",
+      "publishedDate": "2024-01-09T00:00:00Z",
+      "description": "A security feature bypass vulnerability in Windows Kerberos authentication.",
+      "recommendedAction": "Apply January 2024 security updates to domain controllers"
+    },
+    {
+      "id": "CVE-2024-21338",
+      "name": "Windows AppLocker Driver EoP",
+      "severity": "low",
+      "cvssScore": 5.5,
+      "affectedDevices": 28,
+      "exploitedInWild": false,
+      "patchAvailable": true,
+      "product": "Windows 10/11",
+      "publishedDate": "2024-02-13T00:00:00Z",
+      "description": "An elevation of privilege vulnerability in the Windows AppLocker driver.",
+      "recommendedAction": "Apply February 2024 security updates"
+    }
+  ],
+  "summary": {
+    "totalVulnerabilities": 10,
+    "criticalCount": 3,
+    "highCount": 4,
+    "mediumCount": 2,
+    "lowCount": 1,
+    "exploitedInWild": 6,
+    "patchAvailable": 10,
+    "totalAffectedDevices": 45
+  },
+  "lastScanDate": "2026-02-07T08:00:00Z",
+  "insights": [
+    {
+      "id": "vuln-insight-001",
+      "severity": "critical",
+      "title": "Active Exploits Detected",
+      "description": "6 vulnerabilities affecting your devices are being actively exploited in the wild.",
+      "count": 6,
+      "recommendedAction": "Prioritize patching CVE-2024-21412, CVE-2024-30088, and other actively exploited vulnerabilities."
+    },
+    {
+      "id": "vuln-insight-002",
+      "severity": "warning",
+      "title": "Critical Vulnerabilities",
+      "description": "3 critical severity vulnerabilities require immediate attention.",
+      "count": 3,
+      "recommendedAction": "Apply available patches for critical vulnerabilities as highest priority."
+    },
+    {
+      "id": "vuln-insight-003",
+      "severity": "info",
+      "title": "Patch Coverage",
+      "description": "Patches are available for all detected vulnerabilities.",
+      "count": 10,
+      "recommendedAction": "Develop a patching schedule to address all vulnerabilities based on severity."
+    }
+  ]
+}

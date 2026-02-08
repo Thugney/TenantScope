@@ -1,0 +1,185 @@
+{
+  "labels": [
+    {
+      "id": "label-ret-001",
+      "displayName": "Financial Records - 7 Years",
+      "description": "Retention label for financial documents requiring 7-year retention per SOX compliance",
+      "labelType": "Record",
+      "isRecordLabel": true,
+      "isRegulatoryRecord": true,
+      "retentionDays": 2555,
+      "retentionYears": 7,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "dateCreated",
+      "isInUse": true,
+      "itemCount": 15420,
+      "flags": ["regulatory", "record-label", "in-use"]
+    },
+    {
+      "id": "label-ret-002",
+      "displayName": "HR Documents - 5 Years",
+      "description": "Employee records and HR documentation",
+      "labelType": "Record",
+      "isRecordLabel": true,
+      "isRegulatoryRecord": false,
+      "retentionDays": 1825,
+      "retentionYears": 5,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "dateCreated",
+      "isInUse": true,
+      "itemCount": 8750,
+      "flags": ["record-label", "in-use"]
+    },
+    {
+      "id": "label-ret-003",
+      "displayName": "Legal Hold - Indefinite",
+      "description": "Documents under legal hold - do not delete",
+      "labelType": "Record",
+      "isRecordLabel": true,
+      "isRegulatoryRecord": true,
+      "retentionDays": null,
+      "retentionYears": null,
+      "isUnlimited": true,
+      "actionAfterRetention": "none",
+      "retentionTrigger": "dateLabeled",
+      "isInUse": true,
+      "itemCount": 2340,
+      "flags": ["regulatory", "record-label", "unlimited-retention", "in-use"]
+    },
+    {
+      "id": "label-ret-004",
+      "displayName": "Project Documents - 3 Years",
+      "description": "Project-related documents with 3-year retention",
+      "labelType": "Retention",
+      "isRecordLabel": false,
+      "isRegulatoryRecord": false,
+      "retentionDays": 1095,
+      "retentionYears": 3,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "dateModified",
+      "isInUse": true,
+      "itemCount": 45230,
+      "flags": ["in-use"]
+    },
+    {
+      "id": "label-ret-005",
+      "displayName": "Email Archive - 1 Year",
+      "description": "Standard email retention policy",
+      "labelType": "Retention",
+      "isRecordLabel": false,
+      "isRegulatoryRecord": false,
+      "retentionDays": 365,
+      "retentionYears": 1,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "dateCreated",
+      "isInUse": true,
+      "itemCount": 1250000,
+      "flags": ["in-use", "high-volume"]
+    },
+    {
+      "id": "label-ret-006",
+      "displayName": "Tax Records - 10 Years",
+      "description": "Tax documentation requiring 10-year retention per IRS requirements",
+      "labelType": "Record",
+      "isRecordLabel": true,
+      "isRegulatoryRecord": true,
+      "retentionDays": 3650,
+      "retentionYears": 10,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "dateCreated",
+      "isInUse": true,
+      "itemCount": 5670,
+      "flags": ["regulatory", "record-label", "in-use"]
+    },
+    {
+      "id": "label-ret-007",
+      "displayName": "Marketing Materials - 2 Years",
+      "description": "Marketing campaign materials and assets",
+      "labelType": "Retention",
+      "isRecordLabel": false,
+      "isRegulatoryRecord": false,
+      "retentionDays": 730,
+      "retentionYears": 2,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "dateModified",
+      "isInUse": false,
+      "itemCount": 0,
+      "flags": ["not-in-use"]
+    },
+    {
+      "id": "label-ret-008",
+      "displayName": "Contract Documents - Event Based",
+      "description": "Contracts retained until termination date plus 5 years",
+      "labelType": "Record",
+      "isRecordLabel": true,
+      "isRegulatoryRecord": false,
+      "retentionDays": 1825,
+      "retentionYears": 5,
+      "isUnlimited": false,
+      "actionAfterRetention": "delete",
+      "retentionTrigger": "eventBased",
+      "isInUse": true,
+      "itemCount": 3420,
+      "flags": ["record-label", "event-based", "in-use"]
+    }
+  ],
+  "eventTypes": [
+    {
+      "id": "event-001",
+      "displayName": "Contract Termination",
+      "description": "Triggers retention countdown when contract ends"
+    },
+    {
+      "id": "event-002",
+      "displayName": "Employee Departure",
+      "description": "Triggers retention countdown when employee leaves"
+    }
+  ],
+  "summary": {
+    "totalLabels": 8,
+    "recordLabels": 5,
+    "retentionLabels": 3,
+    "regulatoryLabels": 3,
+    "eventBasedLabels": 1,
+    "deletionLabels": 7,
+    "permanentLabels": 1,
+    "avgRetentionDays": 1606,
+    "labelsInUse": 7,
+    "labelsNotInUse": 1,
+    "totalItemsLabeled": 1330830
+  },
+  "insights": [
+    {
+      "id": "insight-ret-001",
+      "severity": "info",
+      "title": "Regulatory Records Configured",
+      "description": "3 regulatory record labels are properly configured for compliance requirements including SOX and IRS regulations.",
+      "count": 3,
+      "recommendedAction": "Regularly review regulatory labels to ensure compliance with changing regulations."
+    },
+    {
+      "id": "insight-ret-002",
+      "severity": "warning",
+      "title": "Unused Retention Label",
+      "description": "1 retention label (Marketing Materials) has been configured but is not currently applied to any content.",
+      "count": 1,
+      "recommendedAction": "Either apply the label to relevant content or remove if not needed."
+    },
+    {
+      "id": "insight-ret-003",
+      "severity": "info",
+      "title": "High-Volume Email Retention",
+      "description": "Over 1.2 million email items are under retention. Consider auto-labeling policies for consistent application.",
+      "count": 1250000,
+      "recommendedAction": "Review email retention scope and consider implementing auto-labeling for consistency."
+    }
+  ],
+  "collectionDate": "2024-12-15T10:00:00Z",
+  "apiNote": "Full retention policy details require Security & Compliance PowerShell. Graph API provides label definitions only."
+}

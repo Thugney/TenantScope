@@ -194,6 +194,9 @@ const PageDevices = (function() {
             case 'autopilot':
                 renderAutopilotTab(container);
                 break;
+            case 'risk':
+                renderRiskTab(container, data.devices);
+                break;
         }
     }
 
@@ -1139,6 +1142,233 @@ const PageDevices = (function() {
         document.getElementById('modal-overlay').classList.add('visible');
     }
 
+    /**
+     * Calculates a composite risk score for a device (0-100, higher = more risky).
+     */
+    function calculateDeviceRiskScore(device) {
+        var score = 0;
+
+        // Compliance factor (0-35 points)
+        if (device.complianceState === 'noncompliant') score += 35;
+        else if (device.complianceState !== 'compliant') score += 15;
+
+        // Encryption factor (0-25 points)
+        if (device.isEncrypted === false) score += 25;
+        else if (device.isEncrypted !== true) score += 10;
+
+        // Certificate status (0-15 points)
+        if (device.certStatus === 'expired') score += 15;
+        else if (device.certStatus === 'critical') score += 12;
+        else if (device.certStatus === 'warning') score += 5;
+
+        // OS Support factor (0-10 points)
+        if (device.windowsSupported === false) score += 10;
+
+        // Stale device factor (0-10 points)
+        if (device.isStale) score += 10;
+
+        // Ownership factor (0-5 points) - personal devices have slightly higher risk
+        if (device.ownership === 'personal') score += 5;
+
+        return Math.min(score, 100);
+    }
+
+    /**
+     * Returns risk tier based on score.
+     */
+    function getRiskTier(score) {
+        if (score >= 60) return { tier: 'critical', label: 'Critical', class: 'critical' };
+        if (score >= 40) return { tier: 'high', label: 'High', class: 'warning' };
+        if (score >= 20) return { tier: 'medium', label: 'Medium', class: 'info' };
+        return { tier: 'low', label: 'Low', class: 'success' };
+    }
+
+    /**
+     * Renders the Risk Analysis tab with composite scoring and prioritized remediation.
+     */
+    function renderRiskTab(container, devices) {
+        // Calculate risk scores for all devices
+        var scoredDevices = devices.map(function(d) {
+            var score = calculateDeviceRiskScore(d);
+            var tier = getRiskTier(score);
+            return {
+                device: d,
+                score: score,
+                tier: tier.tier,
+                tierLabel: tier.label,
+                tierClass: tier.class
+            };
+        }).sort(function(a, b) { return b.score - a.score; });
+
+        // Count by tier
+        var tierCounts = { critical: 0, high: 0, medium: 0, low: 0 };
+        var totalScore = 0;
+        scoredDevices.forEach(function(sd) {
+            tierCounts[sd.tier]++;
+            totalScore += sd.score;
+        });
+        var avgScore = devices.length > 0 ? Math.round(totalScore / devices.length) : 0;
+        var overallTier = getRiskTier(avgScore);
+
+        var html = '';
+
+        // Risk Overview Section
+        html += '<div class="analytics-section">';
+        html += '<h3>Device Fleet Risk Overview</h3>';
+        html += '<div class="signal-cards">';
+
+        // Overall Risk Score Card
+        html += '<div class="signal-card signal-card--' + overallTier.class + '">';
+        html += '<div class="signal-card-value">' + avgScore + '</div>';
+        html += '<div class="signal-card-label">Avg Risk Score</div>';
+        html += '</div>';
+
+        // Critical Devices
+        html += '<div class="signal-card signal-card--' + (tierCounts.critical > 0 ? 'critical' : 'success') + '">';
+        html += '<div class="signal-card-value">' + tierCounts.critical + '</div>';
+        html += '<div class="signal-card-label">Critical Risk</div>';
+        html += '</div>';
+
+        // High Risk
+        html += '<div class="signal-card signal-card--' + (tierCounts.high > 0 ? 'warning' : 'success') + '">';
+        html += '<div class="signal-card-value">' + tierCounts.high + '</div>';
+        html += '<div class="signal-card-label">High Risk</div>';
+        html += '</div>';
+
+        // Medium Risk
+        html += '<div class="signal-card signal-card--info">';
+        html += '<div class="signal-card-value">' + tierCounts.medium + '</div>';
+        html += '<div class="signal-card-label">Medium Risk</div>';
+        html += '</div>';
+
+        // Low Risk
+        html += '<div class="signal-card signal-card--success">';
+        html += '<div class="signal-card-value">' + tierCounts.low + '</div>';
+        html += '<div class="signal-card-label">Low Risk</div>';
+        html += '</div>';
+
+        html += '</div>'; // signal-cards
+        html += '</div>'; // analytics-section
+
+        // Risk Distribution Heat Map
+        html += '<div class="analytics-section">';
+        html += '<h3>Risk Distribution</h3>';
+        html += '<div class="risk-heatmap">';
+
+        // Create heat map grid showing device risk visually
+        var totalDevices = devices.length;
+        var critPct = totalDevices > 0 ? Math.round((tierCounts.critical / totalDevices) * 100) : 0;
+        var highPct = totalDevices > 0 ? Math.round((tierCounts.high / totalDevices) * 100) : 0;
+        var medPct = totalDevices > 0 ? Math.round((tierCounts.medium / totalDevices) * 100) : 0;
+        var lowPct = totalDevices > 0 ? Math.round((tierCounts.low / totalDevices) * 100) : 0;
+
+        html += '<div class="heatmap-bar">';
+        if (critPct > 0) html += '<div class="heatmap-segment bg-critical" style="width:' + critPct + '%"></div>';
+        if (highPct > 0) html += '<div class="heatmap-segment bg-warning" style="width:' + highPct + '%"></div>';
+        if (medPct > 0) html += '<div class="heatmap-segment bg-info" style="width:' + medPct + '%"></div>';
+        if (lowPct > 0) html += '<div class="heatmap-segment bg-success" style="width:' + lowPct + '%"></div>';
+        html += '</div>';
+
+        html += '<div class="heatmap-legend">';
+        html += '<span class="legend-item"><span class="legend-dot bg-critical"></span>Critical ' + critPct + '%</span>';
+        html += '<span class="legend-item"><span class="legend-dot bg-warning"></span>High ' + highPct + '%</span>';
+        html += '<span class="legend-item"><span class="legend-dot bg-info"></span>Medium ' + medPct + '%</span>';
+        html += '<span class="legend-item"><span class="legend-dot bg-success"></span>Low ' + lowPct + '%</span>';
+        html += '</div>';
+        html += '</div>'; // risk-heatmap
+        html += '</div>'; // analytics-section
+
+        // Risk Factor Breakdown
+        html += '<div class="analytics-section">';
+        html += '<h3>Risk Factor Breakdown</h3>';
+        html += '<div class="analytics-grid">';
+
+        // Non-compliant devices
+        var nonCompliant = devices.filter(function(d) { return d.complianceState === 'noncompliant'; }).length;
+        html += '<div class="analytics-card">';
+        html += '<h4>Compliance Issues</h4>';
+        html += '<div class="platform-list">';
+        html += '<div class="platform-row"><span class="platform-name">Non-compliant devices</span><span class="platform-policies">' + nonCompliant + '</span>';
+        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (nonCompliant > 0 ? 'bg-critical' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (nonCompliant / totalDevices * 100) : 0) + '%"></div></div></div>';
+        html += '</div></div>';
+
+        // Unencrypted devices
+        var unencrypted = devices.filter(function(d) { return d.isEncrypted === false; }).length;
+        html += '<div class="analytics-card">';
+        html += '<h4>Encryption Gaps</h4>';
+        html += '<div class="platform-list">';
+        html += '<div class="platform-row"><span class="platform-name">Unencrypted devices</span><span class="platform-policies">' + unencrypted + '</span>';
+        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (unencrypted > 0 ? 'bg-critical' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (unencrypted / totalDevices * 100) : 0) + '%"></div></div></div>';
+        html += '</div></div>';
+
+        // Certificate issues
+        var certIssues = devices.filter(function(d) { return d.certStatus === 'expired' || d.certStatus === 'critical'; }).length;
+        html += '<div class="analytics-card">';
+        html += '<h4>Certificate Issues</h4>';
+        html += '<div class="platform-list">';
+        html += '<div class="platform-row"><span class="platform-name">Expired/Critical certs</span><span class="platform-policies">' + certIssues + '</span>';
+        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (certIssues > 0 ? 'bg-warning' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (certIssues / totalDevices * 100) : 0) + '%"></div></div></div>';
+        html += '</div></div>';
+
+        // Stale devices
+        var stale = devices.filter(function(d) { return d.isStale; }).length;
+        html += '<div class="analytics-card">';
+        html += '<h4>Stale Devices</h4>';
+        html += '<div class="platform-list">';
+        html += '<div class="platform-row"><span class="platform-name">No activity 30+ days</span><span class="platform-policies">' + stale + '</span>';
+        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (stale > 0 ? 'bg-warning' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (stale / totalDevices * 100) : 0) + '%"></div></div></div>';
+        html += '</div></div>';
+
+        html += '</div>'; // analytics-grid
+        html += '</div>'; // analytics-section
+
+        // Prioritized Remediation List
+        html += '<div class="analytics-section">';
+        html += '<h3>Prioritized Remediation</h3>';
+        html += '<p style="color:var(--color-text-muted);margin-bottom:1rem">Devices sorted by risk score. Address critical and high-risk devices first.</p>';
+
+        // Show top 20 high-risk devices
+        var highRiskDevices = scoredDevices.filter(function(sd) { return sd.score >= 20; }).slice(0, 20);
+
+        if (highRiskDevices.length > 0) {
+            html += '<table class="data-table">';
+            html += '<thead><tr>';
+            html += '<th>Risk</th><th>Device Name</th><th>User</th><th>Score</th><th>Issues</th>';
+            html += '</tr></thead><tbody>';
+
+            highRiskDevices.forEach(function(sd) {
+                var d = sd.device;
+                var issues = [];
+                if (d.complianceState === 'noncompliant') issues.push('Non-compliant');
+                if (d.isEncrypted === false) issues.push('Unencrypted');
+                if (d.certStatus === 'expired') issues.push('Cert expired');
+                else if (d.certStatus === 'critical') issues.push('Cert critical');
+                if (d.windowsSupported === false) issues.push('Unsupported OS');
+                if (d.isStale) issues.push('Stale');
+
+                html += '<tr>';
+                html += '<td><span class="badge badge-' + sd.tierClass + '">' + sd.tierLabel + '</span></td>';
+                html += '<td>' + (d.deviceName || d.displayName || '--') + '</td>';
+                html += '<td>' + (d.userDisplayName || d.userName || '--') + '</td>';
+                html += '<td class="text-' + sd.tierClass + ' font-bold">' + sd.score + '</td>';
+                html += '<td>' + (issues.length > 0 ? issues.join(', ') : 'None') + '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table>';
+        } else {
+            html += '<div class="empty-state">';
+            html += '<div class="empty-state-icon">\u2713</div>';
+            html += '<div class="empty-state-title">All Devices Low Risk</div>';
+            html += '<div class="empty-state-description">No devices with significant risk factors detected.</div>';
+            html += '</div>';
+        }
+
+        html += '</div>'; // analytics-section
+
+        container.innerHTML = html;
+    }
+
     function render(container) {
         var data = extractData(DataLoader.getData('devices') || []);
         var summary = data.summary;
@@ -1168,6 +1398,7 @@ const PageDevices = (function() {
         html += '<button class="tab-btn" data-tab="windows">Windows (' + winDevices + ')</button>';
         html += '<button class="tab-btn" data-tab="certificates">Certificates</button>';
         html += '<button class="tab-btn" data-tab="autopilot">Autopilot (' + autopilot.length + ')</button>';
+        html += '<button class="tab-btn" data-tab="risk">Risk Analysis</button>';
         html += '</div>';
 
         html += '<div class="content-area" id="devices-content"></div>';

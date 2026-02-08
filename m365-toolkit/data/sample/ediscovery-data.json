@@ -1,0 +1,173 @@
+{
+  "cases": [
+    {
+      "id": "case-001",
+      "displayName": "Employment Dispute - Martinez v. Contoso",
+      "description": "Discovery for employment discrimination lawsuit",
+      "caseType": "Standard",
+      "status": "active",
+      "createdDateTime": "2024-08-15T09:00:00Z",
+      "lastModifiedDateTime": "2024-12-10T14:30:00Z",
+      "createdBy": {
+        "displayName": "Legal Team",
+        "email": "legal@contoso.com"
+      },
+      "custodianCount": 5,
+      "holdCount": 3,
+      "searchCount": 8,
+      "reviewSetCount": 2,
+      "flags": ["active", "has-holds", "has-custodians"]
+    },
+    {
+      "id": "case-002",
+      "displayName": "Contract Dispute - Vendor XYZ",
+      "description": "Discovery for breach of contract claim",
+      "caseType": "Standard",
+      "status": "active",
+      "createdDateTime": "2024-10-01T11:00:00Z",
+      "lastModifiedDateTime": "2024-12-14T16:45:00Z",
+      "createdBy": {
+        "displayName": "Jane Smith",
+        "email": "jane.smith@contoso.com"
+      },
+      "custodianCount": 3,
+      "holdCount": 2,
+      "searchCount": 5,
+      "reviewSetCount": 1,
+      "flags": ["active", "has-holds", "has-custodians"]
+    },
+    {
+      "id": "case-003",
+      "displayName": "SEC Investigation - Q3 2024",
+      "description": "Regulatory investigation response",
+      "caseType": "Premium",
+      "status": "active",
+      "createdDateTime": "2024-11-20T08:30:00Z",
+      "lastModifiedDateTime": "2024-12-15T09:00:00Z",
+      "createdBy": {
+        "displayName": "Compliance Officer",
+        "email": "compliance@contoso.com"
+      },
+      "custodianCount": 12,
+      "holdCount": 8,
+      "searchCount": 15,
+      "reviewSetCount": 4,
+      "flags": ["active", "regulatory", "has-holds", "has-custodians", "high-priority"]
+    },
+    {
+      "id": "case-004",
+      "displayName": "IP Theft Investigation - Former Employee",
+      "description": "Internal investigation of potential trade secret theft",
+      "caseType": "Standard",
+      "status": "active",
+      "createdDateTime": "2024-12-01T14:00:00Z",
+      "lastModifiedDateTime": "2024-12-14T11:20:00Z",
+      "createdBy": {
+        "displayName": "HR Director",
+        "email": "hr.director@contoso.com"
+      },
+      "custodianCount": 2,
+      "holdCount": 2,
+      "searchCount": 3,
+      "reviewSetCount": 0,
+      "flags": ["active", "has-holds", "internal-investigation"]
+    },
+    {
+      "id": "case-005",
+      "displayName": "Product Liability - 2023 Recall",
+      "description": "Discovery for product liability lawsuit",
+      "caseType": "Standard",
+      "status": "closed",
+      "createdDateTime": "2023-06-10T10:00:00Z",
+      "lastModifiedDateTime": "2024-09-15T16:00:00Z",
+      "closedDateTime": "2024-09-15T16:00:00Z",
+      "createdBy": {
+        "displayName": "Legal Team",
+        "email": "legal@contoso.com"
+      },
+      "custodianCount": 8,
+      "holdCount": 0,
+      "searchCount": 22,
+      "reviewSetCount": 5,
+      "flags": ["closed"]
+    }
+  ],
+  "custodians": [
+    {
+      "id": "custodian-001",
+      "displayName": "John Smith",
+      "email": "john.smith@contoso.com",
+      "caseId": "case-001",
+      "status": "active",
+      "holdStatus": "applied",
+      "dataSourcesCount": 3
+    },
+    {
+      "id": "custodian-002",
+      "displayName": "Sarah Johnson",
+      "email": "sarah.johnson@contoso.com",
+      "caseId": "case-001",
+      "status": "active",
+      "holdStatus": "applied",
+      "dataSourcesCount": 2
+    },
+    {
+      "id": "custodian-003",
+      "displayName": "CFO Account",
+      "email": "cfo@contoso.com",
+      "caseId": "case-003",
+      "status": "active",
+      "holdStatus": "applied",
+      "dataSourcesCount": 5
+    }
+  ],
+  "summary": {
+    "totalCases": 5,
+    "activeCases": 4,
+    "closedCases": 1,
+    "totalCustodians": 30,
+    "totalHolds": 15,
+    "casesWithHolds": 4,
+    "casesWithoutHolds": 1,
+    "totalSearches": 53,
+    "totalReviewSets": 12,
+    "dataSourcesByType": {
+      "mailbox": 25,
+      "site": 18,
+      "teams": 8,
+      "other": 4
+    },
+    "casesByType": {
+      "Standard": 4,
+      "Premium": 1
+    }
+  },
+  "insights": [
+    {
+      "id": "insight-edisc-001",
+      "severity": "warning",
+      "title": "Active Regulatory Investigation",
+      "description": "1 eDiscovery case is related to a regulatory investigation (SEC). This requires heightened attention and compliance.",
+      "count": 1,
+      "recommendedAction": "Ensure all regulatory holds are properly applied and documented. Review access permissions regularly."
+    },
+    {
+      "id": "insight-edisc-002",
+      "severity": "info",
+      "title": "Multiple Active Cases",
+      "description": "4 eDiscovery cases are currently active with a total of 15 legal holds in place.",
+      "count": 4,
+      "recommendedAction": "Regularly review hold status and release holds when cases are resolved to reduce storage overhead."
+    },
+    {
+      "id": "insight-edisc-003",
+      "severity": "info",
+      "title": "High Custodian Count",
+      "description": "SEC Investigation case has 12 custodians under hold, the highest across all cases.",
+      "count": 12,
+      "recommendedAction": "Ensure all custodians have been properly notified of their hold obligations."
+    }
+  ],
+  "collectionDate": "2024-12-15T10:00:00Z",
+  "apiNote": "eDiscovery requires Microsoft 365 E5 or E5 Compliance add-on license."
+}

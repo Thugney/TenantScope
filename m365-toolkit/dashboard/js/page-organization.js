@@ -34,6 +34,10 @@ const PageOrganization = (function() {
         var userById = {};
         var userByUpn = {};
         var userByName = {};
+        var managerByUser = new Map();
+        var missingManagerRefs = [];
+        var missingManagerKeys = new Set();
+        var selfManagedUsers = [];
 
         users.forEach(function(u) {
             if (u.id) userById[u.id] = u;
@@ -68,10 +72,33 @@ const PageOrganization = (function() {
             return keys;
         }
 
+        function resolveManagerUser(ref) {
+            if (!ref) return null;
+            if (ref.id && userById[ref.id]) return userById[ref.id];
+            if (ref.upn && userByUpn[ref.upn.toLowerCase()]) return userByUpn[ref.upn.toLowerCase()];
+            if (ref.name && userByName[ref.name.toLowerCase()]) return userByName[ref.name.toLowerCase()];
+            return null;
+        }
+
         users.forEach(function(u) {
             var ref = getManagerRef(u);
             if (ref) {
                 allManagerKeys.add(ref.key);
+            }
+        });
+
+        users.forEach(function(u) {
+            var ref = getManagerRef(u);
+            if (!ref) return;
+            var managerUser = resolveManagerUser(ref);
+            if (managerUser) {
+                managerByUser.set(u, managerUser);
+                if (managerUser === u) {
+                    selfManagedUsers.push(u);
+                }
+            } else {
+                missingManagerRefs.push({ user: u, managerRef: ref });
+                missingManagerKeys.add(ref.key);
             }
         });
 
@@ -129,6 +156,8 @@ const PageOrganization = (function() {
 
         var spanBuckets = { '0': 0, '1-3': 0, '4-7': 0, '8-15': 0, '16+': 0 };
         var managerList = Object.values(managerMap);
+        var cycleUsers = new Set();
+        var visitState = new Map();
 
         managerList.forEach(function(m) {
             var count = m.directReports.length;
@@ -137,6 +166,42 @@ const PageOrganization = (function() {
             else if (count <= 7) spanBuckets['4-7']++;
             else if (count <= 15) spanBuckets['8-15']++;
             else spanBuckets['16+']++;
+        });
+
+        function markCycle(start) {
+            var cur = start;
+            var safety = 0;
+            while (cur && safety < users.length + 1) {
+                cycleUsers.add(cur);
+                cur = managerByUser.get(cur);
+                if (cur === start) break;
+                safety++;
+            }
+        }
+
+        function visit(user) {
+            var state = visitState.get(user) || 0;
+            if (state === 2) return;
+            if (state === 1) return;
+            visitState.set(user, 1);
+            var mgr = managerByUser.get(user);
+            if (mgr) {
+                if (mgr === user) {
+                    // self-managed loop tracked separately
+                } else {
+                    var mgrState = visitState.get(mgr) || 0;
+                    if (mgrState === 1) {
+                        markCycle(mgr);
+                    } else {
+                        visit(mgr);
+                    }
+                }
+            }
+            visitState.set(user, 2);
+        }
+
+        managerByUser.forEach(function(_, user) {
+            visit(user);
         });
 
         var deptAnalysis = {};
@@ -175,6 +240,10 @@ const PageOrganization = (function() {
             delete d.managers;
         });
 
+        var rootManagers = managerList.filter(function(m) {
+            return m.isUser && m.userData && !getManagerRef(m.userData);
+        });
+
         return {
             managers: managerList.sort(function(a, b) {
                 return b.directReports.length - a.directReports.length;
@@ -183,6 +252,17 @@ const PageOrganization = (function() {
             spanBuckets: spanBuckets,
             totalManagers: managerList.length,
             totalOrphans: orphanUsers.length,
+            rootManagers: rootManagers,
+            totalRootManagers: rootManagers.length,
+            integrity: {
+                missingManagerRefUsers: missingManagerRefs,
+                missingManagerRefCount: missingManagerRefs.length,
+                missingManagerKeyCount: missingManagerKeys.size,
+                selfManagedUsers: selfManagedUsers,
+                selfManagedCount: selfManagedUsers.length,
+                cycleUsers: Array.from(cycleUsers),
+                cycleUserCount: cycleUsers.size
+            },
             departments: Object.values(deptAnalysis).sort(function(a, b) {
                 return b.totalUsers - a.totalUsers;
             })
@@ -373,6 +453,7 @@ const PageOrganization = (function() {
         var cards = el('div', 'summary-cards');
         cards.appendChild(createCard('Total Users', users.length, 'primary'));
         cards.appendChild(createCard('Managers', hierarchy.totalManagers, 'info'));
+        cards.appendChild(createCard('Root Managers', hierarchy.totalRootManagers || 0, 'secondary'));
         cards.appendChild(createCard('Orphan Users', hierarchy.totalOrphans, hierarchy.totalOrphans > 0 ? 'warning' : 'success'));
         cards.appendChild(createCard('Departments', hierarchy.departments.length, 'secondary'));
         container.appendChild(cards);
@@ -466,6 +547,21 @@ const PageOrganization = (function() {
         var withManager = totalUsers - hierarchy.totalOrphans;
         var withManagerPct = totalUsers > 0 ? Math.round((withManager / totalUsers) * 100) : 0;
         var orphanPct = totalUsers > 0 ? Math.round((hierarchy.totalOrphans / totalUsers) * 100) : 0;
+        var integrity = hierarchy.integrity || {};
+        var missingManagerRefCount = integrity.missingManagerRefCount || 0;
+        var missingManagerKeyCount = integrity.missingManagerKeyCount || 0;
+        var selfManagedCount = integrity.selfManagedCount || 0;
+        var cycleUserCount = integrity.cycleUserCount || 0;
+
+        function sampleNames(list, limit, accessor) {
+            if (!list || list.length === 0) return '';
+            var names = list.slice(0, limit).map(function(item) {
+                var user = accessor ? accessor(item) : item;
+                if (!user) return 'Unknown';
+                return user.displayName || user.userPrincipalName || 'Unknown';
+            }).filter(function(n) { return n && n !== 'Unknown'; });
+            return names.join(', ');
+        }
 
         // Build analytics section with donut chart
         var section = el('div', 'analytics-section');
@@ -545,6 +641,7 @@ const PageOrganization = (function() {
         });
         var metricItems = [
             { label: 'Total Managers', value: hierarchy.totalManagers },
+            { label: 'Root Managers', value: hierarchy.totalRootManagers || 0 },
             { label: 'Departments', value: hierarchy.departments.length }
         ];
         metricItems.forEach(function(item) {
@@ -625,8 +722,40 @@ const PageOrganization = (function() {
                 'Verify external manager references and update or remove as needed.'));
         }
 
+        if (missingManagerRefCount > 0) {
+            var missingSample = sampleNames(integrity.missingManagerRefUsers, 3, function(item) { return item.user; });
+            var sampleText = missingSample ? ' Example: ' + missingSample + '.' : '';
+            insightsList.appendChild(createInsightCard('warning', 'INTEGRITY', 'Missing Manager References',
+                missingManagerRefCount + ' user' + (missingManagerRefCount !== 1 ? 's reference ' : ' references ') +
+                missingManagerKeyCount + ' manager' + (missingManagerKeyCount !== 1 ? 's' : '') + ' not found in the tenant.' + sampleText,
+                'Resolve missing manager objects or update the manager field to restore reporting chains.'));
+        }
+
+        if (selfManagedCount > 0) {
+            var selfSample = sampleNames(integrity.selfManagedUsers, 3);
+            var selfText = selfSample ? ' Example: ' + selfSample + '.' : '';
+            insightsList.appendChild(createInsightCard('warning', 'INTEGRITY', 'Self-Managed Loops',
+                selfManagedCount + ' user' + (selfManagedCount !== 1 ? 's have' : ' has') + ' their own account set as manager.' + selfText,
+                'Fix self-managed loops to prevent broken escalation paths.'));
+        }
+
+        if (cycleUserCount > 0) {
+            var cycleSample = sampleNames(integrity.cycleUsers, 3);
+            var cycleText = cycleSample ? ' Example: ' + cycleSample + '.' : '';
+            insightsList.appendChild(createInsightCard('warning', 'INTEGRITY', 'Hierarchy Cycles',
+                'Detected manager chain cycles involving ' + cycleUserCount + ' user' + (cycleUserCount !== 1 ? 's' : '') + '.' + cycleText,
+                'Correct cyclic manager assignments to restore a valid hierarchy.'));
+        }
+
+        if (hierarchy.totalRootManagers > 0) {
+            insightsList.appendChild(createInsightCard('info', 'STRUCTURE', 'Top-Level Managers',
+                hierarchy.totalRootManagers + ' manager' + (hierarchy.totalRootManagers !== 1 ? 's have' : ' has') + ' no manager assigned (top of chain).',
+                'Confirm these are intended roots or assign an executive owner.'));
+        }
+
         // Healthy state
-        if (hierarchy.totalOrphans === 0 && wideSpan === 0) {
+        if (hierarchy.totalOrphans === 0 && wideSpan === 0 && externalMgrs.length === 0 &&
+            missingManagerRefCount === 0 && selfManagedCount === 0 && cycleUserCount === 0) {
             insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'Organization Status',
                 'All users have managers assigned and span of control is within recommended limits.',
                 null));
@@ -726,7 +855,7 @@ const PageOrganization = (function() {
 
         var thead = document.createElement('thead');
         var headerRow = document.createElement('tr');
-        ['Department', 'Users', 'Managers', 'With Mgr', 'Orphans', 'MFA %'].forEach(function(text) {
+        ['Department', 'Users', 'Managers', 'With Mgr', 'Orphans', 'Inactive', 'Disabled', 'MFA %'].forEach(function(text) {
             var th = document.createElement('th');
             th.textContent = text;
             headerRow.appendChild(th);
@@ -735,34 +864,42 @@ const PageOrganization = (function() {
         table.appendChild(thead);
 
         var tbody = document.createElement('tbody');
-        var totals = { users: 0, managers: 0, withMgr: 0, orphans: 0, mfa: 0 };
+        var totals = { users: 0, managers: 0, withMgr: 0, orphans: 0, inactive: 0, disabled: 0, mfa: 0 };
 
         departments.forEach(function(d) {
             var tr = document.createElement('tr');
             var mfaPct = d.totalUsers > 0 ? Math.round((d.mfaEnabled / d.totalUsers) * 100) : 0;
 
-            var cells = [
-                d.name,
-                d.totalUsers,
-                d.managerCount,
-                d.withManager,
-                d.withoutManager,
-                mfaPct + '%'
-            ];
+        var cells = [
+            d.name,
+            d.totalUsers,
+            d.managerCount,
+            d.withManager,
+            d.withoutManager,
+            d.inactive,
+            d.disabled,
+            mfaPct + '%'
+        ];
 
             cells.forEach(function(val, idx) {
                 var td = document.createElement('td');
-                if (idx === 4 && d.withoutManager > 0) {
-                    var span = document.createElement('span');
-                    span.className = 'text-warning';
-                    span.textContent = val;
-                    td.appendChild(span);
-                } else if (idx === 5) {
-                    td.className = mfaPct >= 90 ? 'text-success' : (mfaPct >= 70 ? 'text-warning' : 'text-danger');
-                    td.textContent = val;
-                } else {
-                    td.textContent = val;
-                }
+            if (idx === 4 && d.withoutManager > 0) {
+                var span = document.createElement('span');
+                span.className = 'text-warning';
+                span.textContent = val;
+                td.appendChild(span);
+            } else if (idx === 5 && d.inactive > 0) {
+                td.className = 'text-warning';
+                td.textContent = val;
+            } else if (idx === 6 && d.disabled > 0) {
+                td.className = 'text-danger';
+                td.textContent = val;
+            } else if (idx === 7) {
+                td.className = mfaPct >= 90 ? 'text-success' : (mfaPct >= 70 ? 'text-warning' : 'text-danger');
+                td.textContent = val;
+            } else {
+                td.textContent = val;
+            }
                 tr.appendChild(td);
             });
             tbody.appendChild(tr);
@@ -771,13 +908,15 @@ const PageOrganization = (function() {
             totals.managers += d.managerCount;
             totals.withMgr += d.withManager;
             totals.orphans += d.withoutManager;
-            totals.mfa += d.mfaEnabled;
-        });
+        totals.inactive += d.inactive;
+        totals.disabled += d.disabled;
+        totals.mfa += d.mfaEnabled;
+    });
 
         var totalRow = document.createElement('tr');
         totalRow.className = 'totals-row';
         var totalMfaPct = totals.users > 0 ? Math.round((totals.mfa / totals.users) * 100) : 0;
-        ['Total', totals.users, totals.managers, totals.withMgr, totals.orphans, totalMfaPct + '%'].forEach(function(val) {
+        ['Total', totals.users, totals.managers, totals.withMgr, totals.orphans, totals.inactive, totals.disabled, totalMfaPct + '%'].forEach(function(val) {
             var td = document.createElement('td');
             var strong = document.createElement('strong');
             strong.textContent = val;

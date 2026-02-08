@@ -29,10 +29,10 @@
 .PARAMETER SkipDashboard
     If specified, skips the prompt to open the dashboard after collection.
 
-.PARAMETER CollectorsToRun
-    Optional array of specific collector names to run. If not specified,
-    runs all collectors. Valid values: UserData, LicenseData, GuestData,
-    MFAData, AdminRoleData, SignInData, DeviceData, AutopilotData, DefenderData.
+    .PARAMETER CollectorsToRun
+        Optional array of specific collector names to run. If not specified,
+        runs all collectors. Valid values include all items in the ValidateSet
+        defined for this parameter.
 
 .OUTPUTS
     JSON files in the data/ directory containing collected tenant data.
@@ -68,7 +68,7 @@ param(
                  "AuditLogData", "PIMData", "TeamsData", "SharePointData", "SecureScoreData",
                  "AppSignInData", "ConditionalAccessData", "CompliancePolicies", "ConfigurationProfiles",
                  "WindowsUpdateStatus", "BitLockerStatus", "AppDeployments", "EndpointAnalytics",
-                 "ServicePrincipalSecrets", "ASRRules", "SignInLogs")]
+                 "ServicePrincipalSecrets", "ASRRules", "SignInLogs", "ServiceAnnouncementData")]
     [string[]]$CollectorsToRun
 )
 
@@ -124,7 +124,7 @@ function Write-CollectionSummary {
     Write-Host "  ─────────────────────────────────────────────────────────" -ForegroundColor Gray
 
     foreach ($collector in $Results.GetEnumerator() | Sort-Object Name) {
-        $status = if ($collector.Value.Success) { "✓ Success" } else { "✗ Failed " }
+        $status = if ($collector.Value.Success) { "[OK] Success" } else { "[X] Failed" }
         $statusColor = if ($collector.Value.Success) { "Green" } else { "Red" }
         $count = $collector.Value.Count.ToString().PadLeft(6)
         $duration = "{0:N1}s" -f $collector.Value.Duration
@@ -253,7 +253,7 @@ function Merge-MfaDataIntoUsers {
     )
 
     if (-not (Test-Path $UsersPath) -or -not (Test-Path $MfaPath)) {
-        Write-Host "    ⚠ Cannot merge MFA data - files not found" -ForegroundColor Yellow
+        Write-Host "    [!] Cannot merge MFA data - files not found" -ForegroundColor Yellow
         return
     }
 
@@ -283,10 +283,10 @@ function Merge-MfaDataIntoUsers {
 
         # Write updated users back to file
         $users | ConvertTo-Json -Depth 10 | Set-Content -Path $UsersPath -Encoding UTF8
-        Write-Host "    ✓ Merged MFA data into users" -ForegroundColor Green
+        Write-Host "    [OK] Merged MFA data into users" -ForegroundColor Green
     }
     catch {
-        Write-Host "    ⚠ Error merging MFA data: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "    [!] Error merging MFA data: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -314,7 +314,7 @@ function Merge-AdminRolesIntoUsers {
     )
 
     if (-not (Test-Path $UsersPath) -or -not (Test-Path $AdminRolesPath)) {
-        Write-Host "    ⚠ Cannot merge admin role data - files not found" -ForegroundColor Yellow
+        Write-Host "    [!] Cannot merge admin role data - files not found" -ForegroundColor Yellow
         return
     }
 
@@ -341,10 +341,10 @@ function Merge-AdminRolesIntoUsers {
 
         # Write updated users back to file
         $users | ConvertTo-Json -Depth 10 | Set-Content -Path $UsersPath -Encoding UTF8
-        Write-Host "    ✓ Merged admin role data into users" -ForegroundColor Green
+        Write-Host "    [OK] Merged admin role data into users" -ForegroundColor Green
     }
     catch {
-        Write-Host "    ⚠ Error merging admin role data: $($_.Exception.Message)" -ForegroundColor Yellow
+        Write-Host "    [!] Error merging admin role data: $($_.Exception.Message)" -ForegroundColor Yellow
     }
 }
 
@@ -370,7 +370,7 @@ Write-Host ""
 Write-Host "[1/6] Loading configuration..." -ForegroundColor Cyan
 
 if (-not (Test-Path $ConfigPath)) {
-    Write-Host "  ✗ Configuration file not found: $ConfigPath" -ForegroundColor Red
+    Write-Host "  [X] Configuration file not found: $ConfigPath" -ForegroundColor Red
     Write-Host "  Please create config.json with your tenant settings." -ForegroundColor Yellow
     exit 1
 }
@@ -379,10 +379,10 @@ try {
     $configContent = Get-Content $ConfigPath -Raw | ConvertFrom-Json -AsHashtable
     Get-ConfigValidation -Config $configContent | Out-Null
     Test-TenantIdFormat -TenantId $configContent.tenantId | Out-Null
-    Write-Host "  ✓ Configuration loaded and validated" -ForegroundColor Green
+    Write-Host "  [OK] Configuration loaded and validated" -ForegroundColor Green
 }
 catch {
-    Write-Host "  ✗ Configuration error: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  [X] Configuration error: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
 
@@ -397,27 +397,35 @@ Write-Host ""
 Write-Host "[2/6] Connecting to Microsoft Graph..." -ForegroundColor Cyan
 
 # Define all required scopes for the collectors
-$requiredScopes = @(
-    "User.Read.All",
-    "Directory.Read.All",
-    "AuditLog.Read.All",
-    "Reports.Read.All",
-    "DeviceManagementManagedDevices.Read.All",
-    "DeviceManagementConfiguration.Read.All",
-    "DeviceManagementApps.Read.All",
-    "SecurityEvents.Read.All",
-    "IdentityRiskyUser.Read.All",
-    "IdentityRiskEvent.Read.All",
-    "RoleManagement.Read.Directory",
-    "RoleAssignmentSchedule.Read.Directory",
-    "RoleEligibilitySchedule.Read.Directory",
-    "Application.Read.All",
-    "Policy.Read.All",
-    "Team.ReadBasic.All",
-    "Channel.ReadBasic.All",
-    "TeamMember.Read.All",
-    "Sites.Read.All",
-    "BitLockerKey.Read.All"
+    $requiredScopes = @(
+        "User.Read.All",
+        "Directory.Read.All",
+        "AuditLog.Read.All",
+        "Reports.Read.All",
+        "ServiceMessage.Read.All",
+        "ServiceHealth.Read.All",
+        "DeviceManagementManagedDevices.Read.All",
+        "DeviceManagementConfiguration.Read.All",
+        "DeviceManagementApps.Read.All",
+        "SecurityEvents.Read.All",
+        "IdentityRiskyUser.Read.All",
+        "IdentityRiskEvent.Read.All",
+        "RoleManagement.Read.Directory",
+        "RoleAssignmentSchedule.Read.Directory",
+        "RoleEligibilitySchedule.Read.Directory",
+        "Application.Read.All",
+        "Policy.Read.All",
+        "Team.ReadBasic.All",
+        "Channel.ReadBasic.All",
+        "TeamMember.Read.All",
+        "Sites.Read.All",
+        "BitLockerKey.Read.All",
+        # New scopes for enhanced collectors
+        "DelegatedPermissionGrant.ReadWrite.All",
+        "RecordsManagement.Read.All",
+        "eDiscovery.Read.All",
+        "InformationProtectionPolicy.Read",
+        "AccessReview.Read.All"
 )
 
 Write-Host "  Required scopes:" -ForegroundColor Gray
@@ -435,10 +443,10 @@ try {
         throw "Failed to establish Graph connection"
     }
 
-    Write-Host "  ✓ Connected as: $($context.Account)" -ForegroundColor Green
+    Write-Host "  [OK] Connected as: $($context.Account)" -ForegroundColor Green
 }
 catch {
-    Write-Host "  ✗ Connection failed: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host "  [X] Connection failed: $($_.Exception.Message)" -ForegroundColor Red
     Write-Host "  Ensure you have the required permissions and try again." -ForegroundColor Yellow
     exit 1
 }
@@ -453,10 +461,10 @@ Write-Host "[3/6] Preparing data directory..." -ForegroundColor Cyan
 $dataPath = Join-Path $PSScriptRoot "data"
 if (-not (Test-Path $dataPath)) {
     New-Item -ItemType Directory -Path $dataPath -Force | Out-Null
-    Write-Host "  ✓ Created data directory: $dataPath" -ForegroundColor Green
+    Write-Host "  [OK] Created data directory: $dataPath" -ForegroundColor Green
 }
 else {
-    Write-Host "  ✓ Data directory exists: $dataPath" -ForegroundColor Green
+    Write-Host "  [OK] Data directory exists: $dataPath" -ForegroundColor Green
 }
 
 # ============================================================================
@@ -480,9 +488,13 @@ $collectors = @(
     @{ Name = "Get-SignInData";    Script = "Get-SignInData.ps1";    Output = "risky-signins.json" },
     @{ Name = "Get-SignInLogs";    Script = "Get-SignInLogs.ps1";    Output = "signin-logs.json" },
     @{ Name = "Get-DefenderData";  Script = "Get-DefenderData.ps1";  Output = "defender-alerts.json" },
+    @{ Name = "Get-VulnerabilityData"; Script = "Get-VulnerabilityData.ps1"; Output = "vulnerabilities.json" },
     @{ Name = "Get-SecureScoreData"; Script = "Get-SecureScoreData.ps1"; Output = "secure-score.json" },
     @{ Name = "Get-ConditionalAccessData"; Script = "Get-ConditionalAccessData.ps1"; Output = "conditional-access.json" },
     @{ Name = "Get-ASRRules";      Script = "Get-ASRRules.ps1";      Output = "asr-rules.json" },
+    @{ Name = "Get-OAuthConsentGrants"; Script = "Get-OAuthConsentGrants.ps1"; Output = "oauth-consent-grants.json" },
+    @{ Name = "Get-NamedLocations"; Script = "Get-NamedLocations.ps1"; Output = "named-locations.json" },
+    @{ Name = "Get-IdentityRiskData"; Script = "Get-IdentityRiskData.ps1"; Output = "identity-risk-data.json" },
     # Device management
     @{ Name = "Get-DeviceData";    Script = "Get-DeviceData.ps1";    Output = "devices.json" },
     @{ Name = "Get-AutopilotData"; Script = "Get-AutopilotData.ps1"; Output = "autopilot.json" },
@@ -497,9 +509,15 @@ $collectors = @(
     @{ Name = "Get-ServicePrincipalSecrets"; Script = "Get-ServicePrincipalSecrets.ps1"; Output = "service-principal-secrets.json" },
     @{ Name = "Get-AuditLogData";     Script = "Get-AuditLogData.ps1";     Output = "audit-logs.json" },
     @{ Name = "Get-PIMData";          Script = "Get-PIMData.ps1";          Output = "pim-activity.json" },
+    @{ Name = "Get-AccessReviewData"; Script = "Get-AccessReviewData.ps1"; Output = "access-review-data.json" },
+    # Compliance & data protection
+    @{ Name = "Get-RetentionData";   Script = "Get-RetentionData.ps1";   Output = "retention-data.json" },
+    @{ Name = "Get-eDiscoveryData";  Script = "Get-eDiscoveryData.ps1";  Output = "ediscovery-data.json" },
+    @{ Name = "Get-SensitivityLabelsData"; Script = "Get-SensitivityLabelsData.ps1"; Output = "sensitivity-labels-data.json" },
     # Collaboration
     @{ Name = "Get-TeamsData";        Script = "Get-TeamsData.ps1";        Output = "teams.json" },
     @{ Name = "Get-SharePointData";   Script = "Get-SharePointData.ps1";   Output = "sharepoint-sites.json" },
+    @{ Name = "Get-ServiceAnnouncementData"; Script = "Get-ServiceAnnouncementData.ps1"; Output = "service-announcements.json" },
     @{ Name = "Get-AppSignInData";  Script = "Get-AppSignInData.ps1";  Output = "app-signins.json" }
 )
 
@@ -523,7 +541,7 @@ foreach ($collector in $collectors) {
     $collectorStart = Get-Date
 
     if (-not (Test-Path $collectorPath)) {
-        Write-Host "    ✗ Collector script not found: $collectorPath" -ForegroundColor Red
+        Write-Host "    [X] Collector script not found: $collectorPath" -ForegroundColor Red
         $collectorResults[$collector.Name] = @{
             Success = $false
             Count = 0
@@ -550,17 +568,17 @@ foreach ($collector in $collectors) {
         }
 
         if ($result.Success) {
-            Write-Host "    ✓ Collected $($result.Count) items ($("{0:N1}" -f $duration)s)" -ForegroundColor Green
+            Write-Host "    [OK] Collected $($result.Count) items ($("{0:N1}" -f $duration)s)" -ForegroundColor Green
         }
         else {
-            Write-Host "    ✗ Failed: $($result.Errors -join '; ')" -ForegroundColor Red
+            Write-Host "    [X] Failed: $($result.Errors -join '; ')" -ForegroundColor Red
         }
     }
     catch {
         $collectorEnd = Get-Date
         $duration = ($collectorEnd - $collectorStart).TotalSeconds
 
-        Write-Host "    ✗ Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "    [X] Error: $($_.Exception.Message)" -ForegroundColor Red
 
         $collectorResults[$collector.Name] = @{
             Success = $false
@@ -701,7 +719,7 @@ try {
     }
 }
 catch {
-    Write-Host "    ⚠ Could not calculate summary statistics" -ForegroundColor Yellow
+    Write-Host "    [!] Could not calculate summary statistics" -ForegroundColor Yellow
 }
 
 # Build metadata object
@@ -734,7 +752,7 @@ foreach ($collector in $collectorResults.GetEnumerator()) {
 # Write metadata file
 $metadataPath = Join-Path $dataPath "collection-metadata.json"
 $metadata | ConvertTo-Json -Depth 10 | Set-Content -Path $metadataPath -Encoding UTF8
-Write-Host "  ✓ Metadata written to: $metadataPath" -ForegroundColor Green
+Write-Host "  [OK] Metadata written to: $metadataPath" -ForegroundColor Green
 
 # ============================================================================
 # Append trend history snapshot
@@ -796,7 +814,7 @@ try {
     }
 
     $trendHistory | ConvertTo-Json -Depth 5 | Set-Content -Path $trendPath -Encoding UTF8
-    Write-Host "  ✓ Trend snapshot appended ($($trendHistory.Count) entries)" -ForegroundColor Green
+    Write-Host "  [OK] Trend snapshot appended ($($trendHistory.Count) entries)" -ForegroundColor Green
 }
 catch {
     Write-Host "  Could not update trend history: $($_.Exception.Message)" -ForegroundColor Yellow
@@ -811,7 +829,7 @@ Write-CollectionSummary -Results $collectorResults -StartTime $collectionStartTi
 # Disconnect from Graph
 Write-Host "Disconnecting from Microsoft Graph..." -ForegroundColor Cyan
 Disconnect-MgGraph | Out-Null
-Write-Host "  ✓ Disconnected" -ForegroundColor Green
+Write-Host "  [OK] Disconnected" -ForegroundColor Green
 
 # Build dashboard automatically so data is ready to view
 Write-Host ""

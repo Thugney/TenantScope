@@ -124,9 +124,13 @@ $dataFiles = @(
     "risky-signins.json",
     "signin-logs.json",
     "defender-alerts.json",
+    "vulnerabilities.json",
     "secure-score.json",
     "conditional-access.json",
     "asr-rules.json",
+    "identity-risk-data.json",
+    "oauth-consent-grants.json",
+    "named-locations.json",
     # Device management
     "devices.json",
     "autopilot.json",
@@ -141,9 +145,15 @@ $dataFiles = @(
     "service-principal-secrets.json",
     "audit-logs.json",
     "pim-activity.json",
+    # Compliance & data governance
+    "retention-data.json",
+    "ediscovery-data.json",
+    "sensitivity-labels-data.json",
+    "access-review-data.json",
     # Collaboration
     "teams.json",
     "sharepoint-sites.json",
+    "service-announcements.json",
     "app-signins.json",
     # Metadata
     "collection-metadata.json",
@@ -160,15 +170,20 @@ foreach ($file in $dataFiles) {
 
     if (Test-Path $sourcePath) {
         Copy-Item -Path $sourcePath -Destination $destPath -Force
-        Write-Host "  ✓ $file" -ForegroundColor Green
+        Write-Host "  [OK] $file" -ForegroundColor Green
         $copiedCount++
     }
     else {
-        Write-Host "  ⚠ $file (not found)" -ForegroundColor Yellow
+        Write-Host "  [!] $file (not found)" -ForegroundColor Yellow
         $missingFiles += $file
 
         # Create empty JSON file to prevent dashboard errors
-        "[]" | Set-Content -Path $destPath -Encoding UTF8
+        if ($file -eq "collection-metadata.json" -or $file -eq "service-announcements.json") {
+            "{}" | Set-Content -Path $destPath -Encoding UTF8
+        }
+        else {
+            "[]" | Set-Content -Path $destPath -Encoding UTF8
+        }
     }
 }
 
@@ -219,9 +234,13 @@ $bundleMap = @{
     "riskySignins"            = "risky-signins.json"
     "signinLogs"              = "signin-logs.json"
     "defenderAlerts"          = "defender-alerts.json"
+    "vulnerabilities"         = "vulnerabilities.json"
     "secureScore"             = "secure-score.json"
     "conditionalAccess"       = "conditional-access.json"
     "asrRules"                = "asr-rules.json"
+    "identityRisk"            = "identity-risk-data.json"
+    "oauthConsentGrants"      = "oauth-consent-grants.json"
+    "namedLocations"          = "named-locations.json"
     # Device management
     "devices"                 = "devices.json"
     "autopilot"               = "autopilot.json"
@@ -236,9 +255,15 @@ $bundleMap = @{
     "servicePrincipalSecrets" = "service-principal-secrets.json"
     "auditLogs"               = "audit-logs.json"
     "pimActivity"             = "pim-activity.json"
+    # Compliance & data governance
+    "retentionData"           = "retention-data.json"
+    "ediscoveryData"          = "ediscovery-data.json"
+    "sensitivityLabels"       = "sensitivity-labels-data.json"
+    "accessReviews"           = "access-review-data.json"
     # Collaboration
     "teams"                   = "teams.json"
     "sharepointSites"         = "sharepoint-sites.json"
+    "serviceAnnouncements"    = "service-announcements.json"
     "appSignins"              = "app-signins.json"
     # Metadata
     "metadata"                = "collection-metadata.json"
@@ -262,7 +287,7 @@ foreach ($entry in $bundleMap.GetEnumerator()) {
 }
 
 $bundleLines -join "`n" | Set-Content -Path $bundlePath -Encoding UTF8
-Write-Host "  ✓ Data bundle generated: $bundlePath" -ForegroundColor Green
+Write-Host "  [OK] Data bundle generated: $bundlePath" -ForegroundColor Green
 
 # ============================================================================
 # OPEN DASHBOARD

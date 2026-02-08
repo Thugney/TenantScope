@@ -23,7 +23,25 @@
       "isInactive": true,
       "hasNoOwner": true,
       "hasGuests": true,
-      "flags": ["inactive", "ownerless", "has-guests"]
+      "flags": [
+        "inactive",
+        "ownerless",
+        "has-guests"
+      ],
+      "memberCount": 2,
+      "ownerUpns": [],
+      "channelCount": 1,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "External Collaboration",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": [
+        "suggested1-byggesak-prosjekt-2023@modum.kommune.no",
+        "suggested2-byggesak-prosjekt-2023@modum.kommune.no"
+      ]
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000012",
@@ -40,7 +58,21 @@
       "isInactive": true,
       "hasNoOwner": true,
       "hasGuests": false,
-      "flags": ["inactive", "ownerless"]
+      "flags": [
+        "inactive",
+        "ownerless"
+      ],
+      "memberCount": 0,
+      "ownerUpns": [],
+      "channelCount": 1,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": [
+        "suggested1-vann-og-avloep-drift@modum.kommune.no",
+        "suggested2-vann-og-avloep-drift@modum.kommune.no"
+      ]
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000020",
@@ -57,7 +89,25 @@
       "isInactive": true,
       "hasNoOwner": true,
       "hasGuests": true,
-      "flags": ["inactive", "ownerless", "has-guests"]
+      "flags": [
+        "inactive",
+        "ownerless",
+        "has-guests"
+      ],
+      "memberCount": 1,
+      "ownerUpns": [],
+      "channelCount": 1,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "Public",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": [
+        "suggested1-renovasjon-gammel@modum.kommune.no",
+        "suggested2-renovasjon-gammel@modum.kommune.no"
+      ]
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000015",
@@ -74,7 +124,24 @@
       "isInactive": true,
       "hasNoOwner": false,
       "hasGuests": true,
-      "flags": ["inactive", "has-guests"]
+      "flags": [
+        "inactive",
+        "has-guests"
+      ],
+      "memberCount": 3,
+      "ownerUpns": [
+        "owner1-eiendom-og-forvaltning@modum.kommune.no",
+        "owner2-eiendom-og-forvaltning@modum.kommune.no"
+      ],
+      "channelCount": 3,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "External Collaboration",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000013",
@@ -91,7 +158,17 @@
       "isInactive": true,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": ["inactive"]
+      "flags": [
+        "inactive"
+      ],
+      "memberCount": 1,
+      "ownerUpns": "owner1-sommerjobb-2024@modum.kommune.no",
+      "channelCount": 2,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Public",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000014",
@@ -108,7 +185,21 @@
       "isInactive": true,
       "hasNoOwner": false,
       "hasGuests": true,
-      "flags": ["inactive", "has-guests"]
+      "flags": [
+        "inactive",
+        "has-guests"
+      ],
+      "memberCount": 4,
+      "ownerUpns": "owner1-covid-19-beredskap@modum.kommune.no",
+      "channelCount": 2,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "External Collaboration",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000001",
@@ -125,7 +216,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 10,
+      "ownerUpns": [
+        "owner1-it-avdeling@modum.kommune.no",
+        "owner2-it-avdeling@modum.kommune.no"
+      ],
+      "channelCount": 4,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000002",
@@ -142,7 +244,24 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": true,
-      "flags": ["has-guests"]
+      "flags": [
+        "has-guests"
+      ],
+      "memberCount": 33,
+      "ownerUpns": [
+        "owner1-skole-og-oppvekst@modum.kommune.no",
+        "owner2-skole-og-oppvekst@modum.kommune.no",
+        "owner3-skole-og-oppvekst@modum.kommune.no"
+      ],
+      "channelCount": 10,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "External Collaboration",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000003",
@@ -159,7 +278,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 24,
+      "ownerUpns": [
+        "owner1-helse-og-omsorg@modum.kommune.no",
+        "owner2-helse-og-omsorg@modum.kommune.no"
+      ],
+      "channelCount": 7,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000004",
@@ -176,7 +306,23 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": true,
-      "flags": ["has-guests"]
+      "flags": [
+        "has-guests"
+      ],
+      "memberCount": 18,
+      "ownerUpns": [
+        "owner1-prosjekt-digitalisering@modum.kommune.no",
+        "owner2-prosjekt-digitalisering@modum.kommune.no"
+      ],
+      "channelCount": 6,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "External Collaboration",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000005",
@@ -193,7 +339,15 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 7,
+      "ownerUpns": "owner1-ledergruppa@modum.kommune.no",
+      "channelCount": 3,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000006",
@@ -210,7 +364,23 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": true,
-      "flags": ["has-guests"]
+      "flags": [
+        "has-guests"
+      ],
+      "memberCount": 18,
+      "ownerUpns": [
+        "owner1-teknisk-drift@modum.kommune.no",
+        "owner2-teknisk-drift@modum.kommune.no"
+      ],
+      "channelCount": 6,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "Public",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000007",
@@ -227,7 +397,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 7,
+      "ownerUpns": [
+        "owner1-hr-og-personal@modum.kommune.no",
+        "owner2-hr-og-personal@modum.kommune.no"
+      ],
+      "channelCount": 4,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000008",
@@ -244,7 +425,19 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 92,
+      "ownerUpns": [
+        "owner1-allment-hele-kommunen@modum.kommune.no",
+        "owner2-allment-hele-kommunen@modum.kommune.no",
+        "owner3-allment-hele-kommunen@modum.kommune.no"
+      ],
+      "channelCount": 22,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Public",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000009",
@@ -261,7 +454,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 9,
+      "ownerUpns": [
+        "owner1-oekonomi-og-regnskap@modum.kommune.no",
+        "owner2-oekonomi-og-regnskap@modum.kommune.no"
+      ],
+      "channelCount": 4,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000010",
@@ -278,7 +482,15 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 10,
+      "ownerUpns": "owner1-kultur-og-fritid@modum.kommune.no",
+      "channelCount": 3,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Public",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000016",
@@ -295,7 +507,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 12,
+      "ownerUpns": [
+        "owner1-plan-og-bygg@modum.kommune.no",
+        "owner2-plan-og-bygg@modum.kommune.no"
+      ],
+      "channelCount": 5,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000017",
@@ -312,7 +535,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 37,
+      "ownerUpns": [
+        "owner1-barnehage-samarbeid@modum.kommune.no",
+        "owner2-barnehage-samarbeid@modum.kommune.no"
+      ],
+      "channelCount": 10,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Public",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000018",
@@ -329,7 +563,20 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": true,
-      "flags": ["has-guests"]
+      "flags": [
+        "has-guests"
+      ],
+      "memberCount": 9,
+      "ownerUpns": "owner1-nav-modum-samarbeid@modum.kommune.no",
+      "channelCount": 3,
+      "privateChannelCount": 1,
+      "sensitivityLabelName": "External Collaboration",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [
+        "contoso.com",
+        "fabrikam.net"
+      ],
+      "suggestedOwners": []
     },
     {
       "id": "t1a00001-aaaa-4000-b000-000000000019",
@@ -346,7 +593,18 @@
       "isInactive": false,
       "hasNoOwner": false,
       "hasGuests": false,
-      "flags": []
+      "flags": [],
+      "memberCount": 22,
+      "ownerUpns": [
+        "owner1-kommunestyret@modum.kommune.no",
+        "owner2-kommunestyret@modum.kommune.no"
+      ],
+      "channelCount": 7,
+      "privateChannelCount": 0,
+      "sensitivityLabelName": "Internal",
+      "linkedSharePointSiteId": "sp-site-t1a00001",
+      "externalDomains": [],
+      "suggestedOwners": []
     }
   ]
 }

@@ -40,9 +40,13 @@ const DataLoader = (function() {
         riskySignins: [],
         signinLogs: null,
         defenderAlerts: [],
+        vulnerabilities: null,
         secureScore: null,
         conditionalAccess: [],
         asrRules: null,
+        oauthConsentGrants: null,
+        namedLocations: null,
+        identityRisk: null,
         // Device management
         devices: [],
         autopilot: [],
@@ -57,10 +61,16 @@ const DataLoader = (function() {
         servicePrincipalSecrets: null,
         auditLogs: [],
         pimActivity: [],
+        accessReviews: null,
         // Collaboration
         teams: [],
         sharepointSites: [],
+        serviceAnnouncements: null,
         appSignins: [],
+        // Compliance & data protection
+        retentionData: null,
+        ediscoveryData: null,
+        sensitivityLabels: null,
         // Metadata
         trendHistory: [],
         metadata: null
@@ -81,9 +91,13 @@ const DataLoader = (function() {
         riskySignins: 'data/risky-signins.json',
         signinLogs: 'data/signin-logs.json',
         defenderAlerts: 'data/defender-alerts.json',
+        vulnerabilities: 'data/vulnerabilities.json',
         secureScore: 'data/secure-score.json',
         conditionalAccess: 'data/conditional-access.json',
         asrRules: 'data/asr-rules.json',
+        oauthConsentGrants: 'data/oauth-consent-grants.json',
+        namedLocations: 'data/named-locations.json',
+        identityRisk: 'data/identity-risk-data.json',
         // Device management
         devices: 'data/devices.json',
         autopilot: 'data/autopilot.json',
@@ -98,10 +112,16 @@ const DataLoader = (function() {
         servicePrincipalSecrets: 'data/service-principal-secrets.json',
         auditLogs: 'data/audit-logs.json',
         pimActivity: 'data/pim-activity.json',
+        accessReviews: 'data/access-review-data.json',
         // Collaboration
         teams: 'data/teams.json',
         sharepointSites: 'data/sharepoint-sites.json',
+        serviceAnnouncements: 'data/service-announcements.json',
         appSignins: 'data/app-signins.json',
+        // Compliance & data protection
+        retentionData: 'data/retention-data.json',
+        ediscoveryData: 'data/ediscovery-data.json',
+        sensitivityLabels: 'data/sensitivity-labels-data.json',
         // Metadata
         trendHistory: 'data/trend-history.json',
         metadata: 'data/collection-metadata.json'
@@ -202,7 +222,8 @@ const DataLoader = (function() {
                     console.log('DataLoader: Fetching data files via HTTP...');
                     const loadPromises = Object.entries(dataFiles).map(async ([key, path]) => {
                         const data = await fetchJSON(path);
-                        dataStore[key] = data || ((key === 'metadata' || key === 'secureScore') ? null : []);
+                        const defaultValue = (dataStore[key] === null) ? null : [];
+                        dataStore[key] = (data === null || data === undefined) ? defaultValue : data;
                     });
                     await Promise.all(loadPromises);
                 }
@@ -326,6 +347,11 @@ const DataLoader = (function() {
             const spHighStorageThreshold = (typeof thresholds.highStorageThresholdGB === 'number' && thresholds.highStorageThresholdGB > 0)
                 ? thresholds.highStorageThresholdGB
                 : 20;
+            const serviceAnnouncements = dataStore.serviceAnnouncements || {};
+            const messageCenter = Array.isArray(serviceAnnouncements.messageCenter) ? serviceAnnouncements.messageCenter : [];
+            const serviceHealth = Array.isArray(serviceAnnouncements.serviceHealth) ? serviceAnnouncements.serviceHealth : [];
+            const healthIssues = serviceHealth.reduce((sum, h) => sum + ((h.issues || []).length), 0);
+            const activeHealthIssues = serviceHealth.reduce((sum, h) => sum + ((h.issues || []).filter(i => i.status && i.status.toLowerCase() !== 'resolved').length), 0);
 
             const compliantDevices = devices.filter(d => d.complianceState === 'compliant').length;
             const staleDevices = devices.filter(d => d.isStale).length;
@@ -374,6 +400,14 @@ const DataLoader = (function() {
                 externalSharingSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && s.hasExternalSharing).length,
                 anonymousLinkSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && (s.anonymousLinkCount || 0) > 0).length,
                 noLabelSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && !s.sensitivityLabelId).length,
+
+                // Admin Center (Message Center + Service Health)
+                messageCenterCount: messageCenter.length,
+                messageCenterHigh: messageCenter.filter(m => (m.severity || '').toLowerCase() === 'high' || (m.severity || '').toLowerCase() === 'critical').length,
+                messageCenterActionRequired: messageCenter.filter(m => !!m.actionRequiredByDateTime).length,
+                serviceHealthServices: serviceHealth.length,
+                serviceHealthIssues: healthIssues,
+                serviceHealthActiveIssues: activeHealthIssues,
 
                 // License costs
                 totalWasteMonthlyCost: licenseSkus.reduce((sum, l) => sum + (l.wasteMonthlyCost || 0), 0),

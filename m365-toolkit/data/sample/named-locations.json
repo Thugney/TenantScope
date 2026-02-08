@@ -1,0 +1,121 @@
+{
+  "locations": [
+    {
+      "id": "loc-001",
+      "displayName": "Corporate Headquarters",
+      "locationType": "ipRange",
+      "isTrusted": true,
+      "ipRanges": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "203.0.113.0/24"],
+      "ipRangeCount": 4,
+      "createdDateTime": "2023-01-15T10:00:00Z",
+      "modifiedDateTime": "2024-06-01T14:30:00Z",
+      "flags": ["trusted", "corporate"]
+    },
+    {
+      "id": "loc-002",
+      "displayName": "Branch Office - London",
+      "locationType": "ipRange",
+      "isTrusted": true,
+      "ipRanges": ["51.140.0.0/16"],
+      "ipRangeCount": 1,
+      "createdDateTime": "2023-03-20T09:00:00Z",
+      "modifiedDateTime": "2024-02-15T11:00:00Z",
+      "flags": ["trusted", "branch-office"]
+    },
+    {
+      "id": "loc-003",
+      "displayName": "Branch Office - Singapore",
+      "locationType": "ipRange",
+      "isTrusted": true,
+      "ipRanges": ["52.187.0.0/16"],
+      "ipRangeCount": 1,
+      "createdDateTime": "2023-05-10T08:00:00Z",
+      "modifiedDateTime": "2024-01-20T16:00:00Z",
+      "flags": ["trusted", "branch-office"]
+    },
+    {
+      "id": "loc-004",
+      "displayName": "VPN Gateway",
+      "locationType": "ipRange",
+      "isTrusted": true,
+      "ipRanges": ["198.51.100.0/24"],
+      "ipRangeCount": 1,
+      "createdDateTime": "2023-02-01T12:00:00Z",
+      "modifiedDateTime": "2024-04-10T09:30:00Z",
+      "flags": ["trusted", "vpn"]
+    },
+    {
+      "id": "loc-005",
+      "displayName": "Blocked Countries",
+      "locationType": "countryRegion",
+      "isTrusted": false,
+      "countriesAndRegions": ["RU", "CN", "KP", "IR"],
+      "countryCount": 4,
+      "includeUnknownCountriesAndRegions": true,
+      "createdDateTime": "2023-01-20T15:00:00Z",
+      "modifiedDateTime": "2024-08-05T10:00:00Z",
+      "flags": ["block-list", "geo-restriction"]
+    },
+    {
+      "id": "loc-006",
+      "displayName": "Allowed Countries",
+      "locationType": "countryRegion",
+      "isTrusted": false,
+      "countriesAndRegions": ["US", "GB", "CA", "AU", "DE", "FR", "SG", "JP"],
+      "countryCount": 8,
+      "includeUnknownCountriesAndRegions": false,
+      "createdDateTime": "2023-04-15T11:00:00Z",
+      "modifiedDateTime": "2024-07-22T14:15:00Z",
+      "flags": ["allow-list", "geo-restriction"]
+    },
+    {
+      "id": "loc-007",
+      "displayName": "Home Office Network",
+      "locationType": "ipRange",
+      "isTrusted": false,
+      "ipRanges": ["0.0.0.0/0"],
+      "ipRangeCount": 1,
+      "createdDateTime": "2024-01-10T09:00:00Z",
+      "modifiedDateTime": "2024-01-10T09:00:00Z",
+      "flags": ["untrusted", "wfh"]
+    }
+  ],
+  "summary": {
+    "totalLocations": 7,
+    "trustedLocations": 4,
+    "untrustedLocations": 3,
+    "ipRangeLocations": 5,
+    "countryLocations": 2,
+    "totalIpRanges": 8,
+    "blockedCountries": 4,
+    "allowedCountries": 8
+  },
+  "insights": [
+    {
+      "id": "insight-loc-001",
+      "severity": "info",
+      "title": "Trusted Network Locations",
+      "description": "4 named locations are marked as trusted for Conditional Access policies.",
+      "count": 4,
+      "recommendedAction": "Regularly review trusted locations and remove any that are no longer valid."
+    },
+    {
+      "id": "insight-loc-002",
+      "severity": "info",
+      "title": "Geo-Blocking Configured",
+      "description": "Country-based restrictions are configured to block access from 4 high-risk countries.",
+      "count": 4,
+      "recommendedAction": "Ensure blocked countries list aligns with organizational risk tolerance and business needs."
+    },
+    {
+      "id": "insight-loc-003",
+      "severity": "warning",
+      "title": "Overly Broad IP Range",
+      "description": "Home Office Network location uses 0.0.0.0/0 which matches all IP addresses.",
+      "count": 1,
+      "recommendedAction": "Review this location - an all-encompassing IP range may not provide meaningful security value."
+    }
+  ],
+  "collectionDate": "2024-12-15T10:00:00Z",
+  "apiNote": "Named locations are used in Conditional Access policies for location-based access control."
+}

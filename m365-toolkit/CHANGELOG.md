@@ -5,6 +5,88 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-02-08
+
+### Added
+- **Vulnerability Management Page** (`page-vulnerabilities.js`):
+  - Dedicated CVE tracking page with Overview, All CVEs, and Exploited tabs
+  - Severity breakdown heatmap visualization
+  - Priority vulnerabilities table for critical/exploited CVEs
+  - Detailed vulnerability cards with CVSS scores, affected devices, patch status
+  - Security insights with actionable remediation recommendations
+
+- **Vulnerability Collector** (`Get-VulnerabilityData.ps1`):
+  - Collects CVE data from Microsoft Defender for Endpoint TVM API
+  - Supports Graph Security API and MDE API endpoints
+  - Outputs severity, CVSS scores, exploit status, affected device counts
+  - Requires Microsoft Defender for Endpoint P2 license
+
+- **Security Cockpit** (Overview page):
+  - Aggregated risk score from all security signals
+  - Category cards showing health scores for Identity, OAuth, Devices, Compliance
+  - Action items list with severity-sorted security issues
+  - Quick navigation links to security-related pages
+  - Vulnerability signals integrated into cockpit
+
+- **Quick Access Tab** (Overview page):
+  - Navigation shortcuts to key analysis views
+  - Cards for Security, Cost, Compliance, Endpoint, Data Quality, Executive views
+  - Quick links for common actions
+
+- **Executive Summary Tab** (Overview page):
+  - KPI grid with Secure Score, Compliance, MFA, Alerts, License Utilization, Risky Users
+  - Tenant at-a-glance statistics
+  - Status summary cards for Security, Compliance, Identity, Cost
+
+- **New Security Pages**:
+  - Identity Risk page (`page-identity-risk.js`) - risky users and sign-ins from Identity Protection
+  - OAuth Consent page (`page-oauth-consent.js`) - app permissions and consent grants
+  - Data Governance/Compliance page (`page-compliance.js`) - retention, eDiscovery, sensitivity labels, access reviews
+
+- **New Collectors**:
+  - `Get-IdentityRiskData.ps1` - Identity Protection risky users/detections
+  - `Get-OAuthConsentGrants.ps1` - OAuth app permissions
+  - `Get-AccessReviewData.ps1` - access review definitions and instances
+  - `Get-RetentionData.ps1` - retention policies and labels
+  - `Get-eDiscoveryData.ps1` - eDiscovery cases
+  - `Get-SensitivityLabelsData.ps1` - sensitivity labels
+  - `Get-NamedLocations.ps1` - named locations for CA policies
+  - `Get-ServiceAnnouncementData.ps1` - Message Center and Service Health
+
+- **Device Risk Scoring** (Devices page):
+  - Composite risk score (0-100) based on compliance, encryption, OS, staleness
+  - Risk Analysis tab with heatmap visualization
+  - Risk tier classification (Critical, High, Medium, Low)
+
+- **License Optimization Tab** (License Analysis page):
+  - Waste detection and cost savings analysis
+  - Recommendations for license reclamation
+
+- **Data Quality Tab** (Users page):
+  - Stale account detection (90+ days inactive)
+  - Duplicate account identification
+  - Naming convention issue detection
+  - Sync error tracking
+  - Missing data completeness checks
+
+- **Sample Data**:
+  - Added sample data files for all new collectors
+  - vulnerabilities.json, identity-risk-data.json, oauth-consent-grants.json
+  - access-review-data.json, retention-data.json, ediscovery-data.json
+  - sensitivity-labels-data.json, named-locations.json, service-announcements.json
+
+### Changed
+- Overview page tabs reorganized: Overview, Security Cockpit, Executive Summary, Quick Access, Quick Stats
+- Quick Access tab renamed from "Analysis Agents" with clearer navigation-focused labels
+- Vulnerability signals in Security Cockpit now link to dedicated Vulnerabilities page
+
+### Fixed
+- Agent/Quick Access buttons now properly navigate using window.location.hash
+- Fixed navigation routing for compliance page (was incorrectly mapped to non-existent access-reviews)
+- Data Quality navigation now correctly points to data-quality page
+
+---
+
 ## [2.0.6] - 2026-02-07
 
 ### Added

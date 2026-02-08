@@ -19,6 +19,37 @@
 const PageSharePoint = (function() {
     'use strict';
 
+    /**
+     * Builds inline SVG donut chart HTML (matching Endpoint Analytics style).
+     *
+     * @param {Array} segments - Array of { count: number, color: string }
+     * @param {number} total - Total count for percentage calculation
+     * @param {string} centerValue - Text shown in center of donut
+     * @param {string} centerLabel - Sub-label below center text
+     * @returns {string} HTML string for the donut chart
+     */
+    function buildDonutSVG(segments, total, centerValue, centerLabel) {
+        var radius = 40;
+        var circumference = 2 * Math.PI * radius;
+        var html = '<div class="donut-chart">';
+        html += '<svg viewBox="0 0 100 100" class="donut">';
+        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
+        if (total > 0) {
+            var offset = 0;
+            for (var i = 0; i < segments.length; i++) {
+                var seg = segments[i];
+                if (seg.count <= 0) continue;
+                var dash = (seg.count / total) * circumference;
+                html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + seg.color + '" stroke-width="10" stroke-dasharray="' + dash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
+                offset += dash;
+            }
+        }
+        html += '</svg>';
+        html += '<div class="donut-center"><span class="donut-value">' + centerValue + '</span><span class="donut-label">' + centerLabel + '</span></div>';
+        html += '</div>';
+        return html;
+    }
+
     function getThresholds() {
         if (window.DataLoader && typeof DataLoader.getMetadata === 'function') {
             var meta = DataLoader.getMetadata();
@@ -349,89 +380,88 @@ const PageSharePoint = (function() {
         var internalOnlySites = nonPersonal.filter(function(s) { return !s.hasExternalSharing; }).length;
         var guestSharedSites = nonPersonal.filter(function(s) { return s.hasExternalSharing && (s.anonymousLinkCount || 0) === 0; }).length;
 
+        // Build summary cards + charts + filter/table skeleton
         // All values below are computed integers from trusted collection data
-        container.innerHTML = [
+        var inactiveCardClass = inactiveSites > 0 ? ' card-warning' : '';
+        var inactiveTextClass = inactiveSites > 0 ? ' text-warning' : '';
+        var highStorageCardClass = highStorage > 0 ? ' card-warning' : '';
+        var highStorageTextClass = highStorage > 0 ? ' text-warning' : '';
+        var extSharingCardClass = externalSharingSites > 0 ? ' card-warning' : '';
+        var extSharingTextClass = externalSharingSites > 0 ? ' text-warning' : '';
+        var anonCardClass = anonymousLinkSites > 0 ? ' card-danger' : '';
+        var anonTextClass = anonymousLinkSites > 0 ? ' text-critical' : '';
+
+        var pageHtml = [
             '<div class="page-header">',
             '    <h2 class="page-title">SharePoint</h2>',
             '    <p class="page-description">SharePoint site usage, storage, activity, and sharing governance</p>',
             '</div>',
             '',
-            '<div class="cards-grid">',
-            '    <div class="card">',
-            '        <div class="card-label">Total Sites</div>',
-            '        <div class="card-value">' + nonPersonal.length + '</div>',
-            '        <div class="card-change">' + personalCount + ' personal (OneDrive)</div>',
-            '    </div>',
-            '    <div class="card">',
-            '        <div class="card-label">Total Storage</div>',
-            '        <div class="card-value">' + totalStorageGB + ' GB</div>',
-            '    </div>',
-            '    <div class="card ' + (inactiveSites > 0 ? 'card-warning' : '') + '">',
-            '        <div class="card-label">Inactive Sites</div>',
-            '        <div class="card-value ' + (inactiveSites > 0 ? 'warning' : '') + '">' + inactiveSites + '</div>',
-            '        <div class="card-change">' + inactiveThreshold + '+ days no activity</div>',
-            '    </div>',
-            '    <div class="card ' + (highStorage > 0 ? 'card-warning' : '') + '">',
-            '        <div class="card-label">High Storage</div>',
-            '        <div class="card-value ' + (highStorage > 0 ? 'warning' : '') + '">' + highStorage + '</div>',
-            '        <div class="card-change">' + highStorageThreshold + '+ GB used</div>',
-            '    </div>',
-            '    <div class="card ' + (externalSharingSites > 0 ? 'card-warning' : '') + '">',
-            '        <div class="card-label">Externally Shared</div>',
-            '        <div class="card-value ' + (externalSharingSites > 0 ? 'warning' : '') + '">' + externalSharingSites + '</div>',
-            '        <div class="card-change">sites with external sharing</div>',
-            '    </div>',
-            '    <div class="card ' + (anonymousLinkSites > 0 ? 'card-critical' : '') + '">',
-            '        <div class="card-label">Anonymous Links</div>',
-            '        <div class="card-value ' + (anonymousLinkSites > 0 ? 'critical' : '') + '">' + anonymousLinkSites + '</div>',
-            '        <div class="card-change">sites with anonymous links</div>',
-            '    </div>',
+            '<div class="summary-cards">',
+            '    <div class="summary-card card-info"><div class="summary-value">' + nonPersonal.length + '</div><div class="summary-label">Total Sites</div></div>',
+            '    <div class="summary-card"><div class="summary-value">' + totalStorageGB + ' GB</div><div class="summary-label">Total Storage</div></div>',
+            '    <div class="summary-card' + inactiveCardClass + '"><div class="summary-value' + inactiveTextClass + '">' + inactiveSites + '</div><div class="summary-label">Inactive Sites</div></div>',
+            '    <div class="summary-card' + highStorageCardClass + '"><div class="summary-value' + highStorageTextClass + '">' + highStorage + '</div><div class="summary-label">High Storage</div></div>',
+            '    <div class="summary-card' + extSharingCardClass + '"><div class="summary-value' + extSharingTextClass + '">' + externalSharingSites + '</div><div class="summary-label">Externally Shared</div></div>',
+            '    <div class="summary-card' + anonCardClass + '"><div class="summary-value' + anonTextClass + '">' + anonymousLinkSites + '</div><div class="summary-label">Anonymous Links</div></div>',
             '</div>',
             '',
-            '<div class="charts-row" id="sp-charts"></div>',
+            '<div class="analytics-grid" id="sp-charts"></div>',
             '<div id="sp-filter"></div>',
             '<div id="sp-table"></div>'
         ].join('\n');
 
-        // Render charts
-        var chartsRow = document.getElementById('sp-charts');
-        if (chartsRow) {
-            var C = DashboardCharts.colors;
+        container.innerHTML = pageHtml;
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Site Activity',
-                [
-                    { value: activeSites, label: 'Active', color: C.green },
-                    { value: inactiveSites, label: 'Inactive', color: C.yellow }
-                ],
-                nonPersonal.length > 0
-                    ? Math.round((activeSites / nonPersonal.length) * 100) + '%'
-                    : '0%',
-                'active'
-            ));
+        // Render charts using inline SVG in analytics-card (matching Endpoint Analytics)
+        var chartsContainer = document.getElementById('sp-charts');
+        if (chartsContainer) {
+            var totalNP = nonPersonal.length;
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Site Templates',
-                [
-                    { value: groupCount, label: 'Team Site', color: C.blue },
-                    { value: commCount, label: 'Communication', color: C.teal },
-                    { value: otherCount, label: 'Other', color: C.gray }
-                ],
-                String(nonPersonal.length), 'sites'
-            ));
+            // Site Activity donut
+            var activityHtml = '<div class="analytics-card"><h3>Site Activity</h3>';
+            activityHtml += '<div class="compliance-overview"><div class="compliance-chart">';
+            activityHtml += buildDonutSVG([
+                { count: activeSites, color: 'var(--color-success)' },
+                { count: inactiveSites, color: 'var(--color-warning)' }
+            ], totalNP, totalNP > 0 ? Math.round((activeSites / totalNP) * 100) + '%' : '0%', 'active');
+            activityHtml += '</div>';
+            activityHtml += '<div class="compliance-legend">';
+            activityHtml += '<div class="legend-item"><span class="legend-dot bg-success"></span> Active: <strong>' + activeSites + '</strong></div>';
+            activityHtml += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Inactive: <strong>' + inactiveSites + '</strong></div>';
+            activityHtml += '</div></div></div>';
 
-            chartsRow.appendChild(DashboardCharts.createChartCard(
-                'Sharing Exposure',
-                [
-                    { value: internalOnlySites, label: 'Internal Only', color: C.green },
-                    { value: guestSharedSites, label: 'Guest Shared', color: C.yellow },
-                    { value: anonymousLinkSites, label: 'Anonymous Links', color: C.red }
-                ],
-                externalSharingSites > 0
-                    ? Math.round((externalSharingSites / nonPersonal.length) * 100) + '%'
-                    : '0%',
-                'external'
-            ));
+            // Site Templates donut
+            var templatesHtml = '<div class="analytics-card"><h3>Site Templates</h3>';
+            templatesHtml += '<div class="compliance-overview"><div class="compliance-chart">';
+            templatesHtml += buildDonutSVG([
+                { count: groupCount, color: 'var(--color-accent)' },
+                { count: commCount, color: '#0d9488' },
+                { count: otherCount, color: '#6b7280' }
+            ], totalNP, String(totalNP), 'sites');
+            templatesHtml += '</div>';
+            templatesHtml += '<div class="compliance-legend">';
+            templatesHtml += '<div class="legend-item"><span class="legend-dot bg-info"></span> Team Site: <strong>' + groupCount + '</strong></div>';
+            templatesHtml += '<div class="legend-item"><span class="legend-dot" style="background-color:#0d9488"></span> Communication: <strong>' + commCount + '</strong></div>';
+            templatesHtml += '<div class="legend-item"><span class="legend-dot" style="background-color:#6b7280"></span> Other: <strong>' + otherCount + '</strong></div>';
+            templatesHtml += '</div></div></div>';
+
+            // Sharing Exposure donut
+            var sharingHtml = '<div class="analytics-card"><h3>Sharing Exposure</h3>';
+            sharingHtml += '<div class="compliance-overview"><div class="compliance-chart">';
+            sharingHtml += buildDonutSVG([
+                { count: internalOnlySites, color: 'var(--color-success)' },
+                { count: guestSharedSites, color: 'var(--color-warning)' },
+                { count: anonymousLinkSites, color: 'var(--color-critical)' }
+            ], totalNP, externalSharingSites > 0 ? Math.round((externalSharingSites / totalNP) * 100) + '%' : '0%', 'external');
+            sharingHtml += '</div>';
+            sharingHtml += '<div class="compliance-legend">';
+            sharingHtml += '<div class="legend-item"><span class="legend-dot bg-success"></span> Internal Only: <strong>' + internalOnlySites + '</strong></div>';
+            sharingHtml += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Guest Shared: <strong>' + guestSharedSites + '</strong></div>';
+            sharingHtml += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Anonymous Links: <strong>' + anonymousLinkSites + '</strong></div>';
+            sharingHtml += '</div></div></div>';
+
+            chartsContainer.innerHTML = activityHtml + templatesHtml + sharingHtml;
         }
 
         // Create filter bar

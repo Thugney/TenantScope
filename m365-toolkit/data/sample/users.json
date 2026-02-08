@@ -19,8 +19,13 @@
     "managerUpn": null,
     "managerMail": null,
     "mobilePhone": "+47 952 34 567",
-    "businessPhones": ["+47 32 78 90 00"],
-    "proxyAddresses": ["SMTP:erik.hansen@modum.kommune.no", "smtp:erik@modum.no"],
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP001",
     "employeeType": "Employee",
@@ -46,7 +51,10 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
     "licenseCount": 3,
-    "assignedSkuIds": ["06ebc4ee-1bb5-47dd-8120-11324bc54e06", "061f9ace-7d42-4136-88ac-31dc755f143f"],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
     "assignedLicenses": [
       {
         "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
@@ -71,7 +79,9 @@
     "groupLicenseCount": 1,
     "hasDisabledPlans": false,
     "mfaRegistered": true,
-    "flags": ["admin"]
+    "flags": [
+      "admin"
+    ]
   },
   {
     "id": "b2c3d4e5-f6a7-8901-bcde-f23456789012",
@@ -94,7 +104,9 @@
     "managerMail": "marianne.dahl@modum.kommune.no",
     "mobilePhone": "+47 918 45 231",
     "businessPhones": [],
-    "proxyAddresses": ["SMTP:ingrid.olsen@modum.kommune.no"],
+    "proxyAddresses": [
+      "SMTP:ingrid.olsen@modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP042",
     "employeeType": "Employee",
@@ -120,11 +132,15 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQy",
     "licenseCount": 1,
-    "assignedSkuIds": ["c5928f49-12ba-48f7-ada3-0d743a3601d5"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5"
+    ],
     "assignedLicenses": [
       {
         "skuId": "c5928f49-12ba-48f7-ada3-0d743a3601d5",
-        "disabledPlans": ["57ff2da0-773e-42df-b2af-ffb7a2317929"],
+        "disabledPlans": [
+          "57ff2da0-773e-42df-b2af-ffb7a2317929"
+        ],
         "disabledPlanCount": 1,
         "assignmentSource": "Group",
         "assignedViaGroupId": "grp-helse-licenses-001",
@@ -158,8 +174,12 @@
     "managerUpn": "martin.holter@modum.kommune.no",
     "managerMail": "martin.holter@modum.kommune.no",
     "mobilePhone": null,
-    "businessPhones": ["+47 32 78 90 10"],
-    "proxyAddresses": ["SMTP:lars.johansen@modum.kommune.no"],
+    "businessPhones": [
+      "+47 32 78 90 10"
+    ],
+    "proxyAddresses": [
+      "SMTP:lars.johansen@modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP018",
     "employeeType": "Employee",
@@ -185,7 +205,10 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQz",
     "licenseCount": 2,
-    "assignedSkuIds": ["c5928f49-12ba-48f7-ada3-0d743a3601d5", "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5",
+      "078d2b04-f1bd-4111-bbd4-b4b1b354cef4"
+    ],
     "assignedLicenses": [
       {
         "skuId": "c5928f49-12ba-48f7-ada3-0d743a3601d5",
@@ -232,9 +255,15 @@
     "managerUpn": "erik.hansen@modum.kommune.no",
     "managerMail": "erik.hansen@modum.kommune.no",
     "mobilePhone": "+47 934 56 789",
-    "businessPhones": ["+47 32 78 90 20"],
-    "proxyAddresses": ["SMTP:kari.andersen@modum.kommune.no"],
-    "otherMails": ["kari.private@gmail.com"],
+    "businessPhones": [
+      "+47 32 78 90 20"
+    ],
+    "proxyAddresses": [
+      "SMTP:kari.andersen@modum.kommune.no"
+    ],
+    "otherMails": [
+      "kari.private@gmail.com"
+    ],
     "employeeId": "EMP023",
     "employeeType": "Employee",
     "employeeHireDate": "2017-01-15T00:00:00Z",
@@ -259,7 +288,9 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQ0",
     "licenseCount": 1,
-    "assignedSkuIds": ["06ebc4ee-1bb5-47dd-8120-11324bc54e06"],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06"
+    ],
     "assignedLicenses": [
       {
         "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
@@ -275,7 +306,9 @@
     "groupLicenseCount": 1,
     "hasDisabledPlans": false,
     "mfaRegistered": true,
-    "flags": ["admin"]
+    "flags": [
+      "admin"
+    ]
   },
   {
     "id": "e5f6a7b8-c9d0-1234-ef01-567890123456",
@@ -298,7 +331,9 @@
     "managerMail": "petter.nordby@modum.kommune.no",
     "mobilePhone": "+47 976 54 321",
     "businessPhones": [],
-    "proxyAddresses": ["SMTP:magnus.nilsen@modum.kommune.no"],
+    "proxyAddresses": [
+      "SMTP:magnus.nilsen@modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP089",
     "employeeType": "Employee",
@@ -324,7 +359,9 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQ1",
     "licenseCount": 1,
-    "assignedSkuIds": ["c5928f49-12ba-48f7-ada3-0d743a3601d5"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5"
+    ],
     "assignedLicenses": [
       {
         "skuId": "c5928f49-12ba-48f7-ada3-0d743a3601d5",
@@ -363,7 +400,9 @@
     "managerMail": "silje.gulbrandsen@modum.kommune.no",
     "mobilePhone": null,
     "businessPhones": [],
-    "proxyAddresses": ["SMTP:hanna.larsen@modum.kommune.no"],
+    "proxyAddresses": [
+      "SMTP:hanna.larsen@modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP156",
     "employeeType": "Employee",
@@ -389,7 +428,9 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQ2",
     "licenseCount": 1,
-    "assignedSkuIds": ["c5928f49-12ba-48f7-ada3-0d743a3601d5"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5"
+    ],
     "assignedLicenses": [
       {
         "skuId": "c5928f49-12ba-48f7-ada3-0d743a3601d5",
@@ -405,7 +446,9 @@
     "groupLicenseCount": 0,
     "hasDisabledPlans": false,
     "mfaRegistered": false,
-    "flags": ["inactive"]
+    "flags": [
+      "inactive"
+    ]
   },
   {
     "id": "c9d0e1f2-a3b4-5678-2345-901234567890",
@@ -428,7 +471,9 @@
     "managerMail": "anne.riise@modum.kommune.no",
     "mobilePhone": "+47 987 65 432",
     "businessPhones": [],
-    "proxyAddresses": ["SMTP:ole.pedersen@modum.kommune.no"],
+    "proxyAddresses": [
+      "SMTP:ole.pedersen@modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP201",
     "employeeType": "Employee",
@@ -454,7 +499,9 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQ3",
     "licenseCount": 1,
-    "assignedSkuIds": ["c5928f49-12ba-48f7-ada3-0d743a3601d5"],
+    "assignedSkuIds": [
+      "c5928f49-12ba-48f7-ada3-0d743a3601d5"
+    ],
     "assignedLicenses": [
       {
         "skuId": "c5928f49-12ba-48f7-ada3-0d743a3601d5",
@@ -470,7 +517,9 @@
     "groupLicenseCount": 1,
     "hasDisabledPlans": false,
     "mfaRegistered": false,
-    "flags": ["disabled"]
+    "flags": [
+      "disabled"
+    ]
   },
   {
     "id": "01a2b3c4-d5e6-7890-4567-123456789012",
@@ -493,7 +542,9 @@
     "managerMail": null,
     "mobilePhone": null,
     "businessPhones": [],
-    "proxyAddresses": ["SMTP:elias.solberg@skole.modum.kommune.no"],
+    "proxyAddresses": [
+      "SMTP:elias.solberg@skole.modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": null,
     "employeeType": "Student",
@@ -519,7 +570,9 @@
     "onPremDomainName": null,
     "onPremImmutableId": null,
     "licenseCount": 1,
-    "assignedSkuIds": ["314c4481-f395-4525-be8b-2ec4bb1e9d91"],
+    "assignedSkuIds": [
+      "314c4481-f395-4525-be8b-2ec4bb1e9d91"
+    ],
     "assignedLicenses": [
       {
         "skuId": "314c4481-f395-4525-be8b-2ec4bb1e9d91",
@@ -557,8 +610,12 @@
     "managerUpn": "erik.hansen@modum.kommune.no",
     "managerMail": "erik.hansen@modum.kommune.no",
     "mobilePhone": "+47 912 34 567",
-    "businessPhones": ["+47 32 78 90 30"],
-    "proxyAddresses": ["SMTP:marianne.dahl@modum.kommune.no"],
+    "businessPhones": [
+      "+47 32 78 90 30"
+    ],
+    "proxyAddresses": [
+      "SMTP:marianne.dahl@modum.kommune.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP012",
     "employeeType": "Employee",
@@ -584,7 +641,9 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQ4",
     "licenseCount": 1,
-    "assignedSkuIds": ["06ebc4ee-1bb5-47dd-8120-11324bc54e06"],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06"
+    ],
     "assignedLicenses": [
       {
         "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
@@ -622,8 +681,13 @@
     "managerUpn": "erik.hansen@modum.kommune.no",
     "managerMail": "erik.hansen@modum.kommune.no",
     "mobilePhone": "+47 923 45 678",
-    "businessPhones": ["+47 32 78 90 05"],
-    "proxyAddresses": ["SMTP:anders.kristiansen@modum.kommune.no", "smtp:anders@modum.no"],
+    "businessPhones": [
+      "+47 32 78 90 05"
+    ],
+    "proxyAddresses": [
+      "SMTP:anders.kristiansen@modum.kommune.no",
+      "smtp:anders@modum.no"
+    ],
     "otherMails": [],
     "employeeId": "EMP003",
     "employeeType": "Employee",
@@ -649,7 +713,10 @@
     "onPremDomainName": "modum.local",
     "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQ5",
     "licenseCount": 2,
-    "assignedSkuIds": ["06ebc4ee-1bb5-47dd-8120-11324bc54e06", "061f9ace-7d42-4136-88ac-31dc755f143f"],
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
     "assignedLicenses": [
       {
         "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
@@ -674,6 +741,582 @@
     "groupLicenseCount": 1,
     "hasDisabledPlans": false,
     "mfaRegistered": true,
-    "flags": ["admin"]
+    "flags": [
+      "admin"
+    ]
+  },
+  {
+    "id": "root-0001",
+    "displayName": "Rita Berg",
+    "userPrincipalName": "rita.berg@modum.kommune.no",
+    "mail": "rita.berg@modum.kommune.no",
+    "accountEnabled": true,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "",
+    "managerId": "",
+    "managerUpn": "",
+    "managerMail": "",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": false,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
+  },
+  {
+    "id": "rep-0001",
+    "displayName": "Tom Nilsen",
+    "userPrincipalName": "tom.nilsen@modum.kommune.no",
+    "mail": "tom.nilsen@modum.kommune.no",
+    "accountEnabled": true,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "Rita Berg",
+    "managerId": "root-0001",
+    "managerUpn": "rita.berg@modum.kommune.no",
+    "managerMail": "rita.berg@modum.kommune.no",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": false,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
+  },
+  {
+    "id": "rep-0002",
+    "displayName": "Eva Lund",
+    "userPrincipalName": "eva.lund@modum.kommune.no",
+    "mail": "eva.lund@modum.kommune.no",
+    "accountEnabled": true,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "Rita Berg",
+    "managerId": "root-0001",
+    "managerUpn": "rita.berg@modum.kommune.no",
+    "managerMail": "rita.berg@modum.kommune.no",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": false,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
+  },
+  {
+    "id": "mm-0001",
+    "displayName": "Missing Manager User",
+    "userPrincipalName": "missing.manager.user@modum.kommune.no",
+    "mail": "missing.manager.user@modum.kommune.no",
+    "accountEnabled": true,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "Missing Manager",
+    "managerId": "missing-9999",
+    "managerUpn": "missing.manager@modum.kommune.no",
+    "managerMail": "missing.manager@modum.kommune.no",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": false,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
+  },
+  {
+    "id": "self-0001",
+    "displayName": "Self Managed",
+    "userPrincipalName": "self.managed@modum.kommune.no",
+    "mail": "self.managed@modum.kommune.no",
+    "accountEnabled": true,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "Self Managed",
+    "managerId": "self-0001",
+    "managerUpn": "self.managed@modum.kommune.no",
+    "managerMail": "self.managed@modum.kommune.no",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": false,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
+  },
+  {
+    "id": "cycle-0001",
+    "displayName": "Cycle Alpha",
+    "userPrincipalName": "cycle.alpha@modum.kommune.no",
+    "mail": "cycle.alpha@modum.kommune.no",
+    "accountEnabled": true,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "Cycle Beta",
+    "managerId": "cycle-0002",
+    "managerUpn": "cycle.beta@modum.kommune.no",
+    "managerMail": "cycle.beta@modum.kommune.no",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": true,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
+  },
+  {
+    "id": "cycle-0002",
+    "displayName": "Cycle Beta",
+    "userPrincipalName": "cycle.beta@modum.kommune.no",
+    "mail": "cycle.beta@modum.kommune.no",
+    "accountEnabled": false,
+    "userType": "Member",
+    "domain": "employee",
+    "department": "IT-avdeling",
+    "jobTitle": "Endpoint Specialist",
+    "companyName": "Modum kommune",
+    "officeLocation": "Radhuset",
+    "city": "Vikersund",
+    "country": "Norway",
+    "usageLocation": "NO",
+    "manager": "Cycle Alpha",
+    "managerId": "cycle-0001",
+    "managerUpn": "cycle.alpha@modum.kommune.no",
+    "managerMail": "cycle.alpha@modum.kommune.no",
+    "mobilePhone": "+47 952 34 567",
+    "businessPhones": [
+      "+47 32 78 90 00"
+    ],
+    "proxyAddresses": [
+      "SMTP:erik.hansen@modum.kommune.no",
+      "smtp:erik@modum.no"
+    ],
+    "otherMails": [],
+    "employeeId": "EMP001",
+    "employeeType": "Employee",
+    "employeeHireDate": "2015-03-01T00:00:00Z",
+    "employeeLeaveDateTime": null,
+    "daysUntilLeave": null,
+    "userSource": "On-premises synced",
+    "createdDateTime": "2020-03-15T08:30:00Z",
+    "accountAge": 1787,
+    "lastPasswordChange": "2025-01-10T09:00:00Z",
+    "passwordAge": 13,
+    "passwordNeverExpires": false,
+    "disableStrongPassword": false,
+    "lastSignIn": "2026-02-02T10:00:00Z",
+    "lastNonInteractiveSignIn": "2026-02-02T11:00:00Z",
+    "daysSinceLastSignIn": 2,
+    "isInactive": false,
+    "onPremSync": true,
+    "onPremLastSync": "2026-02-03T18:00:00Z",
+    "onPremSyncAge": 0,
+    "onPremSamAccountName": "erik.hansen",
+    "onPremDistinguishedName": "CN=Erik Hansen,OU=IT,OU=Users,DC=modum,DC=local",
+    "onPremDomainName": "modum.local",
+    "onPremImmutableId": "dG9vbHMuaW1tdXRhYmxlaWQx",
+    "licenseCount": 3,
+    "assignedSkuIds": [
+      "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+      "061f9ace-7d42-4136-88ac-31dc755f143f"
+    ],
+    "assignedLicenses": [
+      {
+        "skuId": "06ebc4ee-1bb5-47dd-8120-11324bc54e06",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Direct",
+        "assignedViaGroupId": null,
+        "state": "Active",
+        "error": null
+      },
+      {
+        "skuId": "061f9ace-7d42-4136-88ac-31dc755f143f",
+        "disabledPlans": [],
+        "disabledPlanCount": 0,
+        "assignmentSource": "Group",
+        "assignedViaGroupId": "grp-it-licenses-001",
+        "state": "Active",
+        "error": null
+      }
+    ],
+    "directLicenseCount": 1,
+    "groupLicenseCount": 1,
+    "hasDisabledPlans": false,
+    "mfaRegistered": true,
+    "flags": []
   }
 ]

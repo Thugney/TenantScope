@@ -48,7 +48,12 @@
         'endpoint-analytics': PageEndpointAnalytics,
         'credential-expiry': PageCredentialExpiry,
         'asr-rules': PageASRRules,
-        'signin-logs': PageSignInLogs
+        'signin-logs': PageSignInLogs,
+        // New security & compliance pages
+        'identity-risk': PageIdentityRisk,
+        'oauth-consent': PageOAuthConsent,
+        'compliance': PageCompliance,
+        'vulnerabilities': PageVulnerabilities
     };
 
     // ========================================================================

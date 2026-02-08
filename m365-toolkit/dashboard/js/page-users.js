@@ -746,6 +746,9 @@ const PageUsers = (function() {
             case 'analysis':
                 renderAnalysisTab(container);
                 break;
+            case 'quality':
+                renderDataQualityTab(container);
+                break;
             case 'users':
                 renderUsersTab(container);
                 break;
@@ -791,6 +794,254 @@ const PageUsers = (function() {
         var allUsers = DataLoader.getData('users');
         var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
         renderFocusBreakdown(users);
+    }
+
+    /**
+     * Renders the Data Quality tab with stale accounts, duplicates, and naming issues.
+     */
+    function renderDataQualityTab(container) {
+        container.textContent = '';
+        var users = usersState.users || [];
+        var now = new Date();
+
+        // Calculate data quality metrics
+        var staleAccounts = [];
+        var neverSignedIn = [];
+        var namingIssues = [];
+        var potentialDuplicates = [];
+        var syncIssues = [];
+        var missingData = [];
+
+        // Track names for duplicate detection
+        var nameMap = {};
+
+        users.forEach(function(user) {
+            var displayName = user.displayName || '';
+            var upn = user.userPrincipalName || '';
+            var mail = user.mail || '';
+
+            // Stale accounts - no sign-in for 90+ days
+            if (user.lastSignIn) {
+                var lastSignIn = new Date(user.lastSignIn);
+                var daysSinceSignIn = Math.floor((now - lastSignIn) / (1000 * 60 * 60 * 24));
+                if (daysSinceSignIn > 90) {
+                    staleAccounts.push({ user: user, days: daysSinceSignIn });
+                }
+            } else if (user.accountEnabled !== false) {
+                neverSignedIn.push(user);
+            }
+
+            // Naming convention issues
+            if (displayName) {
+                // Check for all lowercase or all uppercase
+                if (displayName === displayName.toLowerCase() || displayName === displayName.toUpperCase()) {
+                    namingIssues.push({ user: user, issue: 'Case formatting' });
+                }
+                // Check for numbers in display name (often test accounts)
+                if (/\d{3,}/.test(displayName)) {
+                    namingIssues.push({ user: user, issue: 'Contains numbers' });
+                }
+                // Check for special characters that shouldn't be in names
+                if (/[<>{}|\\^~\[\]`]/.test(displayName)) {
+                    namingIssues.push({ user: user, issue: 'Special characters' });
+                }
+
+                // Track for duplicates (normalize name)
+                var normalizedName = displayName.toLowerCase().trim();
+                if (!nameMap[normalizedName]) {
+                    nameMap[normalizedName] = [];
+                }
+                nameMap[normalizedName].push(user);
+            }
+
+            // Sync issues (on-premises sync problems)
+            if (user.onPremisesSyncEnabled === true) {
+                if (!user.onPremisesLastSyncDateTime) {
+                    syncIssues.push({ user: user, issue: 'Never synced' });
+                } else {
+                    var syncDate = new Date(user.onPremisesLastSyncDateTime);
+                    var daysSinceSync = Math.floor((now - syncDate) / (1000 * 60 * 60 * 24));
+                    if (daysSinceSync > 3) {
+                        syncIssues.push({ user: user, issue: 'Sync stale (' + daysSinceSync + ' days)', days: daysSinceSync });
+                    }
+                }
+            }
+
+            // Missing critical data
+            var missingFields = [];
+            if (!mail && user.accountEnabled !== false) missingFields.push('Email');
+            if (!user.department) missingFields.push('Department');
+            if (!user.jobTitle) missingFields.push('Job Title');
+            if (!user.manager) missingFields.push('Manager');
+            if (missingFields.length >= 3) {
+                missingData.push({ user: user, missing: missingFields });
+            }
+        });
+
+        // Find duplicates from name map
+        Object.keys(nameMap).forEach(function(name) {
+            if (nameMap[name].length > 1) {
+                nameMap[name].forEach(function(u) {
+                    potentialDuplicates.push({ user: u, duplicateCount: nameMap[name].length });
+                });
+            }
+        });
+
+        // Sort stale by days descending
+        staleAccounts.sort(function(a, b) { return b.days - a.days; });
+
+        // Calculate quality score (100 = perfect)
+        var totalUsers = users.length;
+        var issues = staleAccounts.length + neverSignedIn.length + namingIssues.length +
+                     potentialDuplicates.length + syncIssues.length + missingData.length;
+        var qualityScore = totalUsers > 0 ? Math.max(0, Math.round(100 - (issues / totalUsers * 100))) : 100;
+        var qualityTier = qualityScore >= 90 ? 'success' : qualityScore >= 70 ? 'warning' : 'critical';
+
+        var html = '';
+
+        // Data Quality Overview
+        html += '<div class="analytics-section">';
+        html += '<h3>Data Quality Overview</h3>';
+        html += '<div class="signal-cards">';
+
+        // Quality Score
+        html += '<div class="signal-card signal-card--' + qualityTier + '">';
+        html += '<div class="signal-card-value">' + qualityScore + '%</div>';
+        html += '<div class="signal-card-label">Quality Score</div>';
+        html += '</div>';
+
+        // Stale Accounts
+        html += '<div class="signal-card signal-card--' + (staleAccounts.length > 0 ? 'warning' : 'success') + '">';
+        html += '<div class="signal-card-value">' + staleAccounts.length + '</div>';
+        html += '<div class="signal-card-label">Stale (90+ days)</div>';
+        html += '</div>';
+
+        // Never Signed In
+        html += '<div class="signal-card signal-card--' + (neverSignedIn.length > 0 ? 'warning' : 'success') + '">';
+        html += '<div class="signal-card-value">' + neverSignedIn.length + '</div>';
+        html += '<div class="signal-card-label">Never Signed In</div>';
+        html += '</div>';
+
+        // Sync Issues
+        html += '<div class="signal-card signal-card--' + (syncIssues.length > 0 ? 'critical' : 'success') + '">';
+        html += '<div class="signal-card-value">' + syncIssues.length + '</div>';
+        html += '<div class="signal-card-label">Sync Issues</div>';
+        html += '</div>';
+
+        // Duplicates
+        html += '<div class="signal-card signal-card--' + (potentialDuplicates.length > 0 ? 'warning' : 'success') + '">';
+        html += '<div class="signal-card-value">' + potentialDuplicates.length + '</div>';
+        html += '<div class="signal-card-label">Potential Duplicates</div>';
+        html += '</div>';
+
+        html += '</div>'; // signal-cards
+        html += '</div>'; // analytics-section
+
+        // Issues Breakdown Grid
+        html += '<div class="analytics-section">';
+        html += '<h3>Issues Breakdown</h3>';
+        html += '<div class="analytics-grid">';
+
+        // Stale Accounts Card
+        html += '<div class="analytics-card">';
+        html += '<h4>Stale Accounts</h4>';
+        html += '<div class="platform-list">';
+        html += '<div class="platform-row"><span class="platform-name">90-180 days</span><span class="platform-policies">' + staleAccounts.filter(function(s) { return s.days <= 180; }).length + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">180-365 days</span><span class="platform-policies">' + staleAccounts.filter(function(s) { return s.days > 180 && s.days <= 365; }).length + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">365+ days</span><span class="platform-policies">' + staleAccounts.filter(function(s) { return s.days > 365; }).length + '</span></div>';
+        html += '</div></div>';
+
+        // Data Completeness Card
+        html += '<div class="analytics-card">';
+        html += '<h4>Missing Data</h4>';
+        html += '<div class="platform-list">';
+        var missingEmail = users.filter(function(u) { return !u.mail && u.accountEnabled !== false; }).length;
+        var missingDept = users.filter(function(u) { return !u.department; }).length;
+        var missingTitle = users.filter(function(u) { return !u.jobTitle; }).length;
+        html += '<div class="platform-row"><span class="platform-name">Missing Email</span><span class="platform-policies">' + missingEmail + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">Missing Department</span><span class="platform-policies">' + missingDept + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">Missing Job Title</span><span class="platform-policies">' + missingTitle + '</span></div>';
+        html += '</div></div>';
+
+        // Naming Issues Card
+        html += '<div class="analytics-card">';
+        html += '<h4>Naming Issues</h4>';
+        html += '<div class="platform-list">';
+        var caseIssues = namingIssues.filter(function(n) { return n.issue === 'Case formatting'; }).length;
+        var numberIssues = namingIssues.filter(function(n) { return n.issue === 'Contains numbers'; }).length;
+        var specialIssues = namingIssues.filter(function(n) { return n.issue === 'Special characters'; }).length;
+        html += '<div class="platform-row"><span class="platform-name">Case formatting</span><span class="platform-policies">' + caseIssues + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">Contains numbers</span><span class="platform-policies">' + numberIssues + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">Special characters</span><span class="platform-policies">' + specialIssues + '</span></div>';
+        html += '</div></div>';
+
+        // Sync Status Card
+        html += '<div class="analytics-card">';
+        html += '<h4>Sync Health</h4>';
+        html += '<div class="platform-list">';
+        var syncEnabled = users.filter(function(u) { return u.onPremisesSyncEnabled === true; }).length;
+        var cloudOnly = users.filter(function(u) { return u.onPremisesSyncEnabled !== true; }).length;
+        html += '<div class="platform-row"><span class="platform-name">Synced from AD</span><span class="platform-policies">' + syncEnabled + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">Cloud-only</span><span class="platform-policies">' + cloudOnly + '</span></div>';
+        html += '<div class="platform-row"><span class="platform-name">Sync problems</span><span class="platform-policies text-critical">' + syncIssues.length + '</span></div>';
+        html += '</div></div>';
+
+        html += '</div>'; // analytics-grid
+        html += '</div>'; // analytics-section
+
+        // Stale Accounts Table
+        if (staleAccounts.length > 0) {
+            html += '<div class="analytics-section">';
+            html += '<h3>Stale Accounts (Top 20)</h3>';
+            html += '<table class="data-table"><thead><tr>';
+            html += '<th>Display Name</th><th>UPN</th><th>Last Sign-In</th><th>Days Stale</th><th>Department</th>';
+            html += '</tr></thead><tbody>';
+
+            staleAccounts.slice(0, 20).forEach(function(item) {
+                var u = item.user;
+                html += '<tr>';
+                html += '<td>' + (u.displayName || '--') + '</td>';
+                html += '<td>' + (u.userPrincipalName || '--') + '</td>';
+                html += '<td>' + (u.lastSignIn ? new Date(u.lastSignIn).toLocaleDateString() : '--') + '</td>';
+                html += '<td class="text-warning font-bold">' + item.days + '</td>';
+                html += '<td>' + (u.department || '--') + '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+        }
+
+        // Potential Duplicates Table
+        if (potentialDuplicates.length > 0) {
+            html += '<div class="analytics-section">';
+            html += '<h3>Potential Duplicate Accounts</h3>';
+            html += '<table class="data-table"><thead><tr>';
+            html += '<th>Display Name</th><th>UPN</th><th>Email</th><th>Created</th>';
+            html += '</tr></thead><tbody>';
+
+            potentialDuplicates.slice(0, 20).forEach(function(item) {
+                var u = item.user;
+                html += '<tr>';
+                html += '<td>' + (u.displayName || '--') + '</td>';
+                html += '<td>' + (u.userPrincipalName || '--') + '</td>';
+                html += '<td>' + (u.mail || '--') + '</td>';
+                html += '<td>' + (u.createdDateTime ? new Date(u.createdDateTime).toLocaleDateString() : '--') + '</td>';
+                html += '</tr>';
+            });
+
+            html += '</tbody></table></div>';
+        }
+
+        // Healthy state
+        if (staleAccounts.length === 0 && neverSignedIn.length === 0 && syncIssues.length === 0 && potentialDuplicates.length === 0) {
+            html += '<div class="empty-state">';
+            html += '<div class="empty-state-icon">\u2713</div>';
+            html += '<div class="empty-state-title">Excellent Data Quality</div>';
+            html += '<div class="empty-state-description">No significant data quality issues detected.</div>';
+            html += '</div>';
+        }
+
+        container.innerHTML = html;
     }
 
     /**
@@ -980,6 +1231,7 @@ const PageUsers = (function() {
         var tabs = [
             { id: 'overview', label: 'Overview' },
             { id: 'analysis', label: 'Analysis' },
+            { id: 'quality', label: 'Data Quality' },
             { id: 'users', label: 'All Users (' + total + ')' }
         ];
         tabs.forEach(function(t) {

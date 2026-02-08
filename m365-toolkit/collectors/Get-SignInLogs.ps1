@@ -14,6 +14,12 @@
     attempts, MFA challenges, conditional access evaluations, and location
     data. Enables security analysis beyond basic risk detections.
 
+    Enhanced to include:
+    - Applied Conditional Access policies with their results
+    - CA policy enforcement statistics (success, failure, not applied)
+    - MFA method used and authentication details
+    - Per-policy breakdowns for security analysis
+
     Graph API endpoint:
     - GET /auditLogs/signIns
 
@@ -123,6 +129,18 @@ try {
             topFailureReasons = @()
             signInsByHour = @{}
             signInsByCountry = @{}
+            # Enhanced CA policy tracking
+            caPolicy = @{
+                totalEvaluations = 0
+                policiesApplied = 0
+                policiesSucceeded = 0
+                policiesFailed = 0
+                policiesNotApplied = 0
+                policyBreakdown = @{}
+            }
+            # MFA method tracking
+            mfaMethods = @{}
+            authMethodsUsed = @{}
         }
     }
 
@@ -161,6 +179,81 @@ try {
         $country = if ($location.countryOrRegion) { $location.countryOrRegion } else { "Unknown" }
         $city = if ($location.city) { $location.city } else { "Unknown" }
 
+        # Process applied CA policies
+        $appliedCaPolicies = @()
+        if ($signIn.appliedConditionalAccessPolicies) {
+            foreach ($caPolicy in $signIn.appliedConditionalAccessPolicies) {
+                $policyResult = $caPolicy.result
+                $policyName = $caPolicy.displayName
+                $policyId = $caPolicy.id
+
+                $appliedCaPolicies += @{
+                    id = $policyId
+                    displayName = $policyName
+                    result = $policyResult
+                    enforcedGrantControls = $caPolicy.enforcedGrantControls
+                    enforcedSessionControls = $caPolicy.enforcedSessionControls
+                    conditionsNotSatisfied = $caPolicy.conditionsNotSatisfied
+                    conditionsSatisfied = $caPolicy.conditionsSatisfied
+                }
+
+                # Track CA policy statistics
+                $signInData.summary.caPolicy.totalEvaluations++
+                switch ($policyResult) {
+                    "success" { $signInData.summary.caPolicy.policiesSucceeded++ }
+                    "failure" { $signInData.summary.caPolicy.policiesFailed++ }
+                    "notApplied" { $signInData.summary.caPolicy.policiesNotApplied++ }
+                    "notEnabled" { $signInData.summary.caPolicy.policiesNotApplied++ }
+                }
+                if ($policyResult -in @("success", "failure")) {
+                    $signInData.summary.caPolicy.policiesApplied++
+                }
+
+                # Track per-policy breakdown
+                if ($policyName) {
+                    if (-not $signInData.summary.caPolicy.policyBreakdown.ContainsKey($policyName)) {
+                        $signInData.summary.caPolicy.policyBreakdown[$policyName] = @{
+                            success = 0
+                            failure = 0
+                            notApplied = 0
+                        }
+                    }
+                    switch ($policyResult) {
+                        "success" { $signInData.summary.caPolicy.policyBreakdown[$policyName].success++ }
+                        "failure" { $signInData.summary.caPolicy.policyBreakdown[$policyName].failure++ }
+                        default { $signInData.summary.caPolicy.policyBreakdown[$policyName].notApplied++ }
+                    }
+                }
+            }
+        }
+
+        # Process MFA details
+        $mfaMethod = $null
+        $authMethod = $null
+        if ($signIn.mfaDetail) {
+            $mfaMethod = $signIn.mfaDetail.authMethod
+            $authMethod = $signIn.mfaDetail.authDetail
+            if ($mfaMethod) {
+                if (-not $signInData.summary.mfaMethods.ContainsKey($mfaMethod)) {
+                    $signInData.summary.mfaMethods[$mfaMethod] = 0
+                }
+                $signInData.summary.mfaMethods[$mfaMethod]++
+            }
+        }
+
+        # Track authentication methods from authenticationDetails
+        if ($signIn.authenticationDetails) {
+            foreach ($authDetail in $signIn.authenticationDetails) {
+                $method = $authDetail.authenticationMethod
+                if ($method) {
+                    if (-not $signInData.summary.authMethodsUsed.ContainsKey($method)) {
+                        $signInData.summary.authMethodsUsed[$method] = 0
+                    }
+                    $signInData.summary.authMethodsUsed[$method]++
+                }
+            }
+        }
+
         $processedSignIn = [PSCustomObject]@{
             id                    = $signIn.id
             createdDateTime       = Format-IsoDate -DateValue $signIn.createdDateTime
@@ -190,10 +283,16 @@ try {
                 isManaged       = $signIn.deviceDetail.isManaged
                 trustType       = $signIn.deviceDetail.trustType
             }
-            # MFA & CA
+            # MFA & CA - Enhanced
             mfaDetail             = $signIn.mfaDetail
+            mfaMethod             = $mfaMethod
             conditionalAccessStatus = $signIn.conditionalAccessStatus
+            appliedCaPolicies     = $appliedCaPolicies
+            appliedCaPolicyCount  = $appliedCaPolicies.Count
             isInteractive         = $signIn.isInteractive
+            # Authentication details
+            authenticationRequirement = $signIn.authenticationRequirement
+            authenticationProtocol = $signIn.authenticationProtocol
         }
 
         $signInData.signIns += $processedSignIn
@@ -258,6 +357,39 @@ try {
         ForEach-Object {
             @{
                 reason = $_.Key
+                count = $_.Value
+            }
+        }
+
+    # Convert CA policy breakdown to sorted array
+    $signInData.summary.caPolicy.policyBreakdown = $signInData.summary.caPolicy.policyBreakdown.GetEnumerator() |
+        Sort-Object { $_.Value.success + $_.Value.failure } -Descending |
+        Select-Object -First 20 |
+        ForEach-Object {
+            @{
+                policyName = $_.Key
+                success = $_.Value.success
+                failure = $_.Value.failure
+                notApplied = $_.Value.notApplied
+            }
+        }
+
+    # Convert MFA methods to sorted array
+    $signInData.summary.mfaMethods = $signInData.summary.mfaMethods.GetEnumerator() |
+        Sort-Object Value -Descending |
+        ForEach-Object {
+            @{
+                method = $_.Key
+                count = $_.Value
+            }
+        }
+
+    # Convert auth methods to sorted array
+    $signInData.summary.authMethodsUsed = $signInData.summary.authMethodsUsed.GetEnumerator() |
+        Sort-Object Value -Descending |
+        ForEach-Object {
+            @{
+                method = $_.Key
                 count = $_.Value
             }
         }

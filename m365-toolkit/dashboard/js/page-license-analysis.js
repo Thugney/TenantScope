@@ -208,6 +208,9 @@ const PageLicenseAnalysis = (function() {
             case 'overlaps':
                 renderOverlapsTab(container);
                 break;
+            case 'optimization':
+                renderOptimizationTab(container);
+                break;
         }
     }
 
@@ -594,6 +597,225 @@ const PageLicenseAnalysis = (function() {
     }
 
     /**
+     * Renders the Optimization tab with waste analysis and recommendations.
+     */
+    function renderOptimizationTab(container) {
+        container.textContent = '';
+        var licenses = analysisState.licenses || [];
+        var currency = analysisState.currency;
+
+        // Calculate waste metrics
+        var totalWaste = 0;
+        var totalWasteMonthly = 0;
+        var disabledCount = 0;
+        var inactiveCount = 0;
+        var underutilizedSkus = [];
+
+        licenses.forEach(function(lic) {
+            totalWaste += lic.wasteCount || 0;
+            totalWasteMonthly += lic.wasteMonthlyCost || 0;
+            disabledCount += lic.assignedToDisabled || 0;
+            inactiveCount += lic.assignedToInactive || 0;
+
+            // Flag underutilized SKUs (less than 60% utilization for paid licenses)
+            if (lic.monthlyCostPerLicense > 0 && lic.utilizationPercent < 60) {
+                underutilizedSkus.push(lic);
+            }
+        });
+
+        var totalWasteAnnual = totalWasteMonthly * 12;
+
+        // Section: Cost Savings Summary
+        var savingsSection = el('div', 'optimization-section');
+        savingsSection.appendChild(el('h3', null, 'Cost Savings Opportunities'));
+
+        var savingsGrid = el('div', 'signal-cards');
+
+        // Total Waste Card
+        var wasteCard = el('div', 'signal-card signal-card--' + (totalWaste > 0 ? 'critical' : 'success'));
+        wasteCard.appendChild(el('div', 'signal-card-value', totalWaste));
+        wasteCard.appendChild(el('div', 'signal-card-label', 'Wasted Licenses'));
+        savingsGrid.appendChild(wasteCard);
+
+        // Monthly Cost Card
+        var monthlyCard = el('div', 'signal-card signal-card--' + (totalWasteMonthly > 0 ? 'warning' : 'success'));
+        monthlyCard.appendChild(el('div', 'signal-card-value', formatCurrency(totalWasteMonthly, currency)));
+        monthlyCard.appendChild(el('div', 'signal-card-label', 'Monthly Waste'));
+        savingsGrid.appendChild(monthlyCard);
+
+        // Annual Cost Card
+        var annualCard = el('div', 'signal-card signal-card--' + (totalWasteAnnual > 0 ? 'critical' : 'success'));
+        annualCard.appendChild(el('div', 'signal-card-value', formatCurrency(totalWasteAnnual, currency)));
+        annualCard.appendChild(el('div', 'signal-card-label', 'Annual Savings Potential'));
+        savingsGrid.appendChild(annualCard);
+
+        // Underutilized SKUs Card
+        var underCard = el('div', 'signal-card signal-card--' + (underutilizedSkus.length > 0 ? 'warning' : 'success'));
+        underCard.appendChild(el('div', 'signal-card-value', underutilizedSkus.length));
+        underCard.appendChild(el('div', 'signal-card-label', 'Underutilized SKUs'));
+        savingsGrid.appendChild(underCard);
+
+        savingsSection.appendChild(savingsGrid);
+        container.appendChild(savingsSection);
+
+        // Section: Waste Breakdown
+        var breakdownSection = el('div', 'optimization-section');
+        breakdownSection.appendChild(el('h3', null, 'Waste Breakdown by Category'));
+
+        var breakdownGrid = el('div', 'analytics-grid');
+
+        // Disabled Users Card
+        breakdownGrid.appendChild(createPlatformCard('Licenses on Disabled Users', [
+            { name: 'Total Disabled', count: disabledCount, pct: 100, cls: 'bg-critical', showCount: true }
+        ]));
+
+        // Inactive Users Card
+        breakdownGrid.appendChild(createPlatformCard('Licenses on Inactive Users', [
+            { name: 'Inactive (30+ days)', count: inactiveCount, pct: 100, cls: 'bg-warning', showCount: true }
+        ]));
+
+        // Underutilized SKUs
+        if (underutilizedSkus.length > 0) {
+            var underRows = underutilizedSkus.slice(0, 4).map(function(lic) {
+                return {
+                    name: lic.skuName.substring(0, 25),
+                    count: lic.utilizationPercent + '%',
+                    pct: lic.utilizationPercent,
+                    cls: lic.utilizationPercent < 40 ? 'bg-critical' : 'bg-warning',
+                    showCount: true
+                };
+            });
+            breakdownGrid.appendChild(createPlatformCard('Low Utilization SKUs', underRows));
+        }
+
+        breakdownSection.appendChild(breakdownGrid);
+        container.appendChild(breakdownSection);
+
+        // Section: Recommendations
+        var recsSection = el('div', 'optimization-section');
+        recsSection.appendChild(el('h3', null, 'Optimization Recommendations'));
+
+        var recsList = el('div', 'insights-list');
+
+        // Recommendation 1: Disabled users
+        if (disabledCount > 0) {
+            recsList.appendChild(createInsightCard('critical', 'PRIORITY', 'Reclaim from Disabled Accounts',
+                disabledCount + ' licenses are assigned to disabled user accounts. These should be reclaimed immediately.',
+                'Remove license assignments from disabled accounts to reduce costs.'));
+        }
+
+        // Recommendation 2: Inactive users
+        if (inactiveCount > 0) {
+            recsList.appendChild(createInsightCard('warning', 'REVIEW', 'Inactive User Licenses',
+                inactiveCount + ' licenses are assigned to users inactive for 30+ days.',
+                'Review inactive accounts and consider removing licenses or disabling accounts.'));
+        }
+
+        // Recommendation 3: Underutilized SKUs
+        if (underutilizedSkus.length > 0) {
+            var topUnder = underutilizedSkus[0];
+            recsList.appendChild(createInsightCard('info', 'OPTIMIZE', 'Underutilized License SKUs',
+                topUnder.skuName + ' has only ' + topUnder.utilizationPercent + '% utilization (' + topUnder.available + ' unused licenses).',
+                'Consider reducing purchased quantity or reassigning to other departments.'));
+        }
+
+        // Recommendation 4: Downgrade opportunities
+        var downgradeOpps = licenses.filter(function(lic) {
+            // Look for premium SKUs with users who might not need all features
+            var isPremium = lic.skuPartNumber && (
+                lic.skuPartNumber.indexOf('E5') !== -1 ||
+                lic.skuPartNumber.indexOf('E3') !== -1 ||
+                lic.skuPartNumber.indexOf('A3') !== -1 ||
+                lic.skuPartNumber.indexOf('P2') !== -1
+            );
+            return isPremium && lic.monthlyCostPerLicense > 30;
+        });
+
+        if (downgradeOpps.length > 0) {
+            var premiumLic = downgradeOpps[0];
+            recsList.appendChild(createInsightCard('info', 'DOWNGRADE', 'License Tier Review',
+                'Review ' + premiumLic.totalAssigned + ' users on ' + premiumLic.skuName + ' for potential downgrade to a lower tier.',
+                'Analyze feature usage to identify users who could move to a less expensive license.'));
+        }
+
+        // Healthy state
+        if (disabledCount === 0 && inactiveCount === 0 && underutilizedSkus.length === 0) {
+            recsList.appendChild(createInsightCard('success', 'OPTIMIZED', 'Well-Managed Licenses',
+                'Your license assignments are well-optimized with no significant waste detected.',
+                null));
+        }
+
+        recsSection.appendChild(recsList);
+        container.appendChild(recsSection);
+
+        // Section: SKU Waste Details Table
+        var tableSection = el('div', 'optimization-section');
+        tableSection.appendChild(el('h3', null, 'License Waste by SKU'));
+
+        var wastedLicenses = licenses.filter(function(lic) {
+            return lic.wasteCount > 0 || lic.assignedToDisabled > 0 || lic.assignedToInactive > 0;
+        }).sort(function(a, b) {
+            return (b.wasteMonthlyCost || 0) - (a.wasteMonthlyCost || 0);
+        });
+
+        if (wastedLicenses.length > 0) {
+            var table = el('table', 'data-table');
+            var thead = el('thead');
+            var headerRow = el('tr');
+            ['SKU Name', 'Total', 'Wasted', 'Disabled', 'Inactive', 'Monthly Cost', 'Annual Cost'].forEach(function(h) {
+                headerRow.appendChild(el('th', null, h));
+            });
+            thead.appendChild(headerRow);
+            table.appendChild(thead);
+
+            var tbody = el('tbody');
+            wastedLicenses.forEach(function(lic) {
+                var row = el('tr');
+                row.appendChild(el('td', null, lic.skuName || lic.skuPartNumber));
+                row.appendChild(el('td', 'cell-right', String(lic.totalAssigned)));
+                row.appendChild(el('td', 'cell-right text-critical', String(lic.wasteCount || 0)));
+                row.appendChild(el('td', 'cell-right text-critical', String(lic.assignedToDisabled || 0)));
+                row.appendChild(el('td', 'cell-right text-warning', String(lic.assignedToInactive || 0)));
+                row.appendChild(el('td', 'cell-right', formatCurrency(lic.wasteMonthlyCost || 0, currency)));
+
+                var annualCell = el('td', 'cell-right font-bold text-critical');
+                annualCell.textContent = formatCurrency((lic.wasteMonthlyCost || 0) * 12, currency);
+                row.appendChild(annualCell);
+
+                tbody.appendChild(row);
+            });
+            table.appendChild(tbody);
+
+            // Footer with totals
+            var tfoot = el('tfoot');
+            var footRow = el('tr');
+            footRow.appendChild(el('td', 'font-bold', 'TOTAL'));
+            footRow.appendChild(el('td', null, ''));
+            footRow.appendChild(el('td', 'cell-right font-bold text-critical', String(totalWaste)));
+            footRow.appendChild(el('td', 'cell-right font-bold text-critical', String(disabledCount)));
+            footRow.appendChild(el('td', 'cell-right font-bold text-warning', String(inactiveCount)));
+            footRow.appendChild(el('td', 'cell-right font-bold', formatCurrency(totalWasteMonthly, currency)));
+            var totalAnnualCell = el('td', 'cell-right font-bold text-critical');
+            totalAnnualCell.textContent = formatCurrency(totalWasteAnnual, currency);
+            footRow.appendChild(totalAnnualCell);
+            tfoot.appendChild(footRow);
+            table.appendChild(tfoot);
+
+            var tableWrap = el('div', 'table-container');
+            tableWrap.appendChild(table);
+            tableSection.appendChild(tableWrap);
+        } else {
+            var noWaste = el('div', 'empty-state');
+            noWaste.appendChild(el('div', 'empty-state-icon', '\u2713'));
+            noWaste.appendChild(el('div', 'empty-state-title', 'No License Waste Detected'));
+            noWaste.appendChild(el('div', 'empty-state-description', 'All assigned licenses are in active use.'));
+            tableSection.appendChild(noWaste);
+        }
+
+        container.appendChild(tableSection);
+    }
+
+    /**
      * Creates a summary card.
      */
     function createSummaryCard(label, value, valueClass, cardClass) {
@@ -625,7 +847,8 @@ const PageLicenseAnalysis = (function() {
             analysis: analysis,
             currency: currency,
             totalUsers: users.length,
-            overlapRules: overlapRules
+            overlapRules: overlapRules,
+            licenses: licenses
         };
 
         container.textContent = '';
@@ -648,7 +871,8 @@ const PageLicenseAnalysis = (function() {
         var tabBar = el('div', 'tab-bar');
         var tabs = [
             { id: 'overview', label: 'Overview' },
-            { id: 'overlaps', label: 'All Overlaps (' + analysis.totalOverlapCount + ')' }
+            { id: 'overlaps', label: 'All Overlaps (' + analysis.totalOverlapCount + ')' },
+            { id: 'optimization', label: 'Optimization' }
         ];
         tabs.forEach(function(t) {
             var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));

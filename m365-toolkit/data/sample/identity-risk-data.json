@@ -1,0 +1,300 @@
+{
+  "riskyUsers": [
+    {
+      "id": "user-risk-001",
+      "userId": "user-001",
+      "userPrincipalName": "john.smith@contoso.com",
+      "userDisplayName": "John Smith",
+      "riskLevel": "high",
+      "riskState": "atRisk",
+      "riskDetail": "userPerformedSecuredPasswordReset",
+      "riskLastUpdatedDateTime": "2024-12-14T15:30:00Z",
+      "isDeleted": false,
+      "isProcessing": false,
+      "flags": ["high-risk", "active"]
+    },
+    {
+      "id": "user-risk-002",
+      "userId": "user-002",
+      "userPrincipalName": "sarah.johnson@contoso.com",
+      "userDisplayName": "Sarah Johnson",
+      "riskLevel": "high",
+      "riskState": "confirmedCompromised",
+      "riskDetail": "adminConfirmedUserCompromised",
+      "riskLastUpdatedDateTime": "2024-12-13T09:15:00Z",
+      "isDeleted": false,
+      "isProcessing": false,
+      "flags": ["high-risk", "confirmed-compromised"]
+    },
+    {
+      "id": "user-risk-003",
+      "userId": "user-003",
+      "userPrincipalName": "mike.wilson@contoso.com",
+      "userDisplayName": "Mike Wilson",
+      "riskLevel": "medium",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "riskLastUpdatedDateTime": "2024-12-12T11:45:00Z",
+      "isDeleted": false,
+      "isProcessing": false,
+      "flags": ["medium-risk", "active"]
+    },
+    {
+      "id": "user-risk-004",
+      "userId": "user-004",
+      "userPrincipalName": "emily.davis@contoso.com",
+      "userDisplayName": "Emily Davis",
+      "riskLevel": "low",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "riskLastUpdatedDateTime": "2024-12-10T14:20:00Z",
+      "isDeleted": false,
+      "isProcessing": false,
+      "flags": ["low-risk", "active"]
+    },
+    {
+      "id": "user-risk-005",
+      "userId": "user-005",
+      "userPrincipalName": "admin@contoso.com",
+      "userDisplayName": "Global Admin",
+      "riskLevel": "medium",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "riskLastUpdatedDateTime": "2024-12-11T08:00:00Z",
+      "isDeleted": false,
+      "isProcessing": false,
+      "flags": ["medium-risk", "admin-account", "active"]
+    }
+  ],
+  "riskDetections": [
+    {
+      "id": "detection-001",
+      "userId": "user-001",
+      "userPrincipalName": "john.smith@contoso.com",
+      "userDisplayName": "John Smith",
+      "riskEventType": "impossibleTravel",
+      "riskLevel": "high",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "detectedDateTime": "2024-12-14T15:30:00Z",
+      "lastUpdatedDateTime": "2024-12-14T15:35:00Z",
+      "ipAddress": "185.220.101.45",
+      "location": {
+        "city": "Moscow",
+        "state": "Moscow Oblast",
+        "countryOrRegion": "Russia"
+      },
+      "source": "IdentityProtection",
+      "detectionTimingType": "realtime",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Travel from New York to Moscow in 2 hours",
+      "flags": ["high-risk", "impossible-travel", "foreign-location"]
+    },
+    {
+      "id": "detection-002",
+      "userId": "user-002",
+      "userPrincipalName": "sarah.johnson@contoso.com",
+      "userDisplayName": "Sarah Johnson",
+      "riskEventType": "maliciousIPAddress",
+      "riskLevel": "high",
+      "riskState": "confirmedCompromised",
+      "riskDetail": "adminConfirmedUserCompromised",
+      "detectedDateTime": "2024-12-13T09:10:00Z",
+      "lastUpdatedDateTime": "2024-12-13T09:15:00Z",
+      "ipAddress": "45.155.205.233",
+      "location": {
+        "city": "Unknown",
+        "state": null,
+        "countryOrRegion": "Netherlands"
+      },
+      "source": "IdentityProtection",
+      "detectionTimingType": "realtime",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Sign-in from known malicious IP address",
+      "flags": ["high-risk", "malicious-ip", "confirmed-compromised"]
+    },
+    {
+      "id": "detection-003",
+      "userId": "user-003",
+      "userPrincipalName": "mike.wilson@contoso.com",
+      "userDisplayName": "Mike Wilson",
+      "riskEventType": "anonymizedIPAddress",
+      "riskLevel": "medium",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "detectedDateTime": "2024-12-12T11:40:00Z",
+      "lastUpdatedDateTime": "2024-12-12T11:45:00Z",
+      "ipAddress": "104.244.76.13",
+      "location": {
+        "city": null,
+        "state": null,
+        "countryOrRegion": "United States"
+      },
+      "source": "IdentityProtection",
+      "detectionTimingType": "realtime",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Sign-in from Tor exit node",
+      "flags": ["medium-risk", "anonymous-ip", "tor-exit-node"]
+    },
+    {
+      "id": "detection-004",
+      "userId": "user-005",
+      "userPrincipalName": "admin@contoso.com",
+      "userDisplayName": "Global Admin",
+      "riskEventType": "unfamiliarFeatures",
+      "riskLevel": "medium",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "detectedDateTime": "2024-12-11T07:55:00Z",
+      "lastUpdatedDateTime": "2024-12-11T08:00:00Z",
+      "ipAddress": "203.0.113.50",
+      "location": {
+        "city": "Singapore",
+        "state": null,
+        "countryOrRegion": "Singapore"
+      },
+      "source": "IdentityProtection",
+      "detectionTimingType": "realtime",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Unfamiliar sign-in properties for admin account",
+      "flags": ["medium-risk", "admin-account", "unfamiliar-location"]
+    },
+    {
+      "id": "detection-005",
+      "userId": "user-002",
+      "userPrincipalName": "sarah.johnson@contoso.com",
+      "userDisplayName": "Sarah Johnson",
+      "riskEventType": "leakedCredentials",
+      "riskLevel": "high",
+      "riskState": "confirmedCompromised",
+      "riskDetail": "adminConfirmedUserCompromised",
+      "detectedDateTime": "2024-12-12T22:00:00Z",
+      "lastUpdatedDateTime": "2024-12-13T09:15:00Z",
+      "ipAddress": null,
+      "location": null,
+      "source": "IdentityProtection",
+      "detectionTimingType": "offline",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Credentials found in dark web data dump",
+      "flags": ["high-risk", "leaked-credentials", "offline-detection"]
+    },
+    {
+      "id": "detection-006",
+      "userId": "user-004",
+      "userPrincipalName": "emily.davis@contoso.com",
+      "userDisplayName": "Emily Davis",
+      "riskEventType": "suspiciousIPAddress",
+      "riskLevel": "low",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "detectedDateTime": "2024-12-10T14:15:00Z",
+      "lastUpdatedDateTime": "2024-12-10T14:20:00Z",
+      "ipAddress": "192.0.2.100",
+      "location": {
+        "city": "London",
+        "state": null,
+        "countryOrRegion": "United Kingdom"
+      },
+      "source": "IdentityProtection",
+      "detectionTimingType": "realtime",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Sign-in from suspicious IP with history of failed attempts",
+      "flags": ["low-risk", "suspicious-ip"]
+    },
+    {
+      "id": "detection-007",
+      "userId": "user-001",
+      "userPrincipalName": "john.smith@contoso.com",
+      "userDisplayName": "John Smith",
+      "riskEventType": "passwordSpray",
+      "riskLevel": "high",
+      "riskState": "atRisk",
+      "riskDetail": "none",
+      "detectedDateTime": "2024-12-14T10:00:00Z",
+      "lastUpdatedDateTime": "2024-12-14T10:05:00Z",
+      "ipAddress": "185.220.101.45",
+      "location": {
+        "city": "Moscow",
+        "state": "Moscow Oblast",
+        "countryOrRegion": "Russia"
+      },
+      "source": "IdentityProtection",
+      "detectionTimingType": "offline",
+      "activity": "signin",
+      "tokenIssuerType": "AzureAD",
+      "additionalInfo": "Account targeted in password spray attack",
+      "flags": ["high-risk", "password-spray", "attack-pattern"]
+    }
+  ],
+  "summary": {
+    "totalRiskyUsers": 5,
+    "highRiskUsers": 2,
+    "mediumRiskUsers": 2,
+    "lowRiskUsers": 1,
+    "atRiskUsers": 4,
+    "confirmedCompromised": 1,
+    "dismissedUsers": 0,
+    "remediatedUsers": 0,
+    "totalDetections": 7,
+    "detectionsByType": [
+      { "type": "impossibleTravel", "count": 1, "severity": "high" },
+      { "type": "maliciousIPAddress", "count": 1, "severity": "high" },
+      { "type": "leakedCredentials", "count": 1, "severity": "high" },
+      { "type": "passwordSpray", "count": 1, "severity": "high" },
+      { "type": "anonymizedIPAddress", "count": 1, "severity": "medium" },
+      { "type": "unfamiliarFeatures", "count": 1, "severity": "medium" },
+      { "type": "suspiciousIPAddress", "count": 1, "severity": "low" }
+    ],
+    "detectionsByLocation": [
+      { "country": "Russia", "count": 2 },
+      { "country": "Netherlands", "count": 1 },
+      { "country": "United States", "count": 1 },
+      { "country": "Singapore", "count": 1 },
+      { "country": "United Kingdom", "count": 1 }
+    ],
+    "recentDetections24h": 2,
+    "recentDetections7d": 7
+  },
+  "insights": [
+    {
+      "id": "insight-risk-001",
+      "severity": "critical",
+      "title": "Confirmed Compromised Account",
+      "description": "1 user account has been confirmed as compromised. Immediate action required to prevent data breach.",
+      "count": 1,
+      "recommendedAction": "Revoke all sessions, reset password, review audit logs, and investigate potential data access."
+    },
+    {
+      "id": "insight-risk-002",
+      "severity": "critical",
+      "title": "Admin Account at Risk",
+      "description": "1 privileged admin account shows risk indicators. Compromise of admin accounts poses severe security risk.",
+      "count": 1,
+      "recommendedAction": "Immediately review admin account sign-in activity, require MFA re-authentication, and consider temporary privilege removal."
+    },
+    {
+      "id": "insight-risk-003",
+      "severity": "warning",
+      "title": "Foreign Sign-in Attempts",
+      "description": "Multiple sign-ins detected from unusual geographic locations including Russia and Netherlands.",
+      "count": 3,
+      "recommendedAction": "Verify with users if travel is legitimate. Consider implementing named locations and conditional access policies."
+    },
+    {
+      "id": "insight-risk-004",
+      "severity": "warning",
+      "title": "Leaked Credentials Detected",
+      "description": "User credentials were found in a known data breach or dark web dump.",
+      "count": 1,
+      "recommendedAction": "Force password reset and enable passwordless authentication where possible."
+    }
+  ],
+  "collectionDate": "2024-12-15T10:00:00Z",
+  "apiNote": "Risk data requires Entra ID P2 license. Detection history limited to 30 days."
+}

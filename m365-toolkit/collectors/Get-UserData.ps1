@@ -14,8 +14,14 @@
     activity, license assignments, and account status. Classifies users by
     domain (employee vs student) and flags inactive accounts.
 
-    Graph API endpoint: GET /users
-    Required scopes: User.Read.All, AuditLog.Read.All
+    Also retrieves enrolled device IDs from Intune to link users to their
+    managed devices for endpoint security correlation.
+
+    Graph API endpoints:
+    - GET /users
+    - GET /deviceManagement/managedDevices (for device linking)
+
+    Required scopes: User.Read.All, AuditLog.Read.All, DeviceManagementManagedDevices.Read.All
 
 .PARAMETER Config
     The configuration hashtable loaded from config.json containing tenant
@@ -122,6 +128,59 @@ try {
     } -OperationName "User retrieval"
 
     Write-Host "      Retrieved $($graphUsers.Count) users from Graph API" -ForegroundColor Gray
+
+    # -----------------------------------------------------------------------
+    # Build user-to-device lookup from Intune managed devices
+    # This is done once to avoid per-user API calls
+    # -----------------------------------------------------------------------
+    $userDeviceLookup = @{}
+    try {
+        Write-Host "      Building user-device mapping from Intune..." -ForegroundColor Gray
+
+        $deviceResponse = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET `
+                -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,userPrincipalName,userId,managementAgent,complianceState,operatingSystem&`$top=999" `
+                -OutputType PSObject
+        } -OperationName "Managed devices for user linking"
+
+        $managedDevices = @()
+        if ($deviceResponse.value) {
+            $managedDevices = @($deviceResponse.value)
+        }
+
+        # Handle pagination
+        while ($deviceResponse.'@odata.nextLink') {
+            $deviceResponse = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $deviceResponse.'@odata.nextLink' -OutputType PSObject
+            } -OperationName "Managed devices pagination"
+            if ($deviceResponse.value) {
+                $managedDevices += $deviceResponse.value
+            }
+        }
+
+        # Build lookup by userId
+        foreach ($device in $managedDevices) {
+            $userId = $device.userId
+            if ($userId) {
+                if (-not $userDeviceLookup.ContainsKey($userId)) {
+                    $userDeviceLookup[$userId] = @()
+                }
+                $userDeviceLookup[$userId] += @{
+                    deviceId = $device.id
+                    deviceName = $device.deviceName
+                    operatingSystem = $device.operatingSystem
+                    complianceState = $device.complianceState
+                    managementAgent = $device.managementAgent
+                }
+            }
+        }
+
+        Write-Host "      Mapped $($managedDevices.Count) devices to $($userDeviceLookup.Count) users" -ForegroundColor Gray
+    }
+    catch {
+        Write-Host "      Could not retrieve managed devices: $($_.Exception.Message)" -ForegroundColor Yellow
+        # Continue without device data - not critical
+    }
 
     # Transform users into our output schema
     $processedUsers = @()
@@ -356,6 +415,10 @@ try {
             # Security
             mfaRegistered            = $true  # Default, will be updated by MFA cross-reference
             flags                    = $flags
+
+            # Enrolled devices (from Intune)
+            enrolledDevices          = if ($userDeviceLookup.ContainsKey($user.Id)) { $userDeviceLookup[$user.Id] } else { @() }
+            enrolledDeviceCount      = if ($userDeviceLookup.ContainsKey($user.Id)) { $userDeviceLookup[$user.Id].Count } else { 0 }
         }
 
         $processedUsers += $processedUser
