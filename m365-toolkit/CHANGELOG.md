@@ -57,8 +57,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Ownerless Teams, Teams with guests, inactive Teams
     - Sites with anonymous links, externally shared sites
     - Actively exploited CVEs, critical vulnerabilities
+    - High/Medium/Low severity Defender alerts (active, non-resolved)
   - Each issue card shows count, sample items, recommended action, and navigation link
   - Added to navigation sidebar after Overview
+
+- **Defender Alerts Integration**:
+  - `getDeviceAlerts()` - Defender alerts affecting a specific device
+  - `getUserAlerts()` - Defender alerts affecting a specific user
+  - Device modal Security tab: Defender alerts table with severity, status, date
+  - User modal Security tab: Defender alerts table with severity, status, date
+
+- **Admin Portal Deep Links**:
+  - `getDeviceAdminUrls()` - returns Intune and Entra ID device URLs
+  - `getUserAdminUrls()` - returns Entra ID and Defender user URLs
+  - Device modal: "Open in Intune" and "Open in Entra ID" buttons
+  - User modal: "Open in Entra ID" and "Open in Defender" buttons
+
+- **Conditional Access Policy Visibility**:
+  - `getUserConditionalAccessPolicies()` - CA policies applying to a user
+  - User modal Security tab: CA policies table showing policy name, requirements, effect
+  - Matches policies by: includesAllUsers, includedRoleIds, excludedUserIds
 
 ### Changed
 - User and Device modals now use tabbed layouts for better organization

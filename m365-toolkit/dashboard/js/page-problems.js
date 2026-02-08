@@ -314,6 +314,58 @@ const PageProblems = (function() {
             });
         }
 
+        // ===== DEFENDER ALERTS =====
+        var defenderAlerts = DataLoader.getData('defenderAlerts') || [];
+        var activeAlerts = defenderAlerts.filter(function(a) { return a.status !== 'resolved'; });
+
+        // High severity active alerts
+        var highAlerts = activeAlerts.filter(function(a) { return a.severity === 'high'; });
+        if (highAlerts.length > 0) {
+            problems.critical.push({
+                category: 'Security',
+                title: 'High Severity Defender Alerts',
+                count: highAlerts.length,
+                description: highAlerts.length + ' high severity security alerts require immediate attention',
+                action: 'Investigate and remediate high severity alerts',
+                link: '#security',
+                items: highAlerts.slice(0, 5).map(function(a) {
+                    return { name: a.title, detail: a.affectedUser || a.affectedDevice || 'Unknown target' };
+                })
+            });
+        }
+
+        // Medium severity active alerts
+        var mediumAlerts = activeAlerts.filter(function(a) { return a.severity === 'medium'; });
+        if (mediumAlerts.length > 0) {
+            problems.high.push({
+                category: 'Security',
+                title: 'Medium Severity Defender Alerts',
+                count: mediumAlerts.length,
+                description: mediumAlerts.length + ' medium severity security alerts need investigation',
+                action: 'Review and triage medium severity alerts',
+                link: '#security',
+                items: mediumAlerts.slice(0, 5).map(function(a) {
+                    return { name: a.title, detail: a.affectedUser || a.affectedDevice || 'Unknown target' };
+                })
+            });
+        }
+
+        // Low severity active alerts (informational)
+        var lowAlerts = activeAlerts.filter(function(a) { return a.severity === 'low'; });
+        if (lowAlerts.length > 0) {
+            problems.low.push({
+                category: 'Security',
+                title: 'Low Severity Defender Alerts',
+                count: lowAlerts.length,
+                description: lowAlerts.length + ' low severity alerts for awareness',
+                action: 'Review low severity alerts when time permits',
+                link: '#security',
+                items: lowAlerts.slice(0, 5).map(function(a) {
+                    return { name: a.title, detail: a.affectedUser || a.affectedDevice || 'Unknown target' };
+                })
+            });
+        }
+
         return problems;
     }
 

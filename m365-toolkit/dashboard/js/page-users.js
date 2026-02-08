@@ -449,10 +449,11 @@ const PageUsers = (function() {
         var teams = profile ? profile.teams : [];
         var alerts = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAlerts(user.userPrincipalName) : [];
         var adminUrls = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAdminUrls(user) : {};
+        var caPolicies = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserConditionalAccessPolicies(user, adminRoles) : [];
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -481,10 +482,11 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         alerts = alerts || [];
         adminUrls = adminUrls || {};
+        caPolicies = caPolicies || [];
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
@@ -496,7 +498,7 @@ const PageUsers = (function() {
         '<div class="modal-tab-content">' +
             buildOverviewTab(user, mfa, risks, adminRoles, adminUrls) +
             buildLicensesTab(licenses) +
-            buildSecurityTab(mfa, risks, adminRoles, alerts) +
+            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies) +
             buildDevicesTab(devices) +
             buildActivityTab(signIns, teams, disableCommand) +
         '</div>';
@@ -578,8 +580,9 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildSecurityTab(mfa, risks, adminRoles, alerts) {
+    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies) {
         alerts = alerts || [];
+        caPolicies = caPolicies || [];
         var content = '<div class="modal-tab-pane" data-tab="security">';
 
         // MFA Methods section
@@ -647,6 +650,32 @@ const PageUsers = (function() {
             }
         } else {
             content += '<div class="empty-state-small">No Defender alerts for this user</div>';
+        }
+        content += '</div>';
+
+        // Conditional Access Policies section
+        content += '<div class="detail-section full-width"><h4>Conditional Access Policies (' + caPolicies.length + ')</h4>';
+        if (caPolicies.length > 0) {
+            content += '<table class="mini-table"><thead><tr><th>Policy</th><th>Requires</th><th>Effect</th></tr></thead><tbody>';
+            caPolicies.forEach(function(policy) {
+                var requires = [];
+                if (policy.requiresMfa) requires.push('MFA');
+                if (policy.requiresCompliantDevice) requires.push('Compliant Device');
+                if (policy.blocksLegacyAuth) requires.push('Modern Auth');
+                var requiresText = requires.length > 0 ? requires.join(', ') : 'None';
+
+                var effect = policy.blockAccess ? '<span class="text-critical">Block</span>' : '<span class="text-success">Grant</span>';
+
+                content += '<tr>';
+                content += '<td>' + escapeHtml(policy.displayName) + '</td>';
+                content += '<td>' + requiresText + '</td>';
+                content += '<td>' + effect + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+            content += '<p class="text-muted" style="margin-top:0.5rem;font-size:0.85em">Policies shown are enabled and apply to this user based on "All Users" or admin role membership.</p>';
+        } else {
+            content += '<div class="empty-state-small">No Conditional Access policies detected for this user</div>';
         }
         content += '</div>';
 

@@ -207,4 +207,22 @@ Links use hash-based routing with search parameters:
 
 ---
 
+## Phase 9: Extended Data Relationships
+
+### Checklist
+- [x] Add Defender alerts to Problems page (high/medium/low severity)
+- [x] Add getUserConditionalAccessPolicies() to DataRelationships
+- [x] Add Conditional Access policies table to user modal Security tab
+
+### Files Modified
+- `dashboard/js/page-problems.js` - Added Defender alerts by severity to problem collection
+- `dashboard/js/data-relationships.js` - Added getUserConditionalAccessPolicies function
+- `dashboard/js/page-users.js` - Added CA policies table to Security tab
+
+### Notes
+- CA policy matching based on: includesAllUsers, includedRoleIds, excludedUserIds
+- Group-based CA policy matching not implemented (requires group membership data)
+
+---
+
 *Implementation completed: 2026-02-08*

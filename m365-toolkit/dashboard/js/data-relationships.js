@@ -541,6 +541,65 @@ var DataRelationships = (function() {
     }
 
     // ========================================================================
+    // CONDITIONAL ACCESS
+    // ========================================================================
+
+    /**
+     * Get Conditional Access policies that apply to a user.
+     * @param {Object} user - User object
+     * @param {Array} userAdminRoles - Admin roles the user has
+     * @returns {Array} Policies that apply to this user
+     */
+    function getUserConditionalAccessPolicies(user, userAdminRoles) {
+        if (!user) return [];
+        var policies = DataStore.conditionalAccess || [];
+        userAdminRoles = userAdminRoles || [];
+
+        // Get user's role IDs for matching
+        var userRoleIds = userAdminRoles.map(function(r) {
+            return r.roleId || r.id || '';
+        });
+
+        return policies.filter(function(policy) {
+            // Only consider enabled policies
+            if (policy.state !== 'enabled') return false;
+
+            // Check if user is explicitly excluded
+            var excludedIds = policy.excludedUserIds || [];
+            if (excludedIds.indexOf(user.id) >= 0) return false;
+
+            // Policy applies if:
+            // 1. includesAllUsers is true
+            if (policy.includesAllUsers) return true;
+
+            // 2. User has a role that's included
+            var includedRoles = policy.includedRoleIds || [];
+            if (includedRoles.length > 0) {
+                var hasMatchingRole = userRoleIds.some(function(roleId) {
+                    return includedRoles.indexOf(roleId) >= 0;
+                });
+                if (hasMatchingRole) return true;
+            }
+
+            // Note: We can't check group membership without additional data
+            // Policy might apply via group but we can't determine that here
+
+            return false;
+        }).map(function(policy) {
+            return {
+                id: policy.id,
+                displayName: policy.displayName,
+                state: policy.state,
+                requiresMfa: policy.requiresMfa,
+                requiresCompliantDevice: policy.requiresCompliantDevice,
+                blockAccess: policy.blockAccess,
+                blocksLegacyAuth: policy.blocksLegacyAuth,
+                policyType: policy.policyType
+            };
+        });
+    }
+
+    // ========================================================================
     // PUBLIC API
     // ========================================================================
 
@@ -582,7 +641,10 @@ var DataRelationships = (function() {
 
         // Admin portal URLs
         getDeviceAdminUrls: getDeviceAdminUrls,
-        getUserAdminUrls: getUserAdminUrls
+        getUserAdminUrls: getUserAdminUrls,
+
+        // Conditional Access
+        getUserConditionalAccessPolicies: getUserConditionalAccessPolicies
     };
 })();
 
