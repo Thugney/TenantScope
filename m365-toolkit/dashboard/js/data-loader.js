@@ -77,6 +77,11 @@ const DataLoader = (function() {
     };
 
     /**
+     * Collector error map keyed by data type.
+     */
+    const dataErrors = {};
+
+    /**
      * Mapping of data types to their JSON file paths
      */
     const dataFiles = {
@@ -166,6 +171,45 @@ const DataLoader = (function() {
     }
 
     /**
+     * Builds collector error mapping from collection metadata.
+     */
+    function buildCollectorErrors() {
+        Object.keys(dataErrors).forEach(function(key) {
+            delete dataErrors[key];
+        });
+
+        const metadata = dataStore.metadata;
+        if (!metadata || !Array.isArray(metadata.collectors)) return;
+
+        const outputToType = {};
+        Object.entries(dataFiles).forEach(([type, path]) => {
+            const file = path.split('/').pop();
+            outputToType[file] = type;
+        });
+
+        metadata.collectors.forEach(c => {
+            if (!c) return;
+            const hasErrors = (c.success === false) || (Array.isArray(c.errors) && c.errors.length > 0);
+            if (!hasErrors) return;
+
+            const output = c.output || '';
+            const type = output ? outputToType[output] : null;
+            const entry = {
+                name: c.name || 'Unknown Collector',
+                output: output || null,
+                script: c.script || null,
+                errors: Array.isArray(c.errors) ? c.errors : []
+            };
+
+            if (type) {
+                dataErrors[type] = entry;
+            } else {
+                dataErrors[c.name || ('collector-' + Object.keys(dataErrors).length)] = entry;
+            }
+        });
+    }
+
+    /**
      * Formats a date string into a readable format.
      *
      * @param {string|null} dateString - ISO 8601 date string
@@ -240,6 +284,9 @@ const DataLoader = (function() {
                     console.log(`DataLoader: ${key} (${Array.isArray(data) ? data.length + ' items' : (data ? 'object' : 'null')})`);
                 });
 
+                // Build collector error map from metadata
+                buildCollectorErrors();
+
                 // Check if any meaningful data was loaded
                 const hasData = dataStore.users.length > 0 ||
                     dataStore.devices.length > 0 ||
@@ -251,6 +298,15 @@ const DataLoader = (function() {
 
                 // Update header with last updated time
                 this.updateLastUpdated();
+
+                // Notify if any collectors failed
+                if (Object.keys(dataErrors).length > 0 && window.Toast) {
+                    const failedCount = Object.keys(dataErrors).length;
+                    window.Toast.warning(
+                        'Collection issues detected',
+                        failedCount + ' collector' + (failedCount > 1 ? 's' : '') + ' reported errors. See Overview for details.'
+                    );
+                }
 
                 if (!hasData) {
                     console.warn('DataLoader: No data found. Run Build-Dashboard.ps1 after data collection.');
@@ -305,6 +361,25 @@ const DataLoader = (function() {
          */
         getMetadata() {
             return dataStore.metadata;
+        },
+
+        /**
+         * Gets collection errors by data type.
+         *
+         * @param {string} type - Data type key
+         * @returns {object|null} Error entry or null
+         */
+        getDataError(type) {
+            return dataErrors[type] || null;
+        },
+
+        /**
+         * Gets all collection errors.
+         *
+         * @returns {Array} Array of error entries
+         */
+        getCollectionErrors() {
+            return Object.values(dataErrors);
         },
 
         /**

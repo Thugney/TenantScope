@@ -4,6 +4,10 @@
     "totalUsers": 148,
     "mfaPct": 72,
     "compliancePct": 68,
+    "totalDevices": 120,
+    "compliantDevices": 82,
+    "noncompliantDevices": 30,
+    "unknownDevices": 8,
     "activeAlerts": 5,
     "totalWasteMonthlyCost": 17200,
     "secureScore": null
@@ -13,6 +17,10 @@
     "totalUsers": 150,
     "mfaPct": 76,
     "compliancePct": 72,
+    "totalDevices": 125,
+    "compliantDevices": 90,
+    "noncompliantDevices": 25,
+    "unknownDevices": 10,
     "activeAlerts": 3,
     "totalWasteMonthlyCost": 16100,
     "secureScore": 58
@@ -22,6 +30,10 @@
     "totalUsers": 152,
     "mfaPct": 78,
     "compliancePct": 74,
+    "totalDevices": 128,
+    "compliantDevices": 95,
+    "noncompliantDevices": 25,
+    "unknownDevices": 8,
     "activeAlerts": 2,
     "totalWasteMonthlyCost": 15695,
     "secureScore": 62

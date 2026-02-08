@@ -192,6 +192,22 @@ m365-toolkit/
 .\scripts\Build-Dashboard.ps1 -NoBrowser
 ```
 
+## Performance Limits
+
+TenantScope is optimized for clarity, not streaming. All collected JSON is loaded into memory on dashboard startup, and large datasets can slow down the browser or cause rendering issues.
+
+Key constraints and recommendations:
+1. **All data loads at once**: Large tenants (many users/devices, long audit/sign-in windows) increase memory use and initial load time.
+2. **Bundle size matters**: `Build-Dashboard.ps1` generates `dashboard/js/data-bundle.js`. If it grows large, page load and search will slow down.
+3. **Tables are client-side**: Very large tables can lag when sorting, filtering, or exporting.
+4. **Graph throttling**: Large collections may take longer or partially fail due to API limits.
+
+Suggested mitigations:
+1. Reduce time windows in `config.json` (`signInLogDays`, `auditLogDays`, `defenderAlertDays`, etc.).
+2. Use selective collection via `-CollectorsToRun` when you only need specific datasets.
+3. Run collection off-hours for large tenants.
+4. If the dashboard feels slow, use smaller sample windows and re-build.
+
 ## Dashboard Pages
 
 ### Overview

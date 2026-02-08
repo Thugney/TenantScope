@@ -722,6 +722,8 @@ $summary = @{
     deletedUsersHigh = 0
     totalDevices = 0
     compliantDevices = 0
+    noncompliantDevices = 0
+    unknownDevices = 0
     staleDevices = 0
     activeAlerts = 0
     totalTeams = 0
@@ -768,6 +770,8 @@ try {
         $devices = Get-Content $devicesPath -Raw | ConvertFrom-Json
         $summary.totalDevices = $devices.Count
         $summary.compliantDevices = ($devices | Where-Object { $_.complianceState -eq "compliant" }).Count
+        $summary.noncompliantDevices = ($devices | Where-Object { $_.complianceState -eq "noncompliant" }).Count
+        $summary.unknownDevices = ($devices | Where-Object { $_.complianceState -ne "compliant" -and $_.complianceState -ne "noncompliant" }).Count
         $summary.staleDevices = ($devices | Where-Object { $_.isStale }).Count
     }
 
@@ -820,13 +824,21 @@ $metadata = @{
 }
 
 # Add collector results to metadata
+$collectorLookup = @{}
+foreach ($collectorDef in $collectors) {
+    $collectorLookup[$collectorDef.Name] = $collectorDef
+}
+
 foreach ($collector in $collectorResults.GetEnumerator()) {
+    $def = $collectorLookup[$collector.Name]
     $metadata.collectors += @{
         name = $collector.Name
         success = $collector.Value.Success
         count = $collector.Value.Count
         durationSeconds = [math]::Round($collector.Value.Duration, 0)
         errors = $collector.Value.Errors
+        script = if ($def) { $def.Script } else { $null }
+        output = if ($def) { $def.Output } else { $null }
     }
 }
 
@@ -882,6 +894,10 @@ try {
         totalUsers            = $summary.totalUsers
         mfaPct                = $mfaPct
         compliancePct         = $compliancePct
+        totalDevices          = $summary.totalDevices
+        compliantDevices      = $summary.compliantDevices
+        noncompliantDevices   = $summary.noncompliantDevices
+        unknownDevices        = $summary.unknownDevices
         activeAlerts          = $summary.activeAlerts
         totalWasteMonthlyCost = $totalWasteMonthlyCost
         secureScore           = $secureScoreVal

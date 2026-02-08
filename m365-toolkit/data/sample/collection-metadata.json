@@ -12,63 +12,81 @@
       "success": true,
       "count": 50,
       "durationSeconds": 45,
-      "errors": []
+      "errors": [],
+      "script": "Get-UserData.ps1",
+      "output": "users.json"
     },
     {
       "name": "Get-LicenseData",
       "success": true,
       "count": 10,
       "durationSeconds": 12,
-      "errors": []
+      "errors": [],
+      "script": "Get-LicenseData.ps1",
+      "output": "license-skus.json"
     },
     {
       "name": "Get-GuestData",
       "success": true,
       "count": 20,
       "durationSeconds": 18,
-      "errors": []
+      "errors": [],
+      "script": "Get-GuestData.ps1",
+      "output": "guests.json"
     },
     {
       "name": "Get-MFAData",
       "success": true,
       "count": 44,
       "durationSeconds": 35,
-      "errors": []
+      "errors": [],
+      "script": "Get-MFAData.ps1",
+      "output": "mfa-status.json"
     },
     {
       "name": "Get-AdminRoleData",
       "success": true,
       "count": 8,
       "durationSeconds": 22,
-      "errors": []
+      "errors": [],
+      "script": "Get-AdminRoleData.ps1",
+      "output": "admin-roles.json"
     },
     {
       "name": "Get-SignInData",
       "success": true,
       "count": 15,
       "durationSeconds": 28,
-      "errors": []
+      "errors": [],
+      "script": "Get-SignInData.ps1",
+      "output": "signin-logs.json"
     },
     {
       "name": "Get-DeviceData",
       "success": true,
       "count": 30,
       "durationSeconds": 42,
-      "errors": []
+      "errors": [],
+      "script": "Get-DeviceData.ps1",
+      "output": "devices.json"
     },
     {
       "name": "Get-AutopilotData",
       "success": true,
       "count": 15,
       "durationSeconds": 15,
-      "errors": []
+      "errors": [],
+      "script": "Get-AutopilotData.ps1",
+      "output": "autopilot.json"
     },
     {
       "name": "Get-DefenderData",
       "success": true,
       "count": 10,
       "durationSeconds": 25,
-      "errors": []
+      "errors": [],
+      "script": "Get-DefenderData.ps1",
+      "output": "defender-alerts.json"
     }
   ],
   "summary": {

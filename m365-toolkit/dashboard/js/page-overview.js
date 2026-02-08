@@ -678,6 +678,95 @@ const PageOverview = (function() {
         section.appendChild(complianceOverview);
         container.appendChild(section);
 
+        // Compliance trend history
+        var history = DataLoader.getData('trendHistory') || [];
+        if (Array.isArray(history) && history.length > 0) {
+            var trendPoints = history.slice(-6);
+            var currentPct = Math.round(s.compliancePct || 0);
+            var prevPoint = history.length > 1 ? history[history.length - 2] : null;
+
+            var trendSection = el('div', 'analytics-section');
+            trendSection.appendChild(el('h3', null, 'Compliance Trend History'));
+
+            var trendCard = el('div', 'analytics-card');
+            var trendList = el('div', 'platform-list');
+
+            trendPoints.forEach(function(point) {
+                var pct = point.compliancePct;
+                if (pct === null || pct === undefined) return;
+                var label = formatShortDate(point.date);
+                var barPct = Math.max(0, Math.min(100, pct));
+                var countsText = '';
+                if (point.compliantDevices !== undefined && point.noncompliantDevices !== undefined) {
+                    var unknownCount = point.unknownDevices !== undefined ? point.unknownDevices : 0;
+                    countsText = 'C:' + point.compliantDevices + ' / N:' + point.noncompliantDevices + ' / U:' + unknownCount;
+                }
+
+                var row = el('div', 'platform-row');
+                row.appendChild(el('span', 'platform-name', label));
+                row.appendChild(el('span', 'platform-policies', countsText || 'Devices'));
+
+                var bar = el('div', 'mini-bar');
+                var fill = el('div', 'mini-bar-fill bg-success');
+                fill.style.width = barPct + '%';
+                bar.appendChild(fill);
+                row.appendChild(bar);
+
+                row.appendChild(el('span', 'platform-rate', pct + '%'));
+                trendList.appendChild(row);
+            });
+
+            trendCard.appendChild(trendList);
+
+            if (prevPoint && prevPoint.compliancePct !== null && prevPoint.compliancePct !== undefined) {
+                var deltaPct = currentPct - prevPoint.compliancePct;
+                var deltaText = (deltaPct > 0 ? '+' : '') + deltaPct + '%';
+                var deltaCounts = '';
+                if (prevPoint.compliantDevices !== undefined) {
+                    var dCompliant = s.compliantDevices - prevPoint.compliantDevices;
+                    var dNon = s.nonCompliantDevices - (prevPoint.noncompliantDevices || 0);
+                    var dUnknown = s.unknownDevices - (prevPoint.unknownDevices || 0);
+                    deltaCounts = ' (C:' + formatDelta(dCompliant) + ' / N:' + formatDelta(dNon) + ' / U:' + formatDelta(dUnknown) + ')';
+                }
+                trendCard.appendChild(el('div', 'action-note', 'Since last snapshot: ' + deltaText + ' compliance' + deltaCounts));
+            }
+
+            trendSection.appendChild(trendCard);
+            container.appendChild(trendSection);
+        }
+
+        // Collection issues
+        var collectionErrors = (DataLoader.getCollectionErrors && DataLoader.getCollectionErrors()) || [];
+        if (collectionErrors.length > 0) {
+            var errorSection = el('div', 'analytics-section');
+            errorSection.appendChild(el('h3', null, 'Collection Issues'));
+
+            var errorList = el('div', 'insights-list');
+            collectionErrors.forEach(function(entry) {
+                var card = el('div', 'insight-card insight-high');
+                var header = el('div', 'insight-header');
+                header.appendChild(el('span', 'badge badge-warning', 'FAILED'));
+                header.appendChild(el('span', 'insight-category', entry.name || 'Collector'));
+                card.appendChild(header);
+
+                var desc = (entry.errors && entry.errors.length > 0)
+                    ? entry.errors.join(' | ')
+                    : 'Collector reported an error during data collection.';
+                card.appendChild(el('p', 'insight-description', desc));
+
+                var outputText = 'Output: ' + (entry.output || '--');
+                card.appendChild(el('p', 'insight-action', outputText));
+
+                var rerunText = 'Action: Re-run .\\Invoke-DataCollection.ps1 -CollectorsToRun @("' + (entry.name || '') + '")';
+                card.appendChild(el('p', 'insight-action', rerunText));
+
+                errorList.appendChild(card);
+            });
+
+            errorSection.appendChild(errorList);
+            container.appendChild(errorSection);
+        }
+
         // Analytics grid
         var analyticsGrid = el('div', 'analytics-grid');
 
@@ -1312,6 +1401,23 @@ const PageOverview = (function() {
             'adminRenew': 'Admin Renew'
         };
         return labels[action] || action || '--';
+    }
+
+    function formatShortDate(value) {
+        if (!value) return '--';
+        try {
+            var date = new Date(value);
+            return date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+        } catch (e) {
+            return '--';
+        }
+    }
+
+    function formatDelta(value) {
+        if (value === null || value === undefined) return '--';
+        var num = Number(value);
+        if (isNaN(num)) return '--';
+        return (num > 0 ? '+' : '') + num;
     }
 
     /**
