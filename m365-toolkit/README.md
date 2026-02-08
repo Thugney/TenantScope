@@ -5,7 +5,7 @@
 > A comprehensive IT admin toolkit for Microsoft 365 tenant management, security monitoring, and operational visibility.
 
 **Author:** Robel ([GitHub](https://github.com/Thugney), [X](https://x.com/eriteach))
-**Repository:** https://github.com/Thugney/-M365-TENANT-TOOLKIT
+**Repository:** https://github.com/Thugney/TenantScope
 **Version:** 2.1.1
 **License:** MIT
 

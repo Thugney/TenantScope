@@ -1,9 +1,9 @@
 # TenantScope - M365 Tenant Toolkit
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/Thugney/-M365-TENANT-TOOLKIT/releases)
+[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/Thugney/TenantScope/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-7.0%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
-[![GitHub stars](https://img.shields.io/github/stars/Thugney/-M365-TENANT-TOOLKIT?style=social)](https://github.com/Thugney/-M365-TENANT-TOOLKIT/stargazers)
+[![GitHub stars](https://img.shields.io/github/stars/Thugney/TenantScope?style=social)](https://github.com/Thugney/TenantScope/stargazers)
 
 [![Author](https://img.shields.io/badge/Author-Robel-brightgreen.svg)](https://github.com/Thugney)
 [![X (Twitter)](https://img.shields.io/badge/X-@eriteach-1DA1F2.svg?logo=x&logoColor=white)](https://x.com/eriteach)
@@ -40,8 +40,8 @@ All data stays local. No cloud services. No external dependencies.
 
 ```powershell
 # Clone the repository
-git clone https://github.com/Thugney/-M365-TENANT-TOOLKIT.git
-cd -M365-TENANT-TOOLKIT/m365-toolkit
+git clone https://github.com/Thugney/TenantScope.git
+cd TenantScope/m365-toolkit
 
 # Install prerequisites (Graph SDK modules)
 .\Install-Prerequisites.ps1
