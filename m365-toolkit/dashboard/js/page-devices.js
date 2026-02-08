@@ -965,6 +965,7 @@ const PageDevices = (function() {
         }
     }
 
+
     function formatEnrollmentState(v) {
         var map = { 'enrolled': 'badge-success', 'notContacted': 'badge-warning', 'failed': 'badge-critical' };
         var labels = { 'enrolled': 'Enrolled', 'notContacted': 'Not Contacted', 'failed': 'Failed' };
@@ -985,7 +986,26 @@ const PageDevices = (function() {
         // Device details modal - data is from trusted collector scripts
         document.getElementById('modal-title').textContent = device.deviceName || 'Device Details';
 
-        var html = '<div class="detail-grid">';
+        // Get related data from DataRelationships
+        var profile = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceProfile(device.id) : null;
+        var primaryUser = profile ? profile.primaryUser : null;
+        var bitlocker = profile ? profile.bitlocker : { encrypted: device.isEncrypted, status: 'Unknown' };
+        var windowsUpdate = profile ? profile.windowsUpdate : { ring: 'Unknown', status: 'Unknown' };
+        var vulnerabilities = profile ? profile.vulnerabilities : [];
+        var signIns = profile ? profile.signIns : [];
+
+        // Build tabbed interface
+        var html = '<div class="modal-tabs">';
+        html += '<button class="modal-tab active" data-tab="device-overview">Overview</button>';
+        html += '<button class="modal-tab" data-tab="device-security">Security</button>';
+        html += '<button class="modal-tab" data-tab="device-compliance">Compliance</button>';
+        html += '<button class="modal-tab" data-tab="device-user">User</button>';
+        html += '<button class="modal-tab" data-tab="device-activity">Activity</button>';
+        html += '</div>';
+
+        // ========== OVERVIEW TAB ==========
+        html += '<div class="modal-tab-pane active" id="device-overview">';
+        html += '<div class="detail-grid">';
 
         // Device Identity
         html += '<div class="detail-section"><h4>Device Identity</h4><dl class="detail-list">';
@@ -1022,77 +1042,6 @@ const PageDevices = (function() {
         }
         html += '</dl></div>';
 
-        // Security
-        html += '<div class="detail-section"><h4>Security</h4><dl class="detail-list">';
-        if (device.isEncrypted === true) {
-            html += '<dt>Encrypted</dt><dd><span class="text-success">Yes</span></dd>';
-        } else if (device.isEncrypted === false) {
-            html += '<dt>Encrypted</dt><dd><span class="text-critical">No</span></dd>';
-        } else {
-            html += '<dt>Encrypted</dt><dd><span class="text-muted">--</span></dd>';
-        }
-        html += '<dt>Jailbroken/Rooted</dt><dd>' + formatJailbroken(device.jailBroken) + '</dd>';
-        if (device.os === 'iOS') {
-            html += '<dt>Supervised</dt><dd>' + (device.isSupervised ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
-            html += '<dt>Activation Lock Bypass</dt><dd>' + (device.activationLockBypass ? '<span class="text-success">Available</span>' : 'N/A') + '</dd>';
-        }
-        html += '<dt>Threat State</dt><dd>' + formatThreatState(device.threatStateDisplay) + '</dd>';
-        html += '<dt>Threat Severity</dt><dd>' + formatThreatSeverity(device.threatSeverity) + '</dd>';
-        html += '</dl></div>';
-
-        // Compliance
-        html += '<div class="detail-section"><h4>Compliance</h4><dl class="detail-list">';
-        html += '<dt>Compliance State</dt><dd>' + formatCompliance(device.complianceState) + '</dd>';
-        html += '<dt>In Grace Period</dt><dd>' + (device.inGracePeriod ? '<span class="text-warning">Yes</span>' : 'No') + '</dd>';
-        if (device.complianceGraceDays) {
-            html += '<dt>Grace Period Ends</dt><dd>' + device.complianceGraceDays + ' days</dd>';
-        }
-        if (device.nonCompliantPolicyCount !== null && device.nonCompliantPolicyCount !== undefined) {
-            html += '<dt>Non-Compliant Policies</dt><dd>' + device.nonCompliantPolicyCount + '</dd>';
-            if (device.nonCompliantPolicies && device.nonCompliantPolicies.length > 0) {
-                html += '<dt>Policy Names</dt><dd>' + device.nonCompliantPolicies.join(', ') + '</dd>';
-            }
-        }
-        html += '</dl></div>';
-
-        // Enrollment & Management
-        html += '<div class="detail-section"><h4>Enrollment & Management</h4><dl class="detail-list">';
-        html += '<dt>Ownership</dt><dd>' + formatOwnership(device.ownership) + '</dd>';
-        html += '<dt>Enrollment Type</dt><dd>' + (device.enrollmentTypeDisplay || '--') + '</dd>';
-        html += '<dt>Registration State</dt><dd>' + (device.registrationStateDisplay || '--') + '</dd>';
-        html += '<dt>Enrollment Profile</dt><dd>' + (device.enrollmentProfileName || '--') + '</dd>';
-        html += '<dt>Join Type</dt><dd>' + (device.joinType || '--') + '</dd>';
-        html += '<dt>Management Agent</dt><dd>' + (device.managementAgent || '--') + '</dd>';
-        html += '<dt>Management Source</dt><dd>' + (device.managementSource || '--') + '</dd>';
-        html += '<dt>Enrolled</dt><dd>' + (device.enrolledDateTime ? new Date(device.enrolledDateTime).toLocaleDateString() : '--') + '</dd>';
-        var autopilotLabel = device.autopilotEnrolled === true
-            ? '<span class="text-success">Yes</span>'
-            : device.autopilotEnrolled === false
-                ? 'No'
-                : '--';
-        html += '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>';
-        html += '</dl></div>';
-
-        // Sync & Certificates
-        html += '<div class="detail-section"><h4>Sync & Certificates</h4><dl class="detail-list">';
-        html += '<dt>Last Sync</dt><dd>' + (device.lastSync ? new Date(device.lastSync).toLocaleString() : '--') + '</dd>';
-        html += '<dt>Days Since Sync</dt><dd>' + (device.daysSinceSync !== null ? device.daysSinceSync + ' days' : '--') + '</dd>';
-        html += '<dt>Is Stale</dt><dd>' + (device.isStale ? '<span class="text-warning">Yes</span>' : 'No') + '</dd>';
-        html += '<dt>Cert Expiry</dt><dd>' + (device.certExpiryDate ? new Date(device.certExpiryDate).toLocaleDateString() : '--') + '</dd>';
-        html += '<dt>Days Until Expiry</dt><dd>' + (device.daysUntilCertExpiry !== null ? device.daysUntilCertExpiry : '--') + '</dd>';
-        html += '<dt>Cert Status</dt><dd>' + formatCertStatus(device.certStatus) + '</dd>';
-        html += '</dl></div>';
-
-        // Exchange (if applicable)
-        if (device.exchangeAccessState || device.easActivated) {
-            html += '<div class="detail-section"><h4>Exchange ActiveSync</h4><dl class="detail-list">';
-            html += '<dt>Access State</dt><dd>' + formatExchangeAccess(device.exchangeAccessDisplay) + '</dd>';
-            html += '<dt>Access Reason</dt><dd>' + (device.exchangeAccessReason || '--') + '</dd>';
-            html += '<dt>EAS Activated</dt><dd>' + (device.easActivated ? 'Yes' : 'No') + '</dd>';
-            html += '<dt>Last Exchange Sync</dt><dd>' + (device.exchangeLastSync ? new Date(device.exchangeLastSync).toLocaleString() : '--') + '</dd>';
-            html += '</dl></div>';
-        }
-
         // Storage
         html += '<div class="detail-section"><h4>Storage</h4><dl class="detail-list">';
         html += '<dt>Total Storage</dt><dd>' + (device.totalStorageGB ? device.totalStorageGB + ' GB' : '--') + '</dd>';
@@ -1122,18 +1071,228 @@ const PageDevices = (function() {
             html += '</dl></div>';
         }
 
+        // Enrollment & Management
+        html += '<div class="detail-section"><h4>Enrollment & Management</h4><dl class="detail-list">';
+        html += '<dt>Ownership</dt><dd>' + formatOwnership(device.ownership) + '</dd>';
+        html += '<dt>Enrollment Type</dt><dd>' + (device.enrollmentTypeDisplay || '--') + '</dd>';
+        html += '<dt>Registration State</dt><dd>' + (device.registrationStateDisplay || '--') + '</dd>';
+        html += '<dt>Enrollment Profile</dt><dd>' + (device.enrollmentProfileName || '--') + '</dd>';
+        html += '<dt>Join Type</dt><dd>' + (device.joinType || '--') + '</dd>';
+        html += '<dt>Management Agent</dt><dd>' + (device.managementAgent || '--') + '</dd>';
+        html += '<dt>Management Source</dt><dd>' + (device.managementSource || '--') + '</dd>';
+        html += '<dt>Enrolled</dt><dd>' + (device.enrolledDateTime ? new Date(device.enrolledDateTime).toLocaleDateString() : '--') + '</dd>';
+        var autopilotLabel = device.autopilotEnrolled === true
+            ? '<span class="text-success">Yes</span>'
+            : device.autopilotEnrolled === false
+                ? 'No'
+                : '--';
+        html += '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>';
+        html += '</dl></div>';
+
+        html += '</div>'; // end detail-grid
+        html += '</div>'; // end overview tab
+
+        // ========== SECURITY TAB ==========
+        html += '<div class="modal-tab-pane" id="device-security">';
+        html += '<div class="detail-grid">';
+
+        // Encryption & BitLocker
+        html += '<div class="detail-section"><h4>Encryption & BitLocker</h4><dl class="detail-list">';
+        if (bitlocker.encrypted === true) {
+            html += '<dt>Encrypted</dt><dd><span class="text-success">Yes</span></dd>';
+        } else if (bitlocker.encrypted === false) {
+            html += '<dt>Encrypted</dt><dd><span class="text-critical">No</span></dd>';
+        } else {
+            html += '<dt>Encrypted</dt><dd><span class="text-muted">Unknown</span></dd>';
+        }
+        html += '<dt>BitLocker Status</dt><dd>' + (bitlocker.status || '--') + '</dd>';
+        if (bitlocker.encryptionMethod) {
+            html += '<dt>Encryption Method</dt><dd>' + bitlocker.encryptionMethod + '</dd>';
+        }
+        html += '<dt>Recovery Key Escrowed</dt><dd>' + (bitlocker.recoveryKeyEscrowed ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+        html += '</dl></div>';
+
+        // Threat State
+        html += '<div class="detail-section"><h4>Threat Protection</h4><dl class="detail-list">';
+        html += '<dt>Threat State</dt><dd>' + formatThreatState(device.threatStateDisplay) + '</dd>';
+        html += '<dt>Threat Severity</dt><dd>' + formatThreatSeverity(device.threatSeverity) + '</dd>';
+        html += '<dt>Jailbroken/Rooted</dt><dd>' + formatJailbroken(device.jailBroken) + '</dd>';
+        if (device.os === 'iOS') {
+            html += '<dt>Supervised</dt><dd>' + (device.isSupervised ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+            html += '<dt>Activation Lock Bypass</dt><dd>' + (device.activationLockBypass ? '<span class="text-success">Available</span>' : 'N/A') + '</dd>';
+        }
+        html += '</dl></div>';
+
+        // Windows Update Status
+        if (device.os === 'Windows') {
+            html += '<div class="detail-section"><h4>Windows Update</h4><dl class="detail-list">';
+            html += '<dt>Update Ring</dt><dd>' + (windowsUpdate.ring || '--') + '</dd>';
+            html += '<dt>Update Status</dt><dd>' + (windowsUpdate.status || '--') + '</dd>';
+            if (windowsUpdate.featureUpdateStatus) {
+                html += '<dt>Feature Update</dt><dd>' + windowsUpdate.featureUpdateStatus + '</dd>';
+            }
+            if (windowsUpdate.qualityUpdateStatus) {
+                html += '<dt>Quality Update</dt><dd>' + windowsUpdate.qualityUpdateStatus + '</dd>';
+            }
+            if (windowsUpdate.lastScanTime) {
+                html += '<dt>Last Scan</dt><dd>' + new Date(windowsUpdate.lastScanTime).toLocaleString() + '</dd>';
+            }
+            html += '</dl></div>';
+        }
+
+        // Sync & Certificates
+        html += '<div class="detail-section"><h4>Sync & Certificates</h4><dl class="detail-list">';
+        html += '<dt>Last Sync</dt><dd>' + (device.lastSync ? new Date(device.lastSync).toLocaleString() : '--') + '</dd>';
+        html += '<dt>Days Since Sync</dt><dd>' + (device.daysSinceSync !== null ? device.daysSinceSync + ' days' : '--') + '</dd>';
+        html += '<dt>Is Stale</dt><dd>' + (device.isStale ? '<span class="text-warning">Yes</span>' : 'No') + '</dd>';
+        html += '<dt>Cert Expiry</dt><dd>' + (device.certExpiryDate ? new Date(device.certExpiryDate).toLocaleDateString() : '--') + '</dd>';
+        html += '<dt>Days Until Expiry</dt><dd>' + (device.daysUntilCertExpiry !== null ? device.daysUntilCertExpiry : '--') + '</dd>';
+        html += '<dt>Cert Status</dt><dd>' + formatCertStatus(device.certStatus) + '</dd>';
+        html += '</dl></div>';
+
+        // Vulnerabilities
+        html += '<div class="detail-section full-width"><h4>Vulnerabilities (' + vulnerabilities.length + ')</h4>';
+        if (vulnerabilities.length > 0) {
+            html += '<table class="mini-table"><thead><tr><th>CVE</th><th>Severity</th><th>CVSS</th><th>Exploited</th><th>Patch</th></tr></thead><tbody>';
+            vulnerabilities.forEach(function(v) {
+                var sevClass = v.severity === 'critical' ? 'text-critical' : v.severity === 'high' ? 'text-warning' : '';
+                html += '<tr>';
+                html += '<td>' + (v.name || v.id || '--') + '</td>';
+                html += '<td class="' + sevClass + '">' + (v.severity || '--') + '</td>';
+                html += '<td>' + (v.cvssScore || '--') + '</td>';
+                html += '<td>' + (v.exploitedInWild ? '<span class="text-critical">Yes</span>' : 'No') + '</td>';
+                html += '<td>' + (v.patchAvailable ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<p class="empty-state-small">No vulnerabilities detected for this device</p>';
+        }
+        html += '</div>';
+
+        html += '</div>'; // end detail-grid
+        html += '</div>'; // end security tab
+
+        // ========== COMPLIANCE TAB ==========
+        html += '<div class="modal-tab-pane" id="device-compliance">';
+        html += '<div class="detail-grid">';
+
+        // Compliance Status
+        html += '<div class="detail-section"><h4>Compliance Status</h4><dl class="detail-list">';
+        html += '<dt>Compliance State</dt><dd>' + formatCompliance(device.complianceState) + '</dd>';
+        html += '<dt>In Grace Period</dt><dd>' + (device.inGracePeriod ? '<span class="text-warning">Yes</span>' : 'No') + '</dd>';
+        if (device.complianceGraceDays) {
+            html += '<dt>Grace Period Ends</dt><dd>' + device.complianceGraceDays + ' days</dd>';
+        }
+        html += '</dl></div>';
+
+        // Non-Compliant Policies
+        html += '<div class="detail-section"><h4>Policy Compliance</h4>';
+        if (device.nonCompliantPolicyCount !== null && device.nonCompliantPolicyCount !== undefined && device.nonCompliantPolicyCount > 0) {
+            html += '<p class="text-critical" style="margin-bottom:0.5rem">Non-Compliant Policies: ' + device.nonCompliantPolicyCount + '</p>';
+            if (device.nonCompliantPolicies && device.nonCompliantPolicies.length > 0) {
+                html += '<ul class="detail-methods-list">';
+                device.nonCompliantPolicies.forEach(function(p) {
+                    html += '<li class="text-critical">' + p + '</li>';
+                });
+                html += '</ul>';
+            }
+        } else {
+            html += '<p class="text-success">All assigned policies are compliant</p>';
+        }
+        html += '</div>';
+
+        // Exchange (if applicable)
+        if (device.exchangeAccessState || device.easActivated) {
+            html += '<div class="detail-section"><h4>Exchange ActiveSync</h4><dl class="detail-list">';
+            html += '<dt>Access State</dt><dd>' + formatExchangeAccess(device.exchangeAccessDisplay) + '</dd>';
+            html += '<dt>Access Reason</dt><dd>' + (device.exchangeAccessReason || '--') + '</dd>';
+            html += '<dt>EAS Activated</dt><dd>' + (device.easActivated ? 'Yes' : 'No') + '</dd>';
+            html += '<dt>Last Exchange Sync</dt><dd>' + (device.exchangeLastSync ? new Date(device.exchangeLastSync).toLocaleString() : '--') + '</dd>';
+            html += '</dl></div>';
+        }
+
+        html += '</div>'; // end detail-grid
+        html += '</div>'; // end compliance tab
+
+        // ========== USER TAB ==========
+        html += '<div class="modal-tab-pane" id="device-user">';
+        html += '<div class="detail-grid">';
+
+        // Primary User
+        html += '<div class="detail-section"><h4>Primary User</h4>';
+        if (primaryUser) {
+            html += '<dl class="detail-list">';
+            html += '<dt>Display Name</dt><dd>' + (primaryUser.displayName || '--') + '</dd>';
+            html += '<dt>UPN</dt><dd>' + (primaryUser.userPrincipalName || '--') + '</dd>';
+            html += '<dt>Job Title</dt><dd>' + (primaryUser.jobTitle || '--') + '</dd>';
+            html += '<dt>Department</dt><dd>' + (primaryUser.department || '--') + '</dd>';
+            html += '<dt>Office</dt><dd>' + (primaryUser.officeLocation || '--') + '</dd>';
+            html += '<dt>Manager</dt><dd>' + (primaryUser.manager || '--') + '</dd>';
+            html += '<dt>Account Enabled</dt><dd>' + (primaryUser.accountEnabled ? '<span class="text-success">Yes</span>' : '<span class="text-critical">No</span>') + '</dd>';
+            html += '</dl>';
+            html += '<p style="margin-top:1rem"><a href="#users?search=' + encodeURIComponent(primaryUser.userPrincipalName) + '" class="text-link">View Full User Profile</a></p>';
+        } else {
+            html += '<p class="empty-state-small">No primary user assigned or user data not available</p>';
+            if (device.userPrincipalName) {
+                html += '<p><strong>Assigned UPN:</strong> ' + device.userPrincipalName + '</p>';
+                html += '<p><a href="#users?search=' + encodeURIComponent(device.userPrincipalName) + '" class="text-link">Search for user</a></p>';
+            }
+        }
+        html += '</div>';
+
+        html += '</div>'; // end detail-grid
+        html += '</div>'; // end user tab
+
+        // ========== ACTIVITY TAB ==========
+        html += '<div class="modal-tab-pane" id="device-activity">';
+        html += '<div class="detail-grid">';
+
+        // Sign-In History
+        html += '<div class="detail-section full-width"><h4>Recent Sign-Ins (' + signIns.length + ')</h4>';
+        if (signIns.length > 0) {
+            html += '<table class="mini-table"><thead><tr><th>Date</th><th>User</th><th>App</th><th>Status</th><th>Location</th></tr></thead><tbody>';
+            signIns.forEach(function(s) {
+                var statusClass = s.status && s.status.errorCode === 0 ? 'text-success' : 'text-critical';
+                var statusText = s.status && s.status.errorCode === 0 ? 'Success' : (s.status ? s.status.failureReason || 'Failed' : 'Unknown');
+                html += '<tr>';
+                html += '<td>' + (s.createdDateTime ? new Date(s.createdDateTime).toLocaleString() : '--') + '</td>';
+                html += '<td class="cell-truncate">' + (s.userPrincipalName || '--') + '</td>';
+                html += '<td class="cell-truncate">' + (s.appDisplayName || '--') + '</td>';
+                html += '<td class="' + statusClass + '">' + statusText + '</td>';
+                html += '<td>' + (s.location ? (s.location.city || '') + ', ' + (s.location.countryOrRegion || '') : '--') + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+        } else {
+            html += '<p class="empty-state-small">No sign-in activity found for this device</p>';
+        }
+        html += '</div>';
+
         // Admin Notes (if present)
         if (device.notes) {
-            html += '<div class="detail-section"><h4>Admin Notes</h4>';
+            html += '<div class="detail-section full-width"><h4>Admin Notes</h4>';
             html += '<p class="text-muted">' + device.notes + '</p>';
             html += '</div>';
         }
 
         html += '</div>'; // end detail-grid
+        html += '</div>'; // end activity tab
 
         // Safe: data is from trusted collector scripts, no user input
         document.getElementById('modal-body').innerHTML = html;
         document.getElementById('modal-overlay').classList.add('visible');
+
+        // Tab switching for device modal
+        document.querySelectorAll('#modal-body .modal-tab').forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var targetId = tab.dataset.tab;
+                document.querySelectorAll('#modal-body .modal-tab').forEach(function(t) { t.classList.remove('active'); });
+                document.querySelectorAll('#modal-body .modal-tab-pane').forEach(function(p) { p.classList.remove('active'); });
+                tab.classList.add('active');
+                document.getElementById(targetId).classList.add('active');
+            });
+        });
     }
 
     function showAutopilotDetails(device) {
@@ -1436,7 +1595,10 @@ const PageDevices = (function() {
         switchTab(currentTab);
     }
 
-    return { render: render };
+    return {
+        render: render,
+        showDeviceDetails: showDeviceDetails
+    };
 })();
 
 window.PageDevices = PageDevices;

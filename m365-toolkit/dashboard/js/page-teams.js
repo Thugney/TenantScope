@@ -202,6 +202,28 @@ const PageTeams = (function() {
 
         title.textContent = team.displayName;
 
+        // Get linked SharePoint site via DataRelationships
+        var linkedSite = typeof DataRelationships !== 'undefined' ? DataRelationships.getTeamSharePointSite(team) : null;
+
+        // Build SharePoint link section - safe: data from trusted collector
+        var spLinkHtml = '';
+        if (linkedSite) {
+            spLinkHtml = '<a href="#sharepoint?search=' + encodeURIComponent(linkedSite.displayName || '') + '" class="text-link">' + (linkedSite.displayName || 'View Site') + '</a>';
+            spLinkHtml += '<br><span style="font-size:0.75em;color:var(--color-text-muted)">' + (linkedSite.url || '') + '</span>';
+        } else if (team.linkedSharePointSiteId) {
+            spLinkHtml = '<span class="text-muted" style="font-size:0.8em">' + team.linkedSharePointSiteId + '</span>';
+        } else {
+            spLinkHtml = '--';
+        }
+
+        // Build owner links (clickable to users page) - safe: data from trusted collector
+        var ownerLinksHtml = '--';
+        if (team.ownerUpns && team.ownerUpns.length > 0) {
+            ownerLinksHtml = team.ownerUpns.map(function(upn) {
+                return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="text-link">' + upn + '</a>';
+            }).join('<br>');
+        }
+
         // Build detail HTML using template - all values are pre-validated from collection
         var detailHtml = [
             '<div class="detail-list">',
@@ -220,11 +242,14 @@ const PageTeams = (function() {
             '    <span class="detail-label">Email:</span>',
             '    <span class="detail-value">' + (team.mail || '--') + '</span>',
             '',
-            '    <span class="detail-label">Linked SharePoint Site ID:</span>',
-            '    <span class="detail-value" style="font-size: 0.8em;">' + (team.linkedSharePointSiteId || '--') + '</span>',
-            '',
             '    <span class="detail-label">Created:</span>',
             '    <span class="detail-value">' + DataLoader.formatDate(team.createdDateTime) + '</span>',
+            '</div>',
+            '',
+            '<h4 class="mt-lg mb-sm">Linked SharePoint Site</h4>',
+            '<div class="detail-list">',
+            '    <span class="detail-label">SharePoint Site:</span>',
+            '    <span class="detail-value">' + spLinkHtml + '</span>',
             '</div>',
             '',
             '<h4 class="mt-lg mb-sm">Governance</h4>',
@@ -233,7 +258,7 @@ const PageTeams = (function() {
             '    <span class="detail-value' + (team.ownerCount === 0 ? ' text-critical font-bold' : '') + '">' + team.ownerCount + '</span>',
             '',
             '    <span class="detail-label">Owner Emails:</span>',
-            '    <span class="detail-value">' + (team.ownerUpns && team.ownerUpns.length > 0 ? team.ownerUpns.join(', ') : '--') + '</span>',
+            '    <span class="detail-value">' + ownerLinksHtml + '</span>',
             '',
             '    <span class="detail-label">Members:</span>',
             '    <span class="detail-value">' + (team.memberCount || 0) + '</span>',

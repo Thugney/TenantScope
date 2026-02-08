@@ -423,87 +423,39 @@ const PageUsers = (function() {
     }
 
     /**
-     * Shows detailed modal for a user.
+     * Shows detailed modal for a user with tabbed layout and all related data.
      *
      * @param {object} user - User data object
      */
     function showUserDetails(user) {
-        const modal = document.getElementById('modal-overlay');
-        const title = document.getElementById('modal-title');
-        const body = document.getElementById('modal-body');
+        var modal = document.getElementById('modal-overlay');
+        var title = document.getElementById('modal-title');
+        var body = document.getElementById('modal-body');
 
         title.textContent = user.displayName;
 
+        // Get all related data using DataRelationships
+        var profile = null;
+        if (typeof DataRelationships !== 'undefined') {
+            profile = DataRelationships.getUserProfile(user.id);
+        }
+
+        var licenses = profile ? profile.licenses : [];
+        var mfa = profile ? profile.mfa : { registered: user.mfaRegistered, methods: [] };
+        var risks = profile ? profile.risks : { riskLevel: 'none', detections: [] };
+        var adminRoles = profile ? profile.adminRoles : [];
+        var devices = profile ? profile.devices : [];
+        var signIns = profile ? profile.signIns : [];
+        var teams = profile ? profile.teams : [];
+
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = `
-            <div class="detail-list">
-                <span class="detail-label">UPN:</span>
-                <span class="detail-value">${user.userPrincipalName}</span>
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand);
 
-                <span class="detail-label">Email:</span>
-                <span class="detail-value">${user.mail || '--'}</span>
+        // Set up tab switching
+        setupUserModalTabs(body);
 
-                <span class="detail-label">Domain:</span>
-                <span class="detail-value">${user.domain}</span>
-
-                <span class="detail-label">Department:</span>
-                <span class="detail-value">${user.department || '--'}</span>
-
-                <span class="detail-label">Job Title:</span>
-                <span class="detail-value">${user.jobTitle || '--'}</span>
-
-                <span class="detail-label">Account Status:</span>
-                <span class="detail-value">${user.accountEnabled ? 'Enabled' : 'Disabled'}</span>
-
-                <span class="detail-label">User Type:</span>
-                <span class="detail-value">${user.userType || 'Member'}</span>
-
-                <span class="detail-label">Created:</span>
-                <span class="detail-value">${DataLoader.formatDate(user.createdDateTime)}</span>
-
-                <span class="detail-label">Last Sign-In:</span>
-                <span class="detail-value">${DataLoader.formatDate(user.lastSignIn)}</span>
-
-                <span class="detail-label">Days Since Sign-In:</span>
-                <span class="detail-value">${user.daysSinceLastSignIn !== null ? user.daysSinceLastSignIn : '--'}</span>
-
-                <span class="detail-label">MFA Registered:</span>
-                <span class="detail-value">${user.mfaRegistered ? 'Yes' : 'No'}</span>
-
-                <span class="detail-label">License Count:</span>
-                <span class="detail-value">${user.licenseCount}</span>
-
-                <span class="detail-label">Devices:</span>
-                <span class="detail-value">${buildDevicesLink(user, getDeviceCountForUser(user))}</span>
-
-                <span class="detail-label">On-Prem Sync:</span>
-                <span class="detail-value">${user.onPremSync ? 'Yes' : 'No'}</span>
-
-                <span class="detail-label">Flags:</span>
-                <span class="detail-value">${user.flags && user.flags.length > 0 ? user.flags.join(', ') : 'None'}</span>
-
-                <span class="detail-label">User ID:</span>
-                <span class="detail-value" style="font-size: 0.8em;">${user.id}</span>
-            </div>
-
-            <div class="detail-section">
-                <h4>Actions</h4>
-                <div class="detail-grid">
-                    <div class="detail-item">
-                        <span class="detail-label">Disable User (PowerShell)</span>
-                        <div class="detail-value">
-                            <input type="text" class="filter-input action-input" id="disable-user-command" readonly>
-                        </div>
-                    </div>
-                </div>
-                <div class="action-row">
-                    <button class="btn btn-secondary" id="copy-disable-user">Copy Command</button>
-                </div>
-                <div class="action-note">Copy and run in a PowerShell session with Microsoft Graph connected.</div>
-            </div>
-        `;
-
+        // Set up copy button
         var cmdInput = body.querySelector('#disable-user-command');
         var copyBtn = body.querySelector('#copy-disable-user');
         if (cmdInput) {
@@ -522,6 +474,259 @@ const PageUsers = (function() {
         }
 
         modal.classList.add('visible');
+    }
+
+    /**
+     * Build the complete user modal content with tabs.
+     */
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand) {
+        var riskBadge = getRiskBadge(risks.riskLevel);
+
+        return '<div class="modal-tabs">' +
+            '<button class="modal-tab active" data-tab="overview">Overview</button>' +
+            '<button class="modal-tab" data-tab="licenses">Licenses (' + licenses.length + ')</button>' +
+            '<button class="modal-tab" data-tab="security">Security</button>' +
+            '<button class="modal-tab" data-tab="devices">Devices (' + devices.length + ')</button>' +
+            '<button class="modal-tab" data-tab="activity">Activity</button>' +
+        '</div>' +
+        '<div class="modal-tab-content">' +
+            buildOverviewTab(user, mfa, risks, adminRoles) +
+            buildLicensesTab(licenses) +
+            buildSecurityTab(mfa, risks, adminRoles) +
+            buildDevicesTab(devices) +
+            buildActivityTab(signIns, teams, disableCommand) +
+        '</div>';
+    }
+
+    function buildOverviewTab(user, mfa, risks, adminRoles) {
+        var riskBadge = getRiskBadge(risks.riskLevel);
+        var adminBadge = adminRoles.length > 0 ? '<span class="status-badge status-warning">' + adminRoles.length + ' roles</span>' : '<span class="status-badge">None</span>';
+
+        return '<div class="modal-tab-pane active" data-tab="overview">' +
+            '<div class="detail-grid">' +
+                '<div class="detail-section">' +
+                    '<h4>Identity</h4>' +
+                    '<div class="detail-list">' +
+                        '<span class="detail-label">UPN:</span><span class="detail-value">' + user.userPrincipalName + '</span>' +
+                        '<span class="detail-label">Email:</span><span class="detail-value">' + (user.mail || '--') + '</span>' +
+                        '<span class="detail-label">Domain:</span><span class="detail-value">' + user.domain + '</span>' +
+                        '<span class="detail-label">User Type:</span><span class="detail-value">' + (user.userType || 'Member') + '</span>' +
+                        '<span class="detail-label">Account Status:</span><span class="detail-value">' + (user.accountEnabled ? '<span class="status-badge status-success">Enabled</span>' : '<span class="status-badge status-danger">Disabled</span>') + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="detail-section">' +
+                    '<h4>Organization</h4>' +
+                    '<div class="detail-list">' +
+                        '<span class="detail-label">Department:</span><span class="detail-value">' + (user.department || '--') + '</span>' +
+                        '<span class="detail-label">Job Title:</span><span class="detail-value">' + (user.jobTitle || '--') + '</span>' +
+                        '<span class="detail-label">Manager:</span><span class="detail-value">' + (user.manager || '--') + '</span>' +
+                        '<span class="detail-label">Company:</span><span class="detail-value">' + (user.companyName || '--') + '</span>' +
+                        '<span class="detail-label">Office:</span><span class="detail-value">' + (user.officeLocation || '--') + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="detail-section">' +
+                    '<h4>Security Summary</h4>' +
+                    '<div class="detail-list">' +
+                        '<span class="detail-label">Risk Level:</span><span class="detail-value">' + riskBadge + '</span>' +
+                        '<span class="detail-label">MFA Status:</span><span class="detail-value">' + (mfa.registered ? '<span class="status-badge status-success">Registered</span>' : '<span class="status-badge status-danger">Not Registered</span>') + '</span>' +
+                        '<span class="detail-label">Admin Roles:</span><span class="detail-value">' + adminBadge + '</span>' +
+                        '<span class="detail-label">On-Prem Sync:</span><span class="detail-value">' + (user.onPremSync ? 'Yes' : 'No') + '</span>' +
+                    '</div>' +
+                '</div>' +
+                '<div class="detail-section">' +
+                    '<h4>Activity</h4>' +
+                    '<div class="detail-list">' +
+                        '<span class="detail-label">Created:</span><span class="detail-value">' + DataLoader.formatDate(user.createdDateTime) + '</span>' +
+                        '<span class="detail-label">Last Sign-In:</span><span class="detail-value">' + DataLoader.formatDate(user.lastSignIn) + '</span>' +
+                        '<span class="detail-label">Days Inactive:</span><span class="detail-value">' + (user.daysSinceLastSignIn !== null ? user.daysSinceLastSignIn : '--') + '</span>' +
+                    '</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>';
+    }
+
+    function buildLicensesTab(licenses) {
+        var content = '<div class="modal-tab-pane" data-tab="licenses">';
+        if (licenses.length === 0) {
+            content += '<div class="empty-state-small">No licenses assigned</div>';
+        } else {
+            content += '<table class="mini-table"><thead><tr><th>License</th><th>SKU</th><th>Assigned Via</th></tr></thead><tbody>';
+            licenses.forEach(function(lic) {
+                content += '<tr><td>' + escapeHtml(lic.displayName) + '</td><td><code>' + escapeHtml(lic.skuPartNumber) + '</code></td><td>' + lic.assignedVia + '</td></tr>';
+            });
+            content += '</tbody></table>';
+        }
+        content += '</div>';
+        return content;
+    }
+
+    function buildSecurityTab(mfa, risks, adminRoles) {
+        var content = '<div class="modal-tab-pane" data-tab="security">';
+
+        // MFA Methods section
+        content += '<div class="detail-section"><h4>MFA Methods</h4>';
+        if (mfa.methods && mfa.methods.length > 0) {
+            content += '<ul class="method-list">';
+            mfa.methods.forEach(function(method) {
+                var methodName = typeof method === 'string' ? method : (method.methodType || method.type || 'Unknown');
+                content += '<li>' + escapeHtml(methodName) + '</li>';
+            });
+            content += '</ul>';
+            if (mfa.isPhishingResistant) {
+                content += '<div class="status-badge status-success">Phishing-Resistant Method Available</div>';
+            }
+        } else {
+            content += '<div class="empty-state-small">No MFA methods registered</div>';
+        }
+        content += '</div>';
+
+        // Risk section
+        content += '<div class="detail-section"><h4>Identity Risk</h4>';
+        content += '<div class="detail-list">';
+        content += '<span class="detail-label">Risk Level:</span><span class="detail-value">' + getRiskBadge(risks.riskLevel) + '</span>';
+        content += '<span class="detail-label">Risk State:</span><span class="detail-value">' + (risks.riskState || 'none') + '</span>';
+        content += '</div>';
+        if (risks.detections && risks.detections.length > 0) {
+            content += '<h5>Recent Risk Detections</h5><ul class="detection-list">';
+            risks.detections.slice(0, 5).forEach(function(det) {
+                content += '<li><strong>' + escapeHtml(det.riskEventType || det.riskType || 'Unknown') + '</strong> - ' + (det.riskLevel || 'unknown') + ' (' + DataLoader.formatDate(det.detectedDateTime) + ')</li>';
+            });
+            content += '</ul>';
+        }
+        content += '</div>';
+
+        // Admin Roles section
+        content += '<div class="detail-section"><h4>Admin Roles</h4>';
+        if (adminRoles.length > 0) {
+            content += '<ul class="role-list">';
+            adminRoles.forEach(function(role) {
+                content += '<li><strong>' + escapeHtml(role.displayName) + '</strong>' + (role.description ? '<br><small>' + escapeHtml(role.description) + '</small>' : '') + '</li>';
+            });
+            content += '</ul>';
+        } else {
+            content += '<div class="empty-state-small">No admin roles assigned</div>';
+        }
+        content += '</div>';
+
+        content += '</div>';
+        return content;
+    }
+
+    function buildDevicesTab(devices) {
+        var content = '<div class="modal-tab-pane" data-tab="devices">';
+        if (devices.length === 0) {
+            content += '<div class="empty-state-small">No devices enrolled</div>';
+        } else {
+            content += '<table class="mini-table"><thead><tr><th>Device</th><th>OS</th><th>Compliance</th><th>Last Sync</th></tr></thead><tbody>';
+            devices.forEach(function(dev) {
+                var complianceBadge = dev.complianceState === 'compliant' ? '<span class="status-badge status-success">Compliant</span>' :
+                                     dev.complianceState === 'noncompliant' ? '<span class="status-badge status-danger">Non-Compliant</span>' :
+                                     '<span class="status-badge">Unknown</span>';
+                content += '<tr>' +
+                    '<td>' + escapeHtml(dev.deviceName || dev.displayName || '--') + '</td>' +
+                    '<td>' + escapeHtml(dev.operatingSystem || '--') + '</td>' +
+                    '<td>' + complianceBadge + '</td>' +
+                    '<td>' + DataLoader.formatDate(dev.lastSyncDateTime) + '</td>' +
+                '</tr>';
+            });
+            content += '</tbody></table>';
+        }
+        content += '</div>';
+        return content;
+    }
+
+    function buildActivityTab(signIns, teams, disableCommand) {
+        var content = '<div class="modal-tab-pane" data-tab="activity">';
+
+        // Recent Sign-Ins
+        content += '<div class="detail-section"><h4>Recent Sign-Ins</h4>';
+        if (signIns.length > 0) {
+            content += '<table class="mini-table"><thead><tr><th>Time</th><th>App</th><th>Status</th><th>Location</th></tr></thead><tbody>';
+            signIns.slice(0, 10).forEach(function(si) {
+                var statusBadge = si.status && si.status.errorCode === 0 ? '<span class="status-badge status-success">Success</span>' : '<span class="status-badge status-danger">Failed</span>';
+                var location = si.location ? (si.location.city || '') + (si.location.countryOrRegion ? ', ' + si.location.countryOrRegion : '') : '--';
+                content += '<tr>' +
+                    '<td>' + DataLoader.formatDate(si.createdDateTime) + '</td>' +
+                    '<td>' + escapeHtml(si.appDisplayName || '--') + '</td>' +
+                    '<td>' + statusBadge + '</td>' +
+                    '<td>' + escapeHtml(location) + '</td>' +
+                '</tr>';
+            });
+            content += '</tbody></table>';
+        } else {
+            content += '<div class="empty-state-small">No recent sign-in data</div>';
+        }
+        content += '</div>';
+
+        // Teams Membership
+        content += '<div class="detail-section"><h4>Teams Owned</h4>';
+        if (teams.length > 0) {
+            content += '<ul class="team-list">';
+            teams.forEach(function(team) {
+                content += '<li>' + escapeHtml(team.displayName) + ' <span class="status-badge">' + team.visibility + '</span></li>';
+            });
+            content += '</ul>';
+        } else {
+            content += '<div class="empty-state-small">Not an owner of any teams</div>';
+        }
+        content += '</div>';
+
+        // Actions
+        content += '<div class="detail-section"><h4>Actions</h4>' +
+            '<div class="detail-grid"><div class="detail-item">' +
+            '<span class="detail-label">Disable User (PowerShell)</span>' +
+            '<div class="detail-value"><input type="text" class="filter-input action-input" id="disable-user-command" readonly></div>' +
+            '</div></div>' +
+            '<div class="action-row"><button class="btn btn-secondary" id="copy-disable-user">Copy Command</button></div>' +
+            '<div class="action-note">Copy and run in a PowerShell session with Microsoft Graph connected.</div>' +
+        '</div>';
+
+        content += '</div>';
+        return content;
+    }
+
+    function getRiskBadge(riskLevel) {
+        if (!riskLevel || riskLevel === 'none' || riskLevel === 'hidden') {
+            return '<span class="status-badge status-success">None</span>';
+        } else if (riskLevel === 'low') {
+            return '<span class="status-badge status-info">Low</span>';
+        } else if (riskLevel === 'medium') {
+            return '<span class="status-badge status-warning">Medium</span>';
+        } else if (riskLevel === 'high') {
+            return '<span class="status-badge status-danger">High</span>';
+        }
+        return '<span class="status-badge">' + riskLevel + '</span>';
+    }
+
+    function setupUserModalTabs(body) {
+        var tabs = body.querySelectorAll('.modal-tab');
+        var panes = body.querySelectorAll('.modal-tab-pane');
+
+        tabs.forEach(function(tab) {
+            tab.addEventListener('click', function() {
+                var targetTab = this.getAttribute('data-tab');
+
+                // Update active tab
+                tabs.forEach(function(t) { t.classList.remove('active'); });
+                this.classList.add('active');
+
+                // Update active pane
+                panes.forEach(function(p) {
+                    if (p.getAttribute('data-tab') === targetTab) {
+                        p.classList.add('active');
+                    } else {
+                        p.classList.remove('active');
+                    }
+                });
+            });
+        });
+    }
+
+    function escapeHtml(text) {
+        if (!text) return '';
+        var div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     function buildDisableUserCommand(user) {

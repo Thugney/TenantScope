@@ -208,7 +208,7 @@ const PageVulnerabilities = (function() {
         var table = el('table', 'detail-table');
         var thead = el('thead');
         var headerRow = el('tr');
-        ['Device', 'User', 'OS', 'Compliance', 'Last Sync', 'Exposure', 'Action'].forEach(function(label) {
+        ['Device', 'User', 'OS', 'Compliance', 'Last Sync', 'Exposure', 'Risk Score', 'Action'].forEach(function(label) {
             headerRow.appendChild(el('th', null, label));
         });
         thead.appendChild(headerRow);
@@ -222,20 +222,69 @@ const PageVulnerabilities = (function() {
             var os = item.osPlatform || item.os || (record ? (record.os + (record.windowsRelease ? ' ' + record.windowsRelease : '')) : null) || '--';
             var compliance = item.complianceState || (record ? record.complianceState : null) || '--';
             var lastSeen = item.lastSeen || item.lastSeenDateTime || (record ? record.lastSync : null);
-            var exposure = item.exposureLevel || item.riskScore || item.severity || '--';
+            var exposure = item.exposureLevel || item.severity || '--';
+            var riskScore = item.riskScore || '--';
 
             var row = el('tr');
-            row.appendChild(el('td', null, name));
-            row.appendChild(el('td', null, user));
+
+            // Make device name clickable - navigates to device page with search
+            var nameCell = el('td');
+            if (name && name !== '--') {
+                var nameLink = el('a', 'text-link font-bold', name);
+                nameLink.href = '#devices?search=' + encodeURIComponent(name);
+                nameCell.appendChild(nameLink);
+            } else {
+                nameCell.textContent = name;
+            }
+            row.appendChild(nameCell);
+
+            // Make user clickable - navigates to user page with search
+            var userCell = el('td');
+            if (user && user !== '--') {
+                var userLink = el('a', 'text-link', user);
+                userLink.href = '#users?search=' + encodeURIComponent(user);
+                userCell.appendChild(userLink);
+            } else {
+                userCell.textContent = user;
+            }
+            row.appendChild(userCell);
+
             row.appendChild(el('td', null, os));
-            row.appendChild(el('td', null, compliance));
+
+            // Format compliance with badge
+            var compCell = el('td');
+            if (compliance === 'compliant') {
+                var compBadge = el('span', 'badge badge-success', 'Compliant');
+                compCell.appendChild(compBadge);
+            } else if (compliance === 'noncompliant') {
+                var ncBadge = el('span', 'badge badge-critical', 'Non-Compliant');
+                compCell.appendChild(ncBadge);
+            } else {
+                compCell.textContent = compliance;
+            }
+            row.appendChild(compCell);
+
             row.appendChild(el('td', null, formatDateValue(lastSeen)));
             row.appendChild(el('td', null, String(exposure)));
+            row.appendChild(el('td', null, String(riskScore)));
 
             var actionCell = el('td');
-            if (name && name !== '--') {
-                var link = el('a', 'btn btn-secondary btn-sm', 'Open');
-                link.href = '#devices?device=' + encodeURIComponent(name);
+            if (record) {
+                var viewBtn = el('button', 'btn btn-secondary btn-sm', 'Details');
+                viewBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    // Show device details if PageDevices is available
+                    if (window.PageDevices && typeof PageDevices.showDeviceDetails === 'function') {
+                        PageDevices.showDeviceDetails(record);
+                    } else {
+                        // Fallback: navigate to devices page
+                        window.location.hash = '#devices?search=' + encodeURIComponent(name);
+                    }
+                });
+                actionCell.appendChild(viewBtn);
+            } else if (name && name !== '--') {
+                var link = el('a', 'btn btn-secondary btn-sm', 'Find');
+                link.href = '#devices?search=' + encodeURIComponent(name);
                 actionCell.appendChild(link);
             } else {
                 actionCell.textContent = '--';

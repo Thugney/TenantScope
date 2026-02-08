@@ -53,7 +53,9 @@
         'identity-risk': PageIdentityRisk,
         'oauth-consent': PageOAuthConsent,
         'compliance': PageCompliance,
-        'vulnerabilities': PageVulnerabilities
+        'vulnerabilities': PageVulnerabilities,
+        // Problem Summary page
+        'problems': PageProblems
     };
 
     // ========================================================================

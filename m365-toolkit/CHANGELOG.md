@@ -5,6 +5,73 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.2.0] - 2026-02-08
+
+### Added
+- **Single-Pane-of-Glass Cross-Entity Navigation**:
+  - New `data-relationships.js` module providing O(1) lookups across all entity types
+  - Index maps for users, devices, MFA status, teams, and SharePoint sites
+  - `getUserProfile()` - returns user with devices, signIns, risks, adminRoles, mfa, teams, licenses
+  - `getDeviceProfile()` - returns device with primaryUser, vulnerabilities, bitlocker, windowsUpdate, signIns
+  - `getTeamProfile()` - returns team with sharePointSite, owners, guestCount
+
+- **Enhanced User Detail Modal**:
+  - Tabbed layout: Overview, Licenses, Security, Devices, Activity
+  - Full license names with SKU details and assignment source (Direct/Group)
+  - MFA methods list from mfa-status.json
+  - Sign-in logs filtered by user (most recent 20)
+  - Identity risk level and recent risk detections
+  - Admin roles with role names
+  - Owned devices with clickable navigation
+  - Teams owned by user
+
+- **Enhanced Device Detail Modal**:
+  - Tabbed layout: Overview, Security, Compliance, User, Activity
+  - BitLocker status (encrypted, recovery key escrowed, encryption method)
+  - Windows Update status (ring, feature/quality updates, last scan)
+  - Vulnerabilities affecting device with CVE, severity, CVSS, exploit status
+  - Sign-in history from device
+  - Primary user details with clickable link to user profile
+
+- **Teams/SharePoint Bidirectional Navigation**:
+  - Teams page: SharePoint site now clickable with site name and URL
+  - Teams page: Owner UPNs now clickable to view user profiles
+  - SharePoint page: Linked Team now clickable
+  - SharePoint page: Site owner now clickable to view user profile
+
+- **Enhanced Vulnerability Page**:
+  - Device names in affected devices modal now clickable
+  - User names now clickable to view user profiles
+  - Compliance state shown with badges
+  - "Details" button shows full device modal inline
+
+- **Problem Summary Dashboard** (`page-problems.js`):
+  - New page aggregating all critical issues across the tenant
+  - Severity-prioritized view: Critical, High, Medium, Low
+  - Issue categories: Devices, Identity, Collaboration, SharePoint, Security
+  - Issues detected:
+    - Non-compliant devices, unencrypted devices, stale devices
+    - Unsupported Windows versions, expired certificates
+    - Users without MFA, high-risk users
+    - Admins without phishing-resistant MFA
+    - Ownerless Teams, Teams with guests, inactive Teams
+    - Sites with anonymous links, externally shared sites
+    - Actively exploited CVEs, critical vulnerabilities
+  - Each issue card shows count, sample items, recommended action, and navigation link
+  - Added to navigation sidebar after Overview
+
+### Changed
+- User and Device modals now use tabbed layouts for better organization
+- Teams owners list now uses clickable links instead of plain text
+- Vulnerability affected devices table enhanced with better formatting
+- `PageDevices` now exports `showDeviceDetails` for cross-page device modal display
+
+### Documentation
+- Added `docs/REVIEW-FINDINGS-2026-02-08.md` - Original gap analysis from 5-agent review
+- Added `docs/IMPLEMENTATION-LOG-2026-02-08.md` - Implementation checklist with all completed items
+
+---
+
 ## [2.1.1] - 2026-02-08
 
 ### Added
@@ -449,6 +516,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Collectors | Major Features |
 |---------|------|------------|----------------|
+| 2.2.0 | 2026-02-08 | 26 | Single-pane-of-glass: cross-entity navigation, Problem Summary page |
+| 2.1.1 | 2026-02-08 | 26 | Dashboard Server with usage tracking, app-only authentication |
+| 2.1.0 | 2026-02-08 | 26 | Vulnerability Management, Security Cockpit, Executive Summary |
 | 2.0.5 | 2026-02-07 | 26 | Dashboard UI overhaul with unified analytics pattern |
 | 2.0.4 | 2026-02-06 | 26 | Compliance and Configuration profile enhancements |
 | 2.0.3 | 2026-02-06 | 26 | Windows Update and Endpoint Analytics enhancements |

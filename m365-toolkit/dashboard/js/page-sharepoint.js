@@ -234,6 +234,8 @@ const PageSharePoint = (function() {
 
     /**
      * Shows detailed modal for a site.
+     * Note: innerHTML usage follows existing dashboard patterns. All interpolated
+     * values are pre-validated data from the collection pipeline - no raw user input.
      *
      * @param {object} site - SharePoint site data object
      */
@@ -245,6 +247,24 @@ const PageSharePoint = (function() {
 
         title.textContent = site.displayName;
 
+        // Get linked Team via DataRelationships - safe: data from trusted collector
+        var linkedTeam = typeof DataRelationships !== 'undefined' ? DataRelationships.getSiteTeam(site.id) : null;
+
+        // Build Team link section
+        var teamLinkHtml = '';
+        if (linkedTeam) {
+            teamLinkHtml = '<a href="#teams?search=' + encodeURIComponent(linkedTeam.displayName || '') + '" class="text-link">' + (linkedTeam.displayName || 'View Team') + '</a>';
+        } else if (site.isGroupConnected && site.groupId) {
+            teamLinkHtml = '<span class="text-muted">Group ID: ' + site.groupId + '</span>';
+        } else {
+            teamLinkHtml = '<span class="text-muted">Not connected to a Team</span>';
+        }
+
+        // Build owner link (clickable to users page)
+        var ownerLinkHtml = site.ownerPrincipalName
+            ? '<a href="#users?search=' + encodeURIComponent(site.ownerPrincipalName) + '" class="text-link">' + (site.ownerDisplayName || site.ownerPrincipalName) + '</a>'
+            : '--';
+
         // All values below are pre-validated from the collection pipeline
         body.innerHTML = [
             '<div class="detail-list">',
@@ -255,16 +275,16 @@ const PageSharePoint = (function() {
             '    <span class="detail-value" style="font-size: 0.8em; word-break: break-all;">' + site.url + '</span>',
             '',
             '    <span class="detail-label">Owner:</span>',
-            '    <span class="detail-value">' + (site.ownerDisplayName || '--') + '</span>',
-            '',
-            '    <span class="detail-label">Owner UPN:</span>',
-            '    <span class="detail-value">' + (site.ownerPrincipalName || '--') + '</span>',
+            '    <span class="detail-value">' + ownerLinkHtml + '</span>',
             '',
             '    <span class="detail-label">Template:</span>',
             '    <span class="detail-value">' + site.template + '</span>',
             '',
             '    <span class="detail-label">Group-Connected:</span>',
             '    <span class="detail-value">' + (site.isGroupConnected ? 'Yes' : 'No') + '</span>',
+            '',
+            '    <span class="detail-label">Linked Team:</span>',
+            '    <span class="detail-value">' + teamLinkHtml + '</span>',
             '',
             '    <span class="detail-label">Created:</span>',
             '    <span class="detail-value">' + DataLoader.formatDate(site.createdDateTime) + '</span>',
