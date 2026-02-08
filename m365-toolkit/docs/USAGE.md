@@ -656,10 +656,109 @@ Get-ScheduledTask -TaskName "*TenantScope*" | Format-List
 Start-ScheduledTask -TaskName "TenantScope Data Collection"
 ```
 
-### Security Considerations for Scheduled Tasks
-- Task runs under the context of the creating user
-- Password must be provided or stored in Windows Credential Manager
-- Consider using a dedicated service account with appropriate permissions
+### App Registration for Unattended Execution
+
+Scheduled tasks require app-only authentication since there's no user to sign in interactively. You must create an Azure AD App Registration with the required permissions.
+
+#### Step 1: Create App Registration
+
+1. Go to [Azure Portal](https://portal.azure.com) > Azure Active Directory > App registrations
+2. Click "New registration"
+3. Name: `TenantScope Data Collector`
+4. Supported account types: "Accounts in this organizational directory only"
+5. Click "Register"
+6. Note the **Application (client) ID** - you'll need this
+
+#### Step 2: Add API Permissions
+
+1. In your app registration, go to "API permissions"
+2. Click "Add a permission" > "Microsoft Graph" > "Application permissions"
+3. Add the following permissions:
+
+| Permission | Purpose |
+|------------|---------|
+| `User.Read.All` | Read user profiles |
+| `Directory.Read.All` | Read directory data |
+| `AuditLog.Read.All` | Read audit logs |
+| `DeviceManagementManagedDevices.Read.All` | Read Intune devices |
+| `DeviceManagementConfiguration.Read.All` | Read device configuration |
+| `SecurityEvents.Read.All` | Read security events |
+| `IdentityRiskEvent.Read.All` | Read risk events |
+| `IdentityRiskyUser.Read.All` | Read risky users |
+| `Policy.Read.All` | Read policies |
+| `Reports.Read.All` | Read reports |
+| `Team.ReadBasic.All` | Read Teams |
+| `Sites.Read.All` | Read SharePoint sites |
+| `Application.Read.All` | Read app registrations |
+
+4. Click "Grant admin consent for [Your Tenant]"
+
+#### Step 3a: Create Certificate (Recommended)
+
+```powershell
+# Create self-signed certificate (valid for 2 years)
+$cert = New-SelfSignedCertificate `
+    -Subject "CN=TenantScope Data Collector" `
+    -CertStoreLocation "Cert:\CurrentUser\My" `
+    -KeyExportPolicy Exportable `
+    -KeySpec Signature `
+    -KeyLength 2048 `
+    -KeyAlgorithm RSA `
+    -HashAlgorithm SHA256 `
+    -NotAfter (Get-Date).AddYears(2)
+
+# Export public key for Azure
+Export-Certificate -Cert $cert -FilePath "TenantScope.cer"
+
+# Note the thumbprint
+$cert.Thumbprint
+```
+
+Then upload `TenantScope.cer` to your app registration:
+1. Go to "Certificates & secrets" > "Certificates"
+2. Click "Upload certificate" and select `TenantScope.cer`
+
+#### Step 3b: Create Client Secret (Alternative)
+
+If certificates are not feasible:
+1. Go to "Certificates & secrets" > "Client secrets"
+2. Click "New client secret"
+3. Set description and expiration
+4. Copy the secret value immediately (it won't be shown again)
+
+**Note:** Secrets expire and must be rotated. Certificates are more secure.
+
+#### Step 4: Schedule with Credentials
+
+```powershell
+# Using certificate (recommended)
+.\scripts\Schedule-Collection.ps1 `
+    -ClientId "00000000-0000-0000-0000-000000000000" `
+    -CertificateThumbprint "ABC123DEF456..." `
+    -Schedule Daily -Time "06:00"
+
+# Using client secret (less secure)
+.\scripts\Schedule-Collection.ps1 `
+    -ClientId "00000000-0000-0000-0000-000000000000" `
+    -ClientSecret "your-secret-value" `
+    -Schedule Daily -Time "06:00"
+```
+
+#### Manual Testing
+
+Before scheduling, test the connection manually:
+
+```powershell
+# Test with certificate
+.\Invoke-DataCollection.ps1 `
+    -ClientId "00000000-0000-0000-0000-000000000000" `
+    -CertificateThumbprint "ABC123DEF456..."
+
+# Test with client secret
+.\Invoke-DataCollection.ps1 `
+    -ClientId "00000000-0000-0000-0000-000000000000" `
+    -ClientSecret "your-secret-value"
+```
 
 ## Troubleshooting
 

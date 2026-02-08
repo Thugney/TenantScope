@@ -17,6 +17,18 @@ var TimeRangeFilter = (function() {
 
     var selectedDays = 0;
     var storageKey = 'tenantscope-time-range';
+    var indicatorEl = null;
+
+    var applicablePages = {
+        'overview': true,
+        'security': true,
+        'signin-logs': true,
+        'audit-logs': true,
+        'pim': true,
+        'app-usage': true,
+        'identity-risk': true,
+        'report': true
+    };
 
     function init() {
         var slot = document.getElementById('time-range-filter-slot');
@@ -67,7 +79,29 @@ var TimeRangeFilter = (function() {
         });
 
         wrapper.appendChild(select);
+
+        indicatorEl = document.createElement('span');
+        indicatorEl.id = 'time-range-indicator';
+        indicatorEl.className = 'time-range-indicator';
+        wrapper.appendChild(indicatorEl);
+
         slot.appendChild(wrapper);
+
+        updateIndicator(getCurrentPage());
+    }
+
+    function getCurrentPage() {
+        var hash = window.location.hash.slice(1);
+        var pageName = hash.split('?')[0];
+        return pageName || 'overview';
+    }
+
+    function updateIndicator(pageName) {
+        if (!indicatorEl) return;
+        var page = pageName || getCurrentPage();
+        var applicable = !!applicablePages[page];
+        indicatorEl.textContent = applicable ? 'Applies to time-based data on this page' : 'Not applicable on this page';
+        indicatorEl.classList.toggle('is-inactive', !applicable);
     }
 
     function getDays() {
@@ -124,78 +158,6 @@ var TimeRangeFilter = (function() {
             var value = resolveDate(item, fields);
             return isWithinRange(value, range);
         });
-    }
-
-    function scoreDateKey(key) {
-        if (!key) return 0;
-        var name = String(key).toLowerCase();
-        var score = 0;
-        if (name.indexOf('created') >= 0) score += 3;
-        if (name.indexOf('last') >= 0 || name.indexOf('updated') >= 0 || name.indexOf('modified') >= 0) score += 2;
-        if (name.indexOf('date') >= 0 || name.indexOf('time') >= 0) score += 1;
-        return score;
-    }
-
-    function findBestDateField(items) {
-        var counts = {};
-        var keys = [];
-        var limit = Math.min(items.length, 10);
-
-        for (var i = 0; i < limit; i++) {
-            var item = items[i];
-            if (!item || typeof item !== 'object') continue;
-            Object.keys(item).forEach(function(key) {
-                var value = item[key];
-                if (!value) return;
-                if (typeof value === 'string' || value instanceof Date) {
-                    var parsed = parseDate(value);
-                    if (parsed) {
-                        counts[key] = (counts[key] || 0) + 1;
-                        if (keys.indexOf(key) === -1) keys.push(key);
-                    }
-                }
-            });
-        }
-
-        var bestKey = null;
-        var bestCount = 0;
-        keys.forEach(function(key) {
-            var count = counts[key] || 0;
-            if (count > bestCount) {
-                bestCount = count;
-                bestKey = key;
-            } else if (count === bestCount && bestKey) {
-                if (scoreDateKey(key) > scoreDateKey(bestKey)) {
-                    bestKey = key;
-                }
-            }
-        });
-
-        return bestKey;
-    }
-
-    function filterArrayByGuess(items, range) {
-        if (!Array.isArray(items) || items.length === 0) return items || [];
-        if (typeof items[0] !== 'object') return items;
-        var field = findBestDateField(items);
-        if (!field) return items;
-        return filterArrayByFields(items, field, range);
-    }
-
-    function applyGeneric(data, range) {
-        if (Array.isArray(data)) {
-            return filterArrayByGuess(data, range);
-        }
-        if (!data || typeof data !== 'object') return data;
-
-        var result = Object.assign({}, data);
-        Object.keys(result).forEach(function(key) {
-            if (Array.isArray(result[key])) {
-                result[key] = filterArrayByGuess(result[key], range);
-            }
-        });
-
-        return result;
     }
 
     function filterServiceAnnouncements(data, range) {
@@ -280,7 +242,7 @@ var TimeRangeFilter = (function() {
                     range
                 );
             default:
-                return applyGeneric(data, range);
+                return data;
         }
     }
 
@@ -289,7 +251,8 @@ var TimeRangeFilter = (function() {
         getDays: getDays,
         getRange: getRange,
         isActive: isActive,
-        applyToType: applyToType
+        applyToType: applyToType,
+        updateIndicator: updateIndicator
     };
 
 })();

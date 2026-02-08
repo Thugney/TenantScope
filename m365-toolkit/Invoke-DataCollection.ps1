@@ -23,16 +23,35 @@
     5. Generates collection metadata
     6. Optionally opens the dashboard
 
+    Authentication modes:
+    - Interactive (default): Prompts for user sign-in via browser
+    - Certificate: Uses app registration with certificate (for scheduled tasks)
+    - Client Secret: Uses app registration with secret (less secure)
+
 .PARAMETER ConfigPath
     Path to the configuration JSON file. Defaults to ./config.json.
 
 .PARAMETER SkipDashboard
     If specified, skips the prompt to open the dashboard after collection.
 
-    .PARAMETER CollectorsToRun
-        Optional array of specific collector names to run. If not specified,
-        runs all collectors. Valid values include all items in the ValidateSet
-        defined for this parameter.
+.PARAMETER CollectorsToRun
+    Optional array of specific collector names to run. If not specified,
+    runs all collectors. Valid values include all items in the ValidateSet
+    defined for this parameter.
+
+.PARAMETER ClientId
+    Application (client) ID for app-only authentication.
+    Required for unattended/scheduled execution.
+
+.PARAMETER CertificateThumbprint
+    Certificate thumbprint for app-only authentication.
+    The certificate must be installed in CurrentUser\My certificate store.
+    Use with -ClientId for scheduled tasks.
+
+.PARAMETER ClientSecret
+    Client secret for app-only authentication.
+    Less secure than certificate - use only if certificates are not possible.
+    Use with -ClientId for scheduled tasks.
 
 .OUTPUTS
     JSON files in the data/ directory containing collected tenant data.
@@ -40,7 +59,7 @@
 
 .EXAMPLE
     .\Invoke-DataCollection.ps1
-    Runs all collectors with default configuration.
+    Runs all collectors with interactive authentication.
 
 .EXAMPLE
     .\Invoke-DataCollection.ps1 -SkipDashboard
@@ -49,6 +68,14 @@
 .EXAMPLE
     .\Invoke-DataCollection.ps1 -CollectorsToRun @("UserData", "LicenseData")
     Runs only the specified collectors.
+
+.EXAMPLE
+    .\Invoke-DataCollection.ps1 -ClientId "00000000-0000-0000-0000-000000000000" -CertificateThumbprint "ABC123..."
+    Runs with certificate-based app-only authentication (for scheduled tasks).
+
+.EXAMPLE
+    .\Invoke-DataCollection.ps1 -ClientId "00000000-0000-0000-0000-000000000000" -ClientSecret "secret"
+    Runs with client secret authentication (less secure).
 #>
 
 #Requires -Version 7.0
@@ -69,7 +96,17 @@ param(
                  "AppSignInData", "ConditionalAccessData", "CompliancePolicies", "ConfigurationProfiles",
                  "WindowsUpdateStatus", "BitLockerStatus", "AppDeployments", "EndpointAnalytics",
                  "ServicePrincipalSecrets", "ASRRules", "SignInLogs", "ServiceAnnouncementData")]
-    [string[]]$CollectorsToRun
+    [string[]]$CollectorsToRun,
+
+    # App-only authentication parameters (for scheduled/unattended execution)
+    [Parameter()]
+    [string]$ClientId,
+
+    [Parameter()]
+    [string]$CertificateThumbprint,
+
+    [Parameter()]
+    [string]$ClientSecret
 )
 
 # ============================================================================
@@ -428,14 +465,47 @@ Write-Host "[2/6] Connecting to Microsoft Graph..." -ForegroundColor Cyan
         "AccessReview.Read.All"
 )
 
-Write-Host "  Required scopes:" -ForegroundColor Gray
-foreach ($scope in $requiredScopes) {
-    Write-Host "    - $scope" -ForegroundColor Gray
+# Determine authentication mode
+$authMode = "Interactive"
+if ($ClientId -and $CertificateThumbprint) {
+    $authMode = "Certificate"
+}
+elseif ($ClientId -and $ClientSecret) {
+    $authMode = "ClientSecret"
+}
+elseif ($ClientId) {
+    Write-Host "  [X] ClientId provided but missing CertificateThumbprint or ClientSecret" -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "  Authentication mode: $authMode" -ForegroundColor Gray
+
+if ($authMode -eq "Interactive") {
+    Write-Host "  Required scopes:" -ForegroundColor Gray
+    foreach ($scope in $requiredScopes) {
+        Write-Host "    - $scope" -ForegroundColor Gray
+    }
 }
 
 try {
-    # Connect to Microsoft Graph with interactive sign-in
-    Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -NoWelcome
+    switch ($authMode) {
+        "Certificate" {
+            # App-only authentication with certificate (recommended for scheduled tasks)
+            Write-Host "  Connecting with certificate authentication..." -ForegroundColor Gray
+            Connect-MgGraph -ClientId $ClientId -TenantId $configContent.tenantId -CertificateThumbprint $CertificateThumbprint -NoWelcome
+        }
+        "ClientSecret" {
+            # App-only authentication with client secret (less secure)
+            Write-Host "  Connecting with client secret authentication..." -ForegroundColor Gray
+            $secureSecret = ConvertTo-SecureString -String $ClientSecret -AsPlainText -Force
+            $credential = New-Object System.Management.Automation.PSCredential($ClientId, $secureSecret)
+            Connect-MgGraph -TenantId $configContent.tenantId -ClientSecretCredential $credential -NoWelcome
+        }
+        default {
+            # Interactive authentication (default)
+            Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -NoWelcome
+        }
+    }
 
     # Verify connection
     $context = Get-MgContext
@@ -443,11 +513,22 @@ try {
         throw "Failed to establish Graph connection"
     }
 
-    Write-Host "  [OK] Connected as: $($context.Account)" -ForegroundColor Green
+    if ($authMode -eq "Interactive") {
+        Write-Host "  [OK] Connected as: $($context.Account)" -ForegroundColor Green
+    }
+    else {
+        Write-Host "  [OK] Connected as app: $($context.ClientId)" -ForegroundColor Green
+    }
 }
 catch {
     Write-Host "  [X] Connection failed: $($_.Exception.Message)" -ForegroundColor Red
-    Write-Host "  Ensure you have the required permissions and try again." -ForegroundColor Yellow
+    if ($authMode -eq "Interactive") {
+        Write-Host "  Ensure you have the required permissions and try again." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "  Verify app registration has required API permissions (Application type)." -ForegroundColor Yellow
+        Write-Host "  Required permissions: User.Read.All, Device.Read.All, etc. (as Application, not Delegated)" -ForegroundColor Yellow
+    }
     exit 1
 }
 

@@ -104,6 +104,11 @@
         // Update page subtitle in header
         updateHeaderSubtitle(pageName);
 
+        // Update time range indicator for page context
+        if (typeof TimeRangeFilter !== 'undefined' && TimeRangeFilter.updateIndicator) {
+            TimeRangeFilter.updateIndicator(pageName);
+        }
+
         // Get page container
         const container = document.getElementById('page-container');
         if (!container) {

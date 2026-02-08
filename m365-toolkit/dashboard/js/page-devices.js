@@ -511,8 +511,9 @@ const PageDevices = (function() {
         document.getElementById('devices-stale').addEventListener('change', applyDeviceFilters);
 
         var hashParams = getHashParams();
-        if (hashParams.user) {
-            Filters.setValue('devices-search', hashParams.user);
+        var searchSeed = hashParams.user || hashParams.device || hashParams.search;
+        if (searchSeed) {
+            Filters.setValue('devices-search', searchSeed);
         }
 
         applyDeviceFilters();

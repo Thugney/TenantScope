@@ -14,9 +14,11 @@
     on a regular schedule. This enables automatic, periodic updates of
     tenant data without manual intervention.
 
-    Note: For attended collection (interactive sign-in), you must be logged
-    in when the task runs. For unattended collection, you'll need to set up
-    an Azure AD app registration with appropriate permissions.
+    For unattended execution, you must provide app registration credentials:
+    - Certificate authentication (recommended): -ClientId and -CertificateThumbprint
+    - Client secret authentication: -ClientId and -ClientSecret
+
+    See docs/USAGE.md for app registration setup instructions.
 
 .PARAMETER TaskName
     Name of the scheduled task. Default: "M365-Toolkit-DataCollection"
@@ -28,16 +30,29 @@
 .PARAMETER Time
     Time to run the task (24-hour format). Default: "06:00"
 
+.PARAMETER ClientId
+    Application (client) ID from your Azure AD app registration.
+    Required for unattended execution.
+
+.PARAMETER CertificateThumbprint
+    Certificate thumbprint for app-only authentication.
+    The certificate must be installed in CurrentUser\My or LocalMachine\My.
+    Recommended for production use.
+
+.PARAMETER ClientSecret
+    Client secret for app-only authentication.
+    Less secure than certificate - secrets expire and can be leaked.
+
 .PARAMETER Remove
     If specified, removes the scheduled task instead of creating it.
 
 .EXAMPLE
-    .\scripts\Schedule-Collection.ps1
-    Creates a daily task running at 6:00 AM.
+    .\scripts\Schedule-Collection.ps1 -ClientId "00000000-..." -CertificateThumbprint "ABC123..."
+    Creates a daily task using certificate authentication.
 
 .EXAMPLE
-    .\scripts\Schedule-Collection.ps1 -Schedule Weekly -Time "08:00"
-    Creates a weekly task running at 8:00 AM on Mondays.
+    .\scripts\Schedule-Collection.ps1 -Schedule Weekly -Time "08:00" -ClientId "00000000-..." -ClientSecret "secret"
+    Creates a weekly task using client secret authentication.
 
 .EXAMPLE
     .\scripts\Schedule-Collection.ps1 -Remove
@@ -58,6 +73,15 @@ param(
 
     [Parameter()]
     [string]$Time = "06:00",
+
+    [Parameter()]
+    [string]$ClientId,
+
+    [Parameter()]
+    [string]$CertificateThumbprint,
+
+    [Parameter()]
+    [string]$ClientSecret,
 
     [Parameter()]
     [switch]$Remove
@@ -134,6 +158,46 @@ Write-Host "  PowerShell: $pwshPath" -ForegroundColor Gray
 Write-Host ""
 
 # ============================================================================
+# VALIDATE AUTHENTICATION
+# ============================================================================
+
+$authMode = "None"
+if ($ClientId -and $CertificateThumbprint) {
+    $authMode = "Certificate"
+}
+elseif ($ClientId -and $ClientSecret) {
+    $authMode = "ClientSecret"
+}
+elseif ($ClientId) {
+    Write-Host "Error: -ClientId requires either -CertificateThumbprint or -ClientSecret" -ForegroundColor Red
+    exit 1
+}
+
+if ($authMode -eq "None") {
+    Write-Host ""
+    Write-Host "WARNING: No app registration credentials provided." -ForegroundColor Yellow
+    Write-Host "  Scheduled tasks require unattended authentication." -ForegroundColor Yellow
+    Write-Host "  Without -ClientId and credentials, the task will fail." -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  To set up app registration:" -ForegroundColor Cyan
+    Write-Host "    1. Create an App Registration in Azure AD" -ForegroundColor White
+    Write-Host "    2. Add API permissions (Application type, not Delegated)" -ForegroundColor White
+    Write-Host "    3. Create a certificate or client secret" -ForegroundColor White
+    Write-Host "    4. Run this script with -ClientId and credentials" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  See docs/USAGE.md for detailed instructions." -ForegroundColor Gray
+    Write-Host ""
+
+    $continue = Read-Host "Continue anyway? (y/N)"
+    if ($continue -ne "y" -and $continue -ne "Y") {
+        Write-Host "Aborted." -ForegroundColor Yellow
+        exit 0
+    }
+}
+
+Write-Host "  Auth Mode:  $authMode" -ForegroundColor Gray
+
+# ============================================================================
 # CREATE TASK ACTION
 # ============================================================================
 
@@ -145,6 +209,19 @@ $actionArgs = @(
     "-File", "`"$collectionScript`"",
     "-SkipDashboard"  # Don't try to open dashboard in scheduled run
 )
+
+# Add authentication parameters if provided
+if ($ClientId) {
+    $actionArgs += "-ClientId", "`"$ClientId`""
+}
+if ($CertificateThumbprint) {
+    $actionArgs += "-CertificateThumbprint", "`"$CertificateThumbprint`""
+}
+if ($ClientSecret) {
+    # Note: Storing secrets in scheduled task arguments is not ideal
+    # Consider using Windows Credential Manager or Azure Key Vault in production
+    $actionArgs += "-ClientSecret", "`"$ClientSecret`""
+}
 
 $action = New-ScheduledTaskAction -Execute $pwshPath -Argument ($actionArgs -join " ") -WorkingDirectory $scriptRoot
 
@@ -214,10 +291,21 @@ try {
     Get-ScheduledTask -TaskName $TaskName | Format-List TaskName, State, Description
 
     Write-Host ""
-    Write-Host "Important notes:" -ForegroundColor Yellow
-    Write-Host "  - Task runs under your user account" -ForegroundColor White
-    Write-Host "  - You must be logged in for interactive Graph authentication" -ForegroundColor White
-    Write-Host "  - For unattended collection, configure app-only authentication" -ForegroundColor White
+    if ($authMode -eq "None") {
+        Write-Host "Important notes:" -ForegroundColor Yellow
+        Write-Host "  - Task runs under your user account" -ForegroundColor White
+        Write-Host "  - You must be logged in for interactive Graph authentication" -ForegroundColor White
+        Write-Host "  - For unattended collection, re-run with -ClientId and credentials" -ForegroundColor White
+    }
+    else {
+        Write-Host "Authentication configured:" -ForegroundColor Green
+        Write-Host "  - Mode: $authMode" -ForegroundColor White
+        Write-Host "  - ClientId: $ClientId" -ForegroundColor White
+        if ($CertificateThumbprint) {
+            Write-Host "  - Certificate: $CertificateThumbprint" -ForegroundColor White
+        }
+        Write-Host "  - Task will run unattended (no login required)" -ForegroundColor Green
+    }
     Write-Host ""
     Write-Host "To test the task manually:" -ForegroundColor Cyan
     Write-Host "  Start-ScheduledTask -TaskName '$TaskName'" -ForegroundColor White

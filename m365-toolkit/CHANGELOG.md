@@ -20,9 +20,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Permission-aware stats display (admin vs regular user)
   - Dashboard Usage section in Overview page (admin-only)
 
+- **App-Only Authentication for Scheduled Tasks**:
+  - Certificate-based authentication (`-CertificateThumbprint`) - recommended
+  - Client secret authentication (`-ClientSecret`) - alternative
+  - Full documentation for Azure AD app registration setup
+  - Works with both `Invoke-DataCollection.ps1` and `Schedule-Collection.ps1`
+
 ### Changed
 - Updated `config.sample.json` with `server.usageTracking` configuration section
-- Updated `docs/USAGE.md` with Dashboard Server documentation
+- Updated `docs/USAGE.md` with Dashboard Server and App Registration documentation
+- `Schedule-Collection.ps1` now warns if no credentials provided for unattended execution
 
 ---
 

@@ -16,12 +16,238 @@ const PageVulnerabilities = (function() {
     'use strict';
 
     var currentTab = 'overview';
+    var deviceIndex = null;
 
     function el(tag, className, textContent) {
         var elem = document.createElement(tag);
         if (className) elem.className = className;
         if (textContent !== undefined) elem.textContent = textContent;
         return elem;
+    }
+
+    function normalizeDeviceKey(value) {
+        if (!value) return null;
+        return String(value).toLowerCase();
+    }
+
+    function getDevicesArray() {
+        var raw = DataLoader.getData('devices') || [];
+        if (Array.isArray(raw)) return raw;
+        if (raw && Array.isArray(raw.devices)) return raw.devices;
+        return [];
+    }
+
+    function buildDeviceIndex() {
+        var index = {};
+        var devices = getDevicesArray();
+        devices.forEach(function(device) {
+            var keys = [
+                device.azureAdDeviceId,
+                device.deviceName,
+                device.managedDeviceName,
+                device.id
+            ];
+            keys.forEach(function(key) {
+                var normalized = normalizeDeviceKey(key);
+                if (normalized) {
+                    index[normalized] = device;
+                }
+            });
+        });
+        return index;
+    }
+
+    function ensureDeviceIndex() {
+        if (!deviceIndex) {
+            deviceIndex = buildDeviceIndex();
+        }
+        return deviceIndex;
+    }
+
+    function getAffectedDevicesList(vuln) {
+        if (!vuln || !Array.isArray(vuln.affectedDevicesList)) return [];
+        return vuln.affectedDevicesList;
+    }
+
+    function resolveDeviceRecord(item) {
+        if (!item) return null;
+        var index = ensureDeviceIndex();
+        var keys = [
+            item.deviceId,
+            item.azureAdDeviceId,
+            item.machineId,
+            item.id,
+            item.deviceName,
+            item.managedDeviceName,
+            item.computerDnsName
+        ];
+        for (var i = 0; i < keys.length; i++) {
+            var key = normalizeDeviceKey(keys[i]);
+            if (key && index[key]) {
+                return index[key];
+            }
+        }
+        return null;
+    }
+
+    function formatDateValue(value) {
+        if (!value) return '--';
+        if (window.DataLoader && typeof DataLoader.formatDate === 'function') {
+            return DataLoader.formatDate(value);
+        }
+        var date = new Date(value);
+        if (isNaN(date.getTime())) return '--';
+        return date.toLocaleDateString('en-GB', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric'
+        });
+    }
+
+    function appendDetailRow(container, label, value) {
+        container.appendChild(el('div', 'detail-label', label));
+        container.appendChild(el('div', 'detail-value', value || '--'));
+    }
+
+    function buildAffectedDevicesCell(vuln) {
+        var cell = el('td');
+        var list = getAffectedDevicesList(vuln);
+        var total = (typeof vuln.affectedDevices === 'number') ? vuln.affectedDevices : list.length;
+
+        if (list.length > 0) {
+            var btn = el('button', 'btn btn-secondary btn-sm');
+            var label = list.length === total ? (total + ' devices') : (list.length + ' of ' + total);
+            btn.textContent = label;
+            btn.addEventListener('click', function() {
+                showAffectedDevicesModal(vuln);
+            });
+            cell.appendChild(btn);
+        } else {
+            cell.textContent = String(total || 0);
+        }
+
+        return cell;
+    }
+
+    function createAffectedDevicesMeta(vuln) {
+        var span = el('span');
+        span.appendChild(el('strong', null, 'Affected Devices: '));
+        var list = getAffectedDevicesList(vuln);
+        var total = (typeof vuln.affectedDevices === 'number') ? vuln.affectedDevices : list.length;
+
+        if (list.length > 0) {
+            var btn = el('button', 'btn btn-secondary btn-sm');
+            var label = list.length === total ? (total + ' devices') : (list.length + ' of ' + total);
+            btn.textContent = label;
+            btn.addEventListener('click', function() {
+                showAffectedDevicesModal(vuln);
+            });
+            span.appendChild(btn);
+        } else {
+            span.appendChild(document.createTextNode(String(total || 0)));
+        }
+
+        return span;
+    }
+
+    function showAffectedDevicesModal(vuln) {
+        var overlay = document.getElementById('modal-overlay');
+        var title = document.getElementById('modal-title');
+        var body = document.getElementById('modal-body');
+        if (!overlay || !title || !body) return;
+
+        var list = getAffectedDevicesList(vuln);
+        var total = (typeof vuln.affectedDevices === 'number') ? vuln.affectedDevices : list.length;
+        var vulnId = vuln.id || 'CVE';
+
+        title.textContent = 'Affected Devices - ' + vulnId;
+        body.textContent = '';
+
+        var details = el('div', 'detail-list');
+        appendDetailRow(details, 'CVE', vulnId);
+        appendDetailRow(details, 'Name', vuln.name || 'Unknown');
+        appendDetailRow(details, 'Severity', (vuln.severity || 'unknown').toUpperCase());
+        appendDetailRow(details, 'Affected Devices', String(total));
+        appendDetailRow(details, 'Showing', String(list.length));
+        body.appendChild(details);
+
+        var actionRow = el('div', 'action-row');
+        if (list.length > 0 && window.ActionUtils && ActionUtils.copyText) {
+            var copyBtn = el('button', 'btn btn-secondary btn-sm', 'Copy device list');
+            copyBtn.addEventListener('click', function() {
+                var names = list.map(function(item) {
+                    return item.deviceName || item.computerDnsName || item.managedDeviceName || item.deviceId || 'Unknown Device';
+                });
+                ActionUtils.copyText(names.join('\n')).then(function() {
+                    if (window.Toast) Toast.success('Copied', 'Device list copied to clipboard.');
+                }).catch(function() {
+                    if (window.Toast) Toast.error('Copy failed', 'Unable to copy device list.');
+                });
+            });
+            actionRow.appendChild(copyBtn);
+        }
+
+        if (total > list.length) {
+            var note = el('div', 'action-note', 'Showing ' + list.length + ' of ' + total + ' devices.');
+            actionRow.appendChild(note);
+        }
+
+        if (actionRow.childNodes.length > 0) {
+            body.appendChild(actionRow);
+        }
+
+        if (list.length === 0) {
+            var empty = el('div', 'empty-state');
+            empty.appendChild(el('div', 'empty-state-title', 'No device list available'));
+            empty.appendChild(el('div', 'empty-state-description', 'This vulnerability does not include affected device details.'));
+            body.appendChild(empty);
+            overlay.classList.add('visible');
+            return;
+        }
+
+        var table = el('table', 'detail-table');
+        var thead = el('thead');
+        var headerRow = el('tr');
+        ['Device', 'User', 'OS', 'Compliance', 'Last Sync', 'Exposure', 'Action'].forEach(function(label) {
+            headerRow.appendChild(el('th', null, label));
+        });
+        thead.appendChild(headerRow);
+        table.appendChild(thead);
+
+        var tbody = el('tbody');
+        list.forEach(function(item) {
+            var record = resolveDeviceRecord(item);
+            var name = item.deviceName || item.computerDnsName || item.managedDeviceName || (record ? (record.deviceName || record.managedDeviceName) : null) || '--';
+            var user = item.userPrincipalName || (record ? record.userPrincipalName : null) || '--';
+            var os = item.osPlatform || item.os || (record ? (record.os + (record.windowsRelease ? ' ' + record.windowsRelease : '')) : null) || '--';
+            var compliance = item.complianceState || (record ? record.complianceState : null) || '--';
+            var lastSeen = item.lastSeen || item.lastSeenDateTime || (record ? record.lastSync : null);
+            var exposure = item.exposureLevel || item.riskScore || item.severity || '--';
+
+            var row = el('tr');
+            row.appendChild(el('td', null, name));
+            row.appendChild(el('td', null, user));
+            row.appendChild(el('td', null, os));
+            row.appendChild(el('td', null, compliance));
+            row.appendChild(el('td', null, formatDateValue(lastSeen)));
+            row.appendChild(el('td', null, String(exposure)));
+
+            var actionCell = el('td');
+            if (name && name !== '--') {
+                var link = el('a', 'btn btn-secondary btn-sm', 'Open');
+                link.href = '#devices?device=' + encodeURIComponent(name);
+                actionCell.appendChild(link);
+            } else {
+                actionCell.textContent = '--';
+            }
+            row.appendChild(actionCell);
+
+            tbody.appendChild(row);
+        });
+        table.appendChild(tbody);
+
+        body.appendChild(table);
+        overlay.classList.add('visible');
     }
 
     function switchTab(tab) {
@@ -213,7 +439,7 @@ const PageVulnerabilities = (function() {
                 }
                 row.appendChild(exploitCell);
 
-                row.appendChild(el('td', 'cell-right', String(v.affectedDevices || 0)));
+                row.appendChild(buildAffectedDevicesCell(v));
 
                 var patchCell = el('td');
                 if (v.patchAvailable) {
@@ -300,7 +526,7 @@ const PageVulnerabilities = (function() {
             }
             row.appendChild(exploitCell);
 
-            row.appendChild(el('td', 'cell-right', String(v.affectedDevices || 0)));
+            row.appendChild(buildAffectedDevicesCell(v));
 
             var patchCell = el('td');
             if (v.patchAvailable) {
@@ -373,7 +599,7 @@ const PageVulnerabilities = (function() {
             var meta = el('div', 'vuln-meta');
             meta.appendChild(createMetaItem('CVSS', v.cvssScore || 'N/A'));
             meta.appendChild(createMetaItem('Product', v.product || 'N/A'));
-            meta.appendChild(createMetaItem('Affected Devices', v.affectedDevices || 0));
+            meta.appendChild(createAffectedDevicesMeta(v));
             meta.appendChild(createMetaItem('Patch', v.patchAvailable ? 'Available' : 'Pending'));
             card.appendChild(meta);
 

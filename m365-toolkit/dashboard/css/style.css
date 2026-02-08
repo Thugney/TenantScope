@@ -1611,6 +1611,16 @@ table {
     color: var(--color-text-inverse);
 }
 
+.time-range-indicator {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.time-range-indicator.is-inactive {
+    opacity: 0.7;
+}
+
 .department-banner {
     background-color: #dbeafe;
     color: #1e40af;
@@ -2264,6 +2274,10 @@ table {
 
     .activity-grid {
         grid-template-columns: 1fr;
+    }
+
+    .time-range-indicator {
+        display: none;
     }
 }
 
