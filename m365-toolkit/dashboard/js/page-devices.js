@@ -1142,15 +1142,24 @@ const PageDevices = (function() {
             html += '</dl></div>';
         }
 
-        // Admin Portal Links
-        if (adminUrls.intune || adminUrls.entra) {
-            html += '<div class="detail-section full-width"><h4>Admin Portals</h4>';
-            html += '<div class="admin-portal-links">';
+        // Admin Portal Links - Quick Actions
+        if (adminUrls.intune || adminUrls.entra || adminUrls.defender) {
+            html += '<div class="detail-section full-width"><h4>Quick Actions</h4>';
+            html += '<div class="admin-portal-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">';
             if (adminUrls.intune) {
-                html += '<a href="' + adminUrls.intune + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Intune</a> ';
+                html += '<a href="' + adminUrls.intune + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Open in Intune</a>';
             }
             if (adminUrls.entra) {
-                html += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Entra ID</a>';
+                html += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Entra Device</a>';
+            }
+            if (adminUrls.defender) {
+                html += '<a href="' + adminUrls.defender + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Defender</a>';
+            }
+            if (adminUrls.intuneBitLocker) {
+                html += '<a href="' + adminUrls.intuneBitLocker + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">BitLocker Keys</a>';
+            }
+            if (adminUrls.intuneSync) {
+                html += '<a href="' + adminUrls.intuneSync + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Sync Device</a>';
             }
             html += '</div></div>';
         }

@@ -525,12 +525,24 @@ const PageUsers = (function() {
 
         var adminLinks = '';
         if (adminUrls.entra || adminUrls.defender) {
-            adminLinks = '<div class="detail-section full-width"><h4>Admin Portals</h4><div class="admin-portal-links">';
+            adminLinks = '<div class="detail-section full-width"><h4>Quick Actions</h4><div class="admin-portal-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">';
             if (adminUrls.entra) {
-                adminLinks += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Entra ID</a> ';
+                adminLinks += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Open in Entra</a>';
             }
             if (adminUrls.defender) {
-                adminLinks += '<a href="' + adminUrls.defender + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Defender</a>';
+                adminLinks += '<a href="' + adminUrls.defender + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Defender</a>';
+            }
+            if (adminUrls.entraAuth) {
+                adminLinks += '<a href="' + adminUrls.entraAuth + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Auth Methods</a>';
+            }
+            if (adminUrls.entraDevices) {
+                adminLinks += '<a href="' + adminUrls.entraDevices + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Devices</a>';
+            }
+            if (adminUrls.entraRoles) {
+                adminLinks += '<a href="' + adminUrls.entraRoles + '" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Roles</a>';
+            }
+            if (adminUrls.resetPassword) {
+                adminLinks += '<a href="' + adminUrls.resetPassword + '" target="_blank" rel="noopener" class="btn btn-warning btn-sm">Reset Password</a>';
             }
             adminLinks += '</div></div>';
         }

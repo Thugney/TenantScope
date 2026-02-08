@@ -536,11 +536,21 @@ var DataRelationships = (function() {
      */
     function getDeviceAdminUrls(device) {
         if (!device) return {};
+        var deviceId = device.id || '';
+        var azureAdDeviceId = device.azureAdDeviceId || '';
         return {
-            intune: device.id ?
-                'https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(device.id) : null,
-            entra: device.azureAdDeviceId ?
-                'https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DeviceDetailsMenuBlade/deviceId/' + encodeURIComponent(device.azureAdDeviceId) : null
+            intune: deviceId ?
+                'https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(deviceId) : null,
+            intuneCompliance: deviceId ?
+                'https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(deviceId) + '/complianceState' : null,
+            intuneSync: deviceId ?
+                'https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(deviceId) + '/sync' : null,
+            intuneBitLocker: deviceId ?
+                'https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(deviceId) + '/bitLockerKeys' : null,
+            entra: azureAdDeviceId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DeviceDetailsMenuBlade/deviceId/' + encodeURIComponent(azureAdDeviceId) : null,
+            defender: device.deviceName ?
+                'https://security.microsoft.com/machines/' + encodeURIComponent(device.deviceName) : null
         };
     }
 
@@ -551,11 +561,27 @@ var DataRelationships = (function() {
      */
     function getUserAdminUrls(user) {
         if (!user) return {};
+        var userId = user.id || '';
+        var upn = user.userPrincipalName || '';
         return {
-            entra: user.id ?
-                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(user.id) : null,
-            defender: user.id ?
-                'https://security.microsoft.com/users/' + encodeURIComponent(user.id) : null
+            entra: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) : null,
+            entraAuth: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) + '/AuthenticationMethods' : null,
+            entraDevices: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) + '/Devices' : null,
+            entraGroups: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) + '/Groups' : null,
+            entraRoles: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) + '/DirectoryRoles' : null,
+            defender: userId ?
+                'https://security.microsoft.com/users/' + encodeURIComponent(userId) : null,
+            pim: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles' : null,
+            resetPassword: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) + '/ResetPassword' : null,
+            revokeAccess: userId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(userId) + '/SignInActivity' : null
         };
     }
 

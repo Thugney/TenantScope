@@ -674,6 +674,24 @@ table {
     background-color: #d1d5db;
 }
 
+.btn-warning {
+    background-color: var(--color-warning);
+    color: #000;
+}
+
+.btn-warning:hover {
+    background-color: #d97706;
+}
+
+.btn-danger {
+    background-color: var(--color-critical);
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #b91c1c;
+}
+
 .btn-sm {
     padding: var(--spacing-xs) var(--spacing-sm);
     font-size: var(--font-size-xs);
