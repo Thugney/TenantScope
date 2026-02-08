@@ -164,7 +164,10 @@ const PageVulnerabilities = (function() {
         body.textContent = '';
 
         var details = el('div', 'detail-list');
-        appendDetailRow(details, 'CVE', vulnId);
+        details.appendChild(el('div', 'detail-label', 'CVE'));
+        var cveValueCell = el('div', 'detail-value');
+        cveValueCell.appendChild(createCveLink(vulnId, 'cve-link'));
+        details.appendChild(cveValueCell);
         appendDetailRow(details, 'Name', vuln.name || 'Unknown');
         appendDetailRow(details, 'Severity', (vuln.severity || 'unknown').toUpperCase());
         appendDetailRow(details, 'Affected Devices', String(total));
@@ -465,7 +468,9 @@ const PageVulnerabilities = (function() {
             var tbody = el('tbody');
             criticalVulns.slice(0, 10).forEach(function(v) {
                 var row = el('tr');
-                row.appendChild(el('td', 'font-bold', v.id));
+                var cveCell = el('td');
+                cveCell.appendChild(createCveLink(v.id, 'font-bold cve-link'));
+                row.appendChild(cveCell);
                 var nameCell = el('td');
                 nameCell.textContent = (v.name || '').substring(0, 40);
                 row.appendChild(nameCell);
@@ -550,7 +555,9 @@ const PageVulnerabilities = (function() {
         var tbody = el('tbody');
         sorted.forEach(function(v) {
             var row = el('tr');
-            row.appendChild(el('td', 'font-bold', v.id));
+            var cveCell = el('td');
+            cveCell.appendChild(createCveLink(v.id, 'font-bold cve-link'));
+            row.appendChild(cveCell);
             var nameCell = el('td');
             nameCell.textContent = (v.name || '').substring(0, 35);
             row.appendChild(nameCell);
@@ -633,7 +640,7 @@ const PageVulnerabilities = (function() {
             var card = el('div', 'vuln-detail-card');
 
             var cardHeader = el('div', 'vuln-detail-header');
-            cardHeader.appendChild(el('span', 'vuln-id', v.id));
+            cardHeader.appendChild(createCveLink(v.id, 'vuln-id cve-link'));
             var sevBadge = el('span', 'badge badge-' + (v.severity === 'critical' ? 'critical' : 'warning'));
             sevBadge.textContent = (v.severity || 'unknown').toUpperCase();
             cardHeader.appendChild(sevBadge);
@@ -668,6 +675,20 @@ const PageVulnerabilities = (function() {
         span.appendChild(el('strong', null, label + ': '));
         span.appendChild(document.createTextNode(String(value)));
         return span;
+    }
+
+    /**
+     * Creates a clickable CVE link to National Vulnerability Database
+     */
+    function createCveLink(cveId, className) {
+        if (!cveId) return el('span', null, '--');
+        var link = el('a', className || 'cve-link');
+        link.textContent = cveId;
+        link.href = 'https://nvd.nist.gov/vuln/detail/' + encodeURIComponent(cveId);
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        link.title = 'View CVE details on NVD';
+        return link;
     }
 
     function render(container) {

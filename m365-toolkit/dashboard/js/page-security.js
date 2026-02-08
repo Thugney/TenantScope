@@ -475,12 +475,30 @@ const PageSecurity = (function() {
                 { key: 'status', label: 'Status', formatter: formatAlertStatus },
                 { key: 'category', label: 'Category' },
                 { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.datetime },
-                { key: 'affectedUser', label: 'User' },
-                { key: 'affectedDevice', label: 'Device' }
+                { key: 'affectedUser', label: 'User', formatter: formatClickableUser },
+                { key: 'affectedDevice', label: 'Device', formatter: formatClickableDevice }
             ],
             pageSize: 10,
             onRowClick: showAlertDetails
         });
+    }
+
+    /**
+     * Formats affected user as a clickable link.
+     */
+    function formatClickableUser(value) {
+        if (!value) return '<span class="text-muted">--</span>';
+        var escaped = String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return '<a href="#users?search=' + encodeURIComponent(value) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + escaped + '</a>';
+    }
+
+    /**
+     * Formats affected device as a clickable link.
+     */
+    function formatClickableDevice(value) {
+        if (!value) return '<span class="text-muted">--</span>';
+        var escaped = String(value).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        return '<a href="#devices?search=' + encodeURIComponent(value) + '" class="entity-link" onclick="event.stopPropagation();" title="View device details">' + escaped + '</a>';
     }
 
     /**

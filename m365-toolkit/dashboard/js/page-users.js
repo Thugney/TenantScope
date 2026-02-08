@@ -454,10 +454,11 @@ const PageUsers = (function() {
         var auditLogs = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAuditLogs(user) : [];
         var directReports = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserDirectReports(user) : [];
         var managerChain = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserManagerChain(user) : [];
+        var pimActivity = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserPimActivity(user) : { eligibleRoles: [], activations: [], pendingApprovals: [] };
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -486,7 +487,7 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         alerts = alerts || [];
         adminUrls = adminUrls || {};
@@ -495,6 +496,7 @@ const PageUsers = (function() {
         auditLogs = auditLogs || [];
         directReports = directReports || [];
         managerChain = managerChain || [];
+        pimActivity = pimActivity || { eligibleRoles: [], activations: [], pendingApprovals: [] };
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
@@ -506,7 +508,7 @@ const PageUsers = (function() {
         '<div class="modal-tab-content">' +
             buildOverviewTab(user, mfa, risks, adminRoles, adminUrls, directReports, managerChain) +
             buildLicensesTab(licenses) +
-            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents) +
+            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity) +
             buildDevicesTab(devices) +
             buildActivityTab(signIns, teams, disableCommand, auditLogs) +
         '</div>';
@@ -623,10 +625,11 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents) {
+    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity) {
         alerts = alerts || [];
         caPolicies = caPolicies || [];
         oauthConsents = oauthConsents || [];
+        pimActivity = pimActivity || { eligibleRoles: [], activations: [], pendingApprovals: [] };
         var content = '<div class="modal-tab-pane" data-tab="security">';
 
         // MFA Methods section
@@ -744,6 +747,46 @@ const PageUsers = (function() {
             }
         } else {
             content += '<div class="empty-state-small">No OAuth consent grants for this user</div>';
+        }
+        content += '</div>';
+
+        // PIM Activity section
+        var pimTotal = pimActivity.eligibleRoles.length + pimActivity.activations.length;
+        content += '<div class="detail-section full-width"><h4>Privileged Identity Management (PIM)</h4>';
+
+        if (pimActivity.pendingApprovals.length > 0) {
+            content += '<div class="status-badge status-warning" style="margin-bottom:0.5rem">' + pimActivity.pendingApprovals.length + ' pending approval(s)</div>';
+        }
+
+        if (pimActivity.eligibleRoles.length > 0) {
+            content += '<h5>Eligible Roles (' + pimActivity.eligibleRoles.length + ')</h5>';
+            content += '<table class="mini-table"><thead><tr><th>Role</th><th>Status</th><th>Expires</th></tr></thead><tbody>';
+            pimActivity.eligibleRoles.forEach(function(role) {
+                var expiryDate = role.endDateTime ? DataLoader.formatDate(role.endDateTime) : 'Permanent';
+                content += '<tr>';
+                content += '<td>' + escapeHtml(role.roleName) + '</td>';
+                content += '<td>' + (role.status || '--') + '</td>';
+                content += '<td>' + expiryDate + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+        }
+
+        if (pimActivity.activations.length > 0) {
+            content += '<h5 style="margin-top:1rem">Recent Activations (' + pimActivity.activations.length + ')</h5>';
+            content += '<table class="mini-table"><thead><tr><th>Role</th><th>Date</th><th>Justification</th></tr></thead><tbody>';
+            pimActivity.activations.forEach(function(act) {
+                content += '<tr>';
+                content += '<td>' + escapeHtml(act.roleName) + '</td>';
+                content += '<td>' + (act.createdDateTime ? DataLoader.formatDate(act.createdDateTime) : '--') + '</td>';
+                content += '<td title="' + escapeHtml(act.justification || '') + '">' + escapeHtml((act.justification || '--').substring(0, 40)) + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+        }
+
+        if (pimTotal === 0) {
+            content += '<div class="empty-state-small">No PIM roles or activations for this user</div>';
         }
         content += '</div>';
 

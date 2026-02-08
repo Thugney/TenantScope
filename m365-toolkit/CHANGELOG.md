@@ -99,6 +99,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Device modal Compliance tab: Enhanced policy table showing policy name, platform, category, status, failed settings per policy
   - User modal Overview tab: Org Hierarchy section with clickable manager chain and direct reports list
 
+- **Expanded Problems Detection (Phase 12)**:
+  - App deployment failures detection from `appDeployments.failedDevices`
+  - Configuration profile errors detection from `configurationProfiles.failedDevices`
+  - Expired app credentials detection from `servicePrincipalSecrets` (expired + critical within 7 days)
+  - High-risk OAuth consent grants detection based on `riskLevel`
+  - Windows Update failures detection from `windowsUpdateStatus.deviceCompliance`
+  - PIM pending approvals detection from `pimActivity`
+  - Overdue access reviews detection from `accessReviewData.instances`
+  - Poor endpoint health devices detection from `endpointAnalytics.deviceScores`
+  - Problematic applications detection from `endpointAnalytics.appReliability`
+
+- **Security Page Navigation Enhancement (Phase 12)**:
+  - Defender alerts table now has clickable user and device columns
+  - Users in alerts navigate to user profile with search filter
+  - Devices in alerts navigate to device details with search filter
+  - Proper HTML escaping for XSS prevention
+
+- **CVE External Links (Phase 12)**:
+  - CVE IDs in vulnerability tables now link to NVD (National Vulnerability Database)
+  - Links open in new tab with `rel="noopener noreferrer"` for security
+  - Applied to Overview tab priority table, All CVEs tab, Exploited tab cards, and affected devices modal
+
+- **Endpoint Analytics Integration (Phase 12)**:
+  - `getDeviceEndpointAnalytics()` - health scores and performance metrics for devices
+  - Device modal Overview tab: Endpoint Analytics section showing health status, overall score, startup performance, app reliability, work from anywhere scores
+  - Additional metrics: boot score, login score, blue screen count, restart count
+  - Health status color-coded (Excellent/Good = green, Fair = yellow, Poor = red)
+
+- **PIM Activity Integration (Phase 12)**:
+  - `getUserPimActivity()` - eligible roles, activations, and pending approvals for users
+  - User modal Security tab: Privileged Identity Management section
+  - Eligible roles table showing role name, status, and expiry date
+  - Recent activations table showing role, activation date, and justification
+  - Pending approval alerts badge for visibility
+
 ### Changed
 - User and Device modals now use tabbed layouts for better organization
 - Teams owners list now uses clickable links instead of plain text

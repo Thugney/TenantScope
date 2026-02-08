@@ -1004,6 +1004,123 @@ var DataRelationships = (function() {
     }
 
     // ========================================================================
+    // ENDPOINT ANALYTICS
+    // ========================================================================
+
+    /**
+     * Get endpoint analytics data for a device.
+     * @param {string} deviceName - Device name
+     * @returns {Object|null} Endpoint analytics scores or null if not found
+     */
+    function getDeviceEndpointAnalytics(deviceName) {
+        if (!deviceName) return null;
+
+        var analyticsData = DataStore.endpointAnalytics || {};
+        var deviceScores = analyticsData.deviceScores || [];
+        var devicePerformance = analyticsData.devicePerformance || [];
+        var deviceNameLower = deviceName.toLowerCase();
+
+        // Find device in scores
+        var deviceScore = deviceScores.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        // Find device in performance data
+        var devicePerf = devicePerformance.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        if (!deviceScore && !devicePerf) return null;
+
+        return {
+            // Health scores
+            endpointAnalyticsScore: deviceScore ? deviceScore.endpointAnalyticsScore : null,
+            startupPerformanceScore: deviceScore ? deviceScore.startupPerformanceScore : null,
+            appReliabilityScore: deviceScore ? deviceScore.appReliabilityScore : null,
+            workFromAnywhereScore: deviceScore ? deviceScore.workFromAnywhereScore : null,
+            healthStatus: deviceScore ? deviceScore.healthStatus : null,
+            needsAttention: deviceScore ? deviceScore.needsAttention : false,
+            manufacturer: deviceScore ? deviceScore.manufacturer : null,
+            model: deviceScore ? deviceScore.model : null,
+
+            // Performance metrics (if available)
+            coreBootTimeInMs: devicePerf ? devicePerf.coreBootTimeInMs : null,
+            loginTimeInMs: devicePerf ? devicePerf.loginTimeInMs : null,
+            restartCount: devicePerf ? devicePerf.restartCount : null,
+            blueScreenCount: devicePerf ? devicePerf.blueScreenCount : null,
+            bootScore: devicePerf ? devicePerf.bootScore : null,
+            loginScore: devicePerf ? devicePerf.loginScore : null
+        };
+    }
+
+    // ========================================================================
+    // PIM ACTIVITY
+    // ========================================================================
+
+    /**
+     * Get PIM (Privileged Identity Management) activity for a user.
+     * @param {Object} user - User object
+     * @returns {Object} Object with eligible roles and activation history
+     */
+    function getUserPimActivity(user) {
+        if (!user || !user.userPrincipalName) return { eligibleRoles: [], activations: [], pendingApprovals: [] };
+
+        var pimData = DataStore.pimActivity || [];
+        var upnLower = user.userPrincipalName.toLowerCase();
+
+        // Filter by user
+        var userPimRecords = pimData.filter(function(p) {
+            return (p.principalUpn || '').toLowerCase() === upnLower;
+        });
+
+        // Separate into categories
+        var eligibleRoles = userPimRecords.filter(function(p) {
+            return p.isEligible === true || p.entryType === 'eligible';
+        });
+
+        var activations = userPimRecords.filter(function(p) {
+            return p.action === 'selfActivate' && p.status === 'Provisioned';
+        }).sort(function(a, b) {
+            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+        });
+
+        var pendingApprovals = userPimRecords.filter(function(p) {
+            return p.status === 'PendingApproval';
+        });
+
+        return {
+            eligibleRoles: eligibleRoles.map(function(r) {
+                return {
+                    roleName: r.roleName,
+                    status: r.status,
+                    startDateTime: r.scheduleStartDateTime,
+                    endDateTime: r.scheduleEndDateTime
+                };
+            }),
+            activations: activations.slice(0, 10).map(function(a) {
+                return {
+                    roleName: a.roleName,
+                    createdDateTime: a.createdDateTime,
+                    justification: a.justification,
+                    startDateTime: a.scheduleStartDateTime,
+                    endDateTime: a.scheduleEndDateTime,
+                    status: a.status
+                };
+            }),
+            pendingApprovals: pendingApprovals.map(function(p) {
+                return {
+                    roleName: p.roleName,
+                    justification: p.justification,
+                    createdDateTime: p.createdDateTime
+                };
+            }),
+            totalEligible: eligibleRoles.length,
+            totalActivations: activations.length,
+            hasPendingApprovals: pendingApprovals.length > 0
+        };
+    }
+
+    // ========================================================================
     // PUBLIC API
     // ========================================================================
 
@@ -1073,7 +1190,13 @@ var DataRelationships = (function() {
 
         // User Hierarchy
         getUserDirectReports: getUserDirectReports,
-        getUserManagerChain: getUserManagerChain
+        getUserManagerChain: getUserManagerChain,
+
+        // Endpoint Analytics
+        getDeviceEndpointAnalytics: getDeviceEndpointAnalytics,
+
+        // PIM Activity
+        getUserPimActivity: getUserPimActivity
     };
 })();
 

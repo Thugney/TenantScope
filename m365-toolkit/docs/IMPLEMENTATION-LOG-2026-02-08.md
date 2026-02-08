@@ -340,17 +340,75 @@ function getUserManagerChain(user) {
 
 ---
 
-## Updated Scores After Phase 11
+## Phase 12: Expanded Problems Detection & Deep Integrations
+
+### Checklist
+- [x] Add app deployment failures to Problems page
+- [x] Add config profile errors to Problems page
+- [x] Add expired app credentials to Problems page (with critical warning for 7-day expiry)
+- [x] Add high-risk OAuth consents to Problems page
+- [x] Add Windows Update failures to Problems page
+- [x] Add PIM pending approvals to Problems page
+- [x] Add overdue access reviews to Problems page
+- [x] Add poor endpoint health devices to Problems page
+- [x] Add problematic applications to Problems page
+- [x] Make users/devices clickable in Security page Defender alerts
+- [x] Add CVE links to NVD in vulnerability pages
+- [x] Add getDeviceEndpointAnalytics() to DataRelationships
+- [x] Add getUserPimActivity() to DataRelationships
+- [x] Add Endpoint Analytics section to device modal Overview tab
+- [x] Add PIM Activity section to user modal Security tab
+
+### DataRelationships Functions Added
+```javascript
+// Endpoint Analytics - health scores and performance metrics
+function getDeviceEndpointAnalytics(deviceName) {
+    // Returns { endpointAnalyticsScore, startupPerformanceScore, appReliabilityScore,
+    //           workFromAnywhereScore, healthStatus, needsAttention, bootScore, loginScore,
+    //           blueScreenCount, restartCount }
+}
+
+// PIM Activity - eligible roles, activations, pending approvals
+function getUserPimActivity(user) {
+    // Returns { eligibleRoles, activations, pendingApprovals,
+    //           totalEligible, totalActivations, hasPendingApprovals }
+}
+```
+
+### Problems Page New Categories
+- App deployment failures (High priority)
+- Configuration profile errors (High priority)
+- Expired app credentials (Critical priority)
+- App credentials expiring soon (High priority)
+- High-risk OAuth consents (High priority)
+- Windows Update failures (High priority)
+- PIM pending approvals (High priority)
+- Overdue access reviews (Critical priority)
+- Poor endpoint health scores (Medium priority)
+- Problematic applications (Medium priority)
+
+### Files Modified
+- `dashboard/js/page-problems.js` - Added 10 new problem categories
+- `dashboard/js/page-security.js` - Clickable user/device columns in alerts table
+- `dashboard/js/page-vulnerabilities.js` - CVE links to NVD database
+- `dashboard/js/data-relationships.js` - Added getDeviceEndpointAnalytics, getUserPimActivity
+- `dashboard/js/page-devices.js` - Added Endpoint Analytics section
+- `dashboard/js/page-users.js` - Added PIM Activity section
+
+---
+
+## Updated Scores After Phase 12
 
 | Aspect | Before | After | Change |
 |--------|--------|-------|--------|
 | Data Collection | 8/10 | 8/10 | - |
 | UI/Presentation | 9/10 | 9/10 | - |
-| Detail Drill-Downs | 9/10 | 10/10 | +1 |
-| Cross-Referencing | 9/10 | 10/10 | +1 |
+| Detail Drill-Downs | 10/10 | 10/10 | - |
+| Cross-Referencing | 10/10 | 10/10 | - |
+| Problem Detection | 7/10 | 10/10 | +3 |
 | Actionability | 1/10 | 1/10 | Deferred |
 
-**Note**: Detail Drill-Downs and Cross-Referencing now at 10/10 - all collected data is fully connected and visible in detail modals.
+**Note**: Problem Detection now at 10/10 - all collected data sources contribute to actionable problem detection on the Problems page.
 
 ---
 

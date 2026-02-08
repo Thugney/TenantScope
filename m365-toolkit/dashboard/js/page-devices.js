@@ -1000,6 +1000,7 @@ const PageDevices = (function() {
         var configProfiles = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceConfigProfiles(device.deviceName) : { profiles: [], failedCount: 0 };
         var appDeployments = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAppDeployments(device.deviceName) : { apps: [], failedCount: 0 };
         var compliancePolicies = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceCompliancePolicies(device.deviceName) : { policies: [], nonCompliantCount: 0 };
+        var endpointAnalytics = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceEndpointAnalytics(device.deviceName) : null;
 
         // Build tabbed interface
         var html = '<div class="modal-tabs">';
@@ -1107,6 +1108,36 @@ const PageDevices = (function() {
             }
             if (autopilot.lastContacted) {
                 html += '<dt>Last Contacted</dt><dd>' + new Date(autopilot.lastContacted).toLocaleString() + '</dd>';
+            }
+            html += '</dl></div>';
+        }
+
+        // Endpoint Analytics (if available)
+        if (endpointAnalytics) {
+            html += '<div class="detail-section"><h4>Endpoint Analytics</h4><dl class="detail-list">';
+            var healthClass = endpointAnalytics.healthStatus === 'Excellent' ? 'text-success' :
+                              endpointAnalytics.healthStatus === 'Good' ? 'text-success' :
+                              endpointAnalytics.healthStatus === 'Fair' ? 'text-warning' :
+                              endpointAnalytics.healthStatus === 'Poor' ? 'text-critical' : '';
+            html += '<dt>Health Status</dt><dd><span class="' + healthClass + '">' + (endpointAnalytics.healthStatus || '--') + '</span></dd>';
+            html += '<dt>Overall Score</dt><dd>' + (endpointAnalytics.endpointAnalyticsScore !== null ? endpointAnalytics.endpointAnalyticsScore : '--') + '</dd>';
+            html += '<dt>Startup Performance</dt><dd>' + (endpointAnalytics.startupPerformanceScore !== null ? endpointAnalytics.startupPerformanceScore : '--') + '</dd>';
+            html += '<dt>App Reliability</dt><dd>' + (endpointAnalytics.appReliabilityScore !== null ? endpointAnalytics.appReliabilityScore : '--') + '</dd>';
+            html += '<dt>Work From Anywhere</dt><dd>' + (endpointAnalytics.workFromAnywhereScore !== null ? endpointAnalytics.workFromAnywhereScore : '--') + '</dd>';
+            if (endpointAnalytics.needsAttention) {
+                html += '<dt>Needs Attention</dt><dd><span class="text-warning">Yes</span></dd>';
+            }
+            if (endpointAnalytics.bootScore !== null) {
+                html += '<dt>Boot Score</dt><dd>' + endpointAnalytics.bootScore + '</dd>';
+            }
+            if (endpointAnalytics.loginScore !== null) {
+                html += '<dt>Login Score</dt><dd>' + endpointAnalytics.loginScore + '</dd>';
+            }
+            if (endpointAnalytics.blueScreenCount !== null && endpointAnalytics.blueScreenCount > 0) {
+                html += '<dt>Blue Screen Count</dt><dd><span class="text-critical">' + endpointAnalytics.blueScreenCount + '</span></dd>';
+            }
+            if (endpointAnalytics.restartCount !== null) {
+                html += '<dt>Restart Count</dt><dd>' + endpointAnalytics.restartCount + '</dd>';
             }
             html += '</dl></div>';
         }
