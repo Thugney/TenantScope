@@ -87,7 +87,10 @@ const PageSignInLogs = (function() {
         var visible = colSelector ? colSelector.getVisible() : ['createdDateTime', 'userPrincipalName', 'appDisplayName', 'status', 'mfaSatisfied', 'location', 'riskLevel'];
         var allDefs = [
             { key: 'createdDateTime', label: 'Time', formatter: Tables.formatters.datetime },
-            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
+            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'appDisplayName', label: 'Application' },
             { key: 'status', label: 'Status', formatter: function(v) {
                 var statuses = { 'success': 'badge-success', 'failure': 'badge-critical', 'interrupted': 'badge-warning' };
@@ -321,7 +324,10 @@ const PageSignInLogs = (function() {
                 data: riskySignins.slice(0, 10),
                 columns: [
                     { key: 'createdDateTime', label: 'Time', formatter: Tables.formatters.datetime },
-                    { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
+                    { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
+                        if (!v) return '--';
+                        return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+                    }},
                     { key: 'appDisplayName', label: 'Application' },
                     { key: 'riskLevel', label: 'Risk', formatter: function(v) {
                         var cls = v === 'high' ? 'badge-critical' : 'badge-warning';

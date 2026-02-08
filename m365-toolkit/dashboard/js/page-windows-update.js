@@ -266,8 +266,8 @@ const PageWindowsUpdate = (function() {
 
             errorDevices.slice(0, 10).forEach(function(d) {
                 html += '<tr>';
-                html += '<td><strong>' + (d.deviceName || '--') + '</strong></td>';
-                html += '<td class="cell-truncate">' + (d.userPrincipalName || '--') + '</td>';
+                html += '<td><a href="#devices?search=' + encodeURIComponent(d.deviceName || '') + '" class="entity-link"><strong>' + (d.deviceName || '--') + '</strong></a></td>';
+                html += '<td class="cell-truncate"><a href="#users?search=' + encodeURIComponent(d.userPrincipalName || '') + '" class="entity-link">' + (d.userPrincipalName || '--') + '</a></td>';
                 html += '<td>' + (d.updateRing || '--') + '</td>';
                 html += '<td class="text-critical">' + (d.errorDetails || 'Unknown error') + '</td>';
                 html += '<td>' + SF.formatDate(d.lastSyncDateTime) + '</td>';

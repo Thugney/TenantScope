@@ -134,6 +134,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Recent activations table showing role, activation date, and justification
   - Pending approval alerts badge for visibility
 
+- **Deep Integration & Cross-Page Navigation (Phase 13)**:
+  - Identity Risk page: Clickable users in risky users and detections tables
+  - Windows Update page: Clickable devices/users in error devices table
+  - BitLocker page: Clickable devices/users in devices needing attention table
+  - Sign-In Logs page: Clickable users in main table and risky sign-ins overview
+
+- **Problems Page Expansion (Phase 13)**:
+  - Risky Sign-Ins detection (high/medium risk sign-ins)
+  - Failed Sign-In Attempts detection (brute force - 5+ failures per user)
+  - Stale Guest Users detection (90+ days inactive)
+  - Disabled Conditional Access Policies detection
+  - Wasted/Unused Licenses detection (unused > 10% or 5+)
+  - Service Health Issues detection (active incidents)
+
+- **User Modal Enhancements (Phase 13)**:
+  - `getUserRiskySignins()` - returns risky sign-ins (high/medium risk) for a user
+  - Risky Sign-Ins section in Security tab showing time, app, risk level, state, location
+  - Expanded On-Premises Sync details: domain, SAM account, last sync, sync age, distinguished name
+  - Password Policy details: last change, password age, expiration status, strong password status
+
+- **Device Modal Enhancements (Phase 13)**:
+  - Enhanced `getDeviceWindowsUpdate()` with pending/failed updates, feature version, error details, status source
+  - Enhanced Windows Update section with status badges, pending/failed counts, error details
+  - Enhanced `getDeviceBitLocker()` with recovery key count, volume types, needs encryption flag
+  - Enhanced BitLocker section with recovery key count, volume types, action required indicator
+
 ### Changed
 - User and Device modals now use tabbed layouts for better organization
 - Teams owners list now uses clickable links instead of plain text

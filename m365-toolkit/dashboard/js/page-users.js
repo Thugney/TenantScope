@@ -455,10 +455,11 @@ const PageUsers = (function() {
         var directReports = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserDirectReports(user) : [];
         var managerChain = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserManagerChain(user) : [];
         var pimActivity = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserPimActivity(user) : { eligibleRoles: [], activations: [], pendingApprovals: [] };
+        var riskySignins = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserRiskySignins(user) : [];
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity, riskySignins);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -487,7 +488,7 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity, riskySignins) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         alerts = alerts || [];
         adminUrls = adminUrls || {};
@@ -497,6 +498,7 @@ const PageUsers = (function() {
         directReports = directReports || [];
         managerChain = managerChain || [];
         pimActivity = pimActivity || { eligibleRoles: [], activations: [], pendingApprovals: [] };
+        riskySignins = riskySignins || [];
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
@@ -508,7 +510,7 @@ const PageUsers = (function() {
         '<div class="modal-tab-content">' +
             buildOverviewTab(user, mfa, risks, adminRoles, adminUrls, directReports, managerChain) +
             buildLicensesTab(licenses) +
-            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity) +
+            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) +
             buildDevicesTab(devices) +
             buildActivityTab(signIns, teams, disableCommand, auditLogs) +
         '</div>';
@@ -593,9 +595,22 @@ const PageUsers = (function() {
                         '<span class="detail-label">Risk Level:</span><span class="detail-value">' + riskBadge + '</span>' +
                         '<span class="detail-label">MFA Status:</span><span class="detail-value">' + (mfa.registered ? '<span class="status-badge status-success">Registered</span>' : '<span class="status-badge status-danger">Not Registered</span>') + '</span>' +
                         '<span class="detail-label">Admin Roles:</span><span class="detail-value">' + adminBadge + '</span>' +
-                        '<span class="detail-label">On-Prem Sync:</span><span class="detail-value">' + (user.onPremSync ? 'Yes' : 'No') + '</span>' +
+                        '<span class="detail-label">Account Source:</span><span class="detail-value">' + (user.onPremSync ? '<span class="status-badge">On-Premises</span>' : '<span class="status-badge status-info">Cloud-Only</span>') + '</span>' +
+                        '<span class="detail-label">Last Password Change:</span><span class="detail-value">' + DataLoader.formatDate(user.lastPasswordChange) + (user.passwordAge !== null && user.passwordAge !== undefined ? ' (' + user.passwordAge + ' days ago)' : '') + '</span>' +
+                        '<span class="detail-label">Password Expires:</span><span class="detail-value">' + (user.passwordNeverExpires ? '<span class="status-badge status-warning">Never</span>' : '<span class="status-badge status-success">Yes</span>') + '</span>' +
+                        (user.disableStrongPassword ? '<span class="detail-label">Strong Password:</span><span class="detail-value"><span class="status-badge status-danger">Disabled</span></span>' : '') +
                     '</div>' +
                 '</div>' +
+                (user.onPremSync ? '<div class="detail-section">' +
+                    '<h4>On-Premises Sync</h4>' +
+                    '<div class="detail-list">' +
+                        '<span class="detail-label">Domain:</span><span class="detail-value">' + escapeHtml(user.onPremDomainName || '--') + '</span>' +
+                        '<span class="detail-label">SAM Account:</span><span class="detail-value"><code>' + escapeHtml(user.onPremSamAccountName || '--') + '</code></span>' +
+                        '<span class="detail-label">Last Sync:</span><span class="detail-value">' + DataLoader.formatDate(user.onPremLastSync) + '</span>' +
+                        '<span class="detail-label">Sync Age:</span><span class="detail-value">' + (user.onPremSyncAge !== null && user.onPremSyncAge !== undefined ? user.onPremSyncAge + ' days' + (user.onPremSyncAge > 1 ? ' <span class="text-warning">(stale)</span>' : '') : '--') + '</span>' +
+                        (user.onPremDistinguishedName ? '<span class="detail-label">DN:</span><span class="detail-value" title="' + escapeHtml(user.onPremDistinguishedName) + '"><code style="font-size:0.75em;word-break:break-all">' + escapeHtml(user.onPremDistinguishedName) + '</code></span>' : '') +
+                    '</div>' +
+                '</div>' : '') +
                 '<div class="detail-section">' +
                     '<h4>Activity</h4>' +
                     '<div class="detail-list">' +
@@ -625,11 +640,12 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity) {
+    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) {
         alerts = alerts || [];
         caPolicies = caPolicies || [];
         oauthConsents = oauthConsents || [];
         pimActivity = pimActivity || { eligibleRoles: [], activations: [], pendingApprovals: [] };
+        riskySignins = riskySignins || [];
         var content = '<div class="modal-tab-pane" data-tab="security">';
 
         // MFA Methods section
@@ -787,6 +803,32 @@ const PageUsers = (function() {
 
         if (pimTotal === 0) {
             content += '<div class="empty-state-small">No PIM roles or activations for this user</div>';
+        }
+        content += '</div>';
+
+        // Risky Sign-Ins section
+        content += '<div class="detail-section full-width"><h4>Risky Sign-Ins (' + riskySignins.length + ')</h4>';
+        if (riskySignins.length > 0) {
+            content += '<table class="mini-table"><thead><tr><th>Time</th><th>App</th><th>Risk Level</th><th>Risk State</th><th>Location</th></tr></thead><tbody>';
+            riskySignins.forEach(function(signin) {
+                var riskClass = signin.riskLevel === 'high' ? 'text-critical' : signin.riskLevel === 'medium' ? 'text-warning' : '';
+                var stateClass = signin.riskState === 'atRisk' ? 'text-critical' : signin.riskState === 'confirmedCompromised' ? 'text-critical' : signin.riskState === 'remediated' ? 'text-success' : '';
+                var location = signin.location ? ((signin.location.city || '') + (signin.location.countryOrRegion ? ', ' + signin.location.countryOrRegion : '')) : '--';
+                content += '<tr>';
+                content += '<td>' + DataLoader.formatDate(signin.createdDateTime) + '</td>';
+                content += '<td>' + escapeHtml(signin.appDisplayName || '--') + '</td>';
+                content += '<td class="' + riskClass + '">' + (signin.riskLevel || '--') + '</td>';
+                content += '<td class="' + stateClass + '">' + (signin.riskState || '--') + '</td>';
+                content += '<td>' + escapeHtml(location) + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+            var highRiskCount = riskySignins.filter(function(s) { return s.riskLevel === 'high'; }).length;
+            if (highRiskCount > 0) {
+                content += '<p class="text-critical" style="margin-top:0.5rem;font-size:0.85em">' + highRiskCount + ' high-risk sign-in(s) detected. Review immediately.</p>';
+            }
+        } else {
+            content += '<div class="empty-state-small">No risky sign-ins detected</div>';
         }
         content += '</div>';
 

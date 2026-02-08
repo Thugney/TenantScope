@@ -560,6 +560,147 @@ const PageProblems = (function() {
             });
         }
 
+        // ===== RISKY SIGN-INS =====
+        var signinData = DataLoader.getData('signinLogs') || {};
+        var signins = Array.isArray(signinData) ? signinData : (signinData.signIns || []);
+        var riskySignins = signins.filter(function(s) {
+            var risk = (s.riskLevel || '').toLowerCase();
+            return risk === 'high' || risk === 'medium';
+        });
+        if (riskySignins.length > 0) {
+            var highRiskSignins = riskySignins.filter(function(s) { return s.riskLevel === 'high'; });
+            problems[highRiskSignins.length > 0 ? 'critical' : 'high'].push({
+                category: 'Identity',
+                title: 'Risky Sign-Ins',
+                count: riskySignins.length,
+                description: riskySignins.length + ' sign-ins flagged as risky (high: ' + highRiskSignins.length + ')',
+                action: 'Investigate risky sign-ins and consider blocking compromised accounts',
+                link: '#signin-logs?tab=overview',
+                items: riskySignins.slice(0, 5).map(function(s) {
+                    return { name: s.userPrincipalName || 'Unknown', detail: s.riskLevel + ' risk - ' + (s.location || 'Unknown location') };
+                })
+            });
+        }
+
+        // ===== FAILED SIGN-IN ATTEMPTS =====
+        var failedSignins = signins.filter(function(s) {
+            return s.status === 'failure' || s.status === 'failed' || s.errorCode > 0;
+        });
+        if (failedSignins.length > 10) {
+            // Group by user to find brute force patterns
+            var failuresByUser = {};
+            failedSignins.forEach(function(s) {
+                var upn = s.userPrincipalName || 'Unknown';
+                failuresByUser[upn] = (failuresByUser[upn] || 0) + 1;
+            });
+            var usersWithManyFailures = Object.keys(failuresByUser).filter(function(upn) {
+                return failuresByUser[upn] >= 5;
+            });
+            if (usersWithManyFailures.length > 0) {
+                problems.high.push({
+                    category: 'Identity',
+                    title: 'Multiple Failed Sign-In Attempts',
+                    count: usersWithManyFailures.length,
+                    description: usersWithManyFailures.length + ' users have 5+ failed sign-in attempts',
+                    action: 'Investigate for brute force attacks or password issues',
+                    link: '#signin-logs?status=failure',
+                    items: usersWithManyFailures.slice(0, 5).map(function(upn) {
+                        return { name: upn, detail: failuresByUser[upn] + ' failed attempts' };
+                    })
+                });
+            }
+        }
+
+        // ===== STALE GUEST USERS =====
+        var staleGuests = users.filter(function(u) {
+            if (u.userType !== 'Guest') return false;
+            var lastSignIn = u.lastSignInDateTime || u.signInActivity?.lastSignInDateTime;
+            if (!lastSignIn) return true; // Never signed in
+            var daysSinceSignIn = Math.floor((Date.now() - new Date(lastSignIn)) / (1000 * 60 * 60 * 24));
+            return daysSinceSignIn > 90;
+        });
+        if (staleGuests.length > 0) {
+            problems.medium.push({
+                category: 'Identity',
+                title: 'Stale Guest Users',
+                count: staleGuests.length,
+                description: staleGuests.length + ' guest users have not signed in for 90+ days',
+                action: 'Review and remove inactive guest accounts',
+                link: '#users?type=guest',
+                items: staleGuests.slice(0, 5).map(function(u) {
+                    return { name: u.displayName || u.userPrincipalName, detail: 'Guest - inactive' };
+                })
+            });
+        }
+
+        // ===== DISABLED CONDITIONAL ACCESS POLICIES =====
+        var caPolicies = DataLoader.getData('conditionalAccess') || [];
+        var disabledPolicies = caPolicies.filter(function(p) {
+            return p.state === 'disabled' || p.state === 'enabledForReportingButNotEnforced';
+        });
+        if (disabledPolicies.length > 0) {
+            var reportOnlyPolicies = disabledPolicies.filter(function(p) { return p.state === 'enabledForReportingButNotEnforced'; });
+            problems.medium.push({
+                category: 'Security',
+                title: 'Disabled CA Policies',
+                count: disabledPolicies.length,
+                description: disabledPolicies.length + ' Conditional Access policies are not enforced (' + reportOnlyPolicies.length + ' report-only)',
+                action: 'Review disabled policies and enable if appropriate',
+                link: '#conditional-access',
+                items: disabledPolicies.slice(0, 5).map(function(p) {
+                    return { name: p.displayName, detail: p.state === 'enabledForReportingButNotEnforced' ? 'Report-only' : 'Disabled' };
+                })
+            });
+        }
+
+        // ===== WASTED LICENSES =====
+        var licenseData = DataLoader.getData('licenseSkus') || [];
+        var wastedLicenses = licenseData.filter(function(sku) {
+            var available = sku.prepaidUnits?.enabled || 0;
+            var consumed = sku.consumedUnits || 0;
+            var unused = available - consumed;
+            // Flag if more than 10% or 5+ licenses are unused
+            return unused >= 5 && (unused / available) > 0.1;
+        });
+        if (wastedLicenses.length > 0) {
+            var totalWasted = wastedLicenses.reduce(function(sum, sku) {
+                return sum + ((sku.prepaidUnits?.enabled || 0) - (sku.consumedUnits || 0));
+            }, 0);
+            problems.low.push({
+                category: 'Governance',
+                title: 'Unused Licenses',
+                count: totalWasted,
+                description: totalWasted + ' licenses across ' + wastedLicenses.length + ' SKUs are unassigned',
+                action: 'Review license assignments or reduce subscription count',
+                link: '#licenses',
+                items: wastedLicenses.slice(0, 5).map(function(sku) {
+                    var unused = (sku.prepaidUnits?.enabled || 0) - (sku.consumedUnits || 0);
+                    return { name: sku.skuPartNumber || sku.displayName, detail: unused + ' unused' };
+                })
+            });
+        }
+
+        // ===== SERVICE HEALTH ISSUES =====
+        var serviceHealth = DataLoader.getData('serviceHealth') || {};
+        var healthIssues = serviceHealth.issues || [];
+        var activeIssues = healthIssues.filter(function(i) {
+            return i.status !== 'resolved' && i.status !== 'serviceRestored';
+        });
+        if (activeIssues.length > 0) {
+            var criticalIssues = activeIssues.filter(function(i) { return i.classification === 'incident'; });
+            problems[criticalIssues.length > 0 ? 'high' : 'medium'].push({
+                category: 'Operations',
+                title: 'Service Health Issues',
+                count: activeIssues.length,
+                description: activeIssues.length + ' active M365 service health issues (' + criticalIssues.length + ' incidents)',
+                action: 'Monitor service health and plan for user communication',
+                link: '#service-health',
+                items: activeIssues.slice(0, 5).map(function(i) {
+                    return { name: i.service || 'M365', detail: i.title || i.classification };
+                })
+            });
+        }
+
         return problems;
     }
 

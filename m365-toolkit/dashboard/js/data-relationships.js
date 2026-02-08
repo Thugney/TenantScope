@@ -295,6 +295,7 @@ var DataRelationships = (function() {
 
         var match = devices.find(function(b) {
             return b.deviceId === device.id ||
+                   b.id === device.id ||
                    b.deviceName === device.deviceName ||
                    b.azureAdDeviceId === device.azureAdDeviceId;
         });
@@ -307,11 +308,22 @@ var DataRelationships = (function() {
             };
         }
 
+        // Extract volume types from recovery keys
+        var recoveryKeys = match.recoveryKeys || [];
+        var volumeTypes = recoveryKeys.map(function(k) { return k.volumeType || 'Unknown'; });
+
         return {
             encrypted: match.isEncrypted || match.encryptionState === 'encrypted',
+            encryptionState: match.encryptionState,
             recoveryKeyEscrowed: match.recoveryKeyEscrowed || match.hasRecoveryKey || false,
+            recoveryKeyCount: match.recoveryKeyCount || recoveryKeys.length || 0,
+            recoveryKeys: recoveryKeys,
+            volumeTypes: volumeTypes,
             encryptionMethod: match.encryptionMethod,
-            status: match.status || (match.isEncrypted ? 'encrypted' : 'not-encrypted')
+            needsEncryption: match.needsEncryption || false,
+            complianceState: match.complianceState,
+            lastSyncDateTime: match.lastSyncDateTime,
+            status: match.encryptionState || match.status || (match.isEncrypted ? 'encrypted' : 'not-encrypted')
         };
     }
 
@@ -320,7 +332,8 @@ var DataRelationships = (function() {
      */
     function getDeviceWindowsUpdate(device) {
         var updateData = DataStore.windowsUpdateStatus || {};
-        var devices = updateData.devices || [];
+        // Check both devices and deviceCompliance arrays (collector uses deviceCompliance)
+        var devices = updateData.deviceCompliance || updateData.devices || [];
 
         var match = devices.find(function(u) {
             return u.deviceId === device.id || u.deviceName === device.deviceName;
@@ -332,10 +345,16 @@ var DataRelationships = (function() {
 
         return {
             ring: match.updateRing || match.deploymentRing || 'Unknown',
+            ringAssignments: match.updateRingAssignments || [],
             featureUpdateStatus: match.featureUpdateStatus,
+            featureUpdateVersion: match.featureUpdateVersion,
             qualityUpdateStatus: match.qualityUpdateStatus,
-            lastScanTime: match.lastScanTime,
-            status: match.complianceStatus || match.status || 'Unknown'
+            lastScanTime: match.lastScanTime || match.lastSyncDateTime,
+            status: match.updateStatus || match.complianceStatus || match.status || 'Unknown',
+            statusSource: match.updateStatusSource,
+            pendingUpdates: match.pendingUpdates || 0,
+            failedUpdates: match.failedUpdates || 0,
+            errorDetails: match.errorDetails
         };
     }
 
@@ -1054,6 +1073,43 @@ var DataRelationships = (function() {
     }
 
     // ========================================================================
+    // RISKY SIGN-INS
+    // ========================================================================
+
+    /**
+     * Get risky sign-ins for a user.
+     * @param {Object} user - User object
+     * @returns {Array} Array of risky sign-ins (high/medium risk)
+     */
+    function getUserRiskySignins(user) {
+        if (!user) return [];
+        var logs = DataStore.signinLogs || [];
+        var upn = (user.userPrincipalName || '').toLowerCase();
+
+        return logs.filter(function(log) {
+            var logUpn = (log.userPrincipalName || '').toLowerCase();
+            if (logUpn !== upn) return false;
+            var risk = (log.riskLevel || '').toLowerCase();
+            return risk === 'high' || risk === 'medium';
+        }).sort(function(a, b) {
+            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+        }).slice(0, 20).map(function(log) {
+            return {
+                id: log.id,
+                createdDateTime: log.createdDateTime,
+                appDisplayName: log.appDisplayName,
+                riskLevel: log.riskLevel,
+                riskState: log.riskState,
+                riskEventTypes: log.riskEventTypes || [],
+                ipAddress: log.ipAddress,
+                location: log.location,
+                status: log.status,
+                mfaSatisfied: log.mfaSatisfied
+            };
+        });
+    }
+
+    // ========================================================================
     // PIM ACTIVITY
     // ========================================================================
 
@@ -1196,7 +1252,10 @@ var DataRelationships = (function() {
         getDeviceEndpointAnalytics: getDeviceEndpointAnalytics,
 
         // PIM Activity
-        getUserPimActivity: getUserPimActivity
+        getUserPimActivity: getUserPimActivity,
+
+        // Risky Sign-Ins
+        getUserRiskySignins: getUserRiskySignins
     };
 })();
 

@@ -224,8 +224,8 @@ const PageBitLocker = (function() {
                              d.recoveryKeyEscrowed === false ? 'Backup Recovery Key' : 'Check Device';
 
                 html += '<tr>';
-                html += '<td><strong>' + (d.deviceName || '--') + '</strong></td>';
-                html += '<td class="cell-truncate">' + (d.userPrincipalName || '--') + '</td>';
+                html += '<td><a href="#devices?search=' + encodeURIComponent(d.deviceName || '') + '" class="entity-link"><strong>' + (d.deviceName || '--') + '</strong></a></td>';
+                html += '<td class="cell-truncate"><a href="#users?search=' + encodeURIComponent(d.userPrincipalName || '') + '" class="entity-link">' + (d.userPrincipalName || '--') + '</a></td>';
                 html += '<td>' + issues.join(' ') + '</td>';
                 html += '<td>' + (SF.formatDate ? SF.formatDate(d.lastSyncDateTime) : formatDateFallback(d.lastSyncDateTime)) + '</td>';
                 html += '<td><span class="text-info">' + action + '</span></td>';

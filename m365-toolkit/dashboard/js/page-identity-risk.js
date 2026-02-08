@@ -255,7 +255,9 @@ const PageIdentityRisk = (function() {
                             <tr class="${user.riskLevel === 'high' ? 'row-critical' : user.riskLevel === 'medium' ? 'row-warning' : ''}">
                                 <td>
                                     <div class="user-cell">
-                                        <strong>${escapeHtml(user.userDisplayName || 'Unknown')}</strong>
+                                        <a href="#users?search=${encodeURIComponent(user.userPrincipalName || '')}" class="entity-link">
+                                            <strong>${escapeHtml(user.userDisplayName || 'Unknown')}</strong>
+                                        </a>
                                         <small>${escapeHtml(user.userPrincipalName || '')}</small>
                                     </div>
                                 </td>
@@ -300,7 +302,9 @@ const PageIdentityRisk = (function() {
                             <tr class="${rowClass}">
                                 <td>
                                     <div class="user-cell">
-                                        <strong>${escapeHtml(det.userDisplayName || 'Unknown')}</strong>
+                                        <a href="#users?search=${encodeURIComponent(det.userPrincipalName || '')}" class="entity-link">
+                                            <strong>${escapeHtml(det.userDisplayName || 'Unknown')}</strong>
+                                        </a>
                                         <small>${escapeHtml(det.userPrincipalName || '')}</small>
                                     </div>
                                 </td>

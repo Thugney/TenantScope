@@ -1163,19 +1163,28 @@ const PageDevices = (function() {
         html += '<div class="detail-grid">';
 
         // Encryption & BitLocker
+        var encryptionBadge = bitlocker.encrypted === true ? '<span class="status-badge status-success">Encrypted</span>' :
+                              bitlocker.encrypted === false ? '<span class="status-badge status-danger">Not Encrypted</span>' :
+                              '<span class="status-badge">Unknown</span>';
         html += '<div class="detail-section"><h4>Encryption & BitLocker</h4><dl class="detail-list">';
-        if (bitlocker.encrypted === true) {
-            html += '<dt>Encrypted</dt><dd><span class="text-success">Yes</span></dd>';
-        } else if (bitlocker.encrypted === false) {
-            html += '<dt>Encrypted</dt><dd><span class="text-critical">No</span></dd>';
-        } else {
-            html += '<dt>Encrypted</dt><dd><span class="text-muted">Unknown</span></dd>';
+        html += '<dt>Status</dt><dd>' + encryptionBadge + '</dd>';
+        if (bitlocker.encryptionState && bitlocker.encryptionState !== 'encrypted' && bitlocker.encryptionState !== 'notEncrypted') {
+            html += '<dt>State</dt><dd>' + bitlocker.encryptionState + '</dd>';
         }
-        html += '<dt>BitLocker Status</dt><dd>' + (bitlocker.status || '--') + '</dd>';
         if (bitlocker.encryptionMethod) {
             html += '<dt>Encryption Method</dt><dd>' + bitlocker.encryptionMethod + '</dd>';
         }
         html += '<dt>Recovery Key Escrowed</dt><dd>' + (bitlocker.recoveryKeyEscrowed ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+        if (bitlocker.recoveryKeyCount > 0) {
+            html += '<dt>Recovery Keys</dt><dd>' + bitlocker.recoveryKeyCount + ' key(s)</dd>';
+            if (bitlocker.volumeTypes && bitlocker.volumeTypes.length > 0) {
+                var volumeList = bitlocker.volumeTypes.join(', ');
+                html += '<dt>Volume Types</dt><dd>' + volumeList + '</dd>';
+            }
+        }
+        if (bitlocker.needsEncryption) {
+            html += '<dt>Action Required</dt><dd><span class="text-critical">Encryption needed</span></dd>';
+        }
         html += '</dl></div>';
 
         // Threat State
@@ -1191,17 +1200,30 @@ const PageDevices = (function() {
 
         // Windows Update Status
         if (device.os === 'Windows') {
+            var updateStatusBadge = windowsUpdate.status === 'upToDate' ? '<span class="status-badge status-success">Up to Date</span>' :
+                                    windowsUpdate.status === 'pendingUpdate' ? '<span class="status-badge status-warning">Pending</span>' :
+                                    windowsUpdate.status === 'error' ? '<span class="status-badge status-danger">Error</span>' :
+                                    '<span class="status-badge">' + (windowsUpdate.status || 'Unknown') + '</span>';
             html += '<div class="detail-section"><h4>Windows Update</h4><dl class="detail-list">';
+            html += '<dt>Update Status</dt><dd>' + updateStatusBadge + '</dd>';
             html += '<dt>Update Ring</dt><dd>' + (windowsUpdate.ring || '--') + '</dd>';
-            html += '<dt>Update Status</dt><dd>' + (windowsUpdate.status || '--') + '</dd>';
-            if (windowsUpdate.featureUpdateStatus) {
-                html += '<dt>Feature Update</dt><dd>' + windowsUpdate.featureUpdateStatus + '</dd>';
+            if (windowsUpdate.featureUpdateVersion) {
+                html += '<dt>Feature Version</dt><dd>' + windowsUpdate.featureUpdateVersion + '</dd>';
             }
-            if (windowsUpdate.qualityUpdateStatus) {
-                html += '<dt>Quality Update</dt><dd>' + windowsUpdate.qualityUpdateStatus + '</dd>';
+            if (windowsUpdate.pendingUpdates > 0) {
+                html += '<dt>Pending Updates</dt><dd><span class="text-warning">' + windowsUpdate.pendingUpdates + '</span></dd>';
+            }
+            if (windowsUpdate.failedUpdates > 0) {
+                html += '<dt>Failed Updates</dt><dd><span class="text-critical">' + windowsUpdate.failedUpdates + '</span></dd>';
+            }
+            if (windowsUpdate.errorDetails) {
+                html += '<dt>Error Details</dt><dd><span class="text-critical">' + windowsUpdate.errorDetails + '</span></dd>';
             }
             if (windowsUpdate.lastScanTime) {
                 html += '<dt>Last Scan</dt><dd>' + new Date(windowsUpdate.lastScanTime).toLocaleString() + '</dd>';
+            }
+            if (windowsUpdate.statusSource) {
+                html += '<dt>Status Source</dt><dd><span class="text-muted" style="font-size:0.85em">' + windowsUpdate.statusSource + '</span></dd>';
             }
             html += '</dl></div>';
         }

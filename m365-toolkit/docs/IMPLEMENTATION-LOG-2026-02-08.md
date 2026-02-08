@@ -412,4 +412,66 @@ function getUserPimActivity(user) {
 
 ---
 
+## Phase 13: Deep Integration & Cross-Page Navigation
+
+### Checklist - Clickable Navigation Links
+- [x] Identity Risk page: Clickable users in risky users table and detections table
+- [x] Windows Update page: Clickable devices/users in error devices table
+- [x] BitLocker page: Clickable devices/users in devices needing attention table
+- [x] Sign-In Logs page: Clickable users in main table and risky sign-ins overview
+
+### Checklist - Problems Page Expansion
+- [x] Add Risky Sign-Ins (high/medium risk sign-ins)
+- [x] Add Failed Sign-In Attempts (brute force detection - 5+ failures per user)
+- [x] Add Stale Guest Users (90+ days inactive)
+- [x] Add Disabled Conditional Access Policies
+- [x] Add Wasted/Unused Licenses (unused > 10% or 5+)
+- [x] Add Service Health Issues (active incidents)
+
+### Checklist - User Modal Enhancements
+- [x] Add getUserRiskySignins() to DataRelationships
+- [x] Add Risky Sign-Ins section to Security tab (time, app, risk level, risk state, location)
+- [x] Expand On-Premises Sync details (domain, SAM account, last sync, sync age, DN)
+- [x] Add Password Policy details (last change, expires, strong password status)
+
+### Checklist - Device Modal Enhancements
+- [x] Enhance getDeviceWindowsUpdate() with more data (pending/failed updates, feature version, error details)
+- [x] Enhance Windows Update section with status badges, pending/failed counts, error details
+- [x] Enhance getDeviceBitLocker() with recovery key details (count, volume types)
+- [x] Enhance BitLocker section with recovery key count, volume types, action required flag
+
+### DataRelationships Functions Added/Enhanced
+```javascript
+// New function - get user's risky sign-ins
+function getUserRiskySignins(user) {
+    // Returns up to 20 risky sign-ins (high/medium risk)
+    // Fields: id, createdDateTime, appDisplayName, riskLevel, riskState,
+    //         riskEventTypes, ipAddress, location, status, mfaSatisfied
+}
+
+// Enhanced - more comprehensive Windows Update data
+function getDeviceWindowsUpdate(device) {
+    // Now includes: ringAssignments, featureUpdateVersion, pendingUpdates,
+    //               failedUpdates, errorDetails, statusSource
+}
+
+// Enhanced - more comprehensive BitLocker data
+function getDeviceBitLocker(device) {
+    // Now includes: encryptionState, recoveryKeyCount, recoveryKeys,
+    //               volumeTypes, needsEncryption, complianceState
+}
+```
+
+### Files Modified
+- `dashboard/js/page-identity-risk.js` - Added clickable user links
+- `dashboard/js/page-windows-update.js` - Added clickable device/user links
+- `dashboard/js/page-bitlocker.js` - Added clickable device/user links
+- `dashboard/js/page-signin-logs.js` - Added clickable user links
+- `dashboard/js/page-problems.js` - Added 6 new problem categories
+- `dashboard/js/data-relationships.js` - Added getUserRiskySignins, enhanced getDeviceWindowsUpdate and getDeviceBitLocker
+- `dashboard/js/page-users.js` - Added risky sign-ins section, on-prem sync details, password policy
+- `dashboard/js/page-devices.js` - Enhanced Windows Update and BitLocker sections
+
+---
+
 *Implementation completed: 2026-02-08*
