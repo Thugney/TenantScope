@@ -600,6 +600,108 @@ var DataRelationships = (function() {
     }
 
     // ========================================================================
+    // ASR RULES
+    // ========================================================================
+
+    /**
+     * Get ASR policies summary for a Windows device.
+     * Note: ASR policies are applied tenant-wide via Intune, not per-device.
+     * Returns deployed ASR rules that would apply to managed Windows devices.
+     */
+    function getDeviceAsrPolicies() {
+        var asrData = DataStore.asrRules || {};
+        var policies = asrData.policies || [];
+        var rulesArray = asrData.rulesArray || [];
+
+        // Get deployed rules (have at least one policy using them)
+        var deployedRules = rulesArray.filter(function(r) { return r.isDeployed; });
+
+        return {
+            policies: policies.filter(function(p) { return p.isAssigned; }),
+            deployedRules: deployedRules,
+            totalRules: rulesArray.length,
+            deployedCount: deployedRules.length
+        };
+    }
+
+    // ========================================================================
+    // AUTOPILOT
+    // ========================================================================
+
+    /**
+     * Get Autopilot info for a device by serial number.
+     * @param {Object} device - Device object with serialNumber
+     * @returns {Object|null} Autopilot record or null
+     */
+    function getDeviceAutopilot(device) {
+        if (!device || !device.serialNumber) return null;
+        var autopilotDevices = DataStore.autopilot || [];
+        var serialLower = device.serialNumber.toLowerCase();
+
+        return autopilotDevices.find(function(ap) {
+            return ap.serialNumber && ap.serialNumber.toLowerCase() === serialLower;
+        }) || null;
+    }
+
+    // ========================================================================
+    // OAUTH CONSENT GRANTS
+    // ========================================================================
+
+    /**
+     * Get OAuth consent grants for a user.
+     * Includes admin-consented apps (AllPrincipals) and user-specific consents.
+     * @param {Object} user - User object
+     * @returns {Array} Consent grants affecting this user
+     */
+    function getUserOAuthConsents(user) {
+        if (!user) return [];
+        var consentData = DataStore.oauthConsentGrants || {};
+        var grants = consentData.grants || [];
+
+        return grants.filter(function(grant) {
+            // Admin consent applies to all users
+            if (grant.consentType === 'AllPrincipals') return true;
+            // User-specific consent
+            if (grant.principalId === user.id) return true;
+            return false;
+        }).map(function(grant) {
+            return {
+                appDisplayName: grant.appDisplayName,
+                appPublisher: grant.appPublisher,
+                isVerifiedPublisher: grant.isVerifiedPublisher,
+                consentType: grant.consentType === 'AllPrincipals' ? 'Admin Consent' : 'User Consent',
+                riskLevel: grant.riskLevel,
+                scopeCount: grant.scopeCount,
+                highRiskScopes: grant.highRiskScopes || [],
+                grantedDateTime: grant.grantedDateTime
+            };
+        });
+    }
+
+    // ========================================================================
+    // AUDIT LOGS
+    // ========================================================================
+
+    /**
+     * Get audit logs where user was the initiator or target.
+     * @param {Object} user - User object
+     * @returns {Array} Audit log entries (most recent 15)
+     */
+    function getUserAuditLogs(user) {
+        if (!user) return [];
+        var logs = DataStore.auditLogs || [];
+        var upn = (user.userPrincipalName || '').toLowerCase();
+
+        return logs.filter(function(log) {
+            var initiator = (log.initiatedBy || '').toLowerCase();
+            var target = (log.targetResource || '').toLowerCase();
+            return initiator === upn || target === upn;
+        }).sort(function(a, b) {
+            return new Date(b.activityDateTime) - new Date(a.activityDateTime);
+        }).slice(0, 15);
+    }
+
+    // ========================================================================
     // PUBLIC API
     // ========================================================================
 
@@ -644,7 +746,19 @@ var DataRelationships = (function() {
         getUserAdminUrls: getUserAdminUrls,
 
         // Conditional Access
-        getUserConditionalAccessPolicies: getUserConditionalAccessPolicies
+        getUserConditionalAccessPolicies: getUserConditionalAccessPolicies,
+
+        // ASR Rules
+        getDeviceAsrPolicies: getDeviceAsrPolicies,
+
+        // Autopilot
+        getDeviceAutopilot: getDeviceAutopilot,
+
+        // OAuth Consent
+        getUserOAuthConsents: getUserOAuthConsents,
+
+        // Audit Logs
+        getUserAuditLogs: getUserAuditLogs
     };
 })();
 

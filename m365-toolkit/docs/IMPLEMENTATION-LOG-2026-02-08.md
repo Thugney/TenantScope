@@ -225,4 +225,66 @@ Links use hash-based routing with search parameters:
 
 ---
 
+## Phase 10: Deep Data Integration
+
+### Checklist
+- [x] Add getDeviceAsrPolicies() to DataRelationships
+- [x] Add getDeviceAutopilot() to DataRelationships
+- [x] Add getUserOAuthConsents() to DataRelationships
+- [x] Add getUserAuditLogs() to DataRelationships
+- [x] Device modal: Add ASR Rules section to Security tab (Windows devices)
+- [x] Device modal: Add Autopilot Details section to Overview tab
+- [x] User modal: Add OAuth App Consents section to Security tab
+- [x] User modal: Add Audit Logs section to Activity tab
+
+### DataRelationships Functions Added
+```javascript
+// ASR Rules - tenant-wide policies for managed Windows devices
+function getDeviceAsrPolicies() {
+    // Returns { policies, deployedRules, totalRules, deployedCount }
+}
+
+// Autopilot - match by device serial number
+function getDeviceAutopilot(device) {
+    // Returns autopilot record or null
+}
+
+// OAuth Consents - admin consent (AllPrincipals) + user-specific
+function getUserOAuthConsents(user) {
+    // Returns grants with appName, publisher, riskLevel, scopeCount
+}
+
+// Audit Logs - user as initiator or target
+function getUserAuditLogs(user) {
+    // Returns most recent 15 entries
+}
+```
+
+### User Modal Enhancements
+- **Security Tab**: OAuth App Consents table showing app name, publisher (with verified badge), consent type, and risk level
+- **Activity Tab**: Audit Logs table showing timestamp, activity, result, and category
+
+### Device Modal Enhancements
+- **Overview Tab**: Autopilot Details section showing deployment profile, group tag, enrollment state
+- **Security Tab**: ASR Rules section (Windows only) showing deployed policies and rule coverage
+
+### Files Modified
+- `dashboard/js/data-relationships.js` - Added 4 new functions
+- `dashboard/js/page-devices.js` - Added Autopilot and ASR sections
+- `dashboard/js/page-users.js` - Added OAuth consents and Audit logs sections
+
+---
+
+## Updated Scores After Phase 10
+
+| Aspect | Before | After | Change |
+|--------|--------|-------|--------|
+| Data Collection | 8/10 | 8/10 | - |
+| UI/Presentation | 8/10 | 9/10 | +1 |
+| Detail Drill-Downs | 8/10 | 9/10 | +1 |
+| Cross-Referencing | 8/10 | 9/10 | +1 |
+| Actionability | 1/10 | 1/10 | Deferred |
+
+---
+
 *Implementation completed: 2026-02-08*

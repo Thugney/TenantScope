@@ -78,6 +78,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - User modal Security tab: CA policies table showing policy name, requirements, effect
   - Matches policies by: includesAllUsers, includedRoleIds, excludedUserIds
 
+- **Deep Data Integration (Phase 10)**:
+  - `getDeviceAsrPolicies()` - ASR policies and deployed rules for managed Windows devices
+  - `getDeviceAutopilot()` - Autopilot enrollment info matched by device serial number
+  - `getUserOAuthConsents()` - OAuth app consent grants (admin + user-specific)
+  - `getUserAuditLogs()` - Audit log entries where user was initiator or target
+  - Device modal Overview tab: Autopilot Details showing deployment profile, group tag, enrollment state
+  - Device modal Security tab: ASR Rules section (Windows only) showing deployed policies and rule coverage
+  - User modal Security tab: OAuth App Consents table showing app name, publisher (verified badge), consent type, risk level
+  - User modal Activity tab: Audit Logs table showing timestamp, activity, result, category
+
 ### Changed
 - User and Device modals now use tabbed layouts for better organization
 - Teams owners list now uses clickable links instead of plain text

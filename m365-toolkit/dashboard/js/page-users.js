@@ -450,10 +450,12 @@ const PageUsers = (function() {
         var alerts = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAlerts(user.userPrincipalName) : [];
         var adminUrls = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAdminUrls(user) : {};
         var caPolicies = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserConditionalAccessPolicies(user, adminRoles) : [];
+        var oauthConsents = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserOAuthConsents(user) : [];
+        var auditLogs = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserAuditLogs(user) : [];
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -482,11 +484,13 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         alerts = alerts || [];
         adminUrls = adminUrls || {};
         caPolicies = caPolicies || [];
+        oauthConsents = oauthConsents || [];
+        auditLogs = auditLogs || [];
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
@@ -498,9 +502,9 @@ const PageUsers = (function() {
         '<div class="modal-tab-content">' +
             buildOverviewTab(user, mfa, risks, adminRoles, adminUrls) +
             buildLicensesTab(licenses) +
-            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies) +
+            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents) +
             buildDevicesTab(devices) +
-            buildActivityTab(signIns, teams, disableCommand) +
+            buildActivityTab(signIns, teams, disableCommand, auditLogs) +
         '</div>';
     }
 
@@ -580,9 +584,10 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies) {
+    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents) {
         alerts = alerts || [];
         caPolicies = caPolicies || [];
+        oauthConsents = oauthConsents || [];
         var content = '<div class="modal-tab-pane" data-tab="security">';
 
         // MFA Methods section
@@ -679,6 +684,30 @@ const PageUsers = (function() {
         }
         content += '</div>';
 
+        // OAuth Consent Grants section
+        content += '<div class="detail-section full-width"><h4>OAuth App Consents (' + oauthConsents.length + ')</h4>';
+        if (oauthConsents.length > 0) {
+            content += '<table class="mini-table"><thead><tr><th>App</th><th>Publisher</th><th>Consent Type</th><th>Risk</th></tr></thead><tbody>';
+            oauthConsents.forEach(function(grant) {
+                var riskClass = grant.riskLevel === 'high' ? 'text-critical' : grant.riskLevel === 'medium' ? 'text-warning' : '';
+                var verifiedBadge = grant.isVerifiedPublisher ? ' <span class="status-badge status-success" style="font-size:0.7em">Verified</span>' : '';
+                content += '<tr>';
+                content += '<td>' + escapeHtml(grant.appDisplayName || '--') + '</td>';
+                content += '<td>' + escapeHtml(grant.appPublisher || '--') + verifiedBadge + '</td>';
+                content += '<td>' + escapeHtml(grant.consentType) + '</td>';
+                content += '<td class="' + riskClass + '">' + (grant.riskLevel || 'low') + (grant.scopeCount ? ' (' + grant.scopeCount + ' scopes)' : '') + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+            var highRiskApps = oauthConsents.filter(function(g) { return g.riskLevel === 'high'; });
+            if (highRiskApps.length > 0) {
+                content += '<p class="text-warning" style="margin-top:0.5rem;font-size:0.85em">' + highRiskApps.length + ' app(s) with high-risk permissions detected.</p>';
+            }
+        } else {
+            content += '<div class="empty-state-small">No OAuth consent grants for this user</div>';
+        }
+        content += '</div>';
+
         content += '</div>';
         return content;
     }
@@ -706,7 +735,8 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildActivityTab(signIns, teams, disableCommand) {
+    function buildActivityTab(signIns, teams, disableCommand, auditLogs) {
+        auditLogs = auditLogs || [];
         var content = '<div class="modal-tab-pane" data-tab="activity">';
 
         // Recent Sign-Ins
@@ -726,6 +756,25 @@ const PageUsers = (function() {
             content += '</tbody></table>';
         } else {
             content += '<div class="empty-state-small">No recent sign-in data</div>';
+        }
+        content += '</div>';
+
+        // Audit Logs section
+        content += '<div class="detail-section full-width"><h4>Audit Logs (' + auditLogs.length + ')</h4>';
+        if (auditLogs.length > 0) {
+            content += '<table class="mini-table"><thead><tr><th>Time</th><th>Activity</th><th>Result</th><th>Category</th></tr></thead><tbody>';
+            auditLogs.forEach(function(log) {
+                var resultClass = log.result === 'success' ? 'text-success' : log.result === 'failure' ? 'text-critical' : '';
+                content += '<tr>';
+                content += '<td>' + DataLoader.formatDate(log.activityDateTime) + '</td>';
+                content += '<td title="' + escapeHtml(log.operationType || '') + '">' + escapeHtml(log.activityDisplayName || log.activity || '--') + '</td>';
+                content += '<td class="' + resultClass + '">' + escapeHtml(log.result || '--') + '</td>';
+                content += '<td>' + escapeHtml(log.category || '--') + '</td>';
+                content += '</tr>';
+            });
+            content += '</tbody></table>';
+        } else {
+            content += '<div class="empty-state-small">No audit log entries for this user</div>';
         }
         content += '</div>';
 

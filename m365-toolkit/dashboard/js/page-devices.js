@@ -995,6 +995,8 @@ const PageDevices = (function() {
         var signIns = profile ? profile.signIns : [];
         var alerts = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAlerts(device.deviceName) : [];
         var adminUrls = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAdminUrls(device) : {};
+        var asrData = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAsrPolicies() : { policies: [], deployedRules: [] };
+        var autopilot = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceAutopilot(device) : null;
 
         // Build tabbed interface
         var html = '<div class="modal-tabs">';
@@ -1090,6 +1092,21 @@ const PageDevices = (function() {
                 : '--';
         html += '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>';
         html += '</dl></div>';
+
+        // Autopilot Details (if available)
+        if (autopilot) {
+            html += '<div class="detail-section"><h4>Autopilot Details</h4><dl class="detail-list">';
+            html += '<dt>Group Tag</dt><dd>' + (autopilot.groupTag || '--') + '</dd>';
+            html += '<dt>Enrollment State</dt><dd>' + (autopilot.enrollmentState || '--') + '</dd>';
+            html += '<dt>Profile Assigned</dt><dd>' + (autopilot.profileAssigned ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+            if (autopilot.purchaseOrder) {
+                html += '<dt>Purchase Order</dt><dd>' + autopilot.purchaseOrder + '</dd>';
+            }
+            if (autopilot.lastContacted) {
+                html += '<dt>Last Contacted</dt><dd>' + new Date(autopilot.lastContacted).toLocaleString() + '</dd>';
+            }
+            html += '</dl></div>';
+        }
 
         // Admin Portal Links
         if (adminUrls.intune || adminUrls.entra) {
@@ -1207,6 +1224,27 @@ const PageDevices = (function() {
             html += '<p class="empty-state-small">No Defender alerts for this device</p>';
         }
         html += '</div>';
+
+        // ASR Rules (Windows devices only)
+        if (device.os === 'Windows' && asrData.deployedRules && asrData.deployedRules.length > 0) {
+            html += '<div class="detail-section full-width"><h4>Attack Surface Reduction (' + asrData.deployedCount + ' rules deployed)</h4>';
+            html += '<table class="mini-table"><thead><tr><th>Rule</th><th>Mode</th></tr></thead><tbody>';
+            asrData.deployedRules.slice(0, 8).forEach(function(rule) {
+                var mode = rule.blockCount > 0 ? '<span class="text-success">Block</span>' :
+                           rule.auditCount > 0 ? '<span class="text-warning">Audit</span>' :
+                           rule.warnCount > 0 ? '<span class="text-warning">Warn</span>' : 'N/A';
+                html += '<tr>';
+                html += '<td>' + (rule.ruleName || rule.ruleId) + '</td>';
+                html += '<td>' + mode + '</td>';
+                html += '</tr>';
+            });
+            html += '</tbody></table>';
+            if (asrData.deployedRules.length > 8) {
+                html += '<p class="text-muted" style="margin-top:0.5rem">...and ' + (asrData.deployedRules.length - 8) + ' more rules</p>';
+            }
+            html += '<p class="text-muted" style="margin-top:0.5rem;font-size:0.85em">ASR policies are applied tenant-wide via Intune to managed Windows devices.</p>';
+            html += '</div>';
+        }
 
         html += '</div>'; // end detail-grid
         html += '</div>'; // end security tab
