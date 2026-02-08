@@ -56,20 +56,7 @@ param(
 # ============================================================================
 # LOCAL HELPER FUNCTIONS
 # ============================================================================
-
-function Get-HealthStatus {
-    <#
-    .SYNOPSIS
-        Determines health status from score.
-    #>
-    param([int]$Score)
-
-    if ($Score -ge 80) { return "Excellent" }
-    if ($Score -ge 60) { return "Good" }
-    if ($Score -ge 40) { return "Fair" }
-    if ($Score -ge 20) { return "Poor" }
-    return "Critical"
-}
+# (Using shared status mappers from CollectorBase.ps1)
 
 # ============================================================================
 # MAIN COLLECTION LOGIC

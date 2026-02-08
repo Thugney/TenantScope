@@ -53,73 +53,7 @@ param(
 # ============================================================================
 # LOCAL HELPER FUNCTIONS
 # ============================================================================
-
-function Get-SeverityName {
-    <#
-    .SYNOPSIS
-        Normalizes severity value to our schema.
-
-    .PARAMETER Severity
-        The severity value from Graph API.
-
-    .OUTPUTS
-        Normalized severity: high, medium, low, or informational.
-    #>
-    param(
-        [Parameter()]
-        [AllowNull()]
-        $Severity
-    )
-
-    if ($null -eq $Severity) {
-        return "informational"
-    }
-
-    $sev = $Severity.ToString().ToLower()
-
-    switch -Wildcard ($sev) {
-        "*high*"          { return "high" }
-        "*medium*"        { return "medium" }
-        "*low*"           { return "low" }
-        "*informational*" { return "informational" }
-        "*unknown*"       { return "informational" }
-        default           { return "informational" }
-    }
-}
-
-function Get-StatusName {
-    <#
-    .SYNOPSIS
-        Normalizes status value to our schema.
-
-    .PARAMETER Status
-        The status value from Graph API.
-
-    .OUTPUTS
-        Normalized status: new, inProgress, or resolved.
-    #>
-    param(
-        [Parameter()]
-        [AllowNull()]
-        $Status
-    )
-
-    if ($null -eq $Status) {
-        return "new"
-    }
-
-    $stat = $Status.ToString().ToLower()
-
-    switch -Wildcard ($stat) {
-        "*new*"        { return "new" }
-        "*inprogress*" { return "inProgress" }
-        "*progress*"   { return "inProgress" }
-        "*resolved*"   { return "resolved" }
-        "*dismissed*"  { return "resolved" }
-        "*closed*"     { return "resolved" }
-        default        { return "new" }
-    }
-}
+# (Using shared status mappers from CollectorBase.ps1)
 
 # ============================================================================
 # MAIN COLLECTION LOGIC

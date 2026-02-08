@@ -3925,6 +3925,25 @@ table {
     gap: 2px;
 }
 
+.action-row {
+    display: flex;
+    gap: var(--spacing-sm);
+    align-items: center;
+    margin-top: var(--spacing-sm);
+}
+
+.action-input {
+    width: 100%;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+    font-size: var(--font-size-xs);
+}
+
+.action-note {
+    margin-top: var(--spacing-xs);
+    font-size: var(--font-size-xs);
+    color: var(--color-text-muted);
+}
+
 .detail-label {
     font-size: var(--font-size-xs);
     color: var(--color-text-secondary);

@@ -10,6 +10,19 @@ const PageDevices = (function() {
     var currentTab = 'overview';
     var colSelector = null;
 
+    function getHashParams() {
+        var hash = window.location.hash || '';
+        var idx = hash.indexOf('?');
+        if (idx === -1) return {};
+        var query = hash.substring(idx + 1);
+        var params = new URLSearchParams(query);
+        var result = {};
+        params.forEach(function(value, key) {
+            result[key] = value;
+        });
+        return result;
+    }
+
     // Extract data from both array and object formats
     function extractData(rawData) {
         var devices;
@@ -496,6 +509,12 @@ const PageDevices = (function() {
         Filters.setup('devices-compliance', applyDeviceFilters);
         Filters.setup('devices-ownership', applyDeviceFilters);
         document.getElementById('devices-stale').addEventListener('change', applyDeviceFilters);
+
+        var hashParams = getHashParams();
+        if (hashParams.user) {
+            Filters.setValue('devices-search', hashParams.user);
+        }
+
         applyDeviceFilters();
     }
 
@@ -1409,8 +1428,11 @@ const PageDevices = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        currentTab = 'overview';
-        renderContent();
+        var hashParams = getHashParams();
+        var initialTab = hashParams.tab || 'overview';
+        var allowed = { overview: true, devices: true, windows: true, certificates: true, autopilot: true, risk: true };
+        currentTab = allowed[initialTab] ? initialTab : 'overview';
+        switchTab(currentTab);
     }
 
     return { render: render };

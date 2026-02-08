@@ -62,39 +62,37 @@ param(
 # ============================================================================
 # LOCAL HELPER FUNCTIONS
 # ============================================================================
+# (Using shared status mappers from CollectorBase.ps1)
 
-function Get-SignInStatus {
+function Get-SignInEvents {
     <#
     .SYNOPSIS
-        Determines sign-in status from error code.
-        Returns: Success, Failed, or Interrupted (matches sample data structure)
+        Retrieves sign-in events with pagination.
     #>
     param(
-        [int]$ErrorCode,
-        [string]$FailureReason
+        [string]$Filter,
+        [string]$Label
     )
 
-    if ($ErrorCode -eq 0) { return "Success" }
-    # Interrupted statuses - MFA/CA challenge not yet completed
-    if ($ErrorCode -in @(50140, 50074, 50076)) { return "Interrupted" }
-    # All other error codes are failures
-    return "Failed"
-}
+    $uri = "https://graph.microsoft.com/v1.0/auditLogs/signIns?`$filter=$Filter&`$top=500&`$orderby=createdDateTime desc"
 
-function Get-RiskLevel {
-    <#
-    .SYNOPSIS
-        Maps risk level to severity.
-    #>
-    param([string]$Risk)
+    $signIns = Invoke-GraphWithRetry -ScriptBlock {
+        Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
+    } -OperationName "Sign-in logs retrieval ($Label)"
 
-    switch ($Risk) {
-        "high"   { return "High" }
-        "medium" { return "Medium" }
-        "low"    { return "Low" }
-        "none"   { return "None" }
-        default  { return "Unknown" }
+    $allSignIns = @($signIns.value)
+
+    # Handle pagination (limit to 2000 for performance)
+    $pageCount = 1
+    while ($signIns.'@odata.nextLink' -and $pageCount -lt 4) {
+        $signIns = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri $signIns.'@odata.nextLink' -OutputType PSObject
+        } -OperationName "Sign-in logs pagination ($Label)"
+        $allSignIns += $signIns.value
+        $pageCount++
     }
+
+    return $allSignIns
 }
 
 # ============================================================================
@@ -113,6 +111,7 @@ try {
     } else { 7 }
 
     $startDate = (Get-Date).AddDays(-$logDays).ToString("yyyy-MM-ddTHH:mm:ssZ")
+    $baseFilter = "createdDateTime ge $startDate"
 
     $signInData = @{
         signIns = @()
@@ -123,6 +122,8 @@ try {
             mfaChallenges = 0
             caBlocked = 0
             riskySignIns = 0
+            interactiveSignIns = 0
+            nonInteractiveSignIns = 0
             uniqueUsers = 0
             uniqueApps = 0
             uniqueLocations = 0
@@ -144,26 +145,22 @@ try {
         }
     }
 
-    # Get sign-in logs
-    $signIns = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/v1.0/auditLogs/signIns?`$filter=createdDateTime ge $startDate&`$top=500&`$orderby=createdDateTime desc" `
-            -OutputType PSObject
-    } -OperationName "Sign-in logs retrieval"
+    Write-Host "      Retrieving interactive sign-ins..." -ForegroundColor Gray
+    $interactiveSignIns = Get-SignInEvents -Filter "$baseFilter and signInEventTypes/any(t: t eq 'interactiveUser')" -Label "interactive"
 
-    $allSignIns = @($signIns.value)
+    Write-Host "      Retrieving non-interactive sign-ins..." -ForegroundColor Gray
+    $nonInteractiveSignIns = Get-SignInEvents -Filter "$baseFilter and signInEventTypes/any(t: t eq 'nonInteractiveUser')" -Label "non-interactive"
 
-    # Handle pagination (limit to 2000 for performance)
-    $pageCount = 1
-    while ($signIns.'@odata.nextLink' -and $pageCount -lt 4) {
-        $signIns = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $signIns.'@odata.nextLink' -OutputType PSObject
-        } -OperationName "Sign-in logs pagination"
-        $allSignIns += $signIns.value
-        $pageCount++
+    $signInMap = @{}
+    foreach ($signIn in @($interactiveSignIns + $nonInteractiveSignIns)) {
+        if ($signIn.id -and -not $signInMap.ContainsKey($signIn.id)) {
+            $signInMap[$signIn.id] = $signIn
+        }
     }
 
-    Write-Host "      Retrieved $($allSignIns.Count) sign-in events" -ForegroundColor Gray
+    $allSignIns = @($signInMap.Values)
+
+    Write-Host "      Retrieved $($allSignIns.Count) sign-in events (interactive: $($interactiveSignIns.Count), non-interactive: $($nonInteractiveSignIns.Count))" -ForegroundColor Gray
 
     $uniqueUsers = @{}
     $uniqueApps = @{}
@@ -178,6 +175,11 @@ try {
         $location = $signIn.location
         $country = if ($location.countryOrRegion) { $location.countryOrRegion } else { "Unknown" }
         $city = if ($location.city) { $location.city } else { "Unknown" }
+
+        # Determine sign-in type
+        $eventTypes = @()
+        if ($signIn.signInEventTypes) { $eventTypes = @($signIn.signInEventTypes) }
+        $signInType = if ($eventTypes -contains "nonInteractiveUser" -or $signIn.isInteractive -eq $false) { "nonInteractive" } else { "interactive" }
 
         # Process applied CA policies
         $appliedCaPolicies = @()
@@ -290,6 +292,8 @@ try {
             appliedCaPolicies     = $appliedCaPolicies
             appliedCaPolicyCount  = $appliedCaPolicies.Count
             isInteractive         = $signIn.isInteractive
+            signInEventTypes      = $eventTypes
+            signInType            = $signInType
             # Authentication details
             authenticationRequirement = $signIn.authenticationRequirement
             authenticationProtocol = $signIn.authenticationProtocol
@@ -300,6 +304,8 @@ try {
 
         # Update summaries
         $signInData.summary.totalSignIns++
+        if ($signInType -eq "nonInteractive") { $signInData.summary.nonInteractiveSignIns++ }
+        else { $signInData.summary.interactiveSignIns++ }
 
         switch ($status) {
             "Success"     { $signInData.summary.successfulSignIns++ }

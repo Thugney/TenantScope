@@ -9,6 +9,7 @@
 const PageOAuthConsent = (function() {
     'use strict';
 
+    var AU = window.ActionUtils || {};
     var SF = window.SharedFormatters || {};
     var currentTab = 'overview';
     var state = {
@@ -246,48 +247,38 @@ const PageOAuthConsent = (function() {
             return;
         }
 
-        const tableHtml = `
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Application</th>
-                            <th>Publisher</th>
-                            <th>Risk Level</th>
-                            <th>Consent Type</th>
-                            <th>Scopes</th>
-                            <th>High-Risk Scopes</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${grants.map(grant => `
-                            <tr class="${grant.riskLevel === 'high' ? 'row-critical' : grant.riskLevel === 'medium' ? 'row-warning' : ''}">
-                                <td>
-                                    <div class="app-cell">
-                                        <strong>${escapeHtml(grant.appDisplayName || 'Unknown App')}</strong>
-                                        ${grant.isMicrosoft ? '<span class="tag">Microsoft</span>' : ''}
-                                    </div>
-                                </td>
-                                <td>
-                                    ${escapeHtml(grant.appPublisher || 'Unknown')}
-                                    ${grant.isVerifiedPublisher ? '<span class="tag">Verified</span>' :
-                                      (!grant.isMicrosoft ? '<span class="tag">Unverified</span>' : '')}
-                                </td>
-                                <td>${formatSeverityBadge(grant.riskLevel)}</td>
-                                <td>${grant.isAdminConsent ? '<span class="badge badge-info">Admin</span>' : '<span class="badge badge-neutral">User</span>'}</td>
-                                <td>${grant.scopeCount || 0}</td>
-                                <td>
-                                    ${(grant.highRiskScopes || []).slice(0, 3).map(s => `<code class="scope-tag scope-tag--danger">${escapeHtml(s)}</code>`).join(' ')}
-                                    ${(grant.highRiskScopes || []).length > 3 ? `<span class="more-tag">+${grant.highRiskScopes.length - 3} more</span>` : ''}
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-
-        document.getElementById('oauth-grants-table').innerHTML = tableHtml;
+        Tables.render({
+            containerId: 'oauth-grants-table',
+            data: grants,
+            columns: [
+                { key: 'appDisplayName', label: 'Application', formatter: function(v, row) {
+                    return '<strong>' + escapeHtml(v || 'Unknown App') + '</strong>';
+                }},
+                { key: 'appPublisher', label: 'Publisher', formatter: function(v, row) {
+                    var publisher = escapeHtml(v || 'Unknown');
+                    var tags = '';
+                    if (row.isMicrosoft) tags += ' <span class="tag">Microsoft</span>';
+                    else if (row.isVerifiedPublisher) tags += ' <span class="tag">Verified</span>';
+                    else tags += ' <span class="tag">Unverified</span>';
+                    return publisher + tags;
+                }},
+                { key: 'riskLevel', label: 'Risk Level', formatter: function(v) { return formatSeverityBadge(v); } },
+                { key: 'isAdminConsent', label: 'Consent Type', formatter: function(v) {
+                    return v ? '<span class="badge badge-info">Admin</span>' : '<span class="badge badge-neutral">User</span>';
+                }},
+                { key: 'scopeCount', label: 'Scopes' },
+                { key: 'highRiskScopes', label: 'High-Risk Scopes', formatter: function(v) {
+                    var list = Array.isArray(v) ? v : [];
+                    var html = list.slice(0, 3).map(function(s) {
+                        return '<code class="scope-tag scope-tag--danger">' + escapeHtml(s) + '</code>';
+                    }).join(' ');
+                    if (list.length > 3) html += ' <span class="more-tag">+' + (list.length - 3) + ' more</span>';
+                    return html || '<span class="text-muted">--</span>';
+                }}
+            ],
+            pageSize: 50,
+            onRowClick: showGrantDetails
+        });
     }
 
     function buildSummary(data, grants) {
@@ -378,6 +369,96 @@ const PageOAuthConsent = (function() {
     function formatSeverityBadge(value) {
         const sev = (value || '').toLowerCase();
         return SF.formatSeverity ? SF.formatSeverity(sev) : '<span class="badge badge-neutral">' + escapeHtml(sev || 'Unknown') + '</span>';
+    }
+
+    function buildRevokeConsentCommand(grant) {
+        if (!grant || !grant.id) return '';
+        var safeId = AU.escapeSingleQuotes ? AU.escapeSingleQuotes(grant.id) : String(grant.id).replace(/'/g, "''");
+        return "Remove-MgOauth2PermissionGrant -OAuth2PermissionGrantId '" + safeId + "'";
+    }
+
+    function showGrantDetails(grant) {
+        const modal = document.getElementById('modal-overlay');
+        const title = document.getElementById('modal-title');
+        const body = document.getElementById('modal-body');
+
+        title.textContent = grant.appDisplayName || 'Consent Grant Details';
+
+        var revokeCommand = buildRevokeConsentCommand(grant);
+        var scopes = Array.isArray(grant.scopes) ? grant.scopes.join(', ') : '--';
+        var highRiskScopes = Array.isArray(grant.highRiskScopes) ? grant.highRiskScopes.join(', ') : '--';
+
+        body.innerHTML = `
+            <div class="detail-grid">
+                <div class="detail-item">
+                    <span class="detail-label">Application</span>
+                    <span class="detail-value">${escapeHtml(grant.appDisplayName || 'Unknown')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Publisher</span>
+                    <span class="detail-value">${escapeHtml(grant.appPublisher || 'Unknown')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Consent Type</span>
+                    <span class="detail-value">${grant.isAdminConsent ? 'Admin' : 'User'}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Risk Level</span>
+                    <span class="detail-value">${formatSeverityBadge(grant.riskLevel)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Principal</span>
+                    <span class="detail-value">${escapeHtml(grant.principalDisplayName || 'All Users')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Granted</span>
+                    <span class="detail-value">${escapeHtml(grant.grantedDateTime || '--')}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">Scopes</span>
+                    <span class="detail-value">${escapeHtml(scopes)}</span>
+                </div>
+                <div class="detail-item">
+                    <span class="detail-label">High-Risk Scopes</span>
+                    <span class="detail-value">${escapeHtml(highRiskScopes)}</span>
+                </div>
+            </div>
+
+            <div class="detail-section">
+                <h4>Actions</h4>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Revoke Consent (PowerShell)</span>
+                        <div class="detail-value">
+                            <input type="text" class="filter-input action-input" id="revoke-consent-command" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-row">
+                    <button class="btn btn-secondary" id="copy-revoke-consent">Copy Command</button>
+                </div>
+                <div class="action-note">Copy and run in a PowerShell session with Microsoft Graph connected.</div>
+            </div>
+        `;
+
+        var cmdInput = body.querySelector('#revoke-consent-command');
+        var copyBtn = body.querySelector('#copy-revoke-consent');
+        if (cmdInput) {
+            cmdInput.value = revokeCommand || 'Command unavailable';
+        }
+        if (copyBtn) {
+            copyBtn.disabled = !revokeCommand;
+            copyBtn.addEventListener('click', function() {
+                if (!revokeCommand || !AU.copyText) return;
+                AU.copyText(revokeCommand).then(function() {
+                    if (window.Toast) Toast.success('Copied', 'Revoke consent command copied.');
+                }).catch(function() {
+                    if (window.Toast) Toast.error('Copy failed', 'Unable to copy command.');
+                });
+            });
+        }
+
+        modal.classList.add('visible');
     }
 
     function insightClass(severity) {

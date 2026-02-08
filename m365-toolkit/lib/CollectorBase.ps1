@@ -605,6 +605,133 @@ function Get-SourceDomain {
 # STATUS UTILITIES
 # ============================================================================
 
+function Get-SeverityName {
+    <#
+    .SYNOPSIS
+        Normalizes severity value to our schema.
+
+    .PARAMETER Severity
+        The severity value from Graph API.
+
+    .OUTPUTS
+        Normalized severity: high, medium, low, or informational.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $Severity
+    )
+
+    if ($null -eq $Severity) {
+        return "informational"
+    }
+
+    $sev = $Severity.ToString().ToLower()
+
+    switch -Wildcard ($sev) {
+        "*high*"          { return "high" }
+        "*medium*"        { return "medium" }
+        "*low*"           { return "low" }
+        "*informational*" { return "informational" }
+        "*unknown*"       { return "informational" }
+        default           { return "informational" }
+    }
+}
+
+function Get-StatusName {
+    <#
+    .SYNOPSIS
+        Normalizes status value to our schema.
+
+    .PARAMETER Status
+        The status value from Graph API.
+
+    .OUTPUTS
+        Normalized status: new, inProgress, or resolved.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $Status
+    )
+
+    if ($null -eq $Status) {
+        return "new"
+    }
+
+    $stat = $Status.ToString().ToLower()
+
+    switch -Wildcard ($stat) {
+        "*new*"        { return "new" }
+        "*inprogress*" { return "inProgress" }
+        "*progress*"   { return "inProgress" }
+        "*resolved*"   { return "resolved" }
+        "*dismissed*"  { return "resolved" }
+        "*closed*"     { return "resolved" }
+        default        { return "new" }
+    }
+}
+
+function Get-HealthStatus {
+    <#
+    .SYNOPSIS
+        Determines health status from score.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [int]$Score
+    )
+
+    if ($Score -ge 80) { return "Excellent" }
+    if ($Score -ge 60) { return "Good" }
+    if ($Score -ge 40) { return "Fair" }
+    if ($Score -ge 20) { return "Poor" }
+    return "Critical"
+}
+
+function Get-SignInStatus {
+    <#
+    .SYNOPSIS
+        Determines sign-in status from error code.
+        Returns: Success, Failed, or Interrupted.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [int]$ErrorCode,
+
+        [Parameter()]
+        [string]$FailureReason
+    )
+
+    if ($ErrorCode -eq 0) { return "Success" }
+    if ($ErrorCode -in @(50140, 50074, 50076)) { return "Interrupted" }
+    return "Failed"
+}
+
+function Get-RiskLevel {
+    <#
+    .SYNOPSIS
+        Maps risk level to a normalized label.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [string]$Risk
+    )
+
+    switch ($Risk) {
+        "high"   { return "High" }
+        "medium" { return "Medium" }
+        "low"    { return "Low" }
+        "none"   { return "None" }
+        default  { return "Unknown" }
+    }
+}
+
 function Get-ActivityStatus {
     <#
     .SYNOPSIS

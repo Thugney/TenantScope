@@ -1566,6 +1566,98 @@ const PageOverview = (function() {
         html += '</div>';
 
         container.innerHTML = html;
+
+        // Add usage stats if running in server mode
+        if (typeof UsageTracker !== 'undefined' && UsageTracker.isServer()) {
+            renderUsageStats(container);
+        }
+    }
+
+    /**
+     * Renders usage statistics (only in server mode).
+     */
+    function renderUsageStats(container) {
+        UsageTracker.getStats().then(function(stats) {
+            if (stats.error) return;
+
+            var section = el('div', 'analytics-section');
+            section.style.marginTop = 'var(--spacing-xl)';
+
+            var header = el('h3', null, 'Dashboard Usage');
+            section.appendChild(header);
+
+            var desc = el('p');
+            desc.style.color = 'var(--color-text-muted)';
+            desc.style.marginBottom = 'var(--spacing-md)';
+            desc.textContent = 'Track who is using this dashboard and how often.';
+            section.appendChild(desc);
+
+            var grid = el('div', 'signal-cards');
+
+            // Today
+            var todayCard = el('div', 'signal-card signal-card--info');
+            todayCard.appendChild(el('div', 'signal-card-value', String(stats.activity.today || 0)));
+            todayCard.appendChild(el('div', 'signal-card-label', 'Sessions Today'));
+            grid.appendChild(todayCard);
+
+            // This Week
+            var weekCard = el('div', 'signal-card signal-card--info');
+            weekCard.appendChild(el('div', 'signal-card-value', String(stats.activity.thisWeek || 0)));
+            weekCard.appendChild(el('div', 'signal-card-label', 'This Week'));
+            grid.appendChild(weekCard);
+
+            // Unique Users
+            var usersCard = el('div', 'signal-card signal-card--success');
+            usersCard.appendChild(el('div', 'signal-card-value', String(stats.summary.uniqueUsers || 0)));
+            usersCard.appendChild(el('div', 'signal-card-label', 'Unique Users'));
+            grid.appendChild(usersCard);
+
+            // Total Sessions
+            var totalCard = el('div', 'signal-card signal-card--info');
+            totalCard.appendChild(el('div', 'signal-card-value', String(stats.summary.totalSessions || 0)));
+            totalCard.appendChild(el('div', 'signal-card-label', 'Total Sessions'));
+            grid.appendChild(totalCard);
+
+            section.appendChild(grid);
+
+            // Top users table
+            if (stats.topUsers && stats.topUsers.length > 0) {
+                var tableSection = el('div');
+                tableSection.style.marginTop = 'var(--spacing-lg)';
+
+                var tableTitle = el('h4', null, 'Active Users (Last 7 Days)');
+                tableTitle.style.marginBottom = 'var(--spacing-sm)';
+                tableSection.appendChild(tableTitle);
+
+                var table = el('table', 'data-table');
+                var thead = el('thead');
+                var headerRow = el('tr');
+                ['User', 'Sessions', 'Page Views'].forEach(function(h) {
+                    headerRow.appendChild(el('th', null, h));
+                });
+                thead.appendChild(headerRow);
+                table.appendChild(thead);
+
+                var tbody = el('tbody');
+                stats.topUsers.forEach(function(user) {
+                    var row = el('tr');
+                    row.appendChild(el('td', null, user.username || 'Unknown'));
+                    row.appendChild(el('td', 'cell-right', String(user.sessionCount || 0)));
+                    row.appendChild(el('td', 'cell-right', String(user.totalPageViews || 0)));
+                    tbody.appendChild(row);
+                });
+                table.appendChild(tbody);
+
+                var tableWrap = el('div', 'table-container');
+                tableWrap.appendChild(table);
+                tableSection.appendChild(tableWrap);
+                section.appendChild(tableSection);
+            }
+
+            container.appendChild(section);
+        }).catch(function() {
+            // Silent fail
+        });
     }
 
     /**

@@ -15,6 +15,8 @@
 const PageUsers = (function() {
     'use strict';
 
+    var AU = window.ActionUtils || {};
+
     /** Current tab */
     var currentTab = 'overview';
 
@@ -29,6 +31,46 @@ const PageUsers = (function() {
 
     /** Cached page state */
     var usersState = null;
+
+    /** Cached user -> device index */
+    var deviceIndex = null;
+
+    function getDeviceIndex() {
+        if (deviceIndex) return deviceIndex;
+
+        var raw = DataLoader.getData('devices') || [];
+        var devices = Array.isArray(raw) ? raw : (raw.devices || []);
+        var map = {};
+
+        devices.forEach(function(d) {
+            var upn = (d.userPrincipalName || d.emailAddress || '').toLowerCase();
+            if (!upn) return;
+            if (!map[upn]) map[upn] = [];
+            map[upn].push(d);
+        });
+
+        deviceIndex = map;
+        return map;
+    }
+
+    function getDeviceCountForUser(user) {
+        var upn = (user.userPrincipalName || '').toLowerCase();
+        if (!upn) return 0;
+        var index = getDeviceIndex();
+        return index[upn] ? index[upn].length : 0;
+    }
+
+    function buildDevicesLink(user, count) {
+        if (!user || !user.userPrincipalName) {
+            return '<span class="text-muted">--</span>';
+        }
+        if (!count || count <= 0) {
+            return '<span class="text-muted">0</span>';
+        }
+        var upn = encodeURIComponent(user.userPrincipalName);
+        var label = count === 1 ? 'device' : 'devices';
+        return '<a href="#devices?tab=devices&user=' + upn + '">View ' + count + ' ' + label + '</a>';
+    }
 
     /**
      * Updates filter chips display with current filter values.
@@ -157,6 +199,7 @@ const PageUsers = (function() {
     function applyFilters() {
         var allUsers = DataLoader.getData('users');
         var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
+        deviceIndex = null;
 
         // Build filter configuration
         const filterConfig = {
@@ -211,6 +254,11 @@ const PageUsers = (function() {
             });
         }
 
+        // Attach device counts for sorting and display
+        filteredData.forEach(function(u) {
+            u.deviceCount = getDeviceCountForUser(u);
+        });
+
         // Render Focus/Breakdown tables
         renderFocusBreakdown(filteredData);
 
@@ -230,7 +278,7 @@ const PageUsers = (function() {
         // Get visible columns from Column Selector
         var visible = colSelector ? colSelector.getVisible() : [
             'displayName', 'userPrincipalName', 'domain', 'accountEnabled', 'department',
-            'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'flags'
+            'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'deviceCount', 'flags'
         ];
 
         // All column definitions
@@ -254,6 +302,10 @@ const PageUsers = (function() {
             { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
             { key: 'mfaRegistered', label: 'MFA', formatter: formatMfa },
             { key: 'licenseCount', label: 'Licenses', className: 'cell-right' },
+            { key: 'deviceCount', label: 'Devices', formatter: function(v, row) {
+                var count = getDeviceCountForUser(row);
+                return buildDevicesLink(row, count);
+            }},
             { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
         ];
 
@@ -382,6 +434,8 @@ const PageUsers = (function() {
 
         title.textContent = user.displayName;
 
+        var disableCommand = buildDisableUserCommand(user);
+
         body.innerHTML = `
             <div class="detail-list">
                 <span class="detail-label">UPN:</span>
@@ -420,6 +474,9 @@ const PageUsers = (function() {
                 <span class="detail-label">License Count:</span>
                 <span class="detail-value">${user.licenseCount}</span>
 
+                <span class="detail-label">Devices:</span>
+                <span class="detail-value">${buildDevicesLink(user, getDeviceCountForUser(user))}</span>
+
                 <span class="detail-label">On-Prem Sync:</span>
                 <span class="detail-value">${user.onPremSync ? 'Yes' : 'No'}</span>
 
@@ -429,9 +486,50 @@ const PageUsers = (function() {
                 <span class="detail-label">User ID:</span>
                 <span class="detail-value" style="font-size: 0.8em;">${user.id}</span>
             </div>
+
+            <div class="detail-section">
+                <h4>Actions</h4>
+                <div class="detail-grid">
+                    <div class="detail-item">
+                        <span class="detail-label">Disable User (PowerShell)</span>
+                        <div class="detail-value">
+                            <input type="text" class="filter-input action-input" id="disable-user-command" readonly>
+                        </div>
+                    </div>
+                </div>
+                <div class="action-row">
+                    <button class="btn btn-secondary" id="copy-disable-user">Copy Command</button>
+                </div>
+                <div class="action-note">Copy and run in a PowerShell session with Microsoft Graph connected.</div>
+            </div>
         `;
 
+        var cmdInput = body.querySelector('#disable-user-command');
+        var copyBtn = body.querySelector('#copy-disable-user');
+        if (cmdInput) {
+            cmdInput.value = disableCommand || 'Command unavailable';
+        }
+        if (copyBtn) {
+            copyBtn.disabled = !disableCommand;
+            copyBtn.addEventListener('click', function() {
+                if (!disableCommand || !AU.copyText) return;
+                AU.copyText(disableCommand).then(function() {
+                    if (window.Toast) Toast.success('Copied', 'Disable user command copied.');
+                }).catch(function() {
+                    if (window.Toast) Toast.error('Copy failed', 'Unable to copy command.');
+                });
+            });
+        }
+
         modal.classList.add('visible');
+    }
+
+    function buildDisableUserCommand(user) {
+        if (!user) return '';
+        var id = user.id || user.userPrincipalName || '';
+        if (!id) return '';
+        var safeId = AU.escapeSingleQuotes ? AU.escapeSingleQuotes(id) : String(id).replace(/'/g, "''");
+        return "Update-MgUser -UserId '" + safeId + "' -AccountEnabled:$false";
     }
 
     /**
@@ -1141,11 +1239,12 @@ const PageUsers = (function() {
                     { key: 'daysSinceLastSignIn', label: 'Days Inactive' },
                     { key: 'mfaRegistered', label: 'MFA' },
                     { key: 'licenseCount', label: 'Licenses' },
+                    { key: 'deviceCount', label: 'Devices' },
                     { key: 'flags', label: 'Flags' }
                 ],
                 defaultVisible: [
                     'displayName', 'userPrincipalName', 'domain', 'accountEnabled', 'department',
-                    'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'flags'
+                    'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'deviceCount', 'flags'
                 ],
                 onColumnsChanged: applyFilters
             });
