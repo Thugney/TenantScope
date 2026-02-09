@@ -261,7 +261,7 @@ try {
                 "id", "deviceName", "userPrincipalName", "operatingSystem", "osVersion",
                 "complianceState", "lastSyncDateTime", "enrolledDateTime",
                 "managedDeviceOwnerType", "manufacturer", "model", "serialNumber",
-                "isEncrypted", "managementAgent", "managedDeviceCertificateExpirationDate",
+                "isEncrypted", "managementAgent",
                 "userDisplayName", "autopilotEnrolled", "deviceCategoryDisplayName",
                 "totalStorageSpaceInBytes", "freeStorageSpaceInBytes", "wiFiMacAddress",
                 "joinType", "azureADDeviceId", "deviceEnrollmentType", "deviceRegistrationState",

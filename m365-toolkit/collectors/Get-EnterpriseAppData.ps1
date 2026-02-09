@@ -338,7 +338,7 @@ try {
         catch {
             $errName = Get-GraphPropertyValue -Object $sp -PropertyNames @("displayName", "DisplayName")
             if (-not $errName) { $errName = "unknown" }
-            $errors += "Error processing $errName: $($_.Exception.Message)"
+            $errors += "Error processing ${errName}: $($_.Exception.Message)"
         }
     }
 

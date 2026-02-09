@@ -74,7 +74,7 @@ function Get-SignInEvents {
         [string]$Label
     )
 
-    $uri = "https://graph.microsoft.com/v1.0/auditLogs/signIns?`$filter=$Filter&`$top=500&`$orderby=createdDateTime desc"
+    $uri = "https://graph.microsoft.com/beta/auditLogs/signIns?`$filter=$Filter&`$top=500&`$orderby=createdDateTime desc"
 
     $signIns = Invoke-GraphWithRetry -ScriptBlock {
         Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
@@ -146,10 +146,10 @@ try {
     }
 
     Write-Host "      Retrieving interactive sign-ins..." -ForegroundColor Gray
-    $interactiveSignIns = Get-SignInEvents -Filter "$baseFilter and signInEventTypes/any(t: t eq 'interactiveUser')" -Label "interactive"
+    $interactiveSignIns = Get-SignInEvents -Filter "$baseFilter and isInteractive eq true" -Label "interactive"
 
     Write-Host "      Retrieving non-interactive sign-ins..." -ForegroundColor Gray
-    $nonInteractiveSignIns = Get-SignInEvents -Filter "$baseFilter and signInEventTypes/any(t: t eq 'nonInteractiveUser')" -Label "non-interactive"
+    $nonInteractiveSignIns = Get-SignInEvents -Filter "$baseFilter and isInteractive eq false" -Label "non-interactive"
 
     $signInMap = @{}
     foreach ($signIn in @($interactiveSignIns + $nonInteractiveSignIns)) {
