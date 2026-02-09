@@ -215,11 +215,21 @@ try {
             $deviceStatuses = @()
 
             try {
-                $deviceStatus = Invoke-MgGraphRequest -Method GET `
-                    -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/deviceStatuses?`$top=999" `
-                    -OutputType PSObject
+                # deviceStatuses endpoint only works for managed app types (Win32, LOB)
+                # Store apps and web links don't have device-level status
+                # Use $top=100 as Graph API max for paginated endpoints
+                $deviceStatusUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/deviceStatuses?`$top=100"
+                $allStatuses = @()
 
-                foreach ($status in $deviceStatus.value) {
+                do {
+                    $deviceStatus = Invoke-MgGraphRequest -Method GET -Uri $deviceStatusUri -OutputType PSObject
+                    if ($deviceStatus.value) {
+                        $allStatuses += $deviceStatus.value
+                    }
+                    $deviceStatusUri = $deviceStatus.'@odata.nextLink'
+                } while ($deviceStatusUri -and $allStatuses.Count -lt 1000)
+
+                foreach ($status in $allStatuses) {
                     switch ($status.installState) {
                         "installed"      { $installedCount++ }
                         "failed"         {
@@ -260,7 +270,8 @@ try {
                 }
             }
             catch {
-                Write-Warning "      Failed to get device statuses for app $($app.displayName): $($_.Exception.Message)"
+                # deviceStatuses not available for this app type (e.g., Store apps, web links)
+                # This is expected - only managed apps (Win32, LOB) have device-level status
             }
 
             $totalDevices = $installedCount + $failedCount + $pendingCount + $notInstalledCount

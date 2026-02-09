@@ -50,6 +50,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Navigation updated with Groups link under Identity section
 - Orchestrator now includes GroupData in collector list (27 collectors total)
 
+### Fixed
+- **Graph API pagination limits** across all collectors:
+  - Changed `$top` from 500/999 to 100 (Graph API recommended max for paginated endpoints)
+  - Affected: `Get-EndpointAnalytics.ps1`, `Get-AppDeployments.ps1`
+
+- **Get-ConfigurationProfiles.ps1**:
+  - Fixed Settings Catalog policy status collection (no `deviceStatusOverview` endpoint for Settings Catalog)
+  - Only calls status endpoint for legacy `deviceConfigurations`, not `configurationPolicies`
+
+- **Get-WindowsUpdateStatus.ps1**:
+  - Fixed feature update profile handling (no `deviceUpdateStates` endpoint for feature updates)
+  - Silenced expected errors for quality update profiles that don't support device states
+
+- **Get-AppDeployments.ps1**:
+  - Added proper pagination loop for device statuses
+  - Silenced expected errors for Store apps and web links (only managed apps have device statuses)
+
+- **Get-EndpointAnalytics.ps1**:
+  - Fixed Work From Anywhere endpoint (`userExperienceAnalyticsWorkFromAnywhereModelPerformance` instead of non-existent `userExperienceAnalyticsWorkFromAnywhereMetrics`)
+  - Fixed `$top` parameter from 500 to 100 across all endpoints
+
 ---
 
 ## [2.2.0] - 2026-02-08

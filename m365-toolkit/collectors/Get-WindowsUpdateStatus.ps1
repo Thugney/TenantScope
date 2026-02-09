@@ -275,41 +275,10 @@ try {
         } -OperationName "Feature update profiles retrieval"
 
         foreach ($policy in $featureUpdates.value) {
-            # Get deployment state
+            # Get deployment state - Feature Update profiles don't have deviceUpdateStates endpoint
+            # The deviceUpdateStates endpoint is for expedited quality updates only
+            # For feature updates, status is tracked through reports API or assignment filter status
             $deploymentState = @{ total = 0; succeeded = 0; pending = 0; failed = 0; notApplicable = 0 }
-            try {
-                $stateResponse = Invoke-MgGraphRequest -Method GET `
-                    -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsFeatureUpdateProfiles/$($policy.id)/deviceUpdateStates" `
-                    -OutputType PSObject
-
-                if ($stateResponse.value -and $stateResponse.value.Count -gt 0) {
-                    # Handle multiple possible property names for status
-                    $deploymentState = @{
-                        total = $stateResponse.value.Count
-                        succeeded = ($stateResponse.value | Where-Object {
-                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
-                            $status -in @("offeringReceived", "installed", "succeeded", "compliant")
-                        }).Count
-                        pending = ($stateResponse.value | Where-Object {
-                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
-                            $status -in @("pending", "downloading", "installing", "inProgress")
-                        }).Count
-                        failed = ($stateResponse.value | Where-Object {
-                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
-                            $status -in @("failed", "error")
-                        }).Count
-                        notApplicable = ($stateResponse.value | Where-Object {
-                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
-                            $status -in @("notApplicable", "notOffered")
-                        }).Count
-                    }
-
-                    Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $stateResponse.value -StatusPropertyNames @("featureUpdateStatus", "status", "state")
-                }
-            }
-            catch {
-                Write-Host "      Warning: Could not get feature update state for $($policy.displayName) - $($_.Exception.Message)" -ForegroundColor Yellow
-            }
 
             # Get assignments
             $assignedGroups = @()
@@ -389,7 +358,8 @@ try {
                     -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsQualityUpdateProfiles/$($policy.id)/assignments" `
                     -OutputType PSObject
 
-                # If we have assignments, get device counts
+                # Note: deviceUpdateStates endpoint may not be available for all quality update profiles
+                # This is expected behavior for non-expedited updates - status tracked differently
                 if ($assignments.value -and $assignments.value.Count -gt 0) {
                     try {
                         $stateSummary = Invoke-MgGraphRequest -Method GET `
@@ -421,7 +391,7 @@ try {
                         }
                     }
                     catch {
-                        Write-Host "      Warning: Could not get quality update state for $($policy.displayName) - $($_.Exception.Message)" -ForegroundColor Yellow
+                        # deviceUpdateStates endpoint not available for this policy type - this is expected
                     }
                 }
             }

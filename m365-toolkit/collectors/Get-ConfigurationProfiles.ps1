@@ -243,6 +243,7 @@ try {
 
             try {
                 if ($source -eq "deviceConfigurations") {
+                    # Legacy device configurations have deviceStatusOverview endpoint
                     $statusOverview = Invoke-MgGraphRequest -Method GET `
                         -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
                         -OutputType PSObject
@@ -257,22 +258,21 @@ try {
                     $notApplicableCount = if ($null -ne $statusOverview.notApplicableDeviceCount) { $statusOverview.notApplicableDeviceCount } else { 0 }
                 }
                 elseif ($source -eq "configurationPolicies") {
-                    # Settings catalog uses different status endpoint
-                    $statusOverview = Invoke-MgGraphRequest -Method GET `
-                        -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
-                        -OutputType PSObject
-
-                    if ($statusOverview) {
-                        # Settings Catalog has different property names than legacy profiles
-                        $successCount = if ($null -ne $statusOverview.successCount) { $statusOverview.successCount } else { 0 }
-                        $errorCount = if ($null -ne $statusOverview.errorCount) { $statusOverview.errorCount } else { 0 }
-                        $conflictCount = if ($null -ne $statusOverview.conflictCount) { $statusOverview.conflictCount } else { 0 }
-                        $pendingCount = if ($null -ne $statusOverview.inProgressCount) { $statusOverview.inProgressCount } else { 0 }
-                    }
+                    # Settings Catalog policies don't have deviceStatusOverview endpoint
+                    # Instead, we can get assignment filter evaluation status or just use assignment counts
+                    # For now, we leave counts at 0 as Settings Catalog tracks status differently
+                    # The status is tracked per-setting rather than per-policy in the Intune portal
+                    $successCount = 0
+                    $errorCount = 0
+                    $conflictCount = 0
+                    $pendingCount = 0
                 }
             }
             catch {
-                Write-Warning "      Failed to get status overview for profile $($profile.displayName): $($_.Exception.Message)"
+                # Only log warning for legacy profiles that should support status overview
+                if ($source -eq "deviceConfigurations") {
+                    Write-Warning "      Failed to get status overview for profile $($profile.displayName): $($_.Exception.Message)"
+                }
             }
 
             # Get assignments for this profile

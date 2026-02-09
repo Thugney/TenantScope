@@ -141,9 +141,10 @@ try {
     # Get Device Scores
     # ========================================
     try {
+        # Use $top=100 as recommended for Graph API pagination
         $deviceScores = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceScores?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceScores?`$top=100" `
                 -OutputType PSObject
         } -OperationName "Device scores retrieval"
 
@@ -213,9 +214,10 @@ try {
     # Get Device Performance (Startup)
     # ========================================
     try {
+        # Use $top=100 as recommended for Graph API pagination
         $performance = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDevicePerformance?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDevicePerformance?`$top=100" `
                 -OutputType PSObject
         } -OperationName "Device performance retrieval"
 
@@ -299,9 +301,10 @@ try {
     # Get App Reliability Data (with pagination)
     # ========================================
     try {
+        # Use $top=100 as recommended for Graph API pagination
         $appReliability = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthApplicationPerformance?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthApplicationPerformance?`$top=100" `
                 -OutputType PSObject
         } -OperationName "App reliability retrieval"
 
@@ -355,9 +358,10 @@ try {
     # Get Battery Health Data
     # ========================================
     try {
+        # Use $top=100 as recommended for Graph API pagination
         $batteryHealth = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthDevicePerformance?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsBatteryHealthDevicePerformance?`$top=100" `
                 -OutputType PSObject
         } -OperationName "Battery health retrieval"
 
@@ -414,9 +418,11 @@ try {
     # Get Work From Anywhere Metrics
     # ========================================
     try {
+        # Use the model performance endpoint for work from anywhere data
+        # Use $top=100 as recommended for Graph API pagination
         $wfaMetrics = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereMetrics?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsWorkFromAnywhereModelPerformance?`$top=100" `
                 -OutputType PSObject
         } -OperationName "Work from anywhere retrieval"
 
@@ -432,30 +438,28 @@ try {
         foreach ($wfa in $allWfa) {
             $analyticsData.workFromAnywhere += [PSCustomObject]@{
                 id                        = $wfa.id
-                deviceName                = $wfa.deviceName
+                model                     = $wfa.model
+                manufacturer              = $wfa.manufacturer
+                modelDeviceCount          = $wfa.modelDeviceCount
                 cloudManagementScore      = $wfa.cloudManagementScore
                 cloudIdentityScore        = $wfa.cloudIdentityScore
                 cloudProvisioningScore    = $wfa.cloudProvisioningScore
                 windowsScore              = $wfa.windowsScore
-                windowsDevices            = $wfa.windowsDevices
+                workFromAnywhereScore     = $wfa.workFromAnywhereScore
                 healthStatus              = $wfa.healthStatus
-                autopilotProfileAssigned  = $wfa.autopilotProfileAssigned
-                azureAdJoined             = $wfa.azureAdJoined
-                osCheckFailed             = $wfa.osCheckFailed
-                tenantAttached            = $wfa.tenantAttached
             }
         }
 
         # Calculate average WFA score
         if ($allWfa.Count -gt 0) {
             $avgWfaScore = [Math]::Round(
-                ($analyticsData.workFromAnywhere | Where-Object { $_.cloudManagementScore } |
-                 Measure-Object -Property cloudManagementScore -Average).Average, 1
+                ($analyticsData.workFromAnywhere | Where-Object { $_.workFromAnywhereScore } |
+                 Measure-Object -Property workFromAnywhereScore -Average).Average, 1
             )
             $analyticsData.summary.averageWorkFromAnywhereScore = $avgWfaScore
         }
 
-        Write-Host "      Retrieved work from anywhere metrics for $($analyticsData.workFromAnywhere.Count) items" -ForegroundColor Gray
+        Write-Host "      Retrieved work from anywhere metrics for $($analyticsData.workFromAnywhere.Count) models" -ForegroundColor Gray
     }
     catch {
         # WFA metrics is optional - don't fail collection
@@ -466,9 +470,10 @@ try {
     # Get Startup Process Impact
     # ========================================
     try {
+        # Use $top=100 as recommended for Graph API pagination
         $startupProcs = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceStartupProcesses?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsDeviceStartupProcesses?`$top=100" `
                 -OutputType PSObject
         } -OperationName "Startup processes retrieval"
 
@@ -521,9 +526,10 @@ try {
     # Get Device-Level App Health
     # ========================================
     try {
+        # Use $top=100 as recommended for Graph API pagination
         $deviceAppHealth = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthDevicePerformance?`$top=500" `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsAppHealthDevicePerformance?`$top=100" `
                 -OutputType PSObject
         } -OperationName "Device app health retrieval"
 
