@@ -256,10 +256,12 @@ const PageTeams = (function() {
         if (!value || value.length === 0) {
             return '<span class="text-muted">--</span>';
         }
-        if (value.length > 2) {
-            return '<span class="text-warning">' + value.slice(0, 2).join(', ') + ' +' + (value.length - 2) + ' more</span>';
+        // Ensure value is an array
+        var arr = Array.isArray(value) ? value : [value];
+        if (arr.length > 2) {
+            return '<span class="text-warning">' + arr.slice(0, 2).join(', ') + ' +' + (arr.length - 2) + ' more</span>';
         }
-        return '<span class="text-warning">' + value.join(', ') + '</span>';
+        return '<span class="text-warning">' + arr.join(', ') + '</span>';
     }
 
     /**
@@ -269,10 +271,12 @@ const PageTeams = (function() {
         if (!value || value.length === 0) {
             return '<span class="text-muted">--</span>';
         }
-        if (value.length > 2) {
-            return value.slice(0, 2).join(', ') + ' +' + (value.length - 2) + ' more';
+        // Ensure value is an array
+        var arr = Array.isArray(value) ? value : [value];
+        if (arr.length > 2) {
+            return arr.slice(0, 2).join(', ') + ' +' + (arr.length - 2) + ' more';
         }
-        return value.join(', ');
+        return arr.join(', ');
     }
 
     /**
@@ -361,10 +365,10 @@ const PageTeams = (function() {
             '    <span class="detail-value' + (team.guestCount > 0 ? ' text-warning' : '') + '">' + team.guestCount + '</span>',
             '',
             '    <span class="detail-label">External Domains:</span>',
-            '    <span class="detail-value">' + (team.externalDomains && team.externalDomains.length > 0 ? team.externalDomains.join(', ') : '--') + '</span>',
+            '    <span class="detail-value">' + (team.externalDomains && team.externalDomains.length > 0 ? (Array.isArray(team.externalDomains) ? team.externalDomains.join(', ') : team.externalDomains) : '--') + '</span>',
             '',
             '    <span class="detail-label">Suggested Owners:</span>',
-            '    <span class="detail-value">' + (team.suggestedOwners && team.suggestedOwners.length > 0 ? team.suggestedOwners.join(', ') : '--') + '</span>',
+            '    <span class="detail-value">' + (team.suggestedOwners && team.suggestedOwners.length > 0 ? (Array.isArray(team.suggestedOwners) ? team.suggestedOwners.join(', ') : team.suggestedOwners) : '--') + '</span>',
             '',
             '    <span class="detail-label">Active Users (30d):</span>',
             '    <span class="detail-value">' + (team.activeUsers || 0) + '</span>',
@@ -382,7 +386,7 @@ const PageTeams = (function() {
             '    <span class="detail-value">' + (team.isInactive ? 'Inactive' : 'Active') + '</span>',
             '',
             '    <span class="detail-label">Flags:</span>',
-            '    <span class="detail-value">' + (team.flags && team.flags.length > 0 ? team.flags.join(', ') : 'None') + '</span>',
+            '    <span class="detail-value">' + (team.flags && team.flags.length > 0 ? (Array.isArray(team.flags) ? team.flags.join(', ') : team.flags) : 'None') + '</span>',
             '',
             '    <span class="detail-label">Group ID:</span>',
             '    <span class="detail-value" style="font-size: 0.8em;">' + team.id + '</span>',
