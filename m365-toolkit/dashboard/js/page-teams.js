@@ -54,7 +54,8 @@ const PageTeams = (function() {
      * Applies current filters and re-renders the table.
      */
     function applyFilters() {
-        const teams = DataLoader.getData('teams');
+        var teams = DataLoader.getData('teams') || [];
+        if (!teams || teams.length === 0) return;
 
         // Build filter configuration
         const filterConfig = {
@@ -398,7 +399,12 @@ const PageTeams = (function() {
      * @param {HTMLElement} container - The page container element
      */
     function render(container) {
-        var teams = DataLoader.getData('teams');
+        var teams = DataLoader.getData('teams') || [];
+
+        if (!teams || teams.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-title">No Teams Data</div><p>No Microsoft Teams data available. Run data collection to gather Teams information.</p></div>';
+            return;
+        }
 
         // Calculate governance-focused stats
         var publicCount = teams.filter(function(t) { return t.visibility === 'Public'; }).length;
