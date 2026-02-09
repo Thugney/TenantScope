@@ -357,6 +357,33 @@ TenantScope loads all collected JSON into memory on dashboard startup. For large
 
 ## Troubleshooting
 
+### Repeated Authentication Prompts
+
+If you're prompted to re-authenticate multiple times during collection:
+
+**Option 1: Use Device Code Authentication (Recommended)**
+```powershell
+.\Invoke-DataCollection.ps1 -UseDeviceCode
+```
+This shows a code to enter at https://microsoft.com/devicelogin once, and the session persists.
+
+**Option 2: Clear Token Cache**
+```powershell
+# Disconnect existing session
+Disconnect-MgGraph -ErrorAction SilentlyContinue
+
+# Clear the MSAL token cache
+$cacheFolder = Join-Path $env:LOCALAPPDATA "Microsoft\Graph\.graph"
+if (Test-Path $cacheFolder) { Remove-Item $cacheFolder -Recurse -Force }
+
+# Run collection again
+.\Invoke-DataCollection.ps1
+```
+
+**Option 3: Use App-Only Authentication (Best for Regular Use)**
+
+Set up certificate-based authentication for unattended, stable collection. See [App-Only Authentication](#app-only-authentication-scheduledunattended).
+
 ### Authentication Errors
 
 ```
@@ -368,6 +395,21 @@ Ensure your account has the required admin roles:
 - Intune Administrator (for device data)
 - Security Reader (for risk and security data)
 
+### Graph API Property Errors (BadRequest)
+
+```
+Error: Could not find a property named 'X' on type 'microsoft.graph.Y'
+```
+
+This occurs when a collector requests a property that doesn't exist in your Graph API version or tenant. These are typically fixed in updates. If you encounter this:
+
+1. **Pull the latest version**: `git pull`
+2. **Report the issue**: Open an issue with the full error message
+
+Common examples that have been fixed:
+- `managedDeviceCertificateExpirationDate` - Removed (not a valid property)
+- `autopilotEnrolled` - Removed (not a valid property on managedDevice)
+
 ### Missing Data
 
 Some data types require specific licensing:
@@ -375,8 +417,26 @@ Some data types require specific licensing:
 - Risk detections: Entra ID P2
 - Defender alerts: Microsoft Defender license
 - Endpoint Analytics: Intune license
+- Vulnerability data: Microsoft Defender for Endpoint P2
+- Retention labels: Microsoft Purview / E5 Compliance
 
 The collectors handle missing data gracefully and create empty JSON files.
+
+### Permission Errors (Forbidden)
+
+```
+Error: Response status code does not indicate success: Forbidden
+```
+
+This means the app/user lacks the required permission. Check:
+1. The permission is granted in Azure AD (for app-only auth)
+2. Admin consent was given (for app-only auth)
+3. Your account has the appropriate admin role (for interactive auth)
+
+Common permission requirements:
+- SharePoint site details: `Sites.Read.All`
+- BitLocker keys: `BitLockerKey.Read.All`
+- Retention labels: `RecordsManagement.Read.All`
 
 ### Throttling
 
