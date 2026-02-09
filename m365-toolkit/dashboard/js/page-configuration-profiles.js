@@ -347,9 +347,10 @@ const PageConfigurationProfiles = (function() {
     }
 
     function formatSuccessRate(value) {
-        if (value === null || value === undefined) return '<span class="text-muted">N/A</span>';
-        var cls = value >= 90 ? 'text-success' : value >= 70 ? 'text-warning' : 'text-critical';
-        return '<span class="' + cls + ' font-bold">' + Math.round(value) + '%</span>';
+        if (value === null || value === undefined || isNaN(Number(value))) return '<span class="text-muted">N/A</span>';
+        var numVal = Number(value);
+        var cls = numVal >= 90 ? 'text-success' : numVal >= 70 ? 'text-warning' : 'text-critical';
+        return '<span class="' + cls + ' font-bold">' + Math.round(numVal) + '%</span>';
     }
 
     function renderProfilesTab(container, data) {

@@ -542,36 +542,36 @@ const PageEndpointAnalytics = (function() {
     // ========================================================================
 
     function formatHealthScoreBadge(v) {
-        if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-        var score = Math.round(v);
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var score = Math.round(Number(v));
         var cls = score >= 80 ? 'badge-success' : score >= 60 ? 'badge-info' : score >= 40 ? 'badge-warning' : 'badge-critical';
         return '<span class="badge ' + cls + '">' + score + '</span>';
     }
 
     function formatStartupScoreBadge(v) {
-        if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-        var score = Math.round(v);
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var score = Math.round(Number(v));
         var cls = score >= 70 ? 'badge-success' : score >= 50 ? 'badge-warning' : 'badge-critical';
         return '<span class="badge ' + cls + '">' + score + '</span>';
     }
 
     function formatStartupScoreText(v) {
-        if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-        var score = Math.round(v);
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var score = Math.round(Number(v));
         var cls = score >= 70 ? 'text-success' : score >= 50 ? 'text-warning' : 'text-critical';
         return '<span class="' + cls + '">' + score + '</span>';
     }
 
     function formatScoreText(v) {
-        if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-        var score = Math.round(v);
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var score = Math.round(Number(v));
         var cls = score >= 70 ? 'text-success' : score >= 50 ? 'text-warning' : 'text-critical';
         return '<span class="' + cls + '">' + score + '</span>';
     }
 
     function formatBootTime(v) {
-        if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-        var seconds = Math.round(v);
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var seconds = Math.round(Number(v));
         var cls = seconds <= 60 ? 'text-success' : seconds <= 120 ? 'text-warning' : 'text-critical';
         return '<span class="' + cls + '">' + seconds + 's</span>';
     }

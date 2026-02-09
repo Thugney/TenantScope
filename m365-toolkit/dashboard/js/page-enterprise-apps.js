@@ -175,16 +175,17 @@ const PageEnterpriseApps = (function() {
     }
 
     function formatExpiryDays(value) {
-        // Safe: numeric value formatting
-        if (value === null || value === undefined) {
+        // Safe: numeric value formatting with type checking
+        if (value === null || value === undefined || isNaN(Number(value))) {
             return '<span class="text-muted">--</span>';
         }
+        var numVal = Number(value);
         var colorClass = '';
-        if (value < 0) colorClass = 'text-critical font-bold';
-        else if (value <= 7) colorClass = 'text-critical';
-        else if (value <= 30) colorClass = 'text-warning';
-        else if (value <= 90) colorClass = 'text-attention';
-        return '<span class="' + colorClass + '">' + value + 'd</span>';
+        if (numVal < 0) colorClass = 'text-critical font-bold';
+        else if (numVal <= 7) colorClass = 'text-critical';
+        else if (numVal <= 30) colorClass = 'text-warning';
+        else if (numVal <= 90) colorClass = 'text-attention';
+        return '<span class="' + colorClass + '">' + numVal + 'd</span>';
     }
 
     function formatAppType(value) {

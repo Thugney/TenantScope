@@ -80,9 +80,10 @@ const PageLicenses = (function() {
      * Formats a number as currency.
      */
     function formatCurrency(value, curr) {
-        if (!value && value !== 0) return '--';
+        if (value === null || value === undefined || (typeof value !== 'number' && isNaN(Number(value)))) return '--';
+        var numVal = typeof value === 'number' ? value : Number(value);
         var sym = curr === 'NOK' ? 'kr' : curr === 'USD' ? '$' : curr === 'EUR' ? '€' : '';
-        return sym + ' ' + value.toLocaleString();
+        return sym + ' ' + numVal.toLocaleString();
     }
 
     /**
@@ -369,24 +370,28 @@ const PageLicenses = (function() {
     }
 
     function formatWasteCell(value) {
-        if (!value || value === 0) return '<span class="text-muted">0</span>';
-        return '<span class="text-warning font-bold">' + value + '</span>';
+        var numVal = Number(value);
+        if (!value || isNaN(numVal) || numVal === 0) return '<span class="text-muted">0</span>';
+        return '<span class="text-warning font-bold">' + numVal + '</span>';
     }
 
     function formatOverlapCell(value) {
-        if (!value || value === 0) return '<span class="text-muted">0</span>';
-        return '<span class="text-critical font-bold">' + value + '</span>';
+        var numVal = Number(value);
+        if (!value || isNaN(numVal) || numVal === 0) return '<span class="text-muted">0</span>';
+        return '<span class="text-critical font-bold">' + numVal + '</span>';
     }
 
     function formatSavingsCell(value) {
-        if (!value || value === 0) return '<span class="text-muted">0%</span>';
-        return '<span class="text-warning font-bold">' + value + '%</span>';
+        var numVal = Number(value);
+        if (!value || isNaN(numVal) || numVal === 0) return '<span class="text-muted">0%</span>';
+        return '<span class="text-warning font-bold">' + numVal + '%</span>';
     }
 
     function formatCostCell(value, row) {
-        if (!value || value === 0) return '<span class="text-muted">kr 0</span>';
+        var numVal = Number(value);
+        if (!value || isNaN(numVal) || numVal === 0) return '<span class="text-muted">kr 0</span>';
         var curr = (row && row.currency) || licensesState.currency;
-        return '<span class="text-critical font-bold">' + formatCurrency(value, curr) + '</span>';
+        return '<span class="text-critical font-bold">' + formatCurrency(numVal, curr) + '</span>';
     }
 
     /**

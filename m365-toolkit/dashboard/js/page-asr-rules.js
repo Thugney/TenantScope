@@ -467,8 +467,8 @@ const PageASRRules = (function() {
     }
 
     function formatCoverage(v) {
-        if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-        var pct = Math.round(v);
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var pct = Math.round(Number(v));
         var cls = pct >= 90 ? 'text-success' : pct >= 70 ? 'text-warning' : 'text-critical';
         return '<span class="' + cls + '">' + pct + '%</span>';
     }

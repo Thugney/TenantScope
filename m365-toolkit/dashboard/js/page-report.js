@@ -27,10 +27,14 @@ const PageReport = (function() {
      */
     function formatCurrency(value, currency) {
         var code = currency || 'NOK';
+        if (value === null || value === undefined || isNaN(Number(value))) {
+            return code + ' 0';
+        }
+        var numVal = Number(value);
         try {
-            return new Intl.NumberFormat('nb-NO', { style: 'currency', currency: code, maximumFractionDigits: 0 }).format(value);
+            return new Intl.NumberFormat('nb-NO', { style: 'currency', currency: code, maximumFractionDigits: 0 }).format(numVal);
         } catch (e) {
-            return code + ' ' + Math.round(value).toLocaleString();
+            return code + ' ' + Math.round(numVal).toLocaleString();
         }
     }
 

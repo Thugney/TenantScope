@@ -60,9 +60,10 @@ const PageCredentialExpiry = (function() {
                 return '<span class="badge ' + (statuses[v] || 'badge-neutral') + '">' + (v || 'Unknown') + '</span>';
             }},
             { key: 'daysUntilExpiry', label: 'Days Left', formatter: function(v) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                var cls = v < 0 ? 'text-critical font-bold' : v <= 30 ? 'text-critical' : v <= 60 ? 'text-warning' : 'text-success';
-                return '<span class="' + cls + '">' + v + '</span>';
+                if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+                var numVal = Number(v);
+                var cls = numVal < 0 ? 'text-critical font-bold' : numVal <= 30 ? 'text-critical' : numVal <= 60 ? 'text-warning' : 'text-success';
+                return '<span class="' + cls + '">' + numVal + '</span>';
             }},
             { key: 'expiryDate', label: 'Expiry Date', formatter: Tables.formatters.date }
         ];
