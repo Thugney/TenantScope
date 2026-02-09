@@ -262,7 +262,7 @@ try {
                 "complianceState", "lastSyncDateTime", "enrolledDateTime",
                 "managedDeviceOwnerType", "manufacturer", "model", "serialNumber",
                 "isEncrypted", "managementAgent",
-                "userDisplayName", "autopilotEnrolled", "deviceCategoryDisplayName",
+                "userDisplayName", "deviceCategoryDisplayName",
                 "totalStorageSpaceInBytes", "freeStorageSpaceInBytes", "wiFiMacAddress",
                 "joinType", "azureADDeviceId", "deviceEnrollmentType", "deviceRegistrationState",
                 "jailBroken", "isSupervised", "partnerReportedThreatState",
@@ -270,7 +270,7 @@ try {
                 "physicalMemoryInBytes", "ethernetMacAddress", "phoneNumber", "subscriberCarrier",
                 "imei", "meid", "iccid", "udid", "enrollmentProfileName",
                 "androidSecurityPatchLevel", "complianceGracePeriodExpirationDateTime",
-                "activationLockBypassCode", "notes", "managedDeviceName", "userId", "emailAddress",
+                "notes", "managedDeviceName", "userId", "emailAddress",
                 "azureADRegistered", "easActivated", "easActivationDateTime", "easDeviceId"
             )
         } -OperationName "Intune device retrieval"
