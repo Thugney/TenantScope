@@ -2429,9 +2429,42 @@ table {
     }
 }
 
+@media (max-width: 1024px) {
+    .header {
+        flex-wrap: wrap;
+        height: auto;
+        min-height: var(--header-height);
+        padding: var(--spacing-sm) var(--spacing-md);
+        gap: var(--spacing-sm);
+    }
+
+    .header-brand {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .header-filters {
+        order: 3;
+        width: 100%;
+        justify-content: flex-start;
+        padding-top: var(--spacing-xs);
+        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        margin-top: var(--spacing-xs);
+    }
+
+    .header-meta {
+        flex-shrink: 0;
+    }
+}
+
 @media (max-width: 768px) {
     .header-meta {
         display: none;
+    }
+
+    .header-filters {
+        flex-wrap: wrap;
+        gap: var(--spacing-xs);
     }
 
     .filter-bar {

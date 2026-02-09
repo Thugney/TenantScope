@@ -87,7 +87,7 @@ const GlobalSearch = (function() {
             label: 'Devices',
             icon: 'monitor',
             dataKey: 'devices',
-            searchFields: ['displayName', 'deviceName', 'operatingSystem', 'manufacturer', 'model'],
+            searchFields: ['displayName', 'deviceName', 'operatingSystem', 'manufacturer', 'model', 'userPrincipalName'],
             displayField: 'displayName',
             subtitleField: 'operatingSystem',
             page: 'devices'
@@ -107,7 +107,7 @@ const GlobalSearch = (function() {
             label: 'SharePoint Sites',
             icon: 'globe',
             dataKey: 'sharepointSites',
-            searchFields: ['displayName', 'webUrl', 'description'],
+            searchFields: ['displayName', 'webUrl', 'description', 'siteUrl'],
             displayField: 'displayName',
             subtitleField: 'webUrl',
             page: 'sharepoint'
@@ -117,10 +117,63 @@ const GlobalSearch = (function() {
             label: 'Enterprise Apps',
             icon: 'briefcase',
             dataKey: 'enterpriseApps',
-            searchFields: ['displayName', 'appId'],
+            searchFields: ['displayName', 'appId', 'publisherName'],
             displayField: 'displayName',
-            subtitleField: 'appId',
+            subtitleField: 'publisherName',
             page: 'enterprise-apps'
+        },
+        {
+            key: 'conditionalAccess',
+            label: 'Conditional Access Policies',
+            icon: 'shield',
+            dataKey: 'conditionalAccess',
+            dataPath: 'policies',
+            searchFields: ['displayName', 'description'],
+            displayField: 'displayName',
+            subtitleField: 'state',
+            page: 'conditional-access'
+        },
+        {
+            key: 'adminRoles',
+            label: 'Admin Roles',
+            icon: 'shield',
+            dataKey: 'adminRoles',
+            searchFields: ['displayName', 'description'],
+            displayField: 'displayName',
+            subtitleField: 'description',
+            page: 'security'
+        },
+        {
+            key: 'licenses',
+            label: 'Licenses',
+            icon: 'key',
+            dataKey: 'licenseSkus',
+            searchFields: ['displayName', 'skuPartNumber'],
+            displayField: 'displayName',
+            subtitleField: 'skuPartNumber',
+            page: 'licenses'
+        },
+        {
+            key: 'configProfiles',
+            label: 'Configuration Profiles',
+            icon: 'settings',
+            dataKey: 'configurationProfiles',
+            dataPath: 'profiles',
+            searchFields: ['displayName', 'platform', 'profileType'],
+            displayField: 'displayName',
+            subtitleField: 'platform',
+            page: 'intune-profiles'
+        },
+        {
+            key: 'compliancePolicies',
+            label: 'Compliance Policies',
+            icon: 'check-circle',
+            dataKey: 'compliancePolicies',
+            dataPath: 'policies',
+            searchFields: ['displayName', 'platform'],
+            displayField: 'displayName',
+            subtitleField: 'platform',
+            page: 'intune-compliance'
         }
     ];
 
@@ -129,6 +182,7 @@ const GlobalSearch = (function() {
      */
     const navigationPages = [
         { key: 'overview', label: 'Overview', icon: 'grid' },
+        { key: 'problems', label: 'Problems', icon: 'alert-triangle' },
         { key: 'users', label: 'Users', icon: 'user' },
         { key: 'guests', label: 'Guests', icon: 'user-plus' },
         { key: 'devices', label: 'Devices', icon: 'monitor' },
@@ -136,8 +190,12 @@ const GlobalSearch = (function() {
         { key: 'security', label: 'Security', icon: 'shield' },
         { key: 'teams', label: 'Teams', icon: 'users' },
         { key: 'sharepoint', label: 'SharePoint', icon: 'globe' },
+        { key: 'enterprise-apps', label: 'Enterprise Apps', icon: 'briefcase' },
         { key: 'conditional-access', label: 'Conditional Access', icon: 'shield' },
+        { key: 'intune-profiles', label: 'Intune Profiles', icon: 'settings' },
+        { key: 'intune-compliance', label: 'Intune Compliance', icon: 'check-circle' },
         { key: 'pim', label: 'PIM', icon: 'shield' },
+        { key: 'signin-logs', label: 'Sign-in Logs', icon: 'file-text' },
         { key: 'audit-logs', label: 'Audit Logs', icon: 'file-text' },
         { key: 'report', label: 'Executive Report', icon: 'file-text' }
     ];
@@ -352,6 +410,41 @@ const GlobalSearch = (function() {
                 var polyline3 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
                 polyline3.setAttribute('points', '12 5 19 12 12 19');
                 svg.appendChild(polyline3);
+                break;
+            case 'settings':
+                var circle7 = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle7.setAttribute('cx', '12');
+                circle7.setAttribute('cy', '12');
+                circle7.setAttribute('r', '3');
+                svg.appendChild(circle7);
+                var path11 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path11.setAttribute('d', 'M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z');
+                svg.appendChild(path11);
+                break;
+            case 'check-circle':
+                var path12 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path12.setAttribute('d', 'M22 11.08V12a10 10 0 1 1-5.93-9.14');
+                svg.appendChild(path12);
+                var polyline4 = document.createElementNS('http://www.w3.org/2000/svg', 'polyline');
+                polyline4.setAttribute('points', '22 4 12 14.01 9 11.01');
+                svg.appendChild(polyline4);
+                break;
+            case 'alert-triangle':
+                var path13 = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                path13.setAttribute('d', 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z');
+                svg.appendChild(path13);
+                var line10 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line10.setAttribute('x1', '12');
+                line10.setAttribute('y1', '9');
+                line10.setAttribute('x2', '12');
+                line10.setAttribute('y2', '13');
+                svg.appendChild(line10);
+                var line11 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line11.setAttribute('x1', '12');
+                line11.setAttribute('y1', '17');
+                line11.setAttribute('x2', '12.01');
+                line11.setAttribute('y2', '17');
+                svg.appendChild(line11);
                 break;
         }
 
@@ -611,7 +704,14 @@ const GlobalSearch = (function() {
         // Search data categories
         searchCategories.forEach(function(category) {
             var data = DataLoader.getData(category.dataKey);
-            if (!data || !Array.isArray(data)) return;
+            if (!data) return;
+
+            // Handle nested data paths (e.g., conditionalAccess.policies)
+            if (category.dataPath && data[category.dataPath]) {
+                data = data[category.dataPath];
+            }
+
+            if (!Array.isArray(data)) return;
 
             var matches = data.filter(function(item) {
                 return category.searchFields.some(function(field) {
