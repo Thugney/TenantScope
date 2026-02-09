@@ -356,10 +356,26 @@ const PageDataQuality = (function() {
             td2.textContent = fs.filled + ' / ' + fs.total;
             var td3 = document.createElement('td');
             td3.className = 'cell-right';
+
+            // Create progress bar with percentage
+            var barWrapper = document.createElement('div');
+            barWrapper.className = 'completeness-bar';
+
+            var barTrack = document.createElement('div');
+            barTrack.className = 'completeness-bar-track';
+            var barFill = document.createElement('div');
+            var pctClass = fs.pct >= 90 ? 'pct-high' : (fs.pct >= 70 ? 'pct-medium' : 'pct-low');
+            barFill.className = 'completeness-bar-fill ' + pctClass;
+            barFill.style.width = fs.pct + '%';
+            barTrack.appendChild(barFill);
+
             var badge = document.createElement('span');
             badge.className = pctColorClass(fs.pct);
             badge.textContent = fs.pct + '%';
-            td3.appendChild(badge);
+
+            barWrapper.appendChild(barTrack);
+            barWrapper.appendChild(badge);
+            td3.appendChild(barWrapper);
 
             tr.appendChild(td1);
             tr.appendChild(td2);
@@ -468,10 +484,30 @@ const PageDataQuality = (function() {
                     sumPct += pct;
                     var td = document.createElement('td');
                     td.className = 'cell-right';
+
+                    // Create mini progress bar with percentage badge
+                    var barWrapper = document.createElement('div');
+                    barWrapper.className = 'completeness-bar';
+                    barWrapper.style.justifyContent = 'flex-end';
+
+                    var barTrack = document.createElement('div');
+                    barTrack.className = 'completeness-bar-track';
+                    barTrack.style.maxWidth = '50px';
+                    var barFill = document.createElement('div');
+                    var pctClass = pct >= 90 ? 'pct-high' : (pct >= 70 ? 'pct-medium' : 'pct-low');
+                    barFill.className = 'completeness-bar-fill ' + pctClass;
+                    barFill.style.width = pct + '%';
+                    barTrack.appendChild(barFill);
+
                     var badge = document.createElement('span');
                     badge.className = pctColorClass(pct);
                     badge.textContent = pct + '%';
-                    td.appendChild(badge);
+                    badge.style.minWidth = '42px';
+                    badge.style.textAlign = 'center';
+
+                    barWrapper.appendChild(barTrack);
+                    barWrapper.appendChild(badge);
+                    td.appendChild(barWrapper);
                     tr.appendChild(td);
                 }
 
@@ -574,12 +610,9 @@ const PageDataQuality = (function() {
      */
     function formatMissing(value) {
         if (value === null || value === undefined || value === '') {
-            var span = document.createElement('span');
-            span.className = 'status-badge status-badge-critical';
-            span.textContent = 'Missing';
-            return span;
+            return '<span class="status-badge status-badge-critical">Missing</span>';
         }
-        return document.createTextNode(String(value));
+        return String(value);
     }
 
     /**

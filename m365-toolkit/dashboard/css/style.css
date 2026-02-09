@@ -5218,3 +5218,115 @@ table {
 .problem-action strong {
     color: var(--color-info);
 }
+
+/* ========================================================================
+   DATA QUALITY PAGE ENHANCEMENTS
+   ======================================================================== */
+
+/* Property completeness progress bars */
+.completeness-bar {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    width: 100%;
+}
+
+.completeness-bar-track {
+    flex: 1;
+    height: 8px;
+    background: var(--color-bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+    min-width: 60px;
+    max-width: 100px;
+}
+
+.completeness-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-normal);
+}
+
+.completeness-bar-fill.pct-high {
+    background: var(--color-success);
+}
+
+.completeness-bar-fill.pct-medium {
+    background: var(--color-warning);
+}
+
+.completeness-bar-fill.pct-low {
+    background: var(--color-critical);
+}
+
+/* Enhanced focus table with visual indicators */
+.focus-table-wrapper {
+    background: linear-gradient(to bottom, var(--color-bg-secondary), var(--color-bg-primary));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.focus-table td:first-child {
+    font-weight: 500;
+}
+
+/* Enhanced breakdown table */
+.breakdown-table-wrapper {
+    background: linear-gradient(to bottom, var(--color-bg-secondary), var(--color-bg-primary));
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.breakdown-table th:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--color-bg-secondary);
+    z-index: 1;
+}
+
+.breakdown-table td:first-child {
+    position: sticky;
+    left: 0;
+    background: var(--color-bg-secondary);
+    font-weight: 500;
+    z-index: 1;
+}
+
+/* Modal detail table improvements */
+.modal-detail-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.modal-detail-table th {
+    text-align: left;
+    padding: var(--spacing-sm);
+    border-bottom: 2px solid var(--color-bg-tertiary);
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+    background: var(--color-bg-tertiary);
+}
+
+.modal-detail-table td {
+    padding: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+    vertical-align: middle;
+}
+
+.modal-detail-table tbody tr:hover {
+    background: var(--color-neutral-bg);
+}
+
+/* ========================================================================
+   AUDIT LOGS ENHANCEMENTS
+   ======================================================================== */
+
+/* App-initiated indicator */
+.initiator-app {
+    color: var(--color-text-secondary);
+    font-style: italic;
+}
+
+.initiator-app::before {
+    content: '🤖 ';
+    font-style: normal;
+}

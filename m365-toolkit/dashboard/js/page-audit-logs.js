@@ -293,7 +293,7 @@ const PageAuditLogs = (function() {
                 data: failedEvents.slice(0, 15),
                 columns: [
                     { key: 'activityDateTime', label: 'Date', formatter: Tables.formatters.datetime },
-                    { key: 'initiatedBy', label: 'Initiated By', className: 'cell-truncate' },
+                    { key: 'initiatedBy', label: 'Initiated By', className: 'cell-truncate', formatter: formatInitiator },
                     { key: 'activityDisplayName', label: 'Activity', className: 'cell-truncate' },
                     { key: 'targetResource', label: 'Target', className: 'cell-truncate' },
                     { key: 'resultReason', label: 'Reason', className: 'cell-truncate' }
@@ -376,6 +376,32 @@ const PageAuditLogs = (function() {
         return card;
     }
 
+    /**
+     * Formats the initiator - shows user if available, otherwise app, otherwise Unknown.
+     */
+    function formatInitiator(value, row) {
+        var initiator = row.initiatedBy || row.initiatedByApp || 'Unknown';
+        if (!initiator || initiator === '') initiator = 'Unknown';
+
+        // Add a subtle indicator if it was an app
+        if (!row.initiatedBy && row.initiatedByApp) {
+            return '<span class="initiator-app" title="App-initiated">' + escapeHtml(initiator) + '</span>';
+        }
+        return escapeHtml(initiator);
+    }
+
+    /**
+     * Escapes HTML special characters to prevent XSS.
+     */
+    function escapeHtml(str) {
+        if (!str) return '';
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
     function renderEventsTab(container, state) {
         container.textContent = '';
         var tableDiv = document.createElement('div');
@@ -387,8 +413,7 @@ const PageAuditLogs = (function() {
             data: state.auditLogs,
             columns: [
                 { key: 'activityDateTime', label: 'Date', formatter: Tables.formatters.datetime },
-                { key: 'initiatedBy', label: 'Initiated By', filterable: true, className: 'cell-truncate' },
-                { key: 'initiatedByApp', label: 'App Name', filterable: true },
+                { key: 'initiatedBy', label: 'Initiated By', filterable: true, className: 'cell-truncate', formatter: formatInitiator },
                 { key: 'activityDisplayName', label: 'Activity', filterable: true, className: 'cell-truncate' },
                 { key: 'targetResource', label: 'Target', filterable: true, className: 'cell-truncate' },
                 { key: 'category', label: 'Category', filterable: true },
