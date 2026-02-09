@@ -316,8 +316,14 @@ try {
             }
             catch {
                 if (-not $siteLinkErrorLogged) {
-                    Write-Host "      [!] Could not fetch linked SharePoint site IDs: $($_.Exception.Message)" -ForegroundColor Yellow
-                    $errors += "Linked SharePoint site lookup unavailable: $($_.Exception.Message)"
+                    if ($_.Exception.Message -match "Forbidden|403|Authorization") {
+                        Write-Host "      [!] SharePoint site lookup requires Sites.Read.All permission (skipping)" -ForegroundColor Yellow
+                        $errors += "Linked SharePoint site lookup requires Sites.Read.All permission"
+                    }
+                    else {
+                        Write-Host "      [!] Could not fetch linked SharePoint site IDs: $($_.Exception.Message)" -ForegroundColor Yellow
+                        $errors += "Linked SharePoint site lookup unavailable: $($_.Exception.Message)"
+                    }
                     $siteLinkErrorLogged = $true
                 }
                 $siteLinkAvailable = $false
