@@ -18,6 +18,7 @@ const PageCredentialExpiry = (function() {
             (app.secrets || []).forEach(function(s) {
                 creds.push({
                     appDisplayName: app.displayName,
+                    appId: app.appId || app.id,
                     credentialType: 'secret',
                     status: s.status,
                     daysUntilExpiry: s.daysUntilExpiry,
@@ -27,6 +28,7 @@ const PageCredentialExpiry = (function() {
             (app.certificates || []).forEach(function(c) {
                 creds.push({
                     appDisplayName: app.displayName,
+                    appId: app.appId || app.id,
                     credentialType: 'certificate',
                     status: c.status,
                     daysUntilExpiry: c.daysUntilExpiry,
@@ -51,7 +53,10 @@ const PageCredentialExpiry = (function() {
     function renderTable(data) {
         var visible = colSelector ? colSelector.getVisible() : ['appDisplayName', 'credentialType', 'status', 'daysUntilExpiry', 'expiryDate'];
         var allDefs = [
-            { key: 'appDisplayName', label: 'Application' },
+            { key: 'appDisplayName', label: 'Application', formatter: function(v, row) {
+                var name = v || 'Unknown';
+                return '<a href="#enterprise-apps?search=' + encodeURIComponent(name) + '" class="entity-link"><strong>' + name + '</strong></a>';
+            }},
             { key: 'credentialType', label: 'Type', formatter: function(v) {
                 return v === 'secret' ? '<span class="badge badge-warning">Secret</span>' : '<span class="badge badge-info">Certificate</span>';
             }},
@@ -65,7 +70,13 @@ const PageCredentialExpiry = (function() {
                 var cls = numVal < 0 ? 'text-critical font-bold' : numVal <= 30 ? 'text-critical' : numVal <= 60 ? 'text-warning' : 'text-success';
                 return '<span class="' + cls + '">' + numVal + '</span>';
             }},
-            { key: 'expiryDate', label: 'Expiry Date', formatter: Tables.formatters.date }
+            { key: 'expiryDate', label: 'Expiry Date', formatter: Tables.formatters.date },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.appId) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationMenuBlade/appId/' + encodeURIComponent(row.appId) + '/Credentials" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade/~/All" target="_blank" rel="noopener" class="admin-link" title="Open App Registrations">Entra</a>';
+            }}
         ];
         Tables.render({ containerId: 'creds-table', data: data, columns: allDefs.filter(function(c) { return visible.indexOf(c.key) !== -1; }), pageSize: 50 });
     }
@@ -474,9 +485,10 @@ const PageCredentialExpiry = (function() {
                 { key: 'credentialType', label: 'Type' },
                 { key: 'status', label: 'Status' },
                 { key: 'daysUntilExpiry', label: 'Days Left' },
-                { key: 'expiryDate', label: 'Expiry Date' }
+                { key: 'expiryDate', label: 'Expiry Date' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['appDisplayName', 'credentialType', 'status', 'daysUntilExpiry', 'expiryDate'],
+            defaultVisible: ['appDisplayName', 'credentialType', 'status', 'daysUntilExpiry', 'expiryDate', '_adminLinks'],
             onColumnsChanged: function() { applyFilters(); }
         });
 

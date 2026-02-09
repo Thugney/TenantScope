@@ -335,9 +335,10 @@ const PageAppDeployments = (function() {
                 { key: 'installRate', label: 'Success Rate' },
                 { key: 'isFeatured', label: 'Featured' },
                 { key: 'createdDateTime', label: 'Created' },
-                { key: 'lastModifiedDateTime', label: 'Last Modified' }
+                { key: 'lastModifiedDateTime', label: 'Last Modified' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'installRate'],
+            defaultVisible: ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'installRate', '_adminLinks'],
             onColumnsChanged: function() { applyAppsFilters(); }
         });
 
@@ -423,7 +424,10 @@ const PageAppDeployments = (function() {
                 return v ? '<span class="badge badge-info">Featured</span>' : '<span class="text-muted">--</span>';
             }},
             { key: 'createdDateTime', label: 'Created', formatter: function(v) { return Tables.formatters.date(v); } },
-            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return Tables.formatters.date(v); } }
+            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return Tables.formatters.date(v); } },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+            }}
         ];
 
         Tables.render({

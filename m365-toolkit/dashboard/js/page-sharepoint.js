@@ -19,6 +19,8 @@
 const PageSharePoint = (function() {
     'use strict';
 
+    var colSelector = null;
+
     /**
      * Builds inline SVG donut chart HTML (matching Endpoint Analytics style).
      *
@@ -204,35 +206,82 @@ const PageSharePoint = (function() {
      */
     function renderTable(data) {
         var highStorageThreshold = getHighStorageThreshold();
+
+        // Get visible columns from Column Selector
+        var visible = colSelector ? colSelector.getVisible() : [
+            'displayName', 'url', 'template', 'ownerDisplayName', 'ownerPrincipalName',
+            'createdDateTime', 'storageUsedGB', 'storagePct', 'fileCount',
+            'externalSharing', 'anonymousLinkCount', 'lastActivityDate',
+            'daysSinceActivity', 'flags'
+        ];
+
+        // All column definitions
+        var allDefs = [
+            { key: 'displayName', label: 'Site Name', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#sharepoint?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'url', label: 'URL', formatter: formatUrl },
+            { key: 'template', label: 'Template', formatter: formatTemplate },
+            { key: 'ownerDisplayName', label: 'Owner', formatter: function(v, row) {
+                if (!v) return '--';
+                var upn = row.ownerPrincipalName || '';
+                if (upn) {
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + v + '</a>';
+                }
+                return v;
+            }},
+            { key: 'ownerPrincipalName', label: 'Owner UPN', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + v + '</a>';
+            }},
+            { key: 'linkedTeamName', label: 'Linked Team', formatter: function(v, row) {
+                var teamName = v || '';
+                if (!teamName && typeof DataRelationships !== 'undefined') {
+                    var linkedTeam = DataRelationships.getSiteTeam(row.id);
+                    if (linkedTeam) teamName = linkedTeam.displayName || '';
+                }
+                if (teamName) {
+                    return '<a href="#teams?search=' + encodeURIComponent(teamName) + '" class="entity-link" onclick="event.stopPropagation();" title="View team">' + teamName + '</a>';
+                }
+                return '<span class="text-muted">--</span>';
+            }},
+            { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
+            { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right', formatter: formatStorage },
+            { key: 'storageAllocatedGB', label: 'Allocated (GB)', className: 'cell-right' },
+            { key: 'storagePct', label: 'Usage %', className: 'cell-right', formatter: formatStoragePct },
+            { key: 'fileCount', label: 'Files', className: 'cell-right' },
+            { key: 'activeFileCount', label: 'Active Files', className: 'cell-right' },
+            { key: 'pageViewCount', label: 'Page Views', className: 'cell-right' },
+            { key: 'visitedPageCount', label: 'Visited Pages', className: 'cell-right' },
+            { key: 'externalSharing', label: 'Ext. Sharing', formatter: formatExternalSharing },
+            { key: 'anonymousLinkCount', label: 'Anon Links', className: 'cell-right', formatter: formatLinkCount },
+            { key: 'guestLinkCount', label: 'Guest Links', className: 'cell-right', formatter: formatLinkCount },
+            { key: 'companyLinkCount', label: 'Company Links', className: 'cell-right', formatter: formatLinkCount },
+            { key: 'memberLinkCount', label: 'Member Links', className: 'cell-right', formatter: formatLinkCount },
+            { key: 'totalSharingLinks', label: 'Total Links', className: 'cell-right' },
+            { key: 'isGroupConnected', label: 'Group Connected', formatter: formatBoolean },
+            { key: 'sensitivityLabelId', label: 'Has Label', formatter: formatHasLabel },
+            { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+            { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.url) {
+                    return '<a href="https://admin.microsoft.com/Adminportal/Home#/SharePoint" target="_blank" rel="noopener" class="admin-link" title="Open SharePoint Admin">SP Admin</a>';
+                }
+                return '--';
+            }}
+        ];
+
+        // Filter to visible columns only
+        var columns = allDefs.filter(function(col) {
+            return visible.indexOf(col.key) !== -1;
+        });
+
         Tables.render({
             containerId: 'sp-table',
             data: data,
-            columns: [
-                { key: 'displayName', label: 'Site Name' },
-                { key: 'url', label: 'URL', formatter: formatUrl },
-                { key: 'template', label: 'Template', formatter: formatTemplate },
-                { key: 'ownerDisplayName', label: 'Owner' },
-                { key: 'ownerPrincipalName', label: 'Owner UPN' },
-                { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
-                { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right', formatter: formatStorage },
-                { key: 'storageAllocatedGB', label: 'Allocated (GB)', className: 'cell-right' },
-                { key: 'storagePct', label: 'Usage %', className: 'cell-right', formatter: formatStoragePct },
-                { key: 'fileCount', label: 'Files', className: 'cell-right' },
-                { key: 'activeFileCount', label: 'Active Files', className: 'cell-right' },
-                { key: 'pageViewCount', label: 'Page Views', className: 'cell-right' },
-                { key: 'visitedPageCount', label: 'Visited Pages', className: 'cell-right' },
-                { key: 'externalSharing', label: 'Ext. Sharing', formatter: formatExternalSharing },
-                { key: 'anonymousLinkCount', label: 'Anon Links', className: 'cell-right', formatter: formatLinkCount },
-                { key: 'guestLinkCount', label: 'Guest Links', className: 'cell-right', formatter: formatLinkCount },
-                { key: 'companyLinkCount', label: 'Company Links', className: 'cell-right', formatter: formatLinkCount },
-                { key: 'memberLinkCount', label: 'Member Links', className: 'cell-right', formatter: formatLinkCount },
-                { key: 'totalSharingLinks', label: 'Total Links', className: 'cell-right' },
-                { key: 'isGroupConnected', label: 'Group Connected', formatter: formatBoolean },
-                { key: 'sensitivityLabelId', label: 'Has Label', formatter: formatHasLabel },
-                { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
-                { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
-                { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
-            ],
+            columns: columns,
             pageSize: 50,
             onRowClick: showSiteDetails,
             getRowClass: function(row) {
@@ -544,6 +593,7 @@ const PageSharePoint = (function() {
             '',
             '<div class="analytics-grid" id="sp-charts"></div>',
             '<div id="sp-filter"></div>',
+            '<div class="table-toolbar"><div id="sp-colselector"></div></div>',
             '<div id="sp-table"></div>'
         ].join('\n');
 
@@ -659,6 +709,49 @@ const PageSharePoint = (function() {
         var personalCheckbox = document.querySelector('#sp-options-filter input');
         if (personalCheckbox) {
             personalCheckbox.id = 'sp-personal';
+        }
+
+        // Setup Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'sp-colselector',
+                storageKey: 'tenantscope-sharepoint-cols-v1',
+                allColumns: [
+                    { key: 'displayName', label: 'Site Name' },
+                    { key: 'url', label: 'URL' },
+                    { key: 'template', label: 'Template' },
+                    { key: 'ownerDisplayName', label: 'Owner' },
+                    { key: 'ownerPrincipalName', label: 'Owner UPN' },
+                    { key: 'linkedTeamName', label: 'Linked Team' },
+                    { key: 'createdDateTime', label: 'Created' },
+                    { key: 'storageUsedGB', label: 'Storage (GB)' },
+                    { key: 'storageAllocatedGB', label: 'Allocated (GB)' },
+                    { key: 'storagePct', label: 'Usage %' },
+                    { key: 'fileCount', label: 'Files' },
+                    { key: 'activeFileCount', label: 'Active Files' },
+                    { key: 'pageViewCount', label: 'Page Views' },
+                    { key: 'visitedPageCount', label: 'Visited Pages' },
+                    { key: 'externalSharing', label: 'Ext. Sharing' },
+                    { key: 'anonymousLinkCount', label: 'Anon Links' },
+                    { key: 'guestLinkCount', label: 'Guest Links' },
+                    { key: 'companyLinkCount', label: 'Company Links' },
+                    { key: 'memberLinkCount', label: 'Member Links' },
+                    { key: 'totalSharingLinks', label: 'Total Links' },
+                    { key: 'isGroupConnected', label: 'Group Connected' },
+                    { key: 'sensitivityLabelId', label: 'Has Label' },
+                    { key: 'lastActivityDate', label: 'Last Activity' },
+                    { key: 'daysSinceActivity', label: 'Days Inactive' },
+                    { key: 'flags', label: 'Flags' },
+                    { key: '_adminLinks', label: 'Admin' }
+                ],
+                defaultVisible: [
+                    'displayName', 'url', 'template', 'ownerDisplayName', 'ownerPrincipalName',
+                    'createdDateTime', 'storageUsedGB', 'storagePct', 'fileCount',
+                    'externalSharing', 'anonymousLinkCount', 'lastActivityDate',
+                    'daysSinceActivity', 'flags', '_adminLinks'
+                ],
+                onColumnsChanged: function() { applyFilters(); }
+            });
         }
 
         // Bind export button

@@ -330,10 +330,12 @@ const PageLicenses = (function() {
      * Renders the licenses table with dynamic columns.
      */
     function renderTable(data) {
-        var visible = colSelector ? colSelector.getVisible() : ['skuName', 'totalPurchased', 'totalAssigned', 'available', 'wasteCount', 'overlapCount', 'estimatedMonthlyCost', 'wasteMonthlyCost', 'utilizationPercent'];
+        var visible = colSelector ? colSelector.getVisible() : ['skuName', 'totalPurchased', 'totalAssigned', 'available', 'wasteCount', 'overlapCount', 'estimatedMonthlyCost', 'wasteMonthlyCost', 'utilizationPercent', '_adminLinks'];
 
         var allDefs = [
-            { key: 'skuName', label: 'License Name' },
+            { key: 'skuName', label: 'License Name', formatter: function(v, row) {
+                return '<a href="#licenses" class="entity-link" data-entity="license" data-name="' + (v || '').replace(/"/g, '&quot;') + '">' + (v || '--') + '</a>';
+            }},
             { key: 'skuPartNumber', label: 'Part Number', className: 'cell-truncate' },
             { key: 'totalPurchased', label: 'Purchased', className: 'cell-right' },
             { key: 'totalAssigned', label: 'Assigned', className: 'cell-right' },
@@ -347,7 +349,10 @@ const PageLicenses = (function() {
             { key: 'potentialSavingsPercent', label: 'Savings %', className: 'cell-right', formatter: formatSavingsCell },
             { key: 'averageCostPerUser', label: 'Avg Cost/User', className: 'cell-right', formatter: function(v, row) { return v ? formatCurrency(v, (row && row.currency) || licensesState.currency) : '<span class="text-muted">--</span>'; } },
             { key: 'billedUsers', label: 'Billed Users', className: 'cell-right' },
-            { key: 'utilizationPercent', label: 'Utilization', formatter: Tables.formatters.percentage }
+            { key: 'utilizationPercent', label: 'Utilization', formatter: Tables.formatters.percentage },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/LicensesMenuBlade/~/Products" target="_blank" rel="noopener" class="admin-link" title="Open License Management in Entra">Entra</a>';
+            }}
         ];
 
         var columns = allDefs.filter(function(col) {
@@ -534,9 +539,10 @@ const PageLicenses = (function() {
                     { key: 'potentialSavingsPercent', label: 'Savings %' },
                     { key: 'averageCostPerUser', label: 'Avg Cost/User' },
                     { key: 'billedUsers', label: 'Billed Users' },
-                    { key: 'utilizationPercent', label: 'Utilization' }
+                    { key: 'utilizationPercent', label: 'Utilization' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
-                defaultVisible: ['skuName', 'totalPurchased', 'totalAssigned', 'available', 'wasteCount', 'overlapCount', 'estimatedMonthlyCost', 'wasteMonthlyCost', 'utilizationPercent'],
+                defaultVisible: ['skuName', 'totalPurchased', 'totalAssigned', 'available', 'wasteCount', 'overlapCount', 'estimatedMonthlyCost', 'wasteMonthlyCost', 'utilizationPercent', '_adminLinks'],
                 onColumnsChanged: applyFilters
             });
         }

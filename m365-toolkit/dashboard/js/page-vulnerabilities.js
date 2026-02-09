@@ -538,6 +538,60 @@ const PageVulnerabilities = (function() {
             return;
         }
 
+        // Filter bar
+        var filterBar = el('div', 'filter-bar');
+        var searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'filter-input';
+        searchInput.id = 'vuln-search';
+        searchInput.placeholder = 'Search vulnerabilities...';
+        filterBar.appendChild(searchInput);
+
+        var sevSelect = document.createElement('select');
+        sevSelect.className = 'filter-select';
+        sevSelect.id = 'vuln-severity';
+        [['all', 'All Severities'], ['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].forEach(function(opt) {
+            var o = document.createElement('option');
+            o.value = opt[0];
+            o.textContent = opt[1];
+            sevSelect.appendChild(o);
+        });
+        filterBar.appendChild(sevSelect);
+        container.appendChild(filterBar);
+
+        var tableContainer = el('div');
+        tableContainer.id = 'vuln-table-container';
+        container.appendChild(tableContainer);
+
+        function applyVulnFilters() {
+            var search = (searchInput.value || '').toLowerCase();
+            var sev = sevSelect.value;
+            var filtered = vulns.filter(function(v) {
+                if (search && (v.id || '').toLowerCase().indexOf(search) === -1 &&
+                    (v.name || '').toLowerCase().indexOf(search) === -1 &&
+                    (v.product || '').toLowerCase().indexOf(search) === -1) return false;
+                if (sev && sev !== 'all' && v.severity !== sev) return false;
+                return true;
+            });
+            renderVulnTable(tableContainer, filtered);
+        }
+
+        Filters.setup('vuln-search', applyVulnFilters);
+        Filters.setup('vuln-severity', applyVulnFilters);
+
+        var sorted = vulns.slice().sort(function(a, b) {
+            var sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+            return (sevOrder[a.severity] || 4) - (sevOrder[b.severity] || 4);
+        });
+        renderVulnTable(tableContainer, sorted);
+    }
+
+    function renderVulnTable(container, vulns) {
+        container.textContent = '';
+        if (vulns.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No matching vulnerabilities</p></div>';
+            return;
+        }
         var sorted = vulns.slice().sort(function(a, b) {
             var sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
             return (sevOrder[a.severity] || 4) - (sevOrder[b.severity] || 4);
@@ -546,7 +600,7 @@ const PageVulnerabilities = (function() {
         var table = el('table', 'data-table');
         var thead = el('thead');
         var headerRow = el('tr');
-        ['CVE ID', 'Name', 'Severity', 'CVSS', 'Product', 'Exploited', 'Devices', 'Patch', 'Action'].forEach(function(h) {
+        ['CVE ID', 'Name', 'Severity', 'CVSS', 'Product', 'Exploited', 'Devices', 'Patch', 'Action', 'Admin'].forEach(function(h) {
             headerRow.appendChild(el('th', null, h));
         });
         thead.appendChild(headerRow);
@@ -598,6 +652,21 @@ const PageVulnerabilities = (function() {
             actionCell.style.fontSize = 'var(--font-size-xs)';
             actionCell.textContent = (v.recommendedAction || '--').substring(0, 30);
             row.appendChild(actionCell);
+
+            var adminCell = el('td');
+            if (v.id) {
+                var adminLink = document.createElement('a');
+                adminLink.href = 'https://security.microsoft.com/vulnerabilities/vulnerability/' + encodeURIComponent(v.id) + '/overview';
+                adminLink.target = '_blank';
+                adminLink.rel = 'noopener';
+                adminLink.className = 'admin-link';
+                adminLink.title = 'Open in Defender';
+                adminLink.textContent = 'Defender';
+                adminCell.appendChild(adminLink);
+            } else {
+                adminCell.textContent = '--';
+            }
+            row.appendChild(adminCell);
 
             tbody.appendChild(row);
         });

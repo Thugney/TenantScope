@@ -175,12 +175,22 @@ const PagePIM = (function() {
             data: requests,
             columns: [
                 { key: 'createdDateTime', label: 'Date', formatter: Tables.formatters.datetime },
-                { key: 'principalDisplayName', label: 'User', filterable: true },
-                { key: 'roleName', label: 'Role', filterable: true },
+                { key: 'principalDisplayName', label: 'User', filterable: true, formatter: function(v, row) {
+                    if (!v) return '--';
+                    var upn = row.principalUpn || v;
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                }},
+                { key: 'roleName', label: 'Role', filterable: true, formatter: function(v) {
+                    if (!v) return '--';
+                    return '<span class="entity-link">' + Tables.escapeHtml(v) + '</span>';
+                }},
                 { key: 'action', label: 'Action', filterable: true, formatter: formatAction },
                 { key: 'status', label: 'Status', filterable: true, formatter: formatPimStatus },
                 { key: 'justification', label: 'Justification', className: 'cell-truncate' },
-                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.datetime }
+                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.datetime },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles" target="_blank" rel="noopener" class="admin-link" title="Open PIM in Entra">Entra</a>';
+                }}
             ],
             pageSize: 15,
             onRowClick: showPimDetails
@@ -191,12 +201,25 @@ const PagePIM = (function() {
             containerId: 'pim-eligible-table',
             data: eligible,
             columns: [
-                { key: 'principalDisplayName', label: 'User', filterable: true },
-                { key: 'principalUpn', label: 'UPN', className: 'cell-truncate' },
-                { key: 'roleName', label: 'Role', filterable: true },
+                { key: 'principalDisplayName', label: 'User', filterable: true, formatter: function(v, row) {
+                    if (!v) return '--';
+                    var upn = row.principalUpn || v;
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                }},
+                { key: 'principalUpn', label: 'UPN', className: 'cell-truncate', formatter: function(v) {
+                    if (!v) return '--';
+                    return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                }},
+                { key: 'roleName', label: 'Role', filterable: true, formatter: function(v) {
+                    if (!v) return '--';
+                    return '<span class="entity-link">' + Tables.escapeHtml(v) + '</span>';
+                }},
                 { key: 'status', label: 'Status', filterable: true, formatter: formatPimStatus },
                 { key: 'scheduleStartDateTime', label: 'Start', formatter: Tables.formatters.date },
-                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.date }
+                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.date },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles" target="_blank" rel="noopener" class="admin-link" title="Open PIM in Entra">Entra</a>';
+                }}
             ],
             pageSize: 15,
             onRowClick: showPimDetails
@@ -619,10 +642,20 @@ const PagePIM = (function() {
                 data: pendingApprovals,
                 columns: [
                     { key: 'createdDateTime', label: 'Requested', formatter: Tables.formatters.datetime },
-                    { key: 'principalDisplayName', label: 'User' },
-                    { key: 'roleName', label: 'Role' },
+                    { key: 'principalDisplayName', label: 'User', formatter: function(v, row) {
+                        if (!v) return '--';
+                        var upn = row.principalUpn || v;
+                        return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                    }},
+                    { key: 'roleName', label: 'Role', formatter: function(v) {
+                        if (!v) return '--';
+                        return '<span class="entity-link">' + Tables.escapeHtml(v) + '</span>';
+                    }},
                     { key: 'status', label: 'Status', formatter: formatPimStatus },
-                    { key: 'justification', label: 'Justification', className: 'cell-truncate' }
+                    { key: 'justification', label: 'Justification', className: 'cell-truncate' },
+                    { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                        return '<a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles" target="_blank" rel="noopener" class="admin-link" title="Open PIM in Entra">Entra</a>';
+                    }}
                 ],
                 pageSize: 10,
                 onRowClick: showPimDetails
@@ -645,10 +678,20 @@ const PagePIM = (function() {
                 containerId: 'pim-active-table',
                 data: activeActivations,
                 columns: [
-                    { key: 'principalDisplayName', label: 'User' },
-                    { key: 'roleName', label: 'Role' },
+                    { key: 'principalDisplayName', label: 'User', formatter: function(v, row) {
+                        if (!v) return '--';
+                        var upn = row.principalUpn || v;
+                        return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                    }},
+                    { key: 'roleName', label: 'Role', formatter: function(v) {
+                        if (!v) return '--';
+                        return '<span class="entity-link">' + Tables.escapeHtml(v) + '</span>';
+                    }},
                     { key: 'createdDateTime', label: 'Activated', formatter: Tables.formatters.datetime },
-                    { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.datetime }
+                    { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.datetime },
+                    { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                        return '<a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles" target="_blank" rel="noopener" class="admin-link" title="Open PIM in Entra">Entra</a>';
+                    }}
                 ],
                 pageSize: 10,
                 onRowClick: showPimDetails
@@ -729,19 +772,73 @@ const PagePIM = (function() {
     }
 
     function renderRequestsTab(container) {
-        container.innerHTML = '<div class="table-container" id="pim-requests-table"></div>';
+        container.innerHTML = '<div id="pim-requests-filter"></div><div class="table-container" id="pim-requests-table"></div>';
+
+        Filters.createFilterBar({
+            containerId: 'pim-requests-filter',
+            controls: [
+                {
+                    type: 'search',
+                    id: 'pim-search',
+                    label: 'Search',
+                    placeholder: 'Search PIM activities...'
+                },
+                {
+                    type: 'select',
+                    id: 'pim-type',
+                    label: 'Type',
+                    options: [
+                        { value: 'all', label: 'All Types' },
+                        { value: 'activate', label: 'Activations' },
+                        { value: 'assign', label: 'Assignments' }
+                    ]
+                }
+            ],
+            onFilter: function() { renderRequestsTable(); }
+        });
+
+        renderRequestsTable();
+    }
+
+    function renderRequestsTable() {
+        var search = Filters.getValue('pim-search') || '';
+        var typeFilter = Filters.getValue('pim-type');
+
+        var filtered = pimState.requests.filter(function(e) {
+            if (search) {
+                var s = search.toLowerCase();
+                var match = (e.principalDisplayName && e.principalDisplayName.toLowerCase().indexOf(s) !== -1) ||
+                            (e.roleName && e.roleName.toLowerCase().indexOf(s) !== -1) ||
+                            (e.principalUpn && e.principalUpn.toLowerCase().indexOf(s) !== -1) ||
+                            (e.justification && e.justification.toLowerCase().indexOf(s) !== -1);
+                if (!match) return false;
+            }
+            if (typeFilter === 'activate' && e.action !== 'selfActivate') return false;
+            if (typeFilter === 'assign' && e.action !== 'adminAssign') return false;
+            return true;
+        });
 
         Tables.render({
             containerId: 'pim-requests-table',
-            data: pimState.requests,
+            data: filtered,
             columns: [
                 { key: 'createdDateTime', label: 'Date', formatter: Tables.formatters.datetime },
-                { key: 'principalDisplayName', label: 'User', filterable: true },
-                { key: 'roleName', label: 'Role', filterable: true },
+                { key: 'principalDisplayName', label: 'User', filterable: true, formatter: function(v, row) {
+                    if (!v) return '--';
+                    var upn = row.principalUpn || v;
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                }},
+                { key: 'roleName', label: 'Role', filterable: true, formatter: function(v) {
+                    if (!v) return '--';
+                    return '<span class="entity-link">' + Tables.escapeHtml(v) + '</span>';
+                }},
                 { key: 'action', label: 'Action', filterable: true, formatter: formatAction },
                 { key: 'status', label: 'Status', filterable: true, formatter: formatPimStatus },
                 { key: 'justification', label: 'Justification', className: 'cell-truncate' },
-                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.datetime }
+                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.datetime },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles" target="_blank" rel="noopener" class="admin-link" title="Open PIM in Entra">Entra</a>';
+                }}
             ],
             pageSize: 15,
             onRowClick: showPimDetails
@@ -749,18 +846,73 @@ const PagePIM = (function() {
     }
 
     function renderEligibleTab(container) {
-        container.innerHTML = '<div class="table-container" id="pim-eligible-table"></div>';
+        container.innerHTML = '<div id="pim-eligible-filter"></div><div class="table-container" id="pim-eligible-table"></div>';
+
+        Filters.createFilterBar({
+            containerId: 'pim-eligible-filter',
+            controls: [
+                {
+                    type: 'search',
+                    id: 'pim-eligible-search',
+                    label: 'Search',
+                    placeholder: 'Search eligible assignments...'
+                },
+                {
+                    type: 'select',
+                    id: 'pim-eligible-status',
+                    label: 'Status',
+                    options: [
+                        { value: 'all', label: 'All Status' },
+                        { value: 'Provisioned', label: 'Provisioned' },
+                        { value: 'PendingApproval', label: 'Pending Approval' }
+                    ]
+                }
+            ],
+            onFilter: function() { renderEligibleTable(); }
+        });
+
+        renderEligibleTable();
+    }
+
+    function renderEligibleTable() {
+        var search = Filters.getValue('pim-eligible-search') || '';
+        var statusFilter = Filters.getValue('pim-eligible-status');
+
+        var filtered = pimState.eligible.filter(function(e) {
+            if (search) {
+                var s = search.toLowerCase();
+                var match = (e.principalDisplayName && e.principalDisplayName.toLowerCase().indexOf(s) !== -1) ||
+                            (e.principalUpn && e.principalUpn.toLowerCase().indexOf(s) !== -1) ||
+                            (e.roleName && e.roleName.toLowerCase().indexOf(s) !== -1);
+                if (!match) return false;
+            }
+            if (statusFilter && statusFilter !== 'all' && e.status !== statusFilter) return false;
+            return true;
+        });
 
         Tables.render({
             containerId: 'pim-eligible-table',
-            data: pimState.eligible,
+            data: filtered,
             columns: [
-                { key: 'principalDisplayName', label: 'User', filterable: true },
-                { key: 'principalUpn', label: 'UPN', className: 'cell-truncate' },
-                { key: 'roleName', label: 'Role', filterable: true },
+                { key: 'principalDisplayName', label: 'User', filterable: true, formatter: function(v, row) {
+                    if (!v) return '--';
+                    var upn = row.principalUpn || v;
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                }},
+                { key: 'principalUpn', label: 'UPN', className: 'cell-truncate', formatter: function(v) {
+                    if (!v) return '--';
+                    return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="View user profile">' + Tables.escapeHtml(v) + '</a>';
+                }},
+                { key: 'roleName', label: 'Role', filterable: true, formatter: function(v) {
+                    if (!v) return '--';
+                    return '<span class="entity-link">' + Tables.escapeHtml(v) + '</span>';
+                }},
                 { key: 'status', label: 'Status', filterable: true, formatter: formatPimStatus },
                 { key: 'scheduleStartDateTime', label: 'Start', formatter: Tables.formatters.date },
-                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.date }
+                { key: 'scheduleEndDateTime', label: 'Expires', formatter: Tables.formatters.date },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_Azure_PIMCommon/ActivationMenuBlade/provider/aadroles" target="_blank" rel="noopener" class="admin-link" title="Open PIM in Entra">Entra</a>';
+                }}
             ],
             pageSize: 15,
             onRowClick: showPimDetails

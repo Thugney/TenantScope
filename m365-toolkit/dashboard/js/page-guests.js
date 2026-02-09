@@ -154,11 +154,20 @@ const PageGuests = (function() {
 
         // All column definitions
         var allDefs = [
-            { key: 'displayName', label: 'Name' },
-            { key: 'mail', label: 'Email', className: 'cell-truncate' },
+            { key: 'displayName', label: 'Name', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#guests?search=' + encodeURIComponent(v) + '" class="entity-link" title="Filter by this guest">' + Tables.escapeHtml(v) + '</a>';
+            }},
+            { key: 'mail', label: 'Email', className: 'cell-truncate', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#guests?search=' + encodeURIComponent(v) + '" class="entity-link" title="Filter by this email">' + Tables.escapeHtml(v) + '</a>';
+            }},
             { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
             { key: 'accountEnabled', label: 'Account Enabled', formatter: formatBool },
-            { key: 'sourceDomain', label: 'Source Domain' },
+            { key: 'sourceDomain', label: 'Source Domain', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#guests?search=' + encodeURIComponent(v) + '" class="entity-link" title="Filter by domain">' + Tables.escapeHtml(v) + '</a>';
+            }},
             { key: 'createdDateTime', label: 'Invited', formatter: Tables.formatters.date },
             { key: 'daysSinceInvitation', label: 'Invitation Age (days)' },
             { key: 'creationType', label: 'Creation Type' },
@@ -178,7 +187,12 @@ const PageGuests = (function() {
             { key: 'teamsCount', label: 'Teams' },
             { key: 'directoryRoleCount', label: 'Admin Roles', formatter: formatAdminRoleCount },
             { key: 'hasGroupAccess', label: 'Has Group Access', formatter: formatBool },
-            { key: 'hasAdminRole', label: 'Has Admin Role', formatter: formatHasAdminRole }
+            { key: 'hasAdminRole', label: 'Has Admin Role', formatter: formatHasAdminRole },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (!row.id) return '--';
+                var url = 'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row.id);
+                return '<a href="' + url + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra ID">Entra</a>';
+            }}
         ];
 
         // Filter to visible columns only
@@ -827,11 +841,13 @@ const PageGuests = (function() {
                     { key: 'teamsCount', label: 'Teams' },
                     { key: 'directoryRoleCount', label: 'Admin Roles' },
                     { key: 'hasGroupAccess', label: 'Has Group Access' },
-                    { key: 'hasAdminRole', label: 'Has Admin Role' }
+                    { key: 'hasAdminRole', label: 'Has Admin Role' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
                 defaultVisible: [
                     'displayName', 'mail', 'sourceDomain', 'createdDateTime',
-                    'invitationState', 'lastSignIn', 'daysSinceLastSignIn', 'isStale'
+                    'invitationState', 'lastSignIn', 'daysSinceLastSignIn', 'isStale',
+                    '_adminLinks'
                 ],
                 onColumnsChanged: applyFilters
             });

@@ -98,7 +98,13 @@ const PageConditionalAccess = (function() {
             { key: 'excludedGroupCount', label: 'Excluded Groups', className: 'cell-right', formatter: formatExcludedCount },
             { key: 'hasLocationCondition', label: 'Location', formatter: formatBoolean },
             { key: 'hasRiskCondition', label: 'Risk-Based', formatter: formatBoolean },
-            { key: 'modifiedDateTime', label: 'Modified', formatter: Tables.formatters.date }
+            { key: 'modifiedDateTime', label: 'Modified', formatter: Tables.formatters.date },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.id) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/PolicyBlade/policyId/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_ConditionalAccess/ConditionalAccessBlade/~/Policies" target="_blank" rel="noopener" class="admin-link" title="Open CA Policies">Entra</a>';
+            }}
         ];
 
         var columns = allDefs.filter(function(col) {
@@ -572,11 +578,12 @@ const PageConditionalAccess = (function() {
                     { key: 'excludedGroupCount', label: 'Excluded Groups' },
                     { key: 'hasLocationCondition', label: 'Location' },
                     { key: 'hasRiskCondition', label: 'Risk-Based' },
-                    { key: 'modifiedDateTime', label: 'Modified' }
+                    { key: 'modifiedDateTime', label: 'Modified' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
                 defaultVisible: [
                     'displayName', 'state', 'policyType', 'requiresMfa', 'blockAccess',
-                    'includesAllUsers', 'excludedUserCount', 'riskLevel'
+                    'includesAllUsers', 'excludedUserCount', 'riskLevel', '_adminLinks'
                 ],
                 onColumnsChanged: applyFilters
             });
@@ -896,11 +903,12 @@ const PageConditionalAccess = (function() {
                     { key: 'excludedGroupCount', label: 'Excluded Groups' },
                     { key: 'hasLocationCondition', label: 'Location' },
                     { key: 'hasRiskCondition', label: 'Risk-Based' },
-                    { key: 'modifiedDateTime', label: 'Modified' }
+                    { key: 'modifiedDateTime', label: 'Modified' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
                 defaultVisible: [
                     'displayName', 'state', 'policyType', 'requiresMfa', 'blockAccess',
-                    'includesAllUsers', 'excludedUserCount', 'riskLevel'
+                    'includesAllUsers', 'excludedUserCount', 'riskLevel', '_adminLinks'
                 ],
                 onColumnsChanged: applyFilters
             });

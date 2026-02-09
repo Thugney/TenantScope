@@ -352,7 +352,7 @@ const PageDevices = (function() {
             html += '<div class="analytics-section">';
             html += '<h3>Devices Needing Attention (' + needsAttention.length + ')</h3>';
             html += '<table class="data-table"><thead><tr>';
-            html += '<th>Device</th><th>User</th><th>Issues</th><th>Last Sync</th>';
+            html += '<th>Device</th><th>User</th><th>Issues</th><th>Last Sync</th><th>Admin</th>';
             html += '</tr></thead><tbody>';
 
             needsAttention.slice(0, 10).forEach(function(d) {
@@ -365,10 +365,15 @@ const PageDevices = (function() {
                 if (d.isEncrypted === false) issues.push('<span class="badge badge-warning">Not Encrypted</span>');
 
                 html += '<tr>';
-                html += '<td><strong>' + (d.deviceName || '--') + '</strong></td>';
-                html += '<td class="cell-truncate">' + (d.userPrincipalName || '--') + '</td>';
+                html += '<td><a href="#devices?tab=devices&search=' + encodeURIComponent(d.deviceName || '') + '" class="entity-link"><strong>' + (d.deviceName || '--') + '</strong></a></td>';
+                html += '<td class="cell-truncate">' + (d.userPrincipalName ? '<a href="#users?search=' + encodeURIComponent(d.userPrincipalName) + '" class="entity-link">' + d.userPrincipalName + '</a>' : '--') + '</td>';
                 html += '<td>' + issues.join(' ') + '</td>';
                 html += '<td>' + formatDate(d.lastSync) + '</td>';
+                if (d.id) {
+                    html += '<td><a href="https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(d.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a></td>';
+                } else {
+                    html += '<td>--</td>';
+                }
                 html += '</tr>';
             });
 
@@ -516,9 +521,10 @@ const PageDevices = (function() {
                 // Certificate details
                 { key: 'certExpiryDate', label: 'Cert Expiry Date' },
                 // Admin
-                { key: 'notes', label: 'Notes' }
+                { key: 'notes', label: 'Notes' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'threatStateDisplay'],
+            defaultVisible: ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'threatStateDisplay', '_adminLinks'],
             onColumnsChanged: function() { applyDeviceFilters(); }
         });
 
@@ -619,9 +625,20 @@ const PageDevices = (function() {
 
         var allDefs = [
             // Core identity
-            { key: 'deviceName', label: 'Device Name', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
-            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) { return v || '--'; } },
-            { key: 'primaryUserDisplayName', label: 'Display Name', formatter: function(v) { return v || '--'; } },
+            { key: 'deviceName', label: 'Device Name', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+            }},
+            { key: 'primaryUserDisplayName', label: 'Display Name', formatter: function(v, row) {
+                if (!v) return '--';
+                var upn = row.userPrincipalName || '';
+                if (upn) return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link">' + v + '</a>';
+                return v;
+            }},
             { key: 'azureAdDeviceId', label: 'Azure AD ID', className: 'cell-truncate', formatter: function(v) { return v || '--'; } },
             // OS
             { key: 'os', label: 'OS', formatter: formatOS },
@@ -679,7 +696,18 @@ const PageDevices = (function() {
             { key: 'subscriberCarrier', label: 'Carrier' },
             // Mobile identifiers
             { key: 'imei', label: 'IMEI' },
-            { key: 'meid', label: 'MEID' }
+            { key: 'meid', label: 'MEID' },
+            // Admin portal links
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                var links = [];
+                if (row.id) {
+                    links.push('<a href="https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>');
+                }
+                if (row.azureAdDeviceId) {
+                    links.push('<a href="https://entra.microsoft.com/#view/Microsoft_AAD_Devices/DeviceDetailsMenuBlade/deviceId/' + encodeURIComponent(row.azureAdDeviceId) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra ID">Entra</a>');
+                }
+                return links.length > 0 ? links.join(' ') : '--';
+            }}
         ];
 
         Tables.render({

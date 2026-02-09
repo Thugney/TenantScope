@@ -453,14 +453,32 @@ const PageEnterpriseApps = (function() {
             containerId: 'apps-table',
             data: filteredData,
             columns: [
-                { key: 'displayName', label: 'Application', className: 'cell-truncate' },
-                { key: 'publisher', label: 'Publisher' },
+                { key: 'displayName', label: 'Application', className: 'cell-truncate', formatter: function(v, row) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Filter by this app"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'publisher', label: 'Publisher', formatter: function(v) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Search by publisher">' + Tables.escapeHtml(v) + '</a>';
+                }},
                 { key: 'accountEnabled', label: 'Status', formatter: formatStatus },
                 { key: 'credentialStatus', label: 'Credentials', formatter: formatCredStatus },
-                { key: 'nearestExpiryDays', label: 'Expiry', formatter: formatExpiryDays },
+                { key: 'nearestExpiryDays', label: 'Expiry', formatter: function(v, row) {
+                    var display = formatExpiryDays(v, row);
+                    if (row.displayName && v !== null && v !== undefined) {
+                        return '<a href="#credential-expiry?search=' + encodeURIComponent(row.displayName) + '" class="entity-link" onclick="event.stopPropagation();" title="View credential expiry">' + display + '</a>';
+                    }
+                    return display;
+                }},
                 { key: 'secretCount', label: 'Secrets' },
                 { key: 'certificateCount', label: 'Certs' },
-                { key: 'appType', label: 'Type', formatter: formatAppType }
+                { key: 'appType', label: 'Type', formatter: formatAppType },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    if (row.appId) {
+                        return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ManagedAppMenuBlade/appId/' + encodeURIComponent(row.appId) + '/Overview" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                    }
+                    return '--';
+                }}
             ],
             pageSize: 50,
             onRowClick: showAppDetails
@@ -520,12 +538,30 @@ const PageEnterpriseApps = (function() {
             containerId: 'creds-table',
             data: filtered,
             columns: [
-                { key: 'displayName', label: 'Application', className: 'cell-truncate' },
-                { key: 'publisher', label: 'Publisher' },
+                { key: 'displayName', label: 'Application', className: 'cell-truncate', formatter: function(v, row) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Filter by this app"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'publisher', label: 'Publisher', formatter: function(v) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Search by publisher">' + Tables.escapeHtml(v) + '</a>';
+                }},
                 { key: 'credentialStatus', label: 'Status', formatter: formatCredStatus },
-                { key: 'nearestExpiryDays', label: 'Expiry', formatter: formatExpiryDays },
+                { key: 'nearestExpiryDays', label: 'Expiry', formatter: function(v, row) {
+                    var display = formatExpiryDays(v, row);
+                    if (row.displayName && v !== null && v !== undefined) {
+                        return '<a href="#credential-expiry?search=' + encodeURIComponent(row.displayName) + '" class="entity-link" onclick="event.stopPropagation();" title="View credential expiry">' + display + '</a>';
+                    }
+                    return display;
+                }},
                 { key: 'secretCount', label: 'Secrets' },
-                { key: 'certificateCount', label: 'Certs' }
+                { key: 'certificateCount', label: 'Certs' },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    if (row.appId) {
+                        return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ManagedAppMenuBlade/appId/' + encodeURIComponent(row.appId) + '/Overview" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                    }
+                    return '--';
+                }}
             ],
             pageSize: 50,
             onRowClick: showAppDetails
@@ -596,12 +632,30 @@ const PageEnterpriseApps = (function() {
             containerId: 'tp-table',
             data: filtered,
             columns: [
-                { key: 'displayName', label: 'Application', className: 'cell-truncate' },
-                { key: 'publisher', label: 'Publisher' },
+                { key: 'displayName', label: 'Application', className: 'cell-truncate', formatter: function(v, row) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Filter by this app"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'publisher', label: 'Publisher', formatter: function(v) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Search by publisher">' + Tables.escapeHtml(v) + '</a>';
+                }},
                 { key: 'accountEnabled', label: 'Status', formatter: formatStatus },
                 { key: 'appType', label: 'Type', formatter: formatAppType },
                 { key: 'credentialStatus', label: 'Credentials', formatter: formatCredStatus },
-                { key: 'nearestExpiryDays', label: 'Expiry', formatter: formatExpiryDays }
+                { key: 'nearestExpiryDays', label: 'Expiry', formatter: function(v, row) {
+                    var display = formatExpiryDays(v, row);
+                    if (row.displayName && v !== null && v !== undefined) {
+                        return '<a href="#credential-expiry?search=' + encodeURIComponent(row.displayName) + '" class="entity-link" onclick="event.stopPropagation();" title="View credential expiry">' + display + '</a>';
+                    }
+                    return display;
+                }},
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    if (row.appId) {
+                        return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ManagedAppMenuBlade/appId/' + encodeURIComponent(row.appId) + '/Overview" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                    }
+                    return '--';
+                }}
             ],
             pageSize: 50,
             onRowClick: showAppDetails

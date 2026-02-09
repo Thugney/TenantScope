@@ -389,9 +389,10 @@ const PageCompliancePolicies = (function() {
                 { key: 'totalDevices', label: 'Total Devices' },
                 { key: 'complianceRate', label: 'Compliance %' },
                 { key: 'createdDateTime', label: 'Created' },
-                { key: 'lastModified', label: 'Modified' }
+                { key: 'lastModified', label: 'Modified' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'platform', 'category', 'isCritical', 'compliantCount', 'nonCompliantCount', 'complianceRate', 'totalDevices'],
+            defaultVisible: ['displayName', 'platform', 'category', 'isCritical', 'compliantCount', 'nonCompliantCount', 'complianceRate', 'totalDevices', '_adminLinks'],
             onColumnsChanged: function() { applyPolicyFilters(); }
         });
 
@@ -479,6 +480,9 @@ const PageCompliancePolicies = (function() {
             }},
             { key: 'lastModified', label: 'Modified', formatter: function(v) {
                 return Formatters.formatDate ? Formatters.formatDate(v) : formatDateFallback(v);
+            }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
             }}
         ];
 
@@ -513,10 +517,13 @@ const PageCompliancePolicies = (function() {
     function renderNonCompliantDevicesTable(data) {
         var columns = [
             { key: 'deviceName', label: 'Device Name', formatter: function(v) {
-                // Make device name clickable to navigate to devices page with filter
-                return '<a href="#" class="device-link" data-device-name="' + (v || '') + '"><strong>' + (v || '--') + '</strong></a>';
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
             }},
-            { key: 'userName', label: 'User' },
+            { key: 'userName', label: 'User', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'failedPolicyCount', label: 'Failed Policies', formatter: function(v) {
                 return Formatters.formatCount ? Formatters.formatCount(v, { zeroIsGood: true }) : (v > 2 ? '<span class="text-critical font-bold">' + v + '</span>' : v > 0 ? '<span class="text-warning">' + v + '</span>' : '<span class="text-muted">0</span>');
             }},

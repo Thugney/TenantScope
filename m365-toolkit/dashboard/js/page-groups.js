@@ -20,6 +20,8 @@
 const PageGroups = (function() {
     'use strict';
 
+    var colSelector = null;
+
     /**
      * Builds inline SVG donut chart HTML (matching existing dashboard style).
      *
@@ -162,17 +164,34 @@ const PageGroups = (function() {
             containerId: 'groups-table',
             data: data,
             columns: [
-                { key: 'displayName', label: 'Group Name' },
+                { key: 'displayName', label: 'Group Name', formatter: function(v, row) {
+                    if (!v) return '<span class="text-muted">--</span>';
+                    return '<a href="#groups?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Filter by this group"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
                 { key: 'groupType', label: 'Type', formatter: formatGroupType },
                 { key: 'userSource', label: 'Source', formatter: formatSource },
-                { key: 'memberCount', label: 'Members', className: 'cell-right' },
+                { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: function(v, row) {
+                    var count = v || 0;
+                    if (row.groupType === 'Microsoft 365' && row.displayName) {
+                        return '<a href="#teams?search=' + encodeURIComponent(row.displayName) + '" class="entity-link" onclick="event.stopPropagation();" title="View in Teams">' + count + '</a>';
+                    }
+                    return String(count);
+                }},
                 { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
-                { key: 'mail', label: 'Email', formatter: formatMail },
+                { key: 'mail', label: 'Email', formatter: function(v, row) {
+                    if (!v) return '<span class="text-muted">--</span>';
+                    return '<a href="#groups?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="Filter by this email">' + Tables.escapeHtml(v) + '</a>';
+                }},
                 { key: 'visibility', label: 'Visibility', formatter: formatVisibility },
                 { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
                 { key: 'guestMemberCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
                 { key: 'licenseAssignmentCount', label: 'Licenses', className: 'cell-right', formatter: formatLicenseCount },
-                { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
+                { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    if (!row.id) return '--';
+                    var url = 'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(row.id);
+                    return '<a href="' + url + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra ID">Entra</a>';
+                }}
             ],
             pageSize: 50,
             onRowClick: showGroupDetails,
@@ -500,6 +519,7 @@ const PageGroups = (function() {
             '',
             '<div class="analytics-grid" id="groups-charts"></div>',
             '<div id="groups-filter"></div>',
+            '<div class="table-toolbar"><div id="groups-col-selector"></div></div>',
             '<div id="groups-table"></div>'
         ].join('\n');
 
@@ -596,6 +616,33 @@ const PageGroups = (function() {
             checkboxes[0].id = 'groups-ownerless';
             checkboxes[1].id = 'groups-has-guests';
             checkboxes[2].id = 'groups-has-licenses';
+        }
+
+        // Setup Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'groups-col-selector',
+                storageKey: 'groups-columns',
+                allColumns: [
+                    { key: 'displayName', label: 'Group Name' },
+                    { key: 'groupType', label: 'Type' },
+                    { key: 'userSource', label: 'Source' },
+                    { key: 'memberCount', label: 'Members' },
+                    { key: 'ownerCount', label: 'Owners' },
+                    { key: 'mail', label: 'Email' },
+                    { key: 'visibility', label: 'Visibility' },
+                    { key: 'createdDateTime', label: 'Created' },
+                    { key: 'guestMemberCount', label: 'Guests' },
+                    { key: 'licenseAssignmentCount', label: 'Licenses' },
+                    { key: 'flags', label: 'Flags' },
+                    { key: '_adminLinks', label: 'Admin' }
+                ],
+                defaultVisible: [
+                    'displayName', 'groupType', 'userSource', 'memberCount', 'ownerCount',
+                    'mail', 'visibility', 'createdDateTime', 'flags', '_adminLinks'
+                ],
+                onColumnsChanged: applyFilters
+            });
         }
 
         // Bind export button

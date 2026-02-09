@@ -151,12 +151,18 @@ const PageAppUsage = (function() {
             containerId: 'app-inventory-table',
             data: appAgg,
             columns: [
-                { key: 'appName', label: 'Application Name' },
+                { key: 'appName', label: 'Application Name', formatter: function(v) {
+                    if (!v) return '--';
+                    return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="View in Enterprise Apps"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
                 { key: 'userCount', label: 'Users', className: 'cell-right' },
                 { key: 'totalCount', label: 'Sign-ins', className: 'cell-right' },
                 { key: 'interactiveCount', label: 'Interactive', className: 'cell-right' },
                 { key: 'nonInteractiveCount', label: 'Non-Interactive', className: 'cell-right' },
-                { key: 'lastUsed', label: 'Last Used', formatter: Tables.formatters.date }
+                { key: 'lastUsed', label: 'Last Used', formatter: Tables.formatters.date },
+                { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview" target="_blank" rel="noopener" class="admin-link" title="Open Enterprise Apps in Entra">Entra</a>';
+                }}
             ],
             pageSize: 15,
             title: null
@@ -393,7 +399,10 @@ const PageAppUsage = (function() {
         }
 
         var columnMap = {
-            'appDisplayName':      { key: 'appDisplayName', label: 'Application' },
+            'appDisplayName':      { key: 'appDisplayName', label: 'Application', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link" onclick="event.stopPropagation();" title="View in Enterprise Apps">' + Tables.escapeHtml(v) + '</a>';
+            }},
             'resourceDisplayName': { key: 'resourceDisplayName', label: 'Resource' },
             'userPrincipalName':   { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
             '_department':         { key: '_department', label: 'Department' },
@@ -402,7 +411,10 @@ const PageAppUsage = (function() {
             'statusCode':          { key: 'statusCode', label: 'Status Code' },
             'statusReason':        { key: 'statusReason', label: 'Status', formatter: formatStatus },
             'city':                { key: 'city', label: 'City' },
-            'country':             { key: 'country', label: 'Country' }
+            'country':             { key: 'country', label: 'Country' },
+            '_adminLinks':         { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/StartboardApplicationsMenuBlade/~/AppAppsPreview" target="_blank" rel="noopener" class="admin-link" title="Open Enterprise Apps in Entra">Entra</a>';
+            }}
         };
 
         var columns = [];
@@ -411,6 +423,8 @@ const PageAppUsage = (function() {
                 columns.push(columnMap[visibleKeys[c]]);
             }
         }
+        // Always append admin links column at the end
+        columns.push(columnMap['_adminLinks']);
 
         Tables.render({
             containerId: 'appusage-table',

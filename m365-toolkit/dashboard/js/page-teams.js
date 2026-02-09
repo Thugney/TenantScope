@@ -19,6 +19,8 @@
 const PageTeams = (function() {
     'use strict';
 
+    var colSelector = null;
+
     /**
      * Builds inline SVG donut chart HTML (matching Endpoint Analytics style).
      *
@@ -150,28 +152,73 @@ const PageTeams = (function() {
      * @param {Array} data - Filtered team data
      */
     function renderTable(data) {
+        // Get visible columns from Column Selector
+        var visible = colSelector ? colSelector.getVisible() : [
+            'displayName', 'visibility', 'mail', 'ownerCount', 'memberCount',
+            'guestCount', 'lastActivityDate', 'daysSinceActivity', 'flags', '_adminLinks'
+        ];
+
+        // All column definitions
+        var allDefs = [
+            { key: 'displayName', label: 'Team Name', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#teams?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'description', label: 'Description', formatter: formatDescription },
+            { key: 'visibility', label: 'Visibility', formatter: formatVisibility },
+            { key: 'sensitivityLabelName', label: 'Sensitivity', formatter: formatSensitivityLabel },
+            { key: 'mail', label: 'Email' },
+            { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
+            { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: function(v, row) {
+                if (!v || v === 0) {
+                    return '<span class="text-critical font-bold">0</span>';
+                }
+                // Link to owners on users page if ownerUpns available
+                if (row.ownerUpns && row.ownerUpns.length > 0) {
+                    return '<a href="#users?search=' + encodeURIComponent(row.ownerUpns[0]) + '" class="entity-link" title="' + row.ownerUpns.join(', ') + '">' + v + '</a>';
+                }
+                return String(v);
+            }},
+            { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: formatMemberCount },
+            { key: 'channelCount', label: 'Channels', className: 'cell-right', formatter: formatChannelCount },
+            { key: 'privateChannelCount', label: 'Private Ch.', className: 'cell-right', formatter: formatChannelCount },
+            { key: 'guestCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
+            { key: 'externalDomains', label: 'External Domains', formatter: formatExternalDomains },
+            { key: 'activeUsers', label: 'Active Users', className: 'cell-right' },
+            { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
+            { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+            { key: 'suggestedOwners', label: 'Suggested Owners', formatter: function(v, row) {
+                if (!v || v.length === 0) {
+                    return '<span class="text-muted">--</span>';
+                }
+                var arr = Array.isArray(v) ? v : [v];
+                var links = arr.map(function(upn) {
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link">' + upn + '</a>';
+                });
+                if (links.length > 2) {
+                    return links.slice(0, 2).join(', ') + ' +' + (links.length - 2) + ' more';
+                }
+                return links.join(', ');
+            }},
+            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                var links = [];
+                if (row.id) {
+                    links.push('<a href="https://admin.teams.microsoft.com/teams/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Teams Admin">Teams Admin</a>');
+                }
+                return links.length > 0 ? links.join(' ') : '--';
+            }}
+        ];
+
+        // Filter to visible columns only
+        var columns = allDefs.filter(function(col) {
+            return visible.indexOf(col.key) !== -1;
+        });
+
         Tables.render({
             containerId: 'teams-table',
             data: data,
-            columns: [
-                { key: 'displayName', label: 'Team Name' },
-                { key: 'description', label: 'Description', formatter: formatDescription },
-                { key: 'visibility', label: 'Visibility', formatter: formatVisibility },
-                { key: 'sensitivityLabelName', label: 'Sensitivity', formatter: formatSensitivityLabel },
-                { key: 'mail', label: 'Email' },
-                { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
-                { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
-                { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: formatMemberCount },
-                { key: 'channelCount', label: 'Channels', className: 'cell-right', formatter: formatChannelCount },
-                { key: 'privateChannelCount', label: 'Private Ch.', className: 'cell-right', formatter: formatChannelCount },
-                { key: 'guestCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
-                { key: 'externalDomains', label: 'External Domains', formatter: formatExternalDomains },
-                { key: 'activeUsers', label: 'Active Users', className: 'cell-right' },
-                { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
-                { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
-                { key: 'suggestedOwners', label: 'Suggested Owners', formatter: formatSuggestedOwners },
-                { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
-            ],
+            columns: columns,
             pageSize: 50,
             onRowClick: showTeamDetails,
             getRowClass: function(row) {
@@ -441,6 +488,7 @@ const PageTeams = (function() {
             '',
             '<div class="analytics-grid" id="teams-charts"></div>',
             '<div id="teams-filter"></div>',
+            '<div class="table-toolbar"><div id="teams-colselector"></div></div>',
             '<div id="teams-table"></div>'
         ].join('\n');
 
@@ -530,6 +578,39 @@ const PageTeams = (function() {
         if (checkboxes.length >= 2) {
             checkboxes[0].id = 'teams-has-guests';
             checkboxes[1].id = 'teams-ownerless';
+        }
+
+        // Setup Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'teams-colselector',
+                storageKey: 'tenantscope-teams-cols-v1',
+                allColumns: [
+                    { key: 'displayName', label: 'Team Name' },
+                    { key: 'description', label: 'Description' },
+                    { key: 'visibility', label: 'Visibility' },
+                    { key: 'sensitivityLabelName', label: 'Sensitivity' },
+                    { key: 'mail', label: 'Email' },
+                    { key: 'createdDateTime', label: 'Created' },
+                    { key: 'ownerCount', label: 'Owners' },
+                    { key: 'memberCount', label: 'Members' },
+                    { key: 'channelCount', label: 'Channels' },
+                    { key: 'privateChannelCount', label: 'Private Ch.' },
+                    { key: 'guestCount', label: 'Guests' },
+                    { key: 'externalDomains', label: 'External Domains' },
+                    { key: 'activeUsers', label: 'Active Users' },
+                    { key: 'lastActivityDate', label: 'Last Activity' },
+                    { key: 'daysSinceActivity', label: 'Days Inactive' },
+                    { key: 'suggestedOwners', label: 'Suggested Owners' },
+                    { key: 'flags', label: 'Flags' },
+                    { key: '_adminLinks', label: 'Admin' }
+                ],
+                defaultVisible: [
+                    'displayName', 'visibility', 'mail', 'ownerCount', 'memberCount',
+                    'guestCount', 'lastActivityDate', 'daysSinceActivity', 'flags', '_adminLinks'
+                ],
+                onColumnsChanged: function() { applyFilters(); }
+            });
         }
 
         // Bind export button

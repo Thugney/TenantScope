@@ -371,9 +371,10 @@ const PageWindowsUpdate = (function() {
                 { key: 'successDevices', label: 'Success' },
                 { key: 'pendingDevices', label: 'Pending' },
                 { key: 'errorDevices', label: 'Errors' },
-                { key: 'complianceRate', label: 'Compliance' }
+                { key: 'complianceRate', label: 'Compliance' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'qualityUpdatesDeferralDays', 'featureUpdatesDeferralDays', 'status', 'totalDevices', 'successDevices', 'pendingDevices', 'errorDevices', 'complianceRate'],
+            defaultVisible: ['displayName', 'qualityUpdatesDeferralDays', 'featureUpdatesDeferralDays', 'status', 'totalDevices', 'successDevices', 'pendingDevices', 'errorDevices', 'complianceRate', '_adminLinks'],
             onColumnsChanged: function() { applyRingsFilters(); }
         });
 
@@ -429,7 +430,10 @@ const PageWindowsUpdate = (function() {
             { key: 'successDevices', label: 'Success', formatter: function(v) { return '<span class="text-success font-bold">' + (v || 0) + '</span>'; }},
             { key: 'pendingDevices', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + (v || 0) + '</span>'; }},
             { key: 'errorDevices', label: 'Errors', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
-            { key: 'complianceRate', label: 'Compliance', formatter: function(v) { return SF.formatComplianceRate(v); }}
+            { key: 'complianceRate', label: 'Compliance', formatter: function(v) { return SF.formatComplianceRate(v); }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/updateRings" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+            }}
         ];
 
         Tables.render({
@@ -465,9 +469,10 @@ const PageWindowsUpdate = (function() {
                 { key: 'pending', label: 'Pending' },
                 { key: 'failed', label: 'Failed' },
                 { key: 'progress', label: 'Progress' },
-                { key: 'lastModifiedDateTime', label: 'Last Modified' }
+                { key: 'lastModifiedDateTime', label: 'Last Modified' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'featureUpdateVersion', 'endOfSupportDate', 'succeeded', 'pending', 'failed', 'progress'],
+            defaultVisible: ['displayName', 'featureUpdateVersion', 'endOfSupportDate', 'succeeded', 'pending', 'failed', 'progress', '_adminLinks'],
             onColumnsChanged: function() { applyFeatureFilters(); }
         });
 
@@ -510,7 +515,10 @@ const PageWindowsUpdate = (function() {
             { key: 'pending', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + v + '</span>'; }},
             { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
             { key: 'progress', label: 'Progress', formatter: function(v) { return SF.formatComplianceRate(v); }},
-            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return SF.formatDate(v); }}
+            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return SF.formatDate(v); }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/featureUpdates" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+            }}
         ];
 
         Tables.render({
@@ -549,9 +557,10 @@ const PageWindowsUpdate = (function() {
                 { key: 'pending', label: 'Pending' },
                 { key: 'failed', label: 'Failed' },
                 { key: 'progress', label: 'Progress' },
-                { key: 'lastModifiedDateTime', label: 'Last Modified' }
+                { key: 'lastModifiedDateTime', label: 'Last Modified' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'releaseDateDisplayName', 'qualityUpdateClassification', 'isExpedited', 'succeeded', 'pending', 'failed', 'progress'],
+            defaultVisible: ['displayName', 'releaseDateDisplayName', 'qualityUpdateClassification', 'isExpedited', 'succeeded', 'pending', 'failed', 'progress', '_adminLinks'],
             onColumnsChanged: function() { applyQualityFilters(); }
         });
 
@@ -607,7 +616,10 @@ const PageWindowsUpdate = (function() {
             { key: 'pending', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + v + '</span>'; }},
             { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
             { key: 'progress', label: 'Progress', formatter: function(v) { return SF.formatComplianceRate(v); }},
-            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return SF.formatDate(v); }}
+            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return SF.formatDate(v); }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/qualityUpdates" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+            }}
         ];
 
         Tables.render({
@@ -647,9 +659,10 @@ const PageWindowsUpdate = (function() {
                 { key: 'applicableDeviceCount', label: 'Applicable' },
                 { key: 'succeeded', label: 'Succeeded' },
                 { key: 'pending', label: 'Pending' },
-                { key: 'failed', label: 'Failed' }
+                { key: 'failed', label: 'Failed' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'driverClass', 'manufacturer', 'version', 'approvalStatus', 'succeeded', 'pending', 'failed'],
+            defaultVisible: ['displayName', 'driverClass', 'manufacturer', 'version', 'approvalStatus', 'succeeded', 'pending', 'failed', '_adminLinks'],
             onColumnsChanged: function() { applyDriversFilters(); }
         });
 
@@ -702,7 +715,10 @@ const PageWindowsUpdate = (function() {
             { key: 'applicableDeviceCount', label: 'Applicable', formatter: function(v) { return SF.formatCount(v); }},
             { key: 'succeeded', label: 'Succeeded', formatter: function(v) { return '<span class="text-success font-bold">' + v + '</span>'; }},
             { key: 'pending', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + v + '</span>'; }},
-            { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }}
+            { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/driverUpdates" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+            }}
         ];
 
         Tables.render({
