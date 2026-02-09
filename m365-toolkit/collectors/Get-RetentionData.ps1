@@ -100,8 +100,18 @@ try {
         Write-Host "      Retrieved $($retentionLabels.Count) retention labels" -ForegroundColor Gray
     }
     catch {
-        Write-Host "      Could not retrieve retention labels: $($_.Exception.Message)" -ForegroundColor Yellow
-        $errors += "Retention labels: $($_.Exception.Message)"
+        if ($_.Exception.Message -match "InternalServerError|500") {
+            Write-Host "      [!] Retention labels API unavailable - requires M365 E5 Compliance or Purview license" -ForegroundColor Yellow
+            $errors += "Retention labels require Microsoft Purview/E5 Compliance license"
+        }
+        elseif ($_.Exception.Message -match "Forbidden|403|Authorization") {
+            Write-Host "      [!] Retention labels require RecordsManagement.Read.All permission" -ForegroundColor Yellow
+            $errors += "Retention labels require RecordsManagement.Read.All permission"
+        }
+        else {
+            Write-Host "      Could not retrieve retention labels: $($_.Exception.Message)" -ForegroundColor Yellow
+            $errors += "Retention labels: $($_.Exception.Message)"
+        }
     }
 
     # -----------------------------------------------------------------------
@@ -123,7 +133,12 @@ try {
         Write-Host "      Retrieved $($retentionEventTypes.Count) retention event types" -ForegroundColor Gray
     }
     catch {
-        Write-Host "      Could not retrieve event types: $($_.Exception.Message)" -ForegroundColor Yellow
+        if ($_.Exception.Message -match "InternalServerError|500|Forbidden|403") {
+            Write-Host "      [!] Event types unavailable (requires M365 E5 Compliance license)" -ForegroundColor Yellow
+        }
+        else {
+            Write-Host "      Could not retrieve event types: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
         # Not critical, continue
     }
 
