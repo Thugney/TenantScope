@@ -5,6 +5,53 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.0] - 2026-02-09
+
+### Added
+- **Groups Management Page** (`page-groups.js`):
+  - Comprehensive Entra ID groups dashboard showing all group types
+  - Group types: Security, Microsoft 365, Distribution, Mail-enabled Security
+  - Filtering by type, source (cloud/on-prem), ownerless, with-guests, with-licenses
+  - Summary cards: Total Groups, Security, Microsoft 365, License Groups
+  - Donut charts: Group Types distribution, Source & Governance breakdown
+  - Detail modal with 4 tabs: Overview, Members, Owners, Licenses
+  - Dynamic group detection with membership rule display
+  - On-premises sync status and age tracking
+  - Admin portal deep links (Entra ID, Members, Licenses, Teams, SharePoint)
+
+- **Groups Collector** (`Get-GroupData.ps1`):
+  - Collects all Entra ID groups via Graph API
+  - Full membership collection with pagination (up to 1000 members per group)
+  - Owner retrieval for governance tracking
+  - Group type classification based on mailEnabled, securityEnabled, groupTypes
+  - Cross-references users.json to detect license assignments via groups
+  - Generates insights: ownerless groups, stale sync, large license groups
+  - Graph endpoints: /groups, /groups/{id}/members, /groups/{id}/owners
+  - Required scopes: Group.Read.All, GroupMember.Read.All, Directory.Read.All
+
+- **Groups Data Relationships**:
+  - New indexes: `groupIndex`, `groupNameIndex`, `userGroupIndex`
+  - `getGroup(groupId)` - Get group by ID
+  - `getGroupByName(name)` - Get group by display name
+  - `getUserGroups(userId)` - Get all groups a user belongs to
+  - `getGroupProfile(groupId)` - Full group with members, owners, licenses, linked team/site
+  - `getGroupLicenseAssignees(groupId, skuId)` - Users who got license via group
+  - `getGroupAdminUrls(group)` - Entra portal URLs for group management
+
+- **User Modal Groups Tab**:
+  - New "Groups" tab in user detail modal
+  - Shows all groups user is a member of
+  - Displays group type, source, member count, license count
+  - Clickable group names navigate to Groups page
+  - Summary of license groups user belongs to
+
+### Changed
+- `getUserProfile()` now includes `groups` property with user's group memberships
+- Navigation updated with Groups link under Identity section
+- Orchestrator now includes GroupData in collector list (27 collectors total)
+
+---
+
 ## [2.2.0] - 2026-02-08
 
 ### Added
@@ -616,6 +663,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Collectors | Major Features |
 |---------|------|------------|----------------|
+| 2.3.0 | 2026-02-09 | 27 | Groups Management: full Entra ID group inventory with membership, licenses |
 | 2.2.0 | 2026-02-08 | 26 | Single-pane-of-glass: cross-entity navigation, Problem Summary page |
 | 2.1.1 | 2026-02-08 | 26 | Dashboard Server with usage tracking, app-only authentication |
 | 2.1.0 | 2026-02-08 | 26 | Vulnerability Management, Security Cockpit, Executive Summary |
