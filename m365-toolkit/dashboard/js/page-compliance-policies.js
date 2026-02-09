@@ -521,7 +521,7 @@ const PageCompliancePolicies = (function() {
                 return Formatters.formatCount ? Formatters.formatCount(v, { zeroIsGood: true }) : (v > 2 ? '<span class="text-critical font-bold">' + v + '</span>' : v > 0 ? '<span class="text-warning">' + v + '</span>' : '<span class="text-muted">0</span>');
             }},
             { key: 'failedPolicies', label: 'Policy Names', formatter: function(v) {
-                if (!v || v.length === 0) return '--';
+                if (!v || !Array.isArray(v) || v.length === 0) return '--';
                 return v.slice(0, 3).join(', ') + (v.length > 3 ? ' (+' + (v.length - 3) + ' more)' : '');
             }}
         ];

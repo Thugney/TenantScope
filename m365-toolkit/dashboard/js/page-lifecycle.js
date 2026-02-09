@@ -465,7 +465,7 @@ const PageLifecycle = (function() {
 
         // Onboarding - Missing Profile
         (data.newUsersMissingProfile || []).forEach(function(u) {
-            var missing = u.missingProfileFields ? u.missingProfileFields.join(', ') : 'Profile incomplete';
+            var missing = u.missingProfileFields ? (Array.isArray(u.missingProfileFields) ? u.missingProfileFields.join(', ') : u.missingProfileFields) : 'Profile incomplete';
             issues.push({
                 category: 'Onboarding',
                 issueType: 'Missing Profile',

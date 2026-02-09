@@ -1290,7 +1290,7 @@ const PageDevices = (function() {
         if (bitlocker.recoveryKeyCount > 0) {
             html += '<dt>Recovery Keys</dt><dd>' + bitlocker.recoveryKeyCount + ' key(s)</dd>';
             if (bitlocker.volumeTypes && bitlocker.volumeTypes.length > 0) {
-                var volumeList = bitlocker.volumeTypes.join(', ');
+                var volumeList = Array.isArray(bitlocker.volumeTypes) ? bitlocker.volumeTypes.join(', ') : String(bitlocker.volumeTypes);
                 html += '<dt>Volume Types</dt><dd>' + volumeList + '</dd>';
             }
         }
@@ -1491,7 +1491,7 @@ const PageDevices = (function() {
                 var statusClass = p.isNonCompliant ? 'text-critical' : p.isError ? 'text-warning' : 'text-success';
                 var statusText = p.isNonCompliant ? 'Non-Compliant' : p.isError ? 'Error' : 'Compliant';
                 var criticalBadge = p.isCritical ? ' <span class="status-badge status-warning" style="font-size:0.7em">Critical</span>' : '';
-                var failedSettings = p.settingFailures && p.settingFailures.length > 0 ?
+                var failedSettings = p.settingFailures && Array.isArray(p.settingFailures) && p.settingFailures.length > 0 ?
                     p.settingFailures.map(function(s) { return s.settingName; }).join(', ') : '--';
                 html += '<tr>';
                 html += '<td>' + (p.displayName || '--') + criticalBadge + '</td>';

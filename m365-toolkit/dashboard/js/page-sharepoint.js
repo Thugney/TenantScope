@@ -442,7 +442,7 @@ const PageSharePoint = (function() {
             '    <span class="detail-value">' + (site.visitedPageCount || 0) + '</span>',
             '',
             '    <span class="detail-label">Flags:</span>',
-            '    <span class="detail-value">' + (site.flags && site.flags.length > 0 ? site.flags.join(', ') : 'None') + '</span>',
+            '    <span class="detail-value">' + (site.flags && site.flags.length > 0 ? (Array.isArray(site.flags) ? site.flags.join(', ') : site.flags) : 'None') + '</span>',
             '</div>',
             '',
             '<h4 class="mt-lg mb-sm">Sharing & Governance</h4>',

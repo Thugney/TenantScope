@@ -457,7 +457,7 @@ const PageUsers = (function() {
                 primaryKey: 'domain',
                 breakdownKey: currentBreakdown,
                 primaryLabel: 'Domain',
-                breakdownLabel: breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }).label
+                breakdownLabel: (breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }) || {}).label || currentBreakdown
             });
         } else {
             // Fallback - render simple summary

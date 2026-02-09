@@ -296,7 +296,7 @@ const PageGuests = (function() {
                 primaryKey: 'guestStatus',
                 breakdownKey: currentBreakdown,
                 primaryLabel: 'Status',
-                breakdownLabel: breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }).label
+                breakdownLabel: (breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }) || {}).label || currentBreakdown
             });
         }
     }

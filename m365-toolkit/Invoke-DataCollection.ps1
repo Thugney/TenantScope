@@ -378,7 +378,10 @@ function Merge-AdminRolesIntoUsers {
         $adminUserIds = @{}
         foreach ($role in $adminRoles) {
             foreach ($member in $role.members) {
-                $adminUserIds[$member.userId] = $true
+                # Use $member.id - the correct property name from admin-roles.json
+                if ($member.id) {
+                    $adminUserIds[$member.id] = $true
+                }
             }
         }
 

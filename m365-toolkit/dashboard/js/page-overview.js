@@ -749,7 +749,7 @@ const PageOverview = (function() {
                 header.appendChild(el('span', 'insight-category', entry.name || 'Collector'));
                 card.appendChild(header);
 
-                var desc = (entry.errors && entry.errors.length > 0)
+                var desc = (entry.errors && Array.isArray(entry.errors) && entry.errors.length > 0)
                     ? entry.errors.join(' | ')
                     : 'Collector reported an error during data collection.';
                 card.appendChild(el('p', 'insight-description', desc));

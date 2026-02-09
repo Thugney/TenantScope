@@ -204,7 +204,7 @@ const PageConditionalAccess = (function() {
                 primaryKey: 'state',
                 breakdownKey: currentBreakdown,
                 primaryLabel: 'State',
-                breakdownLabel: breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }).label
+                breakdownLabel: (breakdownDimensions.find(function(d) { return d.key === currentBreakdown; }) || {}).label || currentBreakdown
             });
         }
     }

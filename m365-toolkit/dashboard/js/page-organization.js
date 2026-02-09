@@ -968,8 +968,9 @@ const PageOrganization = (function() {
         ];
 
         var tableData = managers.map(function(m) {
-            var topReports = m.directReports.slice(0, 3).map(function(r) { return r.displayName; }).join(', ');
-            if (m.directReports.length > 3) topReports += '...';
+            var reports = Array.isArray(m.directReports) ? m.directReports : [];
+            var topReports = reports.slice(0, 3).map(function(r) { return r.displayName; }).join(', ');
+            if (reports.length > 3) topReports += '...';
             var email = m.userPrincipalName || m.managerUpn || '';
             return {
                 name: m.name,
@@ -978,7 +979,7 @@ const PageOrganization = (function() {
                 department: m.department,
                 officeLocation: m.officeLocation || '',
                 companyName: m.companyName || '',
-                directReportsCount: m.directReports.length,
+                directReportsCount: reports.length,
                 isUser: m.isUser,
                 topReports: topReports || '-',
                 _raw: m
