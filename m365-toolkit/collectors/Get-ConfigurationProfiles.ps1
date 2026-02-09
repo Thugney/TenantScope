@@ -158,7 +158,7 @@ try {
         }
 
         foreach ($config in $legacyConfigs) {
-            $allProfiles += @{
+            $allProfiles += [PSCustomObject]@{
                 source = "deviceConfigurations"
                 data = $config
             }
@@ -188,7 +188,7 @@ try {
         }
 
         foreach ($policy in $catalogPolicies) {
-            $allProfiles += @{
+            $allProfiles += [PSCustomObject]@{
                 source = "configurationPolicies"
                 data = $policy
             }
