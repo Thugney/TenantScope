@@ -41,8 +41,8 @@ const PageOrganization = (function() {
 
         users.forEach(function(u) {
             if (u.id) userById[u.id] = u;
-            if (u.userPrincipalName) userByUpn[u.userPrincipalName.toLowerCase()] = u;
-            if (u.displayName && !userByName[u.displayName.toLowerCase()]) {
+            if (u.userPrincipalName && typeof u.userPrincipalName === 'string') userByUpn[u.userPrincipalName.toLowerCase()] = u;
+            if (u.displayName && typeof u.displayName === 'string' && !userByName[u.displayName.toLowerCase()]) {
                 userByName[u.displayName.toLowerCase()] = u;
             }
         });
@@ -52,9 +52,9 @@ const PageOrganization = (function() {
             var managerUpn = user.managerUpn || null;
             var managerName = user.manager || null;
             var key = null;
-            if (managerId) key = managerId;
-            else if (managerUpn) key = 'upn:' + managerUpn.toLowerCase();
-            else if (managerName) key = 'name:' + managerName.toLowerCase();
+            if (managerId) key = String(managerId);
+            else if (managerUpn && typeof managerUpn === 'string') key = 'upn:' + managerUpn.toLowerCase();
+            else if (managerName && typeof managerName === 'string') key = 'name:' + managerName.toLowerCase();
             if (!key) return null;
             return {
                 key: key,
@@ -66,17 +66,17 @@ const PageOrganization = (function() {
 
         function getUserManagerKeys(user) {
             var keys = [];
-            if (user.id) keys.push(user.id);
-            if (user.userPrincipalName) keys.push('upn:' + user.userPrincipalName.toLowerCase());
-            if (user.displayName) keys.push('name:' + user.displayName.toLowerCase());
+            if (user.id) keys.push(String(user.id));
+            if (user.userPrincipalName && typeof user.userPrincipalName === 'string') keys.push('upn:' + user.userPrincipalName.toLowerCase());
+            if (user.displayName && typeof user.displayName === 'string') keys.push('name:' + user.displayName.toLowerCase());
             return keys;
         }
 
         function resolveManagerUser(ref) {
             if (!ref) return null;
             if (ref.id && userById[ref.id]) return userById[ref.id];
-            if (ref.upn && userByUpn[ref.upn.toLowerCase()]) return userByUpn[ref.upn.toLowerCase()];
-            if (ref.name && userByName[ref.name.toLowerCase()]) return userByName[ref.name.toLowerCase()];
+            if (ref.upn && typeof ref.upn === 'string' && userByUpn[ref.upn.toLowerCase()]) return userByUpn[ref.upn.toLowerCase()];
+            if (ref.name && typeof ref.name === 'string' && userByName[ref.name.toLowerCase()]) return userByName[ref.name.toLowerCase()];
             return null;
         }
 
@@ -134,9 +134,9 @@ const PageOrganization = (function() {
             var managerUser = null;
             if (manager.managerId && userById[manager.managerId]) {
                 managerUser = userById[manager.managerId];
-            } else if (manager.managerUpn && userByUpn[manager.managerUpn.toLowerCase()]) {
+            } else if (manager.managerUpn && typeof manager.managerUpn === 'string' && userByUpn[manager.managerUpn.toLowerCase()]) {
                 managerUser = userByUpn[manager.managerUpn.toLowerCase()];
-            } else if (manager.name && userByName[manager.name.toLowerCase()]) {
+            } else if (manager.name && typeof manager.name === 'string' && userByName[manager.name.toLowerCase()]) {
                 managerUser = userByName[manager.name.toLowerCase()];
             }
 

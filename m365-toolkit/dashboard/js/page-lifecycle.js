@@ -945,7 +945,7 @@ const PageLifecycle = (function() {
             }
             if (!user.employeeLeaveDateTime) return null;
             var leaveDate = new Date(user.employeeLeaveDateTime);
-            if (isNaN(leaveDate)) return null;
+            if (isNaN(leaveDate.getTime())) return null;
             return Math.floor((leaveDate - new Date()) / 86400000);
         }
 

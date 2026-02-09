@@ -407,7 +407,7 @@ const PageBitLocker = (function() {
                     return '<span class="text-success">' + v + '</span>';
                 }},
                 { key: 'volumeTypes', label: 'Volume Types', formatter: function(v) {
-                    if (!v || v.length === 0) return '--';
+                    if (!v || !Array.isArray(v) || v.length === 0) return '--';
                     return v.map(function(vt) {
                         var label = vt === 'operatingSystemVolume' ? 'OS' : vt === 'fixedDataVolume' ? 'Data' : vt;
                         return '<span class="badge badge-info">' + label + '</span>';

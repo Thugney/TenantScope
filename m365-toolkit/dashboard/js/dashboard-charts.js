@@ -34,9 +34,13 @@ const DashboardCharts = (function() {
         var size = opts.size || 160;
         var strokeWidth = opts.strokeWidth || 24;
 
+        // Validate segments array
+        if (!Array.isArray(segments)) segments = [];
+
         var total = 0;
         for (var i = 0; i < segments.length; i++) {
-            total += segments[i].value;
+            var segVal = Number(segments[i].value);
+            total += isNaN(segVal) ? 0 : segVal;
         }
 
         // Wrapper

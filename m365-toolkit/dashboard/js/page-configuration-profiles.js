@@ -538,7 +538,7 @@ const PageConfigurationProfiles = (function() {
                 return v ? '<span class="text-warning">' + v + '</span>' : '<span class="text-muted">0</span>';
             }},
             { key: 'failedProfiles', label: 'Failing Profiles', formatter: function(v) {
-                if (!v || v.length === 0) return '<span class="text-muted">None</span>';
+                if (!v || !Array.isArray(v) || v.length === 0) return '<span class="text-muted">None</span>';
                 return v.slice(0, 3).map(function(p) {
                     return '<span class="badge badge-neutral">' + p + '</span>';
                 }).join(' ') + (v.length > 3 ? ' <span class="text-muted">+' + (v.length - 3) + ' more</span>' : '');

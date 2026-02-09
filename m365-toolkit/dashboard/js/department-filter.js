@@ -31,7 +31,7 @@ var DepartmentFilter = (function() {
         var deptSet = {};
         for (var i = 0; i < users.length; i++) {
             var dept = users[i].department;
-            if (dept && dept.trim()) {
+            if (dept && typeof dept === 'string' && dept.trim()) {
                 deptSet[dept.trim()] = true;
             }
         }
@@ -43,7 +43,7 @@ var DepartmentFilter = (function() {
         upnToDeptMap = {};
         for (var j = 0; j < users.length; j++) {
             var u = users[j];
-            if (u.userPrincipalName && u.department) {
+            if (u.userPrincipalName && typeof u.userPrincipalName === 'string' && u.department && typeof u.department === 'string') {
                 upnToDeptMap[u.userPrincipalName.toLowerCase()] = u.department.trim();
             }
         }
@@ -128,7 +128,8 @@ var DepartmentFilter = (function() {
     function filterData(data, deptField) {
         if (!selectedDepartment || !data) return data;
         return data.filter(function(item) {
-            return item[deptField] && item[deptField].trim() === selectedDepartment;
+            var val = item[deptField];
+            return val && typeof val === 'string' && val.trim() === selectedDepartment;
         });
     }
 
@@ -144,7 +145,7 @@ var DepartmentFilter = (function() {
         if (!selectedDepartment || !data || !upnToDeptMap) return data;
         return data.filter(function(item) {
             var upn = item[upnField];
-            if (!upn) return false;
+            if (!upn || typeof upn !== 'string') return false;
             return upnToDeptMap[upn.toLowerCase()] === selectedDepartment;
         });
     }

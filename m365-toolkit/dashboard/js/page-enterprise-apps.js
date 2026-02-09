@@ -511,7 +511,7 @@ const PageEnterpriseApps = (function() {
         var status = Filters.getValue('creds-status');
 
         var filtered = appsWithCreds.filter(function(a) {
-            if (search && a.displayName.toLowerCase().indexOf(search.toLowerCase()) === -1) return false;
+            if (search && (!a.displayName || typeof a.displayName !== 'string' || a.displayName.toLowerCase().indexOf(search.toLowerCase()) === -1)) return false;
             if (status && status !== 'all' && a.credentialStatus !== status) return false;
             return true;
         });
@@ -584,7 +584,7 @@ const PageEnterpriseApps = (function() {
         var creds = Filters.getValue('tp-creds');
 
         var filtered = thirdPartyApps.filter(function(a) {
-            if (search && a.displayName.toLowerCase().indexOf(search.toLowerCase()) === -1) return false;
+            if (search && (!a.displayName || typeof a.displayName !== 'string' || a.displayName.toLowerCase().indexOf(search.toLowerCase()) === -1)) return false;
             if (status === 'enabled' && !a.accountEnabled) return false;
             if (status === 'disabled' && a.accountEnabled) return false;
             if (creds === 'with-creds' && !a.hasCredentials) return false;

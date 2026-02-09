@@ -489,7 +489,7 @@ const PageAppDeployments = (function() {
                 return '<span class="' + cls + ' font-bold">' + (v || 0) + '</span>';
             }},
             { key: 'failedApps', label: 'Failing Apps', formatter: function(v) {
-                if (!v || v.length === 0) return '<span class="text-muted">None</span>';
+                if (!v || !Array.isArray(v) || v.length === 0) return '<span class="text-muted">None</span>';
                 return v.slice(0, 3).map(function(a) {
                     return '<span class="badge badge-outline">' + a + '</span>';
                 }).join(' ') + (v.length > 3 ? ' <span class="text-muted">+' + (v.length - 3) + ' more</span>' : '');
