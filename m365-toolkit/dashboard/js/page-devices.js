@@ -439,14 +439,18 @@ const PageDevices = (function() {
             allColumns: [
                 // Core identity
                 { key: 'deviceName', label: 'Device Name' },
+                { key: 'managedDeviceName', label: 'Managed Name' },
                 { key: 'userPrincipalName', label: 'User' },
                 { key: 'primaryUserDisplayName', label: 'Display Name' },
+                { key: 'emailAddress', label: 'Email' },
                 { key: 'azureAdDeviceId', label: 'Azure AD ID' },
+                { key: 'azureAdRegistered', label: 'AAD Registered' },
                 // OS
                 { key: 'os', label: 'OS' },
                 { key: 'osVersion', label: 'OS Version' },
                 { key: 'windowsType', label: 'Win Type' },
                 { key: 'windowsRelease', label: 'Win Release' },
+                { key: 'windowsBuild', label: 'Win Build' },
                 { key: 'windowsSupported', label: 'Win Supported' },
                 { key: 'windowsEOL', label: 'Win EOL' },
                 { key: 'androidSecurityPatchLevel', label: 'Android Patch' },
@@ -498,7 +502,21 @@ const PageDevices = (function() {
                 { key: 'subscriberCarrier', label: 'Carrier' },
                 // Mobile identifiers
                 { key: 'imei', label: 'IMEI' },
-                { key: 'meid', label: 'MEID' }
+                { key: 'meid', label: 'MEID' },
+                { key: 'iccid', label: 'ICCID' },
+                { key: 'udid', label: 'UDID' },
+                // Exchange details
+                { key: 'exchangeAccessReason', label: 'Exchange Reason' },
+                { key: 'exchangeLastSync', label: 'Exchange Sync' },
+                { key: 'easActivated', label: 'EAS Activated' },
+                { key: 'easDeviceId', label: 'EAS Device ID' },
+                // Compliance details
+                { key: 'complianceGracePeriodExpiry', label: 'Grace Expiry' },
+                { key: 'complianceGraceDays', label: 'Grace Days Left' },
+                // Certificate details
+                { key: 'certExpiryDate', label: 'Cert Expiry Date' },
+                // Admin
+                { key: 'notes', label: 'Notes' }
             ],
             defaultVisible: ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'threatStateDisplay'],
             onColumnsChanged: function() { applyDeviceFilters(); }

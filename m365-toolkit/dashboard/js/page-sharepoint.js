@@ -146,14 +146,26 @@ const PageSharePoint = (function() {
             data: data,
             columns: [
                 { key: 'displayName', label: 'Site Name' },
+                { key: 'url', label: 'URL', formatter: formatUrl },
                 { key: 'template', label: 'Template', formatter: formatTemplate },
                 { key: 'ownerDisplayName', label: 'Owner' },
+                { key: 'ownerPrincipalName', label: 'Owner UPN' },
+                { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
                 { key: 'storageUsedGB', label: 'Storage (GB)', className: 'cell-right', formatter: formatStorage },
+                { key: 'storageAllocatedGB', label: 'Allocated (GB)', className: 'cell-right' },
+                { key: 'storagePct', label: 'Usage %', className: 'cell-right', formatter: formatStoragePct },
                 { key: 'fileCount', label: 'Files', className: 'cell-right' },
                 { key: 'activeFileCount', label: 'Active Files', className: 'cell-right' },
+                { key: 'pageViewCount', label: 'Page Views', className: 'cell-right' },
+                { key: 'visitedPageCount', label: 'Visited Pages', className: 'cell-right' },
                 { key: 'externalSharing', label: 'Ext. Sharing', formatter: formatExternalSharing },
                 { key: 'anonymousLinkCount', label: 'Anon Links', className: 'cell-right', formatter: formatLinkCount },
                 { key: 'guestLinkCount', label: 'Guest Links', className: 'cell-right', formatter: formatLinkCount },
+                { key: 'companyLinkCount', label: 'Company Links', className: 'cell-right', formatter: formatLinkCount },
+                { key: 'memberLinkCount', label: 'Member Links', className: 'cell-right', formatter: formatLinkCount },
+                { key: 'totalSharingLinks', label: 'Total Links', className: 'cell-right' },
+                { key: 'isGroupConnected', label: 'Group Connected', formatter: formatBoolean },
+                { key: 'sensitivityLabelId', label: 'Has Label', formatter: formatHasLabel },
                 { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
                 { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
                 { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
@@ -230,6 +242,47 @@ const PageSharePoint = (function() {
             return '<span class="text-warning">' + count + '</span>';
         }
         return String(count);
+    }
+
+    /**
+     * Formats URL with truncation.
+     */
+    function formatUrl(value) {
+        if (!value) {
+            return '<span class="text-muted">--</span>';
+        }
+        var displayUrl = value.length > 40 ? value.substring(0, 37) + '...' : value;
+        return '<span class="cell-truncate" title="' + value + '">' + displayUrl + '</span>';
+    }
+
+    /**
+     * Formats storage percentage with color coding.
+     */
+    function formatStoragePct(value) {
+        if (value === null || value === undefined) {
+            return '<span class="text-muted">--</span>';
+        }
+        var colorClass = '';
+        if (value >= 90) colorClass = 'text-critical font-bold';
+        else if (value >= 75) colorClass = 'text-warning';
+        return '<span class="' + colorClass + '">' + value + '%</span>';
+    }
+
+    /**
+     * Formats boolean value.
+     */
+    function formatBoolean(value) {
+        return value ? 'Yes' : 'No';
+    }
+
+    /**
+     * Formats sensitivity label presence.
+     */
+    function formatHasLabel(value) {
+        if (value) {
+            return '<span class="badge badge-success">Yes</span>';
+        }
+        return '<span class="badge badge-warning">No</span>';
     }
 
     /**

@@ -107,13 +107,29 @@ const PageGuests = (function() {
         var allDefs = [
             { key: 'displayName', label: 'Name' },
             { key: 'mail', label: 'Email', className: 'cell-truncate' },
+            { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'accountEnabled', label: 'Account Enabled', formatter: formatBool },
             { key: 'sourceDomain', label: 'Source Domain' },
             { key: 'createdDateTime', label: 'Invited', formatter: Tables.formatters.date },
+            { key: 'daysSinceInvitation', label: 'Invitation Age (days)' },
+            { key: 'creationType', label: 'Creation Type' },
             { key: 'invitationState', label: 'Invitation', formatter: formatInvitationState },
+            { key: 'invitationStateChanged', label: 'State Changed', formatter: Tables.formatters.date },
+            { key: 'primaryIdentityProvider', label: 'Identity Provider' },
+            { key: 'companyName', label: 'Company' },
+            { key: 'department', label: 'Department' },
+            { key: 'jobTitle', label: 'Job Title' },
             { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date },
             { key: 'daysSinceLastSignIn', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
             { key: 'isStale', label: 'Status', formatter: formatGuestStatus },
-            { key: 'neverSignedIn', label: 'Never Signed In', formatter: function(v) { return v ? 'Yes' : 'No'; } }
+            { key: 'neverSignedIn', label: 'Never Signed In', formatter: formatBool },
+            { key: 'groupCount', label: 'Total Groups' },
+            { key: 'securityGroupCount', label: 'Security Groups' },
+            { key: 'm365GroupCount', label: 'M365 Groups' },
+            { key: 'teamsCount', label: 'Teams' },
+            { key: 'directoryRoleCount', label: 'Admin Roles', formatter: formatAdminRoleCount },
+            { key: 'hasGroupAccess', label: 'Has Group Access', formatter: formatBool },
+            { key: 'hasAdminRole', label: 'Has Admin Role', formatter: formatHasAdminRole }
         ];
 
         // Filter to visible columns only
@@ -159,6 +175,33 @@ const PageGuests = (function() {
             return '<span class="badge badge-critical">Stale</span>';
         }
         return '<span class="badge badge-success">Active</span>';
+    }
+
+    /**
+     * Formats boolean value.
+     */
+    function formatBool(value) {
+        return value ? 'Yes' : 'No';
+    }
+
+    /**
+     * Formats admin role count with warning styling.
+     */
+    function formatAdminRoleCount(value) {
+        if (!value || value === 0) {
+            return '<span class="text-muted">0</span>';
+        }
+        return '<span class="text-critical font-bold">' + value + '</span>';
+    }
+
+    /**
+     * Formats hasAdminRole with critical badge.
+     */
+    function formatHasAdminRole(value) {
+        if (value) {
+            return '<span class="badge badge-critical">Yes</span>';
+        }
+        return 'No';
     }
 
     /**
@@ -711,13 +754,29 @@ const PageGuests = (function() {
                 allColumns: [
                     { key: 'displayName', label: 'Name' },
                     { key: 'mail', label: 'Email' },
+                    { key: 'userPrincipalName', label: 'UPN' },
+                    { key: 'accountEnabled', label: 'Account Enabled' },
                     { key: 'sourceDomain', label: 'Source Domain' },
                     { key: 'createdDateTime', label: 'Invited' },
+                    { key: 'daysSinceInvitation', label: 'Invitation Age (days)' },
+                    { key: 'creationType', label: 'Creation Type' },
                     { key: 'invitationState', label: 'Invitation' },
+                    { key: 'invitationStateChanged', label: 'State Changed' },
+                    { key: 'primaryIdentityProvider', label: 'Identity Provider' },
+                    { key: 'companyName', label: 'Company' },
+                    { key: 'department', label: 'Department' },
+                    { key: 'jobTitle', label: 'Job Title' },
                     { key: 'lastSignIn', label: 'Last Sign-In' },
                     { key: 'daysSinceLastSignIn', label: 'Days Inactive' },
                     { key: 'isStale', label: 'Status' },
-                    { key: 'neverSignedIn', label: 'Never Signed In' }
+                    { key: 'neverSignedIn', label: 'Never Signed In' },
+                    { key: 'groupCount', label: 'Total Groups' },
+                    { key: 'securityGroupCount', label: 'Security Groups' },
+                    { key: 'm365GroupCount', label: 'M365 Groups' },
+                    { key: 'teamsCount', label: 'Teams' },
+                    { key: 'directoryRoleCount', label: 'Admin Roles' },
+                    { key: 'hasGroupAccess', label: 'Has Group Access' },
+                    { key: 'hasAdminRole', label: 'Has Admin Role' }
                 ],
                 defaultVisible: [
                     'displayName', 'mail', 'sourceDomain', 'createdDateTime',

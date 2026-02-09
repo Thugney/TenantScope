@@ -111,16 +111,21 @@ const PageTeams = (function() {
             data: data,
             columns: [
                 { key: 'displayName', label: 'Team Name' },
+                { key: 'description', label: 'Description', formatter: formatDescription },
                 { key: 'visibility', label: 'Visibility', formatter: formatVisibility },
                 { key: 'sensitivityLabelName', label: 'Sensitivity', formatter: formatSensitivityLabel },
+                { key: 'mail', label: 'Email' },
+                { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
                 { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
                 { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: formatMemberCount },
                 { key: 'channelCount', label: 'Channels', className: 'cell-right', formatter: formatChannelCount },
                 { key: 'privateChannelCount', label: 'Private Ch.', className: 'cell-right', formatter: formatChannelCount },
                 { key: 'guestCount', label: 'Guests', className: 'cell-right', formatter: formatGuestCount },
+                { key: 'externalDomains', label: 'External Domains', formatter: formatExternalDomains },
                 { key: 'activeUsers', label: 'Active Users', className: 'cell-right' },
                 { key: 'lastActivityDate', label: 'Last Activity', formatter: Tables.formatters.date },
                 { key: 'daysSinceActivity', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays },
+                { key: 'suggestedOwners', label: 'Suggested Owners', formatter: formatSuggestedOwners },
                 { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
             ],
             pageSize: 50,
@@ -185,6 +190,45 @@ const PageTeams = (function() {
             return '<span class="text-critical font-bold">0</span>';
         }
         return String(value);
+    }
+
+    /**
+     * Formats description with truncation.
+     */
+    function formatDescription(value) {
+        if (!value) {
+            return '<span class="text-muted">--</span>';
+        }
+        if (value.length > 50) {
+            return '<span title="' + value.replace(/"/g, '&quot;') + '">' + value.substring(0, 47) + '...</span>';
+        }
+        return value;
+    }
+
+    /**
+     * Formats external domains array.
+     */
+    function formatExternalDomains(value) {
+        if (!value || value.length === 0) {
+            return '<span class="text-muted">--</span>';
+        }
+        if (value.length > 2) {
+            return '<span class="text-warning">' + value.slice(0, 2).join(', ') + ' +' + (value.length - 2) + ' more</span>';
+        }
+        return '<span class="text-warning">' + value.join(', ') + '</span>';
+    }
+
+    /**
+     * Formats suggested owners array.
+     */
+    function formatSuggestedOwners(value) {
+        if (!value || value.length === 0) {
+            return '<span class="text-muted">--</span>';
+        }
+        if (value.length > 2) {
+            return value.slice(0, 2).join(', ') + ' +' + (value.length - 2) + ' more';
+        }
+        return value.join(', ');
     }
 
     /**
