@@ -166,11 +166,14 @@ try {
                     -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/$($ring.id)/deviceStatusOverview" `
                     -OutputType PSObject
 
-                $successCount = $statusOverview.compliantDeviceCount
-                $errorCount = $statusOverview.errorDeviceCount
-                $pendingCount = $statusOverview.pendingDeviceCount
+                # Handle null values from Graph API
+                $successCount = if ($null -ne $statusOverview.compliantDeviceCount) { $statusOverview.compliantDeviceCount } else { 0 }
+                $errorCount = if ($null -ne $statusOverview.errorDeviceCount) { $statusOverview.errorDeviceCount } else { 0 }
+                $pendingCount = if ($null -ne $statusOverview.pendingDeviceCount) { $statusOverview.pendingDeviceCount } else { 0 }
             }
-            catch { }
+            catch {
+                Write-Host "      Warning: Could not get status for ring $ringName - $($_.Exception.Message)" -ForegroundColor Yellow
+            }
 
             # Get assignments for this ring
             $assignedGroups = @()
@@ -273,25 +276,40 @@ try {
 
         foreach ($policy in $featureUpdates.value) {
             # Get deployment state
-            $deploymentState = $null
+            $deploymentState = @{ total = 0; succeeded = 0; pending = 0; failed = 0; notApplicable = 0 }
             try {
                 $stateResponse = Invoke-MgGraphRequest -Method GET `
                     -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsFeatureUpdateProfiles/$($policy.id)/deviceUpdateStates" `
                     -OutputType PSObject
 
-                $deploymentState = @{
-                    total = $stateResponse.value.Count
-                    succeeded = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "offeringReceived" -or $_.featureUpdateStatus -eq "installed" }).Count
-                    pending = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "pending" -or $_.featureUpdateStatus -eq "downloading" }).Count
-                    failed = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "failed" }).Count
-                    notApplicable = ($stateResponse.value | Where-Object { $_.featureUpdateStatus -eq "notApplicable" -or $_.featureUpdateStatus -eq "notOffered" }).Count
-                }
+                if ($stateResponse.value -and $stateResponse.value.Count -gt 0) {
+                    # Handle multiple possible property names for status
+                    $deploymentState = @{
+                        total = $stateResponse.value.Count
+                        succeeded = ($stateResponse.value | Where-Object {
+                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
+                            $status -in @("offeringReceived", "installed", "succeeded", "compliant")
+                        }).Count
+                        pending = ($stateResponse.value | Where-Object {
+                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
+                            $status -in @("pending", "downloading", "installing", "inProgress")
+                        }).Count
+                        failed = ($stateResponse.value | Where-Object {
+                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
+                            $status -in @("failed", "error")
+                        }).Count
+                        notApplicable = ($stateResponse.value | Where-Object {
+                            $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("featureUpdateStatus", "status", "state")
+                            $status -in @("notApplicable", "notOffered")
+                        }).Count
+                    }
 
-                if ($stateResponse.value) {
                     Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $stateResponse.value -StatusPropertyNames @("featureUpdateStatus", "status", "state")
                 }
             }
-            catch { }
+            catch {
+                Write-Host "      Warning: Could not get feature update state for $($policy.displayName) - $($_.Exception.Message)" -ForegroundColor Yellow
+            }
 
             # Get assignments
             $assignedGroups = @()
@@ -371,30 +389,45 @@ try {
                     -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsQualityUpdateProfiles/$($policy.id)/assignments" `
                     -OutputType PSObject
 
-                # If we have assignments, estimate device counts
+                # If we have assignments, get device counts
                 if ($assignments.value -and $assignments.value.Count -gt 0) {
-                    # Try to get device state summary
                     try {
                         $stateSummary = Invoke-MgGraphRequest -Method GET `
                             -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsQualityUpdateProfiles/$($policy.id)/deviceUpdateStates" `
                             -OutputType PSObject
 
                         $states = $stateSummary.value
-                        $deployedDevices = ($states | Where-Object { $_.qualityUpdateState -eq "installed" -or $_.qualityUpdateState -eq "succeeded" }).Count
-                        $pendingDevices = ($states | Where-Object { $_.qualityUpdateState -eq "pending" -or $_.qualityUpdateState -eq "downloading" }).Count
-                        $failedDevices = ($states | Where-Object { $_.qualityUpdateState -eq "failed" }).Count
-                        if ($states) {
+                        if ($states -and $states.Count -gt 0) {
+                            # Handle multiple possible property names for status
+                            $deployedDevices = ($states | Where-Object {
+                                $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("qualityUpdateState", "status", "state")
+                                $status -in @("installed", "succeeded", "compliant")
+                            }).Count
+                            $pendingDevices = ($states | Where-Object {
+                                $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("qualityUpdateState", "status", "state")
+                                $status -in @("pending", "downloading", "installing", "inProgress")
+                            }).Count
+                            $failedDevices = ($states | Where-Object {
+                                $status = Get-GraphPropertyValue -Object $_ -PropertyNames @("qualityUpdateState", "status", "state")
+                                $status -in @("failed", "error")
+                            }).Count
+
                             Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $states -StatusPropertyNames @("qualityUpdateState", "status", "state")
-                        }
-                        $totalTarget = $deployedDevices + $pendingDevices + $failedDevices
-                        if ($totalTarget -gt 0) {
-                            $progressPercent = [Math]::Round(($deployedDevices / $totalTarget) * 100, 0)
+
+                            $totalTarget = $deployedDevices + $pendingDevices + $failedDevices
+                            if ($totalTarget -gt 0) {
+                                $progressPercent = [Math]::Round(($deployedDevices / $totalTarget) * 100, 0)
+                            }
                         }
                     }
-                    catch { }
+                    catch {
+                        Write-Host "      Warning: Could not get quality update state for $($policy.displayName) - $($_.Exception.Message)" -ForegroundColor Yellow
+                    }
                 }
             }
-            catch { }
+            catch {
+                Write-Host "      Warning: Could not get assignments for quality update $($policy.displayName)" -ForegroundColor Yellow
+            }
 
             # Get assignments for quality update
             $assignedGroups = @()

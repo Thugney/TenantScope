@@ -1015,14 +1015,33 @@ const PageDevices = (function() {
         return '<span class="badge ' + (map[v] || 'badge-neutral') + '">' + v + '</span>';
     }
 
-    function formatDate(v) {
-        if (!v) return '<span class="text-muted">--</span>';
+    /**
+     * Formats a date string consistently to avoid locale issues.
+     * Uses YYYY-MM-DD format for dates, YYYY-MM-DD HH:MM for datetimes.
+     */
+    function formatDateConsistent(v, includeTime) {
+        if (!v) return '--';
         try {
             var date = new Date(v);
-            return date.toLocaleDateString();
+            if (isNaN(date.getTime())) return '--';
+            var year = date.getFullYear();
+            var month = String(date.getMonth() + 1).padStart(2, '0');
+            var day = String(date.getDate()).padStart(2, '0');
+            var result = year + '-' + month + '-' + day;
+            if (includeTime) {
+                var hours = String(date.getHours()).padStart(2, '0');
+                var mins = String(date.getMinutes()).padStart(2, '0');
+                result += ' ' + hours + ':' + mins;
+            }
+            return result;
         } catch (e) {
             return '--';
         }
+    }
+
+    function formatDate(v) {
+        if (!v) return '<span class="text-muted">--</span>';
+        return formatDateConsistent(v, false);
     }
 
 
@@ -1148,7 +1167,7 @@ const PageDevices = (function() {
         html += '<dt>Join Type</dt><dd>' + (device.joinType || '--') + '</dd>';
         html += '<dt>Management Agent</dt><dd>' + (device.managementAgent || '--') + '</dd>';
         html += '<dt>Management Source</dt><dd>' + (device.managementSource || '--') + '</dd>';
-        html += '<dt>Enrolled</dt><dd>' + (device.enrolledDateTime ? new Date(device.enrolledDateTime).toLocaleDateString() : '--') + '</dd>';
+        html += '<dt>Enrolled</dt><dd>' + formatDateConsistent(device.enrolledDateTime, false) + '</dd>';
         var autopilotLabel = device.autopilotEnrolled === true
             ? '<span class="text-success">Yes</span>'
             : device.autopilotEnrolled === false
@@ -1167,7 +1186,7 @@ const PageDevices = (function() {
                 html += '<dt>Purchase Order</dt><dd>' + autopilot.purchaseOrder + '</dd>';
             }
             if (autopilot.lastContacted) {
-                html += '<dt>Last Contacted</dt><dd>' + new Date(autopilot.lastContacted).toLocaleString() + '</dd>';
+                html += '<dt>Last Contacted</dt><dd>' + formatDateConsistent(autopilot.lastContacted, true) + '</dd>';
             }
             html += '</dl></div>';
         }
@@ -1289,7 +1308,7 @@ const PageDevices = (function() {
                 html += '<dt>Error Details</dt><dd><span class="text-critical">' + windowsUpdate.errorDetails + '</span></dd>';
             }
             if (windowsUpdate.lastScanTime) {
-                html += '<dt>Last Scan</dt><dd>' + new Date(windowsUpdate.lastScanTime).toLocaleString() + '</dd>';
+                html += '<dt>Last Scan</dt><dd>' + formatDateConsistent(windowsUpdate.lastScanTime, true) + '</dd>';
             }
             if (windowsUpdate.statusSource) {
                 html += '<dt>Status Source</dt><dd><span class="text-muted" style="font-size:0.85em">' + windowsUpdate.statusSource + '</span></dd>';
@@ -1299,10 +1318,10 @@ const PageDevices = (function() {
 
         // Sync & Certificates
         html += '<div class="detail-section"><h4>Sync & Certificates</h4><dl class="detail-list">';
-        html += '<dt>Last Sync</dt><dd>' + (device.lastSync ? new Date(device.lastSync).toLocaleString() : '--') + '</dd>';
+        html += '<dt>Last Sync</dt><dd>' + formatDateConsistent(device.lastSync, true) + '</dd>';
         html += '<dt>Days Since Sync</dt><dd>' + (device.daysSinceSync !== null ? device.daysSinceSync + ' days' : '--') + '</dd>';
         html += '<dt>Is Stale</dt><dd>' + (device.isStale ? '<span class="text-warning">Yes</span>' : 'No') + '</dd>';
-        html += '<dt>Cert Expiry</dt><dd>' + (device.certExpiryDate ? new Date(device.certExpiryDate).toLocaleDateString() : '--') + '</dd>';
+        html += '<dt>Cert Expiry</dt><dd>' + formatDateConsistent(device.certExpiryDate, false) + '</dd>';
         html += '<dt>Days Until Expiry</dt><dd>' + (device.daysUntilCertExpiry !== null ? device.daysUntilCertExpiry : '--') + '</dd>';
         html += '<dt>Cert Status</dt><dd>' + formatCertStatus(device.certStatus) + '</dd>';
         html += '</dl></div>';
@@ -1338,7 +1357,7 @@ const PageDevices = (function() {
                 html += '<td title="' + (alert.description || '').replace(/"/g, '&quot;') + '">' + (alert.title || '--') + '</td>';
                 html += '<td class="' + sevClass + '">' + (alert.severity || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + (alert.status || '--') + '</td>';
-                html += '<td>' + (alert.createdDateTime ? new Date(alert.createdDateTime).toLocaleDateString() : '--') + '</td>';
+                html += '<td>' + formatDateConsistent(alert.createdDateTime, false) + '</td>';
                 html += '</tr>';
             });
             html += '</tbody></table>';
@@ -1480,7 +1499,7 @@ const PageDevices = (function() {
             html += '<dt>Access State</dt><dd>' + formatExchangeAccess(device.exchangeAccessDisplay) + '</dd>';
             html += '<dt>Access Reason</dt><dd>' + (device.exchangeAccessReason || '--') + '</dd>';
             html += '<dt>EAS Activated</dt><dd>' + (device.easActivated ? 'Yes' : 'No') + '</dd>';
-            html += '<dt>Last Exchange Sync</dt><dd>' + (device.exchangeLastSync ? new Date(device.exchangeLastSync).toLocaleString() : '--') + '</dd>';
+            html += '<dt>Last Exchange Sync</dt><dd>' + formatDateConsistent(device.exchangeLastSync, true) + '</dd>';
             html += '</dl></div>';
         }
 
@@ -1528,7 +1547,7 @@ const PageDevices = (function() {
                 var statusClass = s.status && s.status.errorCode === 0 ? 'text-success' : 'text-critical';
                 var statusText = s.status && s.status.errorCode === 0 ? 'Success' : (s.status ? s.status.failureReason || 'Failed' : 'Unknown');
                 html += '<tr>';
-                html += '<td>' + (s.createdDateTime ? new Date(s.createdDateTime).toLocaleString() : '--') + '</td>';
+                html += '<td>' + formatDateConsistent(s.createdDateTime, true) + '</td>';
                 html += '<td class="cell-truncate">' + (s.userPrincipalName || '--') + '</td>';
                 html += '<td class="cell-truncate">' + (s.appDisplayName || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
@@ -1581,7 +1600,7 @@ const PageDevices = (function() {
 
         html += '<div class="detail-section"><h4>Enrollment Status</h4><dl class="detail-list">';
         html += '<dt>Enrollment State</dt><dd>' + formatEnrollmentState(device.enrollmentState) + '</dd>';
-        html += '<dt>Last Contacted</dt><dd>' + (device.lastContacted ? new Date(device.lastContacted).toLocaleString() : '--') + '</dd>';
+        html += '<dt>Last Contacted</dt><dd>' + formatDateConsistent(device.lastContacted, true) + '</dd>';
         html += '<dt>Profile Assigned</dt><dd>' + (device.profileAssigned ? 'Yes' : 'No') + '</dd>';
         html += '<dt>Profile Status</dt><dd>' + (device.profileAssignmentStatus || '--') + '</dd>';
         html += '<dt>Device ID</dt><dd style="font-size:0.8em">' + (device.id || '--') + '</dd>';
