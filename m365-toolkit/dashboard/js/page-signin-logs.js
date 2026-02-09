@@ -120,6 +120,12 @@ const PageSignInLogs = (function() {
                 var statuses = { 'success': 'badge-success', 'failure': 'badge-critical', 'interrupted': 'badge-warning' };
                 return '<span class="badge ' + (statuses[v] || 'badge-neutral') + '">' + (v || 'Unknown') + '</span>';
             }},
+            { key: 'errorCode', label: 'Error Code', formatter: function(v) {
+                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                if (v === 0) return '<span class="text-success">0</span>';
+                return '<span class="text-critical">' + v + '</span>';
+            }},
+            { key: 'failureReason', label: 'Failure Reason' },
             { key: 'mfaSatisfied', label: 'MFA', formatter: function(v) {
                 return v === true ? '<span class="text-success">Yes</span>' : '<span class="text-critical">No</span>';
             }},
@@ -129,6 +135,12 @@ const PageSignInLogs = (function() {
             }},
             { key: 'location', label: 'Location' },
             { key: 'ipAddress', label: 'IP Address' },
+            { key: 'clientAppUsed', label: 'Client App' },
+            { key: 'isInteractive', label: 'Interactive', formatter: function(v) {
+                if (v === true) return '<span class="text-success">Yes</span>';
+                if (v === false) return '<span class="text-muted">No</span>';
+                return '<span class="text-muted">--</span>';
+            }},
             { key: 'riskLevel', label: 'Risk', formatter: function(v) {
                 var risks = { 'high': 'badge-critical', 'medium': 'badge-warning', 'low': 'badge-info', 'none': 'badge-success' };
                 return '<span class="badge ' + (risks[v] || 'badge-neutral') + '">' + (v || 'None') + '</span>';
@@ -429,8 +441,14 @@ const PageSignInLogs = (function() {
                 { key: 'userPrincipalName', label: 'User' },
                 { key: 'appDisplayName', label: 'Application' },
                 { key: 'status', label: 'Status' },
+                { key: 'errorCode', label: 'Error Code' },
+                { key: 'failureReason', label: 'Failure Reason' },
                 { key: 'mfaSatisfied', label: 'MFA' },
+                { key: 'caStatus', label: 'CA Result' },
                 { key: 'location', label: 'Location' },
+                { key: 'ipAddress', label: 'IP Address' },
+                { key: 'clientAppUsed', label: 'Client App' },
+                { key: 'isInteractive', label: 'Interactive' },
                 { key: 'riskLevel', label: 'Risk' }
             ],
             defaultVisible: ['createdDateTime', 'userPrincipalName', 'appDisplayName', 'status', 'mfaSatisfied', 'location', 'riskLevel'],

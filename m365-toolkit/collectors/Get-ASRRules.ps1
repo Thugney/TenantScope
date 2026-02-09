@@ -281,6 +281,7 @@ try {
                         source               = "SettingsCatalog"
                         createdDateTime      = Format-IsoDate -DateValue $policy.createdDateTime
                         lastModifiedDateTime = Format-IsoDate -DateValue $policy.lastModifiedDateTime
+                        isAssigned           = if ($null -ne $policy.isAssigned) { [bool]$policy.isAssigned } else { $null }
                         asrRules             = $asrRules
                         ruleCount            = $asrRules.Count
                     }

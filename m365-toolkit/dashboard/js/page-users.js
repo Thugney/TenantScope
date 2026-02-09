@@ -366,7 +366,38 @@ const PageUsers = (function() {
                 var count = getDeviceCountForUser(row);
                 return buildDevicesLink(row, count);
             }},
-            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
+            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags },
+            // Manager details
+            { key: 'managerUpn', label: 'Manager UPN', className: 'cell-truncate' },
+            // Account lifecycle
+            { key: 'accountAge', label: 'Account Age (days)', className: 'cell-right' },
+            { key: 'lastNonInteractiveSignIn', label: 'Last Non-Interactive', formatter: Tables.formatters.date },
+            // Employee lifecycle
+            { key: 'employeeId', label: 'Employee ID' },
+            { key: 'employeeType', label: 'Employee Type' },
+            { key: 'employeeHireDate', label: 'Hire Date', formatter: Tables.formatters.date },
+            { key: 'employeeLeaveDateTime', label: 'Leave Date', formatter: Tables.formatters.date },
+            { key: 'daysUntilLeave', label: 'Days Until Leave', className: 'cell-right' },
+            // Password
+            { key: 'lastPasswordChange', label: 'Password Changed', formatter: Tables.formatters.date },
+            { key: 'passwordAge', label: 'Password Age (days)', className: 'cell-right' },
+            { key: 'passwordNeverExpires', label: 'Password Never Expires', formatter: function(v) {
+                if (v === true) return '<span class="text-critical">Yes</span>';
+                if (v === false) return '<span class="text-success">No</span>';
+                return '<span class="text-muted">--</span>';
+            }},
+            // On-premises
+            { key: 'onPremSync', label: 'On-Prem Synced', formatter: function(v) {
+                if (v === true) return '<span class="text-success">Yes</span>';
+                if (v === false) return '<span class="text-muted">No</span>';
+                return '<span class="text-muted">--</span>';
+            }},
+            { key: 'onPremLastSync', label: 'Last Sync', formatter: Tables.formatters.date },
+            { key: 'onPremSyncAge', label: 'Sync Age (days)', className: 'cell-right' },
+            { key: 'onPremSamAccountName', label: 'SAM Account' },
+            // Contact
+            { key: 'mobilePhone', label: 'Mobile Phone' },
+            { key: 'businessPhones', label: 'Business Phones' }
         ];
 
         // Filter to visible columns only

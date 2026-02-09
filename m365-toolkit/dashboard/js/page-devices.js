@@ -679,7 +679,27 @@ const PageDevices = (function() {
             { key: 'subscriberCarrier', label: 'Carrier' },
             // Mobile identifiers
             { key: 'imei', label: 'IMEI' },
-            { key: 'meid', label: 'MEID' }
+            { key: 'meid', label: 'MEID' },
+            { key: 'iccid', label: 'ICCID' },
+            { key: 'udid', label: 'UDID' },
+            // Core identity (additional)
+            { key: 'managedDeviceName', label: 'Managed Name' },
+            { key: 'emailAddress', label: 'Email', className: 'cell-truncate' },
+            { key: 'azureAdRegistered', label: 'AAD Registered', formatter: formatBoolean },
+            // OS (additional)
+            { key: 'windowsBuild', label: 'Win Build' },
+            // Exchange details
+            { key: 'exchangeAccessReason', label: 'Exchange Reason' },
+            { key: 'exchangeLastSync', label: 'Exchange Sync', formatter: formatDate },
+            { key: 'easActivated', label: 'EAS Activated', formatter: formatBoolean },
+            { key: 'easDeviceId', label: 'EAS Device ID' },
+            // Compliance details
+            { key: 'complianceGracePeriodExpiry', label: 'Grace Expiry', formatter: formatDate },
+            { key: 'complianceGraceDays', label: 'Grace Days Left' },
+            // Certificate details
+            { key: 'certExpiryDate', label: 'Cert Expiry Date', formatter: formatDate },
+            // Admin
+            { key: 'notes', label: 'Notes' }
         ];
 
         Tables.render({

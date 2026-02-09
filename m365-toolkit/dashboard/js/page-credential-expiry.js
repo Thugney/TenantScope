@@ -18,19 +18,29 @@ const PageCredentialExpiry = (function() {
             (app.secrets || []).forEach(function(s) {
                 creds.push({
                     appDisplayName: app.displayName,
+                    appId: app.appId,
+                    credentialName: s.displayName || '',
                     credentialType: 'secret',
+                    hint: s.hint || '',
                     status: s.status,
                     daysUntilExpiry: s.daysUntilExpiry,
-                    expiryDate: s.endDateTime
+                    startDate: s.startDateTime,
+                    expiryDate: s.endDateTime,
+                    signInAudience: app.signInAudience
                 });
             });
             (app.certificates || []).forEach(function(c) {
                 creds.push({
                     appDisplayName: app.displayName,
+                    appId: app.appId,
+                    credentialName: c.displayName || '',
                     credentialType: 'certificate',
+                    hint: '',
                     status: c.status,
                     daysUntilExpiry: c.daysUntilExpiry,
-                    expiryDate: c.endDateTime
+                    startDate: c.startDateTime,
+                    expiryDate: c.endDateTime,
+                    signInAudience: app.signInAudience
                 });
             });
         });
@@ -39,7 +49,7 @@ const PageCredentialExpiry = (function() {
 
     function applyFilters() {
         var creds = extractCredentials(DataLoader.getData('servicePrincipalSecrets'));
-        var filterConfig = { search: Filters.getValue('creds-search'), searchFields: ['appDisplayName', 'credentialType'], exact: {} };
+        var filterConfig = { search: Filters.getValue('creds-search'), searchFields: ['appDisplayName', 'credentialName', 'appId', 'credentialType', 'hint'], exact: {} };
         var typeFilter = Filters.getValue('creds-type');
         if (typeFilter && typeFilter !== 'all') filterConfig.exact.credentialType = typeFilter;
         var filteredData = Filters.apply(creds, filterConfig);
@@ -52,9 +62,12 @@ const PageCredentialExpiry = (function() {
         var visible = colSelector ? colSelector.getVisible() : ['appDisplayName', 'credentialType', 'status', 'daysUntilExpiry', 'expiryDate'];
         var allDefs = [
             { key: 'appDisplayName', label: 'Application' },
+            { key: 'appId', label: 'App ID', className: 'cell-truncate' },
+            { key: 'credentialName', label: 'Credential Name' },
             { key: 'credentialType', label: 'Type', formatter: function(v) {
                 return v === 'secret' ? '<span class="badge badge-warning">Secret</span>' : '<span class="badge badge-info">Certificate</span>';
             }},
+            { key: 'hint', label: 'Hint' },
             { key: 'status', label: 'Status', formatter: function(v) {
                 var statuses = { 'expired': 'badge-critical', 'critical': 'badge-critical', 'warning': 'badge-warning', 'healthy': 'badge-success' };
                 return '<span class="badge ' + (statuses[v] || 'badge-neutral') + '">' + (v || 'Unknown') + '</span>';
@@ -65,7 +78,9 @@ const PageCredentialExpiry = (function() {
                 var cls = numVal < 0 ? 'text-critical font-bold' : numVal <= 30 ? 'text-critical' : numVal <= 60 ? 'text-warning' : 'text-success';
                 return '<span class="' + cls + '">' + numVal + '</span>';
             }},
-            { key: 'expiryDate', label: 'Expiry Date', formatter: Tables.formatters.date }
+            { key: 'startDate', label: 'Start Date', formatter: Tables.formatters.date },
+            { key: 'expiryDate', label: 'Expiry Date', formatter: Tables.formatters.date },
+            { key: 'signInAudience', label: 'Audience' }
         ];
         Tables.render({ containerId: 'creds-table', data: data, columns: allDefs.filter(function(c) { return visible.indexOf(c.key) !== -1; }), pageSize: 50 });
     }
@@ -471,10 +486,15 @@ const PageCredentialExpiry = (function() {
             storageKey: 'tenantscope-creds-cols',
             allColumns: [
                 { key: 'appDisplayName', label: 'Application' },
+                { key: 'appId', label: 'App ID' },
+                { key: 'credentialName', label: 'Credential Name' },
                 { key: 'credentialType', label: 'Type' },
+                { key: 'hint', label: 'Hint' },
                 { key: 'status', label: 'Status' },
                 { key: 'daysUntilExpiry', label: 'Days Left' },
-                { key: 'expiryDate', label: 'Expiry Date' }
+                { key: 'startDate', label: 'Start Date' },
+                { key: 'expiryDate', label: 'Expiry Date' },
+                { key: 'signInAudience', label: 'Audience' }
             ],
             defaultVisible: ['appDisplayName', 'credentialType', 'status', 'daysUntilExpiry', 'expiryDate'],
             onColumnsChanged: function() { applyFilters(); }

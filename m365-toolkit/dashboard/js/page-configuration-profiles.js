@@ -49,12 +49,14 @@ const PageConfigurationProfiles = (function() {
             platform: p.platform,
             category: p.category || 'General',
             source: p.source,
+            version: p.version,
             assignments: p.assignments || [],
             assignmentCount: p.assignmentCount || (p.assignments ? p.assignments.length : 0),
             successCount: p.successDevices || p.successCount || 0,
             errorCount: p.errorDevices || p.errorCount || 0,
             conflictCount: p.conflictDevices || p.conflictCount || 0,
             pendingCount: p.pendingDevices || p.pendingCount || 0,
+            notApplicableCount: p.notApplicableDevices || p.notApplicableCount || 0,
             totalDevices: p.totalDevices || 0,
             successRate: p.successRate,
             deviceStatuses: p.deviceStatuses || [],
@@ -388,11 +390,14 @@ const PageConfigurationProfiles = (function() {
                 { key: 'profileType', label: 'Type' },
                 { key: 'platform', label: 'Platform' },
                 { key: 'category', label: 'Category' },
+                { key: 'version', label: 'Version' },
                 { key: 'assignmentCount', label: 'Assignments' },
                 { key: 'successCount', label: 'Success' },
                 { key: 'errorCount', label: 'Errors' },
                 { key: 'conflictCount', label: 'Conflicts' },
                 { key: 'pendingCount', label: 'Pending' },
+                { key: 'notApplicableCount', label: 'Not Applicable' },
+                { key: 'totalDevices', label: 'Total Devices' },
                 { key: 'successRate', label: 'Success Rate' },
                 { key: 'lastModified', label: 'Last Modified' }
             ],
@@ -458,6 +463,11 @@ const PageConfigurationProfiles = (function() {
             { key: 'pendingCount', label: 'Pending', formatter: function(v) {
                 return v ? '<span class="text-info">' + v + '</span>' : '<span class="text-muted">0</span>';
             }},
+            { key: 'notApplicableCount', label: 'Not Applicable', formatter: function(v) {
+                return '<span class="text-muted">' + (v || 0) + '</span>';
+            }},
+            { key: 'totalDevices', label: 'Total Devices' },
+            { key: 'version', label: 'Version' },
             { key: 'successRate', label: 'Success Rate', formatter: function(v) {
                 return SF.formatPercentage ? SF.formatPercentage(v, { inverse: true }) : formatSuccessRate(v);
             }},

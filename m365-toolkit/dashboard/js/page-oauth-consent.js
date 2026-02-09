@@ -36,6 +36,20 @@ const PageOAuthConsent = (function() {
         }
 
         const grants = Array.isArray(data.grants) ? data.grants : [];
+
+        // Enrich grants with principal display name from user data
+        const userData = DataLoader.getData('users');
+        const users = Array.isArray(userData) ? userData : (userData && userData.users ? userData.users : []);
+        if (users.length > 0) {
+            const userMap = {};
+            users.forEach(function(u) { if (u.id) userMap[u.id] = u.displayName || u.userPrincipalName; });
+            grants.forEach(function(g) {
+                if (g.principalId && !g.principalDisplayName) {
+                    g.principalDisplayName = userMap[g.principalId] || null;
+                }
+            });
+        }
+
         const summary = buildSummary(data, grants);
 
         state = {
@@ -227,7 +241,7 @@ const PageOAuthConsent = (function() {
 
         const filterConfig = {
             search: search,
-            searchFields: ['appDisplayName', 'appPublisher', 'principalDisplayName', 'scopes', 'highRiskScopes'],
+            searchFields: ['appDisplayName', 'appPublisher', 'principalDisplayName', 'principalId', 'scopes', 'highRiskScopes'],
             exact: { riskLevel: risk }
         };
 
@@ -294,7 +308,7 @@ const PageOAuthConsent = (function() {
             unverifiedPublisherGrants: grants.filter(g => !g.isVerifiedPublisher && !g.isMicrosoft).length,
             thirdPartyGrants: grants.filter(g => !g.isMicrosoft).length,
             microsoftGrants: grants.filter(g => g.isMicrosoft).length,
-            uniqueAppCount: new Set(grants.map(g => g.appId || g.appDisplayName)).size,
+            uniqueAppCount: new Set(grants.map(g => g.clientId || g.appDisplayName)).size,
             uniqueUserCount: new Set(grants.filter(g => g.principalId).map(g => g.principalId)).size,
             riskyScopeBreakdown: summary.riskyScopeBreakdown || buildRiskyScopeBreakdown(grants)
         };
@@ -414,7 +428,7 @@ const PageOAuthConsent = (function() {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Granted</span>
-                    <span class="detail-value">${escapeHtml(grant.grantedDateTime || '--')}</span>
+                    <span class="detail-value">${escapeHtml(grant.startTime || '--')}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Scopes</span>
