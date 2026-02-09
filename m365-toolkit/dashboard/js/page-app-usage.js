@@ -319,7 +319,19 @@ const PageAppUsage = (function() {
         if (exportBtn) {
             exportBtn.addEventListener('click', function() {
                 var data = getFilteredData();
-                Export.toCSV(data, 'app-signins.csv');
+                var columns = [
+                    { key: 'appDisplayName', label: 'Application' },
+                    { key: 'resourceDisplayName', label: 'Resource' },
+                    { key: 'userPrincipalName', label: 'User' },
+                    { key: '_department', label: 'Department' },
+                    { key: 'createdDateTime', label: 'Date' },
+                    { key: 'isInteractive', label: 'Interactive' },
+                    { key: 'statusCode', label: 'Status Code' },
+                    { key: 'statusReason', label: 'Status' },
+                    { key: 'city', label: 'City' },
+                    { key: 'country', label: 'Country' }
+                ];
+                Export.toCSV(data, columns, 'app-signins.csv');
             });
         }
 

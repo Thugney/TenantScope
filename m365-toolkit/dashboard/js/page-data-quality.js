@@ -240,7 +240,24 @@ const PageDataQuality = (function() {
         if (exportBtn) {
             exportBtn.addEventListener('click', function() {
                 var data = getFilteredUsers();
-                Export.toCSV(data, 'data-quality.csv');
+                var columns = [
+                    { key: 'displayName', label: 'Name' },
+                    { key: 'userPrincipalName', label: 'UPN' },
+                    { key: 'domain', label: 'Domain' },
+                    { key: 'department', label: 'Department' },
+                    { key: 'jobTitle', label: 'Job Title' },
+                    { key: 'companyName', label: 'Company' },
+                    { key: 'officeLocation', label: 'Office' },
+                    { key: 'city', label: 'City' },
+                    { key: 'country', label: 'Country' },
+                    { key: 'mobilePhone', label: 'Mobile Phone' },
+                    { key: 'manager', label: 'Manager' },
+                    { key: 'mail', label: 'Email' },
+                    { key: 'usageLocation', label: 'Usage Location' },
+                    { key: 'userSource', label: 'User Source' },
+                    { key: '_completeness', label: 'Completeness %' }
+                ];
+                Export.toCSV(data, columns, 'data-quality.csv');
             });
         }
 

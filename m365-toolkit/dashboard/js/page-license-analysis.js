@@ -589,7 +589,16 @@ const PageLicenseAnalysis = (function() {
                     MonthlyCost: o.redundantCost
                 };
             });
-            Export.toCSV(exportData, 'tenantscope-license-overlaps.csv');
+            var columns = [
+                { key: 'Name', label: 'Name' },
+                { key: 'Email', label: 'Email' },
+                { key: 'Department', label: 'Department' },
+                { key: 'OverlapRule', label: 'Overlap Rule' },
+                { key: 'HigherLicense', label: 'Higher License' },
+                { key: 'RedundantLicense', label: 'Redundant License' },
+                { key: 'MonthlyCost', label: 'Monthly Cost' }
+            ];
+            Export.toCSV(exportData, columns, 'tenantscope-license-overlaps.csv');
         });
 
         // Initial render

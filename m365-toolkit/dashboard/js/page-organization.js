@@ -399,7 +399,17 @@ const PageOrganization = (function() {
                     InTenant: m.isUser ? 'Yes' : 'No'
                 };
             });
-            Export.toCSV(exportData, 'tenantscope-managers.csv');
+            var columns = [
+                { key: 'Manager', label: 'Manager' },
+                { key: 'Email', label: 'Email' },
+                { key: 'JobTitle', label: 'Job Title' },
+                { key: 'Department', label: 'Department' },
+                { key: 'Office', label: 'Office' },
+                { key: 'Company', label: 'Company' },
+                { key: 'DirectReports', label: 'Direct Reports' },
+                { key: 'InTenant', label: 'In Tenant' }
+            ];
+            Export.toCSV(exportData, columns, 'tenantscope-managers.csv');
         });
 
         var orphanBtn = document.getElementById('export-orphans-btn');
@@ -418,7 +428,18 @@ const PageOrganization = (function() {
                         Status: u.accountEnabled ? 'Enabled' : 'Disabled'
                     };
                 });
-                Export.toCSV(exportData, 'tenantscope-orphan-users.csv');
+                var columns = [
+                    { key: 'Name', label: 'Name' },
+                    { key: 'Email', label: 'Email' },
+                    { key: 'Department', label: 'Department' },
+                    { key: 'JobTitle', label: 'Job Title' },
+                    { key: 'Office', label: 'Office' },
+                    { key: 'Company', label: 'Company' },
+                    { key: 'City', label: 'City' },
+                    { key: 'Country', label: 'Country' },
+                    { key: 'Status', label: 'Status' }
+                ];
+                Export.toCSV(exportData, columns, 'tenantscope-orphan-users.csv');
             });
         }
     }

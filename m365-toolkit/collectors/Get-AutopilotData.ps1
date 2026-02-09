@@ -58,12 +58,13 @@ function Get-EnrollmentStateName {
     <#
     .SYNOPSIS
         Converts enrollment state enum to friendly name.
+        Handles both numeric enum values (from direct REST API) and string values (from cmdlets).
 
     .PARAMETER State
-        The enrollment state value from Graph API.
+        The enrollment state value from Graph API (numeric or string).
 
     .OUTPUTS
-        Friendly enrollment state name.
+        Friendly enrollment state name (lowercase string).
     #>
     param(
         [Parameter()]
@@ -75,14 +76,25 @@ function Get-EnrollmentStateName {
         return "unknown"
     }
 
-    switch ($State) {
+    # Convert to string for comparison (handles both numeric and string inputs)
+    $stateStr = $State.ToString().ToLower()
+
+    switch ($stateStr) {
+        # Numeric enum values from Graph API
+        "0"                 { return "unknown" }
+        "1"                 { return "enrolled" }
+        "2"                 { return "pendingReset" }
+        "3"                 { return "failed" }
+        "4"                 { return "notContacted" }
+        "5"                 { return "blocked" }
+        # String values from cmdlets
         "unknown"           { return "unknown" }
         "enrolled"          { return "enrolled" }
-        "pendingReset"      { return "pendingReset" }
+        "pendingreset"      { return "pendingReset" }
         "failed"            { return "failed" }
-        "notContacted"      { return "notContacted" }
+        "notcontacted"      { return "notContacted" }
         "blocked"           { return "blocked" }
-        default             { return $State.ToString().ToLower() }
+        default             { return "unknown" }  # Default to unknown for unrecognized values
     }
 }
 

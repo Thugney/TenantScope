@@ -620,9 +620,9 @@ const PageDevices = (function() {
         var allDefs = [
             // Core identity
             { key: 'deviceName', label: 'Device Name', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
-            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
-            { key: 'primaryUserDisplayName', label: 'Display Name' },
-            { key: 'azureAdDeviceId', label: 'Azure AD ID', className: 'cell-truncate' },
+            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) { return v || '--'; } },
+            { key: 'primaryUserDisplayName', label: 'Display Name', formatter: function(v) { return v || '--'; } },
+            { key: 'azureAdDeviceId', label: 'Azure AD ID', className: 'cell-truncate', formatter: function(v) { return v || '--'; } },
             // OS
             { key: 'os', label: 'OS', formatter: formatOS },
             { key: 'osVersion', label: 'OS Version' },
