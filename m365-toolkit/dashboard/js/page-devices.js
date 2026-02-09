@@ -716,14 +716,16 @@ const PageDevices = (function() {
 
         html += '<div class="analytics-section">';
         html += '<h3>Windows Version Distribution</h3>';
-        html += '<table class="data-table"><thead><tr>';
+        html += '<p class="text-muted" style="margin-bottom: 0.5rem">Click a row to filter devices by that version</p>';
+        html += '<table class="data-table" id="windows-version-table"><thead><tr>';
         html += '<th>Version</th><th>Devices</th><th>Supported</th><th>Unsupported</th><th>Support %</th>';
         html += '</tr></thead><tbody>';
         Object.keys(releases).sort().forEach(function(rel) {
             var r = releases[rel];
             var supportPct = r.total > 0 ? Math.round((r.supported / r.total) * 100) : 0;
             var pctClass = supportPct === 100 ? 'text-success' : supportPct >= 80 ? 'text-warning' : 'text-critical';
-            html += '<tr>';
+            // Make rows clickable with version data attribute
+            html += '<tr class="clickable-row version-row" data-version="' + rel + '" style="cursor:pointer">';
             html += '<td><strong>' + rel + '</strong></td>';
             html += '<td>' + r.total + '</td>';
             html += '<td class="text-success">' + r.supported + '</td>';
@@ -754,6 +756,28 @@ const PageDevices = (function() {
         }
 
         container.innerHTML = html;
+
+        // Add click handlers for Windows version rows to navigate to devices tab filtered by version
+        container.querySelectorAll('.version-row').forEach(function(row) {
+            row.addEventListener('click', function() {
+                var version = this.dataset.version;
+                if (version) {
+                    // Switch to devices tab with search filter
+                    switchTab('devices');
+                    // Set the search filter with a slight delay to ensure tab is rendered
+                    setTimeout(function() {
+                        var searchInput = document.getElementById('devices-search');
+                        if (searchInput) {
+                            // Extract the release part (e.g., "23H2" from "Windows 11 23H2")
+                            var parts = version.split(' ');
+                            var release = parts.length > 2 ? parts.slice(2).join(' ') : parts[parts.length - 1];
+                            Filters.setValue('devices-search', release);
+                            applyDeviceFilters();
+                        }
+                    }, 100);
+                }
+            });
+        });
     }
 
     function renderCertificatesTab(container, devices) {

@@ -247,11 +247,14 @@ try {
                         -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
                         -OutputType PSObject
 
-                    $successCount = $statusOverview.compliantDeviceCount + $statusOverview.remediatedDeviceCount
-                    $errorCount = $statusOverview.errorDeviceCount
-                    $conflictCount = $statusOverview.conflictDeviceCount
-                    $pendingCount = $statusOverview.pendingDeviceCount
-                    $notApplicableCount = $statusOverview.notApplicableDeviceCount
+                    # Handle null values from Graph API - use 0 as default
+                    $compliant = if ($null -ne $statusOverview.compliantDeviceCount) { $statusOverview.compliantDeviceCount } else { 0 }
+                    $remediated = if ($null -ne $statusOverview.remediatedDeviceCount) { $statusOverview.remediatedDeviceCount } else { 0 }
+                    $successCount = $compliant + $remediated
+                    $errorCount = if ($null -ne $statusOverview.errorDeviceCount) { $statusOverview.errorDeviceCount } else { 0 }
+                    $conflictCount = if ($null -ne $statusOverview.conflictDeviceCount) { $statusOverview.conflictDeviceCount } else { 0 }
+                    $pendingCount = if ($null -ne $statusOverview.pendingDeviceCount) { $statusOverview.pendingDeviceCount } else { 0 }
+                    $notApplicableCount = if ($null -ne $statusOverview.notApplicableDeviceCount) { $statusOverview.notApplicableDeviceCount } else { 0 }
                 }
                 elseif ($source -eq "configurationPolicies") {
                     # Settings catalog uses different status endpoint
@@ -260,15 +263,16 @@ try {
                         -OutputType PSObject
 
                     if ($statusOverview) {
-                        $successCount = $statusOverview.successCount
-                        $errorCount = $statusOverview.errorCount
-                        $conflictCount = $statusOverview.conflictCount
-                        $pendingCount = $statusOverview.inProgressCount
+                        # Settings Catalog has different property names than legacy profiles
+                        $successCount = if ($null -ne $statusOverview.successCount) { $statusOverview.successCount } else { 0 }
+                        $errorCount = if ($null -ne $statusOverview.errorCount) { $statusOverview.errorCount } else { 0 }
+                        $conflictCount = if ($null -ne $statusOverview.conflictCount) { $statusOverview.conflictCount } else { 0 }
+                        $pendingCount = if ($null -ne $statusOverview.inProgressCount) { $statusOverview.inProgressCount } else { 0 }
                     }
                 }
             }
             catch {
-                # Status may not be available for all profiles
+                Write-Warning "      Failed to get status overview for profile $($profile.displayName): $($_.Exception.Message)"
             }
 
             # Get assignments for this profile
@@ -287,7 +291,9 @@ try {
                     $assignments += $target
                 }
             }
-            catch { }
+            catch {
+                Write-Warning "      Failed to get assignments for profile $($profile.displayName): $($_.Exception.Message)"
+            }
 
             # Get failed device details
             $deviceStatuses = @()
@@ -329,7 +335,9 @@ try {
                         }
                     }
                 }
-                catch { }
+                catch {
+                    Write-Warning "      Failed to get device statuses for profile $($profileNameForTracking): $($_.Exception.Message)"
+                }
             }
 
             # Get setting-level failures for this profile
@@ -363,7 +371,9 @@ try {
                         }
                     }
                 }
-                catch { }
+                catch {
+                    Write-Warning "      Failed to get setting state summaries for profile $($profileDisplayName): $($_.Exception.Message)"
+                }
             }
 
             $totalDevices = $successCount + $errorCount + $conflictCount + $pendingCount

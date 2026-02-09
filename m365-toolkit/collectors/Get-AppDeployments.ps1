@@ -196,13 +196,15 @@ try {
                     $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
                     $assignments += @{
                         intent     = $intent
-                        targetType = $target.targetType
+                        targetType = $target.type  # Use friendly name (AllDevices, Group, etc.) not @odata.type
                         targetName = $target.name
                         groupId    = $target.groupId
                     }
                 }
             }
-            catch { }
+            catch {
+                Write-Warning "      Failed to get assignments for app $($app.displayName): $($_.Exception.Message)"
+            }
 
             # Get device install status
             $installedCount = 0
@@ -257,7 +259,9 @@ try {
                     }
                 }
             }
-            catch { }
+            catch {
+                Write-Warning "      Failed to get device statuses for app $($app.displayName): $($_.Exception.Message)"
+            }
 
             $totalDevices = $installedCount + $failedCount + $pendingCount + $notInstalledCount
             $successRate = if ($totalDevices -gt 0) {

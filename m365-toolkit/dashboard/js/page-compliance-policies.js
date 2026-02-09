@@ -512,7 +512,10 @@ const PageCompliancePolicies = (function() {
 
     function renderNonCompliantDevicesTable(data) {
         var columns = [
-            { key: 'deviceName', label: 'Device Name', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
+            { key: 'deviceName', label: 'Device Name', formatter: function(v) {
+                // Make device name clickable to navigate to devices page with filter
+                return '<a href="#" class="device-link" data-device-name="' + (v || '') + '"><strong>' + (v || '--') + '</strong></a>';
+            }},
             { key: 'userName', label: 'User' },
             { key: 'failedPolicyCount', label: 'Failed Policies', formatter: function(v) {
                 return Formatters.formatCount ? Formatters.formatCount(v, { zeroIsGood: true }) : (v > 2 ? '<span class="text-critical font-bold">' + v + '</span>' : v > 0 ? '<span class="text-warning">' + v + '</span>' : '<span class="text-muted">0</span>');
@@ -528,6 +531,22 @@ const PageCompliancePolicies = (function() {
             data: data,
             columns: columns,
             pageSize: 50
+        });
+
+        // Add click handlers for device links to navigate to devices page
+        document.querySelectorAll('.device-link').forEach(function(link) {
+            link.addEventListener('click', function(e) {
+                e.preventDefault();
+                e.stopPropagation();
+                var deviceName = this.dataset.deviceName;
+                if (deviceName && window.navigateToPage) {
+                    // Navigate to devices page with search filter
+                    window.navigateToPage('devices', { search: deviceName });
+                } else if (deviceName) {
+                    // Fallback: use hash navigation
+                    window.location.hash = '#devices?search=' + encodeURIComponent(deviceName);
+                }
+            });
         });
     }
 

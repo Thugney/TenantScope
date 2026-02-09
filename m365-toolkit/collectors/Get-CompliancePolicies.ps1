@@ -144,7 +144,7 @@ try {
                 }
             }
             catch {
-                # Some policies may not have assignments accessible
+                Write-Warning "      Failed to get assignments for policy $($policy.displayName): $($_.Exception.Message)"
             }
 
             # Get device status summary for this policy
@@ -159,14 +159,15 @@ try {
                     -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies/$($policy.id)/deviceStatusOverview" `
                     -OutputType PSObject
 
-                $compliantCount = $statusSummary.compliantDeviceCount
-                $nonCompliantCount = $statusSummary.nonCompliantDeviceCount
-                $errorCount = $statusSummary.errorDeviceCount
-                $conflictCount = $statusSummary.conflictDeviceCount
-                $notApplicableCount = $statusSummary.notApplicableDeviceCount
+                # Handle null values from Graph API
+                $compliantCount = if ($null -ne $statusSummary.compliantDeviceCount) { $statusSummary.compliantDeviceCount } else { 0 }
+                $nonCompliantCount = if ($null -ne $statusSummary.nonCompliantDeviceCount) { $statusSummary.nonCompliantDeviceCount } else { 0 }
+                $errorCount = if ($null -ne $statusSummary.errorDeviceCount) { $statusSummary.errorDeviceCount } else { 0 }
+                $conflictCount = if ($null -ne $statusSummary.conflictDeviceCount) { $statusSummary.conflictDeviceCount } else { 0 }
+                $notApplicableCount = if ($null -ne $statusSummary.notApplicableDeviceCount) { $statusSummary.notApplicableDeviceCount } else { 0 }
             }
             catch {
-                # Status overview may not be available
+                Write-Warning "      Failed to get status overview for policy $($policy.displayName): $($_.Exception.Message)"
             }
 
             # Get non-compliant device details
@@ -179,7 +180,8 @@ try {
 
                     foreach ($status in $deviceStatusResponse.value) {
                         $deviceStatuses += [PSCustomObject]@{
-                            deviceId = $status.deviceDisplayName
+                            # Note: The deviceId from this API is the status record ID, not the Intune device ID
+                            # The dashboard will need to look up devices by name for linking
                             deviceName = $status.deviceDisplayName
                             userName = $status.userName
                             status = $status.status
@@ -198,7 +200,9 @@ try {
                         $allNonCompliantDevices[$status.deviceDisplayName].failedPolicies += $policy.displayName
                     }
                 }
-                catch { }
+                catch {
+                    Write-Warning "      Failed to get device statuses for policy $($policy.displayName): $($_.Exception.Message)"
+                }
             }
 
             # Get setting-level compliance status
@@ -231,7 +235,9 @@ try {
                     }
                 }
             }
-            catch { }
+            catch {
+                Write-Warning "      Failed to get setting summaries for policy $($policy.displayName): $($_.Exception.Message)"
+            }
 
             # Determine policy category based on name/type
             $category = "General"
