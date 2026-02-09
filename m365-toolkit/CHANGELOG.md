@@ -51,6 +51,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Orchestrator now includes GroupData in collector list (27 collectors total)
 
 ### Fixed
+- **Missing column properties across multiple dashboard pages**:
+  - Columns defined in column selectors but missing from render definitions would appear selectable but render blank (`--`)
+  - **Devices** (`page-devices.js`): Added 14 missing allDefs entries (managedDeviceName, emailAddress, azureAdRegistered, windowsBuild, iccid, udid, exchange details, compliance grace period, cert expiry date, notes)
+  - **Users** (`page-users.js`): Added 17 missing allDefs entries (managerUpn, accountAge, lastNonInteractiveSignIn, employee lifecycle fields, password details, on-prem sync fields, contact info)
+  - **Sign-In Logs** (`page-signin-logs.js`): Added caStatus and ipAddress to allColumns (were dead allDefs entries); added errorCode, failureReason, clientAppUsed, isInteractive columns
+  - **OAuth Consent** (`page-oauth-consent.js`): Fixed `appId` → `clientId` property mismatch, `grantedDateTime` → `startTime`; added principal display name enrichment from user data
+  - **Configuration Profiles** (`page-configuration-profiles.js`): Added version, notApplicableCount, totalDevices to mapProfile() and column definitions
+  - **Endpoint Analytics** (`page-endpoint-analytics.js`): Added batteryHealthScore and cloudManagementScore to extractDevices() and column definitions
+  - **Credential Expiry** (`page-credential-expiry.js`): Added credentialName, appId, hint, startDate, signInAudience to extractCredentials() and column definitions
+  - **ASR Rules** (`Get-ASRRules.ps1`): Added isAssigned property to SettingsCatalog policy collector output
+
 - **Graph API pagination limits** across all collectors:
   - Changed `$top` from 500/999 to 100 (Graph API recommended max for paginated endpoints)
   - Affected: `Get-EndpointAnalytics.ps1`, `Get-AppDeployments.ps1`
