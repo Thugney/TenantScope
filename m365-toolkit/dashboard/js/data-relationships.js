@@ -22,6 +22,9 @@ var DataRelationships = (function() {
     var teamIndex = {};          // teamId -> team object
     var siteIndex = {};          // siteId -> sharepoint site object
     var siteGroupIndex = {};     // groupId -> sharepoint site object
+    var groupIndex = {};         // groupId -> group object
+    var groupNameIndex = {};     // groupDisplayName (lowercase) -> group object
+    var userGroupIndex = {};     // userId -> array of group objects
 
     var indexesBuilt = false;
 
@@ -66,12 +69,31 @@ var DataRelationships = (function() {
             if (site.groupId) siteGroupIndex[site.groupId] = site;
         });
 
+        // Build group indexes
+        var groupsData = DataStore.groups || [];
+        var groups = groupsData.groups || groupsData;
+        if (Array.isArray(groups)) {
+            groups.forEach(function(group) {
+                if (group.id) groupIndex[group.id] = group;
+                if (group.displayName) groupNameIndex[group.displayName.toLowerCase()] = group;
+                // Build user-to-groups reverse index
+                var members = group.members || [];
+                members.forEach(function(member) {
+                    if (member.id) {
+                        if (!userGroupIndex[member.id]) userGroupIndex[member.id] = [];
+                        userGroupIndex[member.id].push(group);
+                    }
+                });
+            });
+        }
+
         indexesBuilt = true;
         console.log('DataRelationships: Indexes built -',
             Object.keys(userIndex).length, 'users,',
             Object.keys(deviceIndex).length, 'devices,',
             Object.keys(teamIndex).length, 'teams,',
-            Object.keys(siteIndex).length, 'sites');
+            Object.keys(siteIndex).length, 'sites,',
+            Object.keys(groupIndex).length, 'groups');
     }
 
     // ========================================================================
@@ -97,6 +119,7 @@ var DataRelationships = (function() {
             adminRoles: getUserAdminRoles(user.id),
             mfa: getUserMfaDetails(user.id),
             teams: getUserTeams(user.userPrincipalName),
+            groups: getUserGroups(user.id),
             licenses: getUserLicenseDetails(user)
         };
     }
@@ -459,6 +482,143 @@ var DataRelationships = (function() {
         var site = siteIndex[siteId];
         if (!site || !site.groupId) return null;
         return teamIndex[site.groupId] || null;
+    }
+
+    // ========================================================================
+    // GROUP RELATIONSHIPS
+    // ========================================================================
+
+    /**
+     * Get a group by ID.
+     * @param {string} groupId - Group ID
+     * @returns {Object|null} Group object or null
+     */
+    function getGroup(groupId) {
+        buildIndexes();
+        return groupIndex[groupId] || null;
+    }
+
+    /**
+     * Get a group by display name.
+     * @param {string} name - Group display name
+     * @returns {Object|null} Group object or null
+     */
+    function getGroupByName(name) {
+        if (!name) return null;
+        buildIndexes();
+        return groupNameIndex[name.toLowerCase()] || null;
+    }
+
+    /**
+     * Get all groups a user belongs to.
+     * @param {string} userId - User ID
+     * @returns {Array} Array of group objects
+     */
+    function getUserGroups(userId) {
+        if (!userId) return [];
+        buildIndexes();
+        return userGroupIndex[userId] || [];
+    }
+
+    /**
+     * Get complete group profile with members, owners, and licenses.
+     * @param {string} groupId - Group ID
+     * @returns {Object|null} Group profile object or null
+     */
+    function getGroupProfile(groupId) {
+        buildIndexes();
+        var group = groupIndex[groupId];
+        if (!group) return null;
+
+        // Get full member user objects where available
+        var members = (group.members || []).map(function(member) {
+            var user = userIndex[member.id];
+            return user || member;
+        });
+
+        // Get full owner user objects where available
+        var owners = (group.owners || []).map(function(owner) {
+            var user = userIndex[owner.id];
+            return user || owner;
+        });
+
+        // Get linked team if M365 group
+        var linkedTeam = group.isM365Group ? teamIndex[groupId] : null;
+
+        // Get linked SharePoint site if M365 group
+        var linkedSite = group.isM365Group ? siteGroupIndex[groupId] : null;
+
+        return {
+            group: group,
+            members: members,
+            owners: owners,
+            memberCount: group.memberCount || members.length,
+            ownerCount: group.ownerCount || owners.length,
+            guestCount: group.guestMemberCount || 0,
+            linkedTeam: linkedTeam,
+            linkedSite: linkedSite,
+            assignedLicenses: group.assignedLicenses || [],
+            hasLicenseAssignments: group.hasLicenseAssignments || false
+        };
+    }
+
+    /**
+     * Get users who received a license via a specific group.
+     * @param {string} groupId - Group ID
+     * @param {string} skuId - Optional SKU ID to filter by
+     * @returns {Array} Array of user objects with license assignment info
+     */
+    function getGroupLicenseAssignees(groupId, skuId) {
+        if (!groupId) return [];
+        buildIndexes();
+
+        var users = DataStore.getAllUsers ? DataStore.getAllUsers() : (DataStore.users || []);
+
+        return users.filter(function(user) {
+            var licenses = user.assignedLicenses || [];
+            return licenses.some(function(lic) {
+                if (lic.assignedViaGroupId !== groupId) return false;
+                if (skuId && lic.skuId !== skuId) return false;
+                return true;
+            });
+        }).map(function(user) {
+            var userLicenses = (user.assignedLicenses || []).filter(function(lic) {
+                if (lic.assignedViaGroupId !== groupId) return false;
+                if (skuId && lic.skuId !== skuId) return false;
+                return true;
+            });
+            return {
+                id: user.id,
+                displayName: user.displayName,
+                userPrincipalName: user.userPrincipalName,
+                mail: user.mail,
+                licensesFromGroup: userLicenses
+            };
+        });
+    }
+
+    /**
+     * Get admin portal URLs for a group.
+     * @param {Object} group - Group object
+     * @returns {Object} URLs for Entra admin center
+     */
+    function getGroupAdminUrls(group) {
+        if (!group) return {};
+        var groupId = group.id || '';
+        return {
+            entra: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) : null,
+            entraMembers: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) + '/Members' : null,
+            entraOwners: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) + '/Owners' : null,
+            entraLicenses: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) + '/Licenses' : null,
+            teams: (group.isM365Group && teamIndex[groupId]) ?
+                'https://admin.teams.microsoft.com/teams/' + encodeURIComponent(groupId) : null,
+            sharepoint: (group.isM365Group && siteGroupIndex[groupId]) ?
+                siteGroupIndex[groupId].webUrl : null
+        };
     }
 
     // ========================================================================
@@ -1254,6 +1414,14 @@ var DataRelationships = (function() {
 
         // SharePoint lookups
         getSiteTeam: getSiteTeam,
+
+        // Group lookups
+        getGroup: getGroup,
+        getGroupByName: getGroupByName,
+        getUserGroups: getUserGroups,
+        getGroupProfile: getGroupProfile,
+        getGroupLicenseAssignees: getGroupLicenseAssignees,
+        getGroupAdminUrls: getGroupAdminUrls,
 
         // Vulnerability lookups
         getVulnerabilityDevices: getVulnerabilityDevices,

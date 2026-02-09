@@ -31,6 +31,7 @@ const DataLoader = (function() {
     const dataStore = {
         // Core identity & licensing
         users: [],
+        groups: [],
         licenseSkus: [],
         guests: [],
         mfaStatus: [],
@@ -87,6 +88,7 @@ const DataLoader = (function() {
     const dataFiles = {
         // Core identity & licensing
         users: 'data/users.json',
+        groups: 'data/groups.json',
         licenseSkus: 'data/license-skus.json',
         guests: 'data/guests.json',
         mfaStatus: 'data/mfa-status.json',

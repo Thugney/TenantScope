@@ -516,10 +516,11 @@ const PageUsers = (function() {
         var managerChain = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserManagerChain(user) : [];
         var pimActivity = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserPimActivity(user) : { eligibleRoles: [], activations: [], pendingApprovals: [] };
         var riskySignins = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserRiskySignins(user) : [];
+        var groups = profile ? profile.groups : [];
 
         var disableCommand = buildDisableUserCommand(user);
 
-        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity, riskySignins);
+        body.innerHTML = buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity, riskySignins, groups);
 
         // Set up tab switching
         setupUserModalTabs(body);
@@ -548,7 +549,7 @@ const PageUsers = (function() {
     /**
      * Build the complete user modal content with tabs.
      */
-    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity, riskySignins) {
+    function buildUserModalContent(user, licenses, mfa, risks, adminRoles, devices, signIns, teams, disableCommand, alerts, adminUrls, caPolicies, oauthConsents, auditLogs, directReports, managerChain, pimActivity, riskySignins, groups) {
         var riskBadge = getRiskBadge(risks.riskLevel);
         alerts = alerts || [];
         adminUrls = adminUrls || {};
@@ -559,12 +560,14 @@ const PageUsers = (function() {
         managerChain = managerChain || [];
         pimActivity = pimActivity || { eligibleRoles: [], activations: [], pendingApprovals: [] };
         riskySignins = riskySignins || [];
+        groups = groups || [];
 
         return '<div class="modal-tabs">' +
             '<button class="modal-tab active" data-tab="overview">Overview</button>' +
             '<button class="modal-tab" data-tab="licenses">Licenses (' + licenses.length + ')</button>' +
             '<button class="modal-tab" data-tab="security">Security</button>' +
             '<button class="modal-tab" data-tab="devices">Devices (' + devices.length + ')</button>' +
+            '<button class="modal-tab" data-tab="groups">Groups (' + groups.length + ')</button>' +
             '<button class="modal-tab" data-tab="activity">Activity</button>' +
         '</div>' +
         '<div class="modal-tab-content">' +
@@ -572,6 +575,7 @@ const PageUsers = (function() {
             buildLicensesTab(licenses) +
             buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) +
             buildDevicesTab(devices) +
+            buildGroupsTab(groups) +
             buildActivityTab(signIns, teams, disableCommand, auditLogs) +
         '</div>';
     }
@@ -926,6 +930,40 @@ const PageUsers = (function() {
                 '</tr>';
             });
             content += '</tbody></table>';
+        }
+        content += '</div>';
+        return content;
+    }
+
+    function buildGroupsTab(groups) {
+        var content = '<div class="modal-tab-pane" data-tab="groups">';
+        if (!groups || groups.length === 0) {
+            content += '<div class="empty-state-small">No group memberships found</div>';
+        } else {
+            content += '<table class="mini-table"><thead><tr><th>Group Name</th><th>Type</th><th>Source</th><th>Members</th><th>Licenses</th></tr></thead><tbody>';
+            groups.forEach(function(group) {
+                var typeBadge = group.groupType === 'Security' ? '<span class="status-badge status-info">Security</span>' :
+                               group.groupType === 'Microsoft 365' ? '<span class="status-badge status-success">M365</span>' :
+                               group.groupType === 'Distribution' ? '<span class="status-badge status-warning">Distribution</span>' :
+                               '<span class="status-badge">' + escapeHtml(group.groupType || 'Other') + '</span>';
+                var sourceBadge = group.onPremSync ? '<span class="status-badge">On-prem</span>' : '<span class="status-badge status-info">Cloud</span>';
+                var licenseCount = group.licenseAssignmentCount || 0;
+                var licenseDisplay = licenseCount > 0 ? '<span class="text-info font-bold">' + licenseCount + '</span>' : '<span class="text-muted">0</span>';
+                content += '<tr>' +
+                    '<td><a href="#groups?search=' + encodeURIComponent(group.displayName || '') + '" class="text-link">' + escapeHtml(group.displayName || '--') + '</a></td>' +
+                    '<td>' + typeBadge + '</td>' +
+                    '<td>' + sourceBadge + '</td>' +
+                    '<td>' + (group.memberCount || 0) + '</td>' +
+                    '<td>' + licenseDisplay + '</td>' +
+                '</tr>';
+            });
+            content += '</tbody></table>';
+
+            // Show license groups summary
+            var licenseGroups = groups.filter(function(g) { return g.hasLicenseAssignments; });
+            if (licenseGroups.length > 0) {
+                content += '<p class="text-info" style="margin-top:0.75rem;font-size:0.85em">User receives licenses via ' + licenseGroups.length + ' group(s).</p>';
+            }
         }
         content += '</div>';
         return content;

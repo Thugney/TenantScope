@@ -29,6 +29,7 @@
         'devices': PageDevices,
         'enterprise-apps': PageEnterpriseApps,
         'lifecycle': PageLifecycle,
+        'groups': PageGroups,
         'teams': PageTeams,
         'sharepoint': PageSharePoint,
         'audit-logs': PageAuditLogs,

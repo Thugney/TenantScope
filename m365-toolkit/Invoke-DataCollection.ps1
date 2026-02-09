@@ -102,7 +102,7 @@ param(
 
     [Parameter()]
     [ValidateSet("UserData", "LicenseData", "GuestData", "MFAData", "AdminRoleData",
-                 "DeletedUsers", "SignInData", "DeviceData", "AutopilotData", "DefenderData", "EnterpriseAppData",
+                 "DeletedUsers", "GroupData", "SignInData", "DeviceData", "AutopilotData", "DefenderData", "EnterpriseAppData",
                  "AuditLogData", "PIMData", "TeamsData", "SharePointData", "SecureScoreData",
                  "AppSignInData", "ConditionalAccessData", "CompliancePolicies", "ConfigurationProfiles",
                  "WindowsUpdateStatus", "BitLockerStatus", "AppDeployments", "EndpointAnalytics",
@@ -602,6 +602,7 @@ $collectors = @(
     @{ Name = "Get-MFAData";       Script = "Get-MFAData.ps1";       Output = "mfa-status.json" },
     @{ Name = "Get-AdminRoleData"; Script = "Get-AdminRoleData.ps1"; Output = "admin-roles.json" },
     @{ Name = "Get-DeletedUsers";  Script = "Get-DeletedUsers.ps1";  Output = "deleted-users.json" },
+    @{ Name = "Get-GroupData";     Script = "Get-GroupData.ps1";     Output = "groups.json" },
     # Security & risk
     @{ Name = "Get-SignInData";    Script = "Get-SignInData.ps1";    Output = "risky-signins.json" },
     @{ Name = "Get-SignInLogs";    Script = "Get-SignInLogs.ps1";    Output = "signin-logs.json" },
