@@ -616,7 +616,9 @@ const PageProblems = (function() {
             if (u.userType !== 'Guest') return false;
             var lastSignIn = u.lastSignInDateTime || u.signInActivity?.lastSignInDateTime;
             if (!lastSignIn) return true; // Never signed in
-            var daysSinceSignIn = Math.floor((Date.now() - new Date(lastSignIn)) / (1000 * 60 * 60 * 24));
+            var lastSignInDate = new Date(lastSignIn);
+            if (isNaN(lastSignInDate.getTime())) return true; // Treat invalid dates as stale
+            var daysSinceSignIn = Math.floor((Date.now() - lastSignInDate) / (1000 * 60 * 60 * 24));
             return daysSinceSignIn > 90;
         });
         if (staleGuests.length > 0) {

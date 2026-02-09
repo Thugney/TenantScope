@@ -237,8 +237,15 @@ const PageUsers = (function() {
             filteredData = filteredData.filter(function(u) {
                 if (!u.createdDateTime) return false;
                 var dt = new Date(u.createdDateTime);
-                if (createdRange.from && dt < new Date(createdRange.from)) return false;
-                if (createdRange.to && dt > new Date(createdRange.to + 'T23:59:59')) return false;
+                if (isNaN(dt.getTime())) return false;
+                if (createdRange.from) {
+                    var fromDt = new Date(createdRange.from);
+                    if (!isNaN(fromDt.getTime()) && dt < fromDt) return false;
+                }
+                if (createdRange.to) {
+                    var toDt = new Date(createdRange.to + 'T23:59:59');
+                    if (!isNaN(toDt.getTime()) && dt > toDt) return false;
+                }
                 return true;
             });
         }
@@ -248,8 +255,15 @@ const PageUsers = (function() {
             filteredData = filteredData.filter(function(u) {
                 if (!u.lastSignIn) return !signinRange.from;
                 var dt = new Date(u.lastSignIn);
-                if (signinRange.from && dt < new Date(signinRange.from)) return false;
-                if (signinRange.to && dt > new Date(signinRange.to + 'T23:59:59')) return false;
+                if (isNaN(dt.getTime())) return !signinRange.from;
+                if (signinRange.from) {
+                    var fromDt = new Date(signinRange.from);
+                    if (!isNaN(fromDt.getTime()) && dt < fromDt) return false;
+                }
+                if (signinRange.to) {
+                    var toDt = new Date(signinRange.to + 'T23:59:59');
+                    if (!isNaN(toDt.getTime()) && dt > toDt) return false;
+                }
                 return true;
             });
         }

@@ -503,7 +503,11 @@ var DataRelationships = (function() {
             var affected = alert.affectedDevice || '';
             return affected.toLowerCase() === deviceNameLower;
         }).sort(function(a, b) {
-            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+            var aDate = new Date(a.createdDateTime);
+            var bDate = new Date(b.createdDateTime);
+            var aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+            var bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+            return bTime - aTime;
         });
     }
 
@@ -521,7 +525,11 @@ var DataRelationships = (function() {
             var affected = alert.affectedUser || '';
             return affected.toLowerCase() === upnLower;
         }).sort(function(a, b) {
-            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+            var aDate = new Date(a.createdDateTime);
+            var bDate = new Date(b.createdDateTime);
+            var aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+            var bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+            return bTime - aTime;
         });
     }
 
@@ -742,7 +750,11 @@ var DataRelationships = (function() {
             var target = (log.targetResource || '').toLowerCase();
             return initiator === upn || target === upn;
         }).sort(function(a, b) {
-            return new Date(b.activityDateTime) - new Date(a.activityDateTime);
+            var aDate = new Date(a.activityDateTime);
+            var bDate = new Date(b.activityDateTime);
+            var aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+            var bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+            return bTime - aTime;
         }).slice(0, 15);
     }
 
@@ -1118,7 +1130,11 @@ var DataRelationships = (function() {
             var risk = (log.riskLevel || '').toLowerCase();
             return risk === 'high' || risk === 'medium';
         }).sort(function(a, b) {
-            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+            var aDate = new Date(a.createdDateTime);
+            var bDate = new Date(b.createdDateTime);
+            var aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+            var bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+            return bTime - aTime;
         }).slice(0, 20).map(function(log) {
             return {
                 id: log.id,
@@ -1163,7 +1179,11 @@ var DataRelationships = (function() {
         var activations = userPimRecords.filter(function(p) {
             return p.action === 'selfActivate' && p.status === 'Provisioned';
         }).sort(function(a, b) {
-            return new Date(b.createdDateTime) - new Date(a.createdDateTime);
+            var aDate = new Date(a.createdDateTime);
+            var bDate = new Date(b.createdDateTime);
+            var aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+            var bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+            return bTime - aTime;
         });
 
         var pendingApprovals = userPimRecords.filter(function(p) {

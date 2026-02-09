@@ -43,7 +43,9 @@ const PagePIM = (function() {
         var sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
         var recentActivity = requests.filter(function(e) {
-            return e.createdDateTime && new Date(e.createdDateTime) > sevenDaysAgo;
+            if (!e.createdDateTime) return false;
+            var dt = new Date(e.createdDateTime);
+            return !isNaN(dt.getTime()) && dt > sevenDaysAgo;
         }).length;
 
         // Build page using DOM methods
@@ -582,7 +584,9 @@ const PagePIM = (function() {
         var thirtyDaysFromNow = new Date();
         thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
         var expiringEligible = eligible.filter(function(e) {
-            return e.scheduleEndDateTime && new Date(e.scheduleEndDateTime) <= thirtyDaysFromNow;
+            if (!e.scheduleEndDateTime) return false;
+            var dt = new Date(e.scheduleEndDateTime);
+            return !isNaN(dt.getTime()) && dt <= thirtyDaysFromNow;
         });
         if (expiringEligible.length > 0) {
             insightsList.appendChild(createInsightCard('warning', 'ATTENTION', 'Expiring Eligibilities',

@@ -73,8 +73,8 @@ const PageEndpointAnalytics = (function() {
 
         return {
             total: total,
-            avgHealth: Math.round(totalHealth / total),
-            avgStartup: Math.round(totalStartup / total),
+            avgHealth: total > 0 ? Math.round(totalHealth / total) : 0,
+            avgStartup: total > 0 ? Math.round(totalStartup / total) : 0,
             excellent: excellent,
             good: good,
             fair: fair,
