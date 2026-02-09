@@ -746,7 +746,12 @@ const PageWindowsUpdate = (function() {
 
     // Detail modals
     function showRingDetails(ring) {
-        document.getElementById('modal-title').textContent = ring.displayName || 'Update Ring Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = ring.displayName || 'Update Ring Details';
 
         var html = '<div class="detail-grid">';
 
@@ -802,12 +807,17 @@ const PageWindowsUpdate = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function showFeatureDetails(update) {
-        document.getElementById('modal-title').textContent = update.displayName || 'Feature Update Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = update.displayName || 'Feature Update Details';
 
         var state = update.deploymentState || {};
         var html = '<div class="detail-grid">';
@@ -857,12 +867,17 @@ const PageWindowsUpdate = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function showQualityDetails(update) {
-        document.getElementById('modal-title').textContent = update.displayName || 'Quality Update Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = update.displayName || 'Quality Update Details';
 
         var state = update.deploymentState || {};
         var html = '<div class="detail-grid">';
@@ -912,12 +927,17 @@ const PageWindowsUpdate = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function showDriverDetails(driver) {
-        document.getElementById('modal-title').textContent = driver.displayName || 'Driver Update Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = driver.displayName || 'Driver Update Details';
 
         var state = driver.deploymentState || {};
         var html = '<div class="detail-grid">';
@@ -948,8 +968,8 @@ const PageWindowsUpdate = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function render(container) {

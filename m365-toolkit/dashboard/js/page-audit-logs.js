@@ -548,6 +548,8 @@ const PageAuditLogs = (function() {
         var title = document.getElementById('modal-title');
         var body = document.getElementById('modal-body');
 
+        if (!modal || !title || !body) return;
+
         title.textContent = 'Audit Log Details';
 
         // Build detail view with DOM methods

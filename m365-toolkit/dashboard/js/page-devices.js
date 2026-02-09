@@ -1087,7 +1087,12 @@ const PageDevices = (function() {
 
     function showDeviceDetails(device) {
         // Device details modal - data is from trusted collector scripts
-        document.getElementById('modal-title').textContent = device.deviceName || 'Device Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = device.deviceName || 'Device Details';
 
         // Get related data from DataRelationships
         var profile = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceProfile(device.id) : null;
@@ -1595,23 +1600,29 @@ const PageDevices = (function() {
         html += '</div>'; // end activity tab
 
         // Safe: data is from trusted collector scripts, no user input
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
 
         // Tab switching for device modal
-        document.querySelectorAll('#modal-body .modal-tab').forEach(function(tab) {
+        modalBody.querySelectorAll('.modal-tab').forEach(function(tab) {
             tab.addEventListener('click', function() {
                 var targetId = tab.dataset.tab;
-                document.querySelectorAll('#modal-body .modal-tab').forEach(function(t) { t.classList.remove('active'); });
-                document.querySelectorAll('#modal-body .modal-tab-pane').forEach(function(p) { p.classList.remove('active'); });
+                modalBody.querySelectorAll('.modal-tab').forEach(function(t) { t.classList.remove('active'); });
+                modalBody.querySelectorAll('.modal-tab-pane').forEach(function(p) { p.classList.remove('active'); });
                 tab.classList.add('active');
-                document.getElementById(targetId).classList.add('active');
+                var targetPane = document.getElementById(targetId);
+                if (targetPane) targetPane.classList.add('active');
             });
         });
     }
 
     function showAutopilotDetails(device) {
-        document.getElementById('modal-title').textContent = 'Autopilot: ' + (device.serialNumber || 'Device');
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = 'Autopilot: ' + (device.serialNumber || 'Device');
 
         var html = '<div class="detail-grid">';
         html += '<div class="detail-section"><h4>Device Information</h4><dl class="detail-list">';
@@ -1632,8 +1643,8 @@ const PageDevices = (function() {
 
         html += '</div>';
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     /**

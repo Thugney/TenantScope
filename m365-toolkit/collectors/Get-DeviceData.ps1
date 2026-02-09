@@ -301,11 +301,11 @@ try {
         $entraDevices = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/devices?`$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,registrationDateTime,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,deviceOwnership" -OperationName "Entra device retrieval"
 
         if ($entraDevices.Count -gt 0) {
-            $entraDevices = $entraDevices | Where-Object {
+            $entraDevices = @($entraDevices | Where-Object {
                 $entraAadId = $_.deviceId
                 if ([string]::IsNullOrWhiteSpace($entraAadId)) { return $true }
                 return -not $managedAzureAdIds.ContainsKey($entraAadId)
-            }
+            })
             Write-Host "      Retrieved $($entraDevices.Count) Entra-only devices (not managed by Intune)" -ForegroundColor Gray
         }
     }

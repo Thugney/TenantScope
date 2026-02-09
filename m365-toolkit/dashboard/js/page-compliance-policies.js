@@ -611,7 +611,12 @@ const PageCompliancePolicies = (function() {
     }
 
     function showPolicyDetails(policy) {
-        document.getElementById('modal-title').textContent = policy.displayName || 'Policy Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = policy.displayName || 'Policy Details';
         var html = '<div class="detail-grid">';
 
         // Policy Information
@@ -698,8 +703,8 @@ const PageCompliancePolicies = (function() {
             html += '</tbody></table></div>';
         }
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function render(container) {

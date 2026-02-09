@@ -84,7 +84,9 @@ try {
                 $allDetails = $mfaDetails.value
                 while ($mfaDetails.'@odata.nextLink') {
                     $mfaDetails = Invoke-MgGraphRequest -Method GET -Uri $mfaDetails.'@odata.nextLink' -OutputType PSObject
-                    $allDetails += $mfaDetails.value
+                    if ($mfaDetails.value) {
+                        $allDetails += $mfaDetails.value
+                    }
                 }
                 $mfaDetails = $allDetails
             }

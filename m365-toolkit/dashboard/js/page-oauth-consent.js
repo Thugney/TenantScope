@@ -382,6 +382,8 @@ const PageOAuthConsent = (function() {
         const title = document.getElementById('modal-title');
         const body = document.getElementById('modal-body');
 
+        if (!modal || !title || !body) return;
+
         title.textContent = grant.appDisplayName || 'Consent Grant Details';
 
         var revokeCommand = buildRevokeConsentCommand(grant);

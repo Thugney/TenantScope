@@ -474,7 +474,12 @@ const PageASRRules = (function() {
     }
 
     function showRuleDetails(rule) {
-        document.getElementById('modal-title').textContent = rule.ruleName || 'ASR Rule Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = rule.ruleName || 'ASR Rule Details';
 
         var html = '<div class="detail-grid">';
 
@@ -519,12 +524,17 @@ const PageASRRules = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function showPolicyDetails(policy) {
-        document.getElementById('modal-title').textContent = policy.displayName || 'ASR Policy Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = policy.displayName || 'ASR Policy Details';
 
         var html = '<div class="detail-grid">';
 
@@ -559,8 +569,8 @@ const PageASRRules = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function render(container) {

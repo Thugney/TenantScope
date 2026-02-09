@@ -487,7 +487,12 @@ const PageBitLocker = (function() {
     }
 
     function showDeviceDetails(device) {
-        document.getElementById('modal-title').textContent = device.deviceName || 'Device Details';
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
+
+        modalTitle.textContent = device.deviceName || 'Device Details';
 
         var html = '<div class="detail-grid">';
 
@@ -538,8 +543,8 @@ const PageBitLocker = (function() {
 
         html += '</div>'; // end detail-grid
 
-        document.getElementById('modal-body').innerHTML = html;
-        document.getElementById('modal-overlay').classList.add('visible');
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     function render(container) {
