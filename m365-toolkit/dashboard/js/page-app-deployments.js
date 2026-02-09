@@ -351,6 +351,7 @@ const PageAppDeployments = (function() {
     function applyAppsFilters() {
         if (!rawData) return;
         var apps = (rawData.apps || []).map(mapApp);
+        var totalApps = apps.length;
 
         var filterConfig = {
             search: Filters.getValue('apps-search'),
@@ -369,7 +370,27 @@ const PageAppDeployments = (function() {
         if (statusFilter === 'failing') filteredData = filteredData.filter(function(a) { return a.failedCount > 0; });
         else if (statusFilter === 'pending') filteredData = filteredData.filter(function(a) { return a.pendingCount > 0; });
 
+        // Update summary cards with filtered counts
+        updateAppsSummaryCards(filteredData, totalApps);
+
         renderAppsTable(filteredData);
+    }
+
+    function updateAppsSummaryCards(filteredApps, totalApps) {
+        var filtered = filteredApps.length;
+        var installed = filteredApps.reduce(function(sum, a) { return sum + (a.installedCount || 0); }, 0);
+        var failed = filteredApps.reduce(function(sum, a) { return sum + (a.failedCount || 0); }, 0);
+        var withFailures = filteredApps.filter(function(a) { return (a.failedCount || 0) > 0; }).length;
+
+        var totalEl = document.getElementById('apps-total-value');
+        var installedEl = document.getElementById('apps-installed-value');
+        var failedEl = document.getElementById('apps-failed-value');
+        var withFailuresEl = document.getElementById('apps-withfailures-value');
+
+        if (totalEl) totalEl.textContent = filtered + (filtered !== totalApps ? ' / ' + totalApps : '');
+        if (installedEl) installedEl.textContent = installed.toLocaleString();
+        if (failedEl) failedEl.textContent = failed.toLocaleString();
+        if (withFailuresEl) withFailuresEl.textContent = withFailures;
     }
 
     function renderAppsTable(data) {
@@ -640,12 +661,12 @@ const PageAppDeployments = (function() {
 
         var html = '<div class="page-header"><h2>App Deployments</h2></div>';
 
-        // Summary Cards
+        // Summary Cards with IDs for filter updates
         html += '<div class="summary-cards">';
-        html += '<div class="summary-card"><div class="summary-value">' + totalApps + '</div><div class="summary-label">Total Apps</div></div>';
-        html += '<div class="summary-card card-success"><div class="summary-value">' + totalInstalled.toLocaleString() + '</div><div class="summary-label">Installed</div></div>';
-        html += '<div class="summary-card card-danger"><div class="summary-value">' + totalFailed.toLocaleString() + '</div><div class="summary-label">Failed</div></div>';
-        html += '<div class="summary-card card-warning"><div class="summary-value">' + appsWithFailures + '</div><div class="summary-label">Apps with Failures</div></div>';
+        html += '<div class="summary-card"><div class="summary-value" id="apps-total-value">' + totalApps + '</div><div class="summary-label">Total Apps</div></div>';
+        html += '<div class="summary-card card-success"><div class="summary-value" id="apps-installed-value">' + totalInstalled.toLocaleString() + '</div><div class="summary-label">Installed</div></div>';
+        html += '<div class="summary-card card-danger"><div class="summary-value" id="apps-failed-value">' + totalFailed.toLocaleString() + '</div><div class="summary-label">Failed</div></div>';
+        html += '<div class="summary-card card-warning"><div class="summary-value" id="apps-withfailures-value">' + appsWithFailures + '</div><div class="summary-label">Apps with Failures</div></div>';
         html += '</div>';
 
         // Tabs

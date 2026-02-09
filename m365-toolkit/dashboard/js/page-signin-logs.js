@@ -80,7 +80,31 @@ const PageSignInLogs = (function() {
         else if (mfaFilter === 'notsatisfied') filteredData = filteredData.filter(function(l) { return l.mfaSatisfied === false; });
         var riskFilter = Filters.getValue('signin-risk');
         if (riskFilter && riskFilter !== 'all') filteredData = filteredData.filter(function(l) { return l.riskLevel === riskFilter; });
+
+        // Update summary cards with filtered counts
+        updateSigninSummaryCards(filteredData, logs.length);
+
         renderTable(filteredData);
+    }
+
+    function updateSigninSummaryCards(filteredData, totalLogs) {
+        var total = filteredData.length;
+        var success = filteredData.filter(function(l) { return l.status === 'success'; }).length;
+        var failure = filteredData.filter(function(l) { return l.status === 'failure'; }).length;
+        var mfaCount = filteredData.filter(function(l) { return l.mfaSatisfied === true; }).length;
+        var risky = filteredData.filter(function(l) { return l.riskLevel && l.riskLevel !== 'none'; }).length;
+
+        var totalEl = document.getElementById('signin-total-value');
+        var successEl = document.getElementById('signin-success-value');
+        var failureEl = document.getElementById('signin-failure-value');
+        var mfaEl = document.getElementById('signin-mfa-value');
+        var riskyEl = document.getElementById('signin-risky-value');
+
+        if (totalEl) totalEl.textContent = total + (total !== totalLogs ? ' / ' + totalLogs : '');
+        if (successEl) successEl.textContent = success;
+        if (failureEl) failureEl.textContent = failure;
+        if (mfaEl) mfaEl.textContent = mfaCount;
+        if (riskyEl) riskyEl.textContent = risky;
     }
 
     function renderTable(data) {
@@ -439,11 +463,11 @@ const PageSignInLogs = (function() {
 
         var html = '<div class="page-header"><h2>Sign-In Logs</h2></div>';
         html += '<div class="summary-cards">';
-        html += '<div class="summary-card"><div class="summary-value">' + total + '</div><div class="summary-label">Total Sign-Ins</div></div>';
-        html += '<div class="summary-card card-success"><div class="summary-value">' + success + '</div><div class="summary-label">Successful</div></div>';
-        html += '<div class="summary-card card-danger"><div class="summary-value">' + failure + '</div><div class="summary-label">Failed</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + mfaCount + '</div><div class="summary-label">With MFA</div></div>';
-        html += '<div class="summary-card card-warning"><div class="summary-value">' + risky + '</div><div class="summary-label">Risky</div></div>';
+        html += '<div class="summary-card"><div class="summary-value" id="signin-total-value">' + total + '</div><div class="summary-label">Total Sign-Ins</div></div>';
+        html += '<div class="summary-card card-success"><div class="summary-value" id="signin-success-value">' + success + '</div><div class="summary-label">Successful</div></div>';
+        html += '<div class="summary-card card-danger"><div class="summary-value" id="signin-failure-value">' + failure + '</div><div class="summary-label">Failed</div></div>';
+        html += '<div class="summary-card"><div class="summary-value" id="signin-mfa-value">' + mfaCount + '</div><div class="summary-label">With MFA</div></div>';
+        html += '<div class="summary-card card-warning"><div class="summary-value" id="signin-risky-value">' + risky + '</div><div class="summary-label">Risky</div></div>';
         html += '</div>';
 
         html += '<div class="tab-bar">';

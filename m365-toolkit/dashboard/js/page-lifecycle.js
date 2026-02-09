@@ -692,7 +692,38 @@ const PageLifecycle = (function() {
             filtered = filtered.filter(function(i) { return i.entityType === entityType; });
         }
 
+        // Update count display
+        var countDiv = document.getElementById('lifecycle-count');
+        if (countDiv) {
+            countDiv.textContent = filtered.length + ' issues found' + (filtered.length !== allIssues.length ? ' (filtered from ' + allIssues.length + ')' : '');
+        }
+
+        // Update summary cards based on filtered data
+        updateFilteredSummaryCards(filtered);
+
         renderIssuesTable(filtered);
+    }
+
+    /**
+     * Updates summary cards based on filtered issues data.
+     */
+    function updateFilteredSummaryCards(filteredIssues) {
+        // Calculate counts from filtered data
+        var totalCount = filteredIssues.length;
+        var criticalCount = filteredIssues.filter(function(i) { return i.severity === 'critical'; }).length;
+        var warningCount = filteredIssues.filter(function(i) { return i.severity === 'warning'; }).length;
+        var infoCount = filteredIssues.filter(function(i) { return i.severity === 'info'; }).length;
+
+        // Update summary card values if they exist
+        var totalEl = document.getElementById('lifecycle-total-value');
+        var criticalEl = document.getElementById('lifecycle-critical-value');
+        var warningEl = document.getElementById('lifecycle-warning-value');
+        var infoEl = document.getElementById('lifecycle-info-value');
+
+        if (totalEl) totalEl.textContent = totalCount;
+        if (criticalEl) criticalEl.textContent = criticalCount;
+        if (warningEl) warningEl.textContent = warningCount;
+        if (infoEl) infoEl.textContent = infoCount;
     }
 
     /**
@@ -776,6 +807,9 @@ const PageLifecycle = (function() {
         // Build unified issues list
         allIssues = buildIssuesList(lifecycleState);
 
+        // Update summary cards with initial counts
+        updateFilteredSummaryCards(allIssues);
+
         // Get unique categories for filter
         var categories = ['Offboarding', 'Onboarding', 'Role Hygiene', 'Guest Cleanup', 'Teams', 'SharePoint'];
 
@@ -784,8 +818,9 @@ const PageLifecycle = (function() {
         filterDiv.id = 'lifecycle-filter';
         container.appendChild(filterDiv);
 
-        // Table toolbar
+        // Table toolbar with proper flex layout
         var toolbar = el('div', 'table-toolbar');
+        toolbar.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1rem;';
         var colSelectorDiv = el('div');
         colSelectorDiv.id = 'lifecycle-col-selector';
         toolbar.appendChild(colSelectorDiv);
@@ -867,10 +902,12 @@ const PageLifecycle = (function() {
     /**
      * Creates a summary card for the header.
      */
-    function createSummaryCard(label, value, valueClass, cardClass) {
+    function createSummaryCard(label, value, valueClass, cardClass, valueId) {
         var card = el('div', 'card' + (cardClass ? ' ' + cardClass : ''));
         card.appendChild(el('div', 'card-label', label));
-        card.appendChild(el('div', 'card-value' + (valueClass ? ' ' + valueClass : ''), String(value)));
+        var valueEl = el('div', 'card-value' + (valueClass ? ' ' + valueClass : ''), String(value));
+        if (valueId) valueEl.id = valueId;
+        card.appendChild(valueEl);
         return card;
     }
 
@@ -1024,12 +1061,16 @@ const PageLifecycle = (function() {
         pageHeader.appendChild(el('p', 'page-description', 'Account lifecycle issues requiring attention'));
         container.appendChild(pageHeader);
 
-        // Summary cards
+        // Summary cards with IDs for filter updates
         var cardsGrid = el('div', 'summary-cards');
-        cardsGrid.appendChild(createSummaryCard('Total Issues', totalIssues, totalIssues > 0 ? 'warning' : 'success', totalIssues > 0 ? 'card-warning' : 'card-success'));
-        cardsGrid.appendChild(createSummaryCard('Offboarding', offboardingCount, null, offboardingCount > 0 ? 'card-warning' : null));
-        cardsGrid.appendChild(createSummaryCard('Role Hygiene', roleCount, null, roleCount > 0 ? 'card-critical' : null));
-        cardsGrid.appendChild(createSummaryCard('Guest Cleanup', guestCount, null, guestCount > 0 ? 'card-warning' : null));
+        cardsGrid.id = 'lifecycle-summary-cards';
+        cardsGrid.appendChild(createSummaryCard('Total Issues', totalIssues, totalIssues > 0 ? 'warning' : 'success', totalIssues > 0 ? 'card-warning' : 'card-success', 'lifecycle-total-value'));
+        // Count by severity for filtered updates
+        var criticalCount = 0, warningCount = 0, infoCount = 0;
+        // These will be calculated when issues are built
+        cardsGrid.appendChild(createSummaryCard('Critical', criticalCount, null, criticalCount > 0 ? 'card-critical' : null, 'lifecycle-critical-value'));
+        cardsGrid.appendChild(createSummaryCard('Warning', warningCount, null, warningCount > 0 ? 'card-warning' : null, 'lifecycle-warning-value'));
+        cardsGrid.appendChild(createSummaryCard('Info', infoCount, null, null, 'lifecycle-info-value'));
         container.appendChild(cardsGrid);
 
         // Cache state for tab rendering
