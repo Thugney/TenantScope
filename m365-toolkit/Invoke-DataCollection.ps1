@@ -503,6 +503,9 @@ if ($authMode -eq "Interactive") {
 }
 
 try {
+    # Disconnect any existing session to ensure clean state
+    Disconnect-MgGraph -ErrorAction SilentlyContinue | Out-Null
+
     switch ($authMode) {
         "Certificate" {
             # App-only authentication with certificate (recommended for scheduled tasks)
@@ -521,7 +524,13 @@ try {
             if ($UseDeviceCode) {
                 Write-Host "  Using device code authentication (more stable for long scripts)..." -ForegroundColor Gray
                 Write-Host "  You will see a code to enter at https://microsoft.com/devicelogin" -ForegroundColor Yellow
-                Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -UseDeviceCode -NoWelcome
+                try {
+                    Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -UseDeviceCode -NoWelcome
+                }
+                catch {
+                    Write-Host "  Device code auth failed, falling back to browser auth..." -ForegroundColor Yellow
+                    Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -NoWelcome
+                }
             }
             else {
                 Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -NoWelcome
