@@ -76,6 +76,17 @@
 .EXAMPLE
     .\Invoke-DataCollection.ps1 -ClientId "00000000-0000-0000-0000-000000000000" -ClientSecret "secret"
     Runs with client secret authentication (less secure).
+
+.EXAMPLE
+    .\Invoke-DataCollection.ps1 -UseDeviceCode
+    Runs with device code authentication (more stable for long-running scripts).
+    You'll enter a code at https://microsoft.com/devicelogin once, and the token
+    will persist throughout the collection without re-prompting.
+
+.NOTES
+    If you experience repeated authentication prompts during collection, use:
+    - -UseDeviceCode for interactive use (most stable)
+    - Certificate authentication for scheduled/automated runs
 #>
 
 #Requires -Version 7.0
@@ -106,7 +117,11 @@ param(
     [string]$CertificateThumbprint,
 
     [Parameter()]
-    [string]$ClientSecret
+    [string]$ClientSecret,
+
+    # Use device code authentication (more stable for long-running scripts)
+    [Parameter()]
+    [switch]$UseDeviceCode
 )
 
 # ============================================================================
@@ -503,7 +518,14 @@ try {
         }
         default {
             # Interactive authentication (default)
-            Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -NoWelcome
+            if ($UseDeviceCode) {
+                Write-Host "  Using device code authentication (more stable for long scripts)..." -ForegroundColor Gray
+                Write-Host "  You will see a code to enter at https://microsoft.com/devicelogin" -ForegroundColor Yellow
+                Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -UseDeviceCode -NoWelcome
+            }
+            else {
+                Connect-MgGraph -Scopes $requiredScopes -TenantId $configContent.tenantId -NoWelcome
+            }
         }
     }
 
@@ -515,6 +537,9 @@ try {
 
     if ($authMode -eq "Interactive") {
         Write-Host "  [OK] Connected as: $($context.Account)" -ForegroundColor Green
+        if (-not $UseDeviceCode) {
+            Write-Host "  TIP: If you get re-authentication prompts, re-run with -UseDeviceCode" -ForegroundColor Gray
+        }
     }
     else {
         Write-Host "  [OK] Connected as app: $($context.ClientId)" -ForegroundColor Green
