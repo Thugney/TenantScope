@@ -569,7 +569,49 @@ const PageDevices = (function() {
             filtered = filtered.filter(function(d) { return d.isStale === true; });
         }
 
+        // Update summary cards with filtered data
+        updateDevicesSummaryCards(filtered);
+
         renderDevicesTable(filtered);
+    }
+
+    /**
+     * Updates the summary cards with filtered data counts.
+     */
+    function updateDevicesSummaryCards(filteredDevices) {
+        var summary = computeSummary(filteredDevices);
+
+        // Update values
+        var totalEl = document.getElementById('devices-sum-total');
+        var compliantEl = document.getElementById('devices-sum-compliant');
+        var noncompliantEl = document.getElementById('devices-sum-noncompliant');
+        var staleEl = document.getElementById('devices-sum-stale');
+        var rateEl = document.getElementById('devices-sum-rate');
+
+        if (totalEl) totalEl.textContent = summary.totalDevices;
+        if (compliantEl) compliantEl.textContent = summary.compliantDevices;
+        if (noncompliantEl) noncompliantEl.textContent = summary.noncompliantDevices;
+        if (staleEl) staleEl.textContent = summary.staleDevices;
+        if (rateEl) {
+            var rate = Math.round(summary.complianceRate);
+            rateEl.textContent = rate + '%';
+            // Update rate color class
+            rateEl.className = 'summary-value';
+            if (rate >= 90) rateEl.classList.add('text-success');
+            else if (rate >= 70) rateEl.classList.add('text-warning');
+            else rateEl.classList.add('text-critical');
+        }
+
+        // Update card styling based on values
+        var noncompliantCard = document.getElementById('devices-card-noncompliant');
+        var staleCard = document.getElementById('devices-card-stale');
+
+        if (noncompliantCard) {
+            noncompliantCard.className = 'summary-card' + (summary.noncompliantDevices > 0 ? ' card-danger' : '');
+        }
+        if (staleCard) {
+            staleCard.className = 'summary-card' + (summary.staleDevices > 0 ? ' card-warning' : '');
+        }
     }
 
     function renderDevicesTable(data) {
@@ -1790,13 +1832,13 @@ const PageDevices = (function() {
 
         var html = '<div class="page-header"><h2>Devices</h2></div>';
 
-        // Summary cards
-        html += '<div class="summary-cards">';
-        html += '<div class="summary-card"><div class="summary-value">' + summary.totalDevices + '</div><div class="summary-label">Total Devices</div></div>';
-        html += '<div class="summary-card card-success"><div class="summary-value">' + summary.compliantDevices + '</div><div class="summary-label">Compliant</div></div>';
-        html += '<div class="summary-card' + (summary.noncompliantDevices > 0 ? ' card-danger' : '') + '"><div class="summary-value">' + summary.noncompliantDevices + '</div><div class="summary-label">Non-Compliant</div></div>';
-        html += '<div class="summary-card' + (summary.staleDevices > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + summary.staleDevices + '</div><div class="summary-label">Stale</div></div>';
-        html += '<div class="summary-card"><div class="summary-value ' + rateClass + '">' + Math.round(summary.complianceRate) + '%</div><div class="summary-label">Compliance Rate</div></div>';
+        // Summary cards with IDs for dynamic updates
+        html += '<div class="summary-cards" id="devices-summary-cards">';
+        html += '<div class="summary-card" id="devices-card-total"><div class="summary-value" id="devices-sum-total">' + summary.totalDevices + '</div><div class="summary-label">Total Devices</div></div>';
+        html += '<div class="summary-card card-success" id="devices-card-compliant"><div class="summary-value" id="devices-sum-compliant">' + summary.compliantDevices + '</div><div class="summary-label">Compliant</div></div>';
+        html += '<div class="summary-card' + (summary.noncompliantDevices > 0 ? ' card-danger' : '') + '" id="devices-card-noncompliant"><div class="summary-value" id="devices-sum-noncompliant">' + summary.noncompliantDevices + '</div><div class="summary-label">Non-Compliant</div></div>';
+        html += '<div class="summary-card' + (summary.staleDevices > 0 ? ' card-warning' : '') + '" id="devices-card-stale"><div class="summary-value" id="devices-sum-stale">' + summary.staleDevices + '</div><div class="summary-label">Stale</div></div>';
+        html += '<div class="summary-card" id="devices-card-rate"><div class="summary-value ' + rateClass + '" id="devices-sum-rate">' + Math.round(summary.complianceRate) + '%</div><div class="summary-label">Compliance Rate</div></div>';
         html += '</div>';
 
         // Tab bar

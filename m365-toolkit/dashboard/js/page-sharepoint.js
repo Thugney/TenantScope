@@ -131,7 +131,70 @@ const PageSharePoint = (function() {
             filteredData = filteredData.filter(function(s) { return !s.isPersonalSite; });
         }
 
+        // Update summary cards with filtered data
+        updateSharePointSummaryCards(filteredData);
+
         renderTable(filteredData);
+    }
+
+    /**
+     * Updates the summary cards with filtered data counts.
+     */
+    function updateSharePointSummaryCards(filteredSites) {
+        var highStorageThreshold = getHighStorageThreshold();
+        var nonPersonal = filteredSites.filter(function(s) { return !s.isPersonalSite; });
+
+        var totalStorageGB = Math.round(nonPersonal.reduce(function(s, site) { return s + (site.storageUsedGB || 0); }, 0) * 10) / 10;
+        var inactiveSites = nonPersonal.filter(function(s) { return s.isInactive; }).length;
+        var highStorage = nonPersonal.filter(function(s) { return isHighStorageSite(s, highStorageThreshold); }).length;
+        var externalSharingSites = nonPersonal.filter(function(s) { return s.hasExternalSharing; }).length;
+        var anonymousLinkSites = nonPersonal.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; }).length;
+
+        // Update values
+        var totalEl = document.getElementById('sp-sum-total');
+        var storageEl = document.getElementById('sp-sum-storage');
+        var inactiveEl = document.getElementById('sp-sum-inactive');
+        var highStorageEl = document.getElementById('sp-sum-highstorage');
+        var externalEl = document.getElementById('sp-sum-external');
+        var anonEl = document.getElementById('sp-sum-anon');
+
+        if (totalEl) totalEl.textContent = nonPersonal.length;
+        if (storageEl) storageEl.textContent = totalStorageGB + ' GB';
+        if (inactiveEl) inactiveEl.textContent = inactiveSites;
+        if (highStorageEl) highStorageEl.textContent = highStorage;
+        if (externalEl) externalEl.textContent = externalSharingSites;
+        if (anonEl) anonEl.textContent = anonymousLinkSites;
+
+        // Update card and value styling based on values
+        var inactiveCard = document.getElementById('sp-card-inactive');
+        var highStorageCard = document.getElementById('sp-card-highstorage');
+        var externalCard = document.getElementById('sp-card-external');
+        var anonCard = document.getElementById('sp-card-anon');
+
+        if (inactiveCard) {
+            inactiveCard.className = 'summary-card' + (inactiveSites > 0 ? ' card-warning' : '');
+        }
+        if (inactiveEl) {
+            inactiveEl.className = 'summary-value' + (inactiveSites > 0 ? ' text-warning' : '');
+        }
+        if (highStorageCard) {
+            highStorageCard.className = 'summary-card' + (highStorage > 0 ? ' card-warning' : '');
+        }
+        if (highStorageEl) {
+            highStorageEl.className = 'summary-value' + (highStorage > 0 ? ' text-warning' : '');
+        }
+        if (externalCard) {
+            externalCard.className = 'summary-card' + (externalSharingSites > 0 ? ' card-warning' : '');
+        }
+        if (externalEl) {
+            externalEl.className = 'summary-value' + (externalSharingSites > 0 ? ' text-warning' : '');
+        }
+        if (anonCard) {
+            anonCard.className = 'summary-card' + (anonymousLinkSites > 0 ? ' card-danger' : '');
+        }
+        if (anonEl) {
+            anonEl.className = 'summary-value' + (anonymousLinkSites > 0 ? ' text-critical' : '');
+        }
     }
 
     /**
@@ -470,13 +533,13 @@ const PageSharePoint = (function() {
             '    <p class="page-description">SharePoint site usage, storage, activity, and sharing governance</p>',
             '</div>',
             '',
-            '<div class="summary-cards">',
-            '    <div class="summary-card card-info"><div class="summary-value">' + nonPersonal.length + '</div><div class="summary-label">Total Sites</div></div>',
-            '    <div class="summary-card"><div class="summary-value">' + totalStorageGB + ' GB</div><div class="summary-label">Total Storage</div></div>',
-            '    <div class="summary-card' + inactiveCardClass + '"><div class="summary-value' + inactiveTextClass + '">' + inactiveSites + '</div><div class="summary-label">Inactive Sites</div></div>',
-            '    <div class="summary-card' + highStorageCardClass + '"><div class="summary-value' + highStorageTextClass + '">' + highStorage + '</div><div class="summary-label">High Storage</div></div>',
-            '    <div class="summary-card' + extSharingCardClass + '"><div class="summary-value' + extSharingTextClass + '">' + externalSharingSites + '</div><div class="summary-label">Externally Shared</div></div>',
-            '    <div class="summary-card' + anonCardClass + '"><div class="summary-value' + anonTextClass + '">' + anonymousLinkSites + '</div><div class="summary-label">Anonymous Links</div></div>',
+            '<div class="summary-cards" id="sp-summary-cards">',
+            '    <div class="summary-card card-info" id="sp-card-total"><div class="summary-value" id="sp-sum-total">' + nonPersonal.length + '</div><div class="summary-label">Total Sites</div></div>',
+            '    <div class="summary-card" id="sp-card-storage"><div class="summary-value" id="sp-sum-storage">' + totalStorageGB + ' GB</div><div class="summary-label">Total Storage</div></div>',
+            '    <div class="summary-card' + inactiveCardClass + '" id="sp-card-inactive"><div class="summary-value' + inactiveTextClass + '" id="sp-sum-inactive">' + inactiveSites + '</div><div class="summary-label">Inactive Sites</div></div>',
+            '    <div class="summary-card' + highStorageCardClass + '" id="sp-card-highstorage"><div class="summary-value' + highStorageTextClass + '" id="sp-sum-highstorage">' + highStorage + '</div><div class="summary-label">High Storage</div></div>',
+            '    <div class="summary-card' + extSharingCardClass + '" id="sp-card-external"><div class="summary-value' + extSharingTextClass + '" id="sp-sum-external">' + externalSharingSites + '</div><div class="summary-label">Externally Shared</div></div>',
+            '    <div class="summary-card' + anonCardClass + '" id="sp-card-anon"><div class="summary-value' + anonTextClass + '" id="sp-sum-anon">' + anonymousLinkSites + '</div><div class="summary-label">Anonymous Links</div></div>',
             '</div>',
             '',
             '<div class="analytics-grid" id="sp-charts"></div>',

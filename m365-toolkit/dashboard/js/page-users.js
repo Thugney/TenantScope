@@ -259,6 +259,9 @@ const PageUsers = (function() {
             u.deviceCount = getDeviceCountForUser(u);
         });
 
+        // Update summary cards with filtered data
+        updateUsersSummaryCards(filteredData);
+
         // Render Focus/Breakdown tables
         renderFocusBreakdown(filteredData);
 
@@ -267,6 +270,49 @@ const PageUsers = (function() {
 
         // Update filter chips
         updateFilterChips();
+    }
+
+    /**
+     * Updates the summary cards with filtered data counts.
+     */
+    function updateUsersSummaryCards(filteredUsers) {
+        var total = filteredUsers.length;
+        var employeeCount = 0;
+        var studentCount = 0;
+        var noMfaCount = 0;
+
+        // Get domain config for employee/student classification
+        var metadata = DataLoader.getMetadata ? DataLoader.getMetadata() : {};
+        var domains = metadata.domains || {};
+        var employeeDomain = (domains.employees || '').toLowerCase();
+        var studentDomain = (domains.students || '').toLowerCase();
+
+        filteredUsers.forEach(function(u) {
+            var upn = (u.userPrincipalName || '').toLowerCase();
+            if (studentDomain && upn.endsWith(studentDomain)) {
+                studentCount++;
+            } else if (employeeDomain && upn.endsWith(employeeDomain)) {
+                employeeCount++;
+            }
+            if (!u.mfaRegistered) {
+                noMfaCount++;
+            }
+        });
+
+        // Update values
+        var totalEl = document.getElementById('users-sum-total-value');
+        var employeesEl = document.getElementById('users-sum-employees-value');
+        var studentsEl = document.getElementById('users-sum-students-value');
+        var nomfaEl = document.getElementById('users-sum-nomfa-value');
+        var nomfaCard = document.getElementById('users-sum-nomfa-card');
+
+        if (totalEl) totalEl.textContent = total;
+        if (employeesEl) employeesEl.textContent = employeeCount;
+        if (studentsEl) studentsEl.textContent = studentCount;
+        if (nomfaEl) nomfaEl.textContent = noMfaCount;
+        if (nomfaCard) {
+            nomfaCard.className = 'card' + (noMfaCount > 0 ? ' card-critical' : ' card-success');
+        }
     }
 
     /**
@@ -996,14 +1042,16 @@ const PageUsers = (function() {
     /**
      * Creates a summary card element.
      */
-    function createSummaryCard(label, value, variant) {
+    function createSummaryCard(label, value, variant, id) {
         var card = document.createElement('div');
         card.className = 'card' + (variant ? ' card-' + variant : '');
+        if (id) card.id = id + '-card';
         var labelDiv = document.createElement('div');
         labelDiv.className = 'card-label';
         labelDiv.textContent = label;
         var valueDiv = document.createElement('div');
         valueDiv.className = 'card-value' + (variant ? ' ' + variant : '');
+        if (id) valueDiv.id = id + '-value';
         valueDiv.textContent = value;
         card.appendChild(labelDiv);
         card.appendChild(valueDiv);
@@ -1793,13 +1841,14 @@ const PageUsers = (function() {
         header.appendChild(desc);
         container.appendChild(header);
 
-        // Summary cards
+        // Summary cards with IDs for dynamic updates
         var cardsGrid = document.createElement('div');
         cardsGrid.className = 'summary-cards';
-        cardsGrid.appendChild(createSummaryCard('Total Users', summary.totalUsers || total, ''));
-        cardsGrid.appendChild(createSummaryCard('Employees', summary.employeeCount || 0, ''));
-        cardsGrid.appendChild(createSummaryCard('Students', summary.studentCount || 0, ''));
-        cardsGrid.appendChild(createSummaryCard('Without MFA', noMfaCount, noMfaCount > 0 ? 'critical' : 'success'));
+        cardsGrid.id = 'users-summary-cards';
+        cardsGrid.appendChild(createSummaryCard('Total Users', summary.totalUsers || total, '', 'users-sum-total'));
+        cardsGrid.appendChild(createSummaryCard('Employees', summary.employeeCount || 0, '', 'users-sum-employees'));
+        cardsGrid.appendChild(createSummaryCard('Students', summary.studentCount || 0, '', 'users-sum-students'));
+        cardsGrid.appendChild(createSummaryCard('Without MFA', noMfaCount, noMfaCount > 0 ? 'critical' : 'success', 'users-sum-nomfa'));
         container.appendChild(cardsGrid);
 
         // Tab bar

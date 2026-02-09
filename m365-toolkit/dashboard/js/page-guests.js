@@ -84,11 +84,46 @@ const PageGuests = (function() {
             });
         }
 
+        // Update summary cards with filtered data
+        updateGuestsSummaryCards(filteredData);
+
         // Render Focus/Breakdown tables
         renderFocusBreakdown(filteredData);
 
         // Render table
         renderTable(filteredData);
+    }
+
+    /**
+     * Updates the summary cards with filtered data counts.
+     */
+    function updateGuestsSummaryCards(filteredGuests) {
+        var total = filteredGuests.length;
+        var activeCount = filteredGuests.filter(function(g) { return !g.isStale && !g.neverSignedIn && g.invitationState === 'Accepted'; }).length;
+        var staleCount = filteredGuests.filter(function(g) { return g.isStale; }).length;
+        var pendingCount = filteredGuests.filter(function(g) { return g.invitationState === 'PendingAcceptance'; }).length;
+
+        // Update values
+        var totalEl = document.getElementById('guests-sum-total-value');
+        var activeEl = document.getElementById('guests-sum-active-value');
+        var staleEl = document.getElementById('guests-sum-stale-value');
+        var pendingEl = document.getElementById('guests-sum-pending-value');
+
+        if (totalEl) totalEl.textContent = total;
+        if (activeEl) activeEl.textContent = activeCount;
+        if (staleEl) staleEl.textContent = staleCount;
+        if (pendingEl) pendingEl.textContent = pendingCount;
+
+        // Update card styling based on values
+        var staleCard = document.getElementById('guests-sum-stale-card');
+        var pendingCard = document.getElementById('guests-sum-pending-card');
+
+        if (staleCard) {
+            staleCard.className = 'card' + (staleCount > 0 ? ' card-warning' : '');
+        }
+        if (pendingCard) {
+            pendingCard.className = 'card' + (pendingCount > 0 ? ' card-warning' : '');
+        }
     }
 
     /**
@@ -315,14 +350,16 @@ const PageGuests = (function() {
     /**
      * Creates a summary card element.
      */
-    function createSummaryCard(label, value, variant, subtext) {
+    function createSummaryCard(label, value, variant, subtext, id) {
         var card = document.createElement('div');
         card.className = 'card' + (variant ? ' card-' + variant : '');
+        if (id) card.id = id + '-card';
         var labelDiv = document.createElement('div');
         labelDiv.className = 'card-label';
         labelDiv.textContent = label;
         var valueDiv = document.createElement('div');
         valueDiv.className = 'card-value' + (variant ? ' ' + variant : '');
+        if (id) valueDiv.id = id + '-value';
         valueDiv.textContent = value;
         card.appendChild(labelDiv);
         card.appendChild(valueDiv);
@@ -852,13 +889,14 @@ const PageGuests = (function() {
         header.appendChild(desc);
         container.appendChild(header);
 
-        // Summary cards
+        // Summary cards with IDs for dynamic updates
         var cardsGrid = document.createElement('div');
         cardsGrid.className = 'summary-cards';
-        cardsGrid.appendChild(createSummaryCard('Total Guests', total, ''));
-        cardsGrid.appendChild(createSummaryCard('Active', activeCount, 'success'));
-        cardsGrid.appendChild(createSummaryCard('Stale', staleCount, staleCount > 0 ? 'warning' : '', '60+ days inactive'));
-        cardsGrid.appendChild(createSummaryCard('Pending', pendingCount, pendingCount > 0 ? 'warning' : '', 'Awaiting acceptance'));
+        cardsGrid.id = 'guests-summary-cards';
+        cardsGrid.appendChild(createSummaryCard('Total Guests', total, '', null, 'guests-sum-total'));
+        cardsGrid.appendChild(createSummaryCard('Active', activeCount, 'success', null, 'guests-sum-active'));
+        cardsGrid.appendChild(createSummaryCard('Stale', staleCount, staleCount > 0 ? 'warning' : '', '60+ days inactive', 'guests-sum-stale'));
+        cardsGrid.appendChild(createSummaryCard('Pending', pendingCount, pendingCount > 0 ? 'warning' : '', 'Awaiting acceptance', 'guests-sum-pending'));
         container.appendChild(cardsGrid);
 
         // Tab bar

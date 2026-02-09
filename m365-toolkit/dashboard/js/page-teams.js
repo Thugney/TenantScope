@@ -97,7 +97,50 @@ const PageTeams = (function() {
             filteredData = filteredData.filter(function(t) { return t.hasNoOwner; });
         }
 
+        // Update summary cards with filtered data
+        updateTeamsSummaryCards(filteredData);
+
         renderTable(filteredData);
+    }
+
+    /**
+     * Updates the summary cards with filtered data counts.
+     */
+    function updateTeamsSummaryCards(filteredTeams) {
+        var total = filteredTeams.length;
+        var activeCount = filteredTeams.filter(function(t) { return !t.isInactive; }).length;
+        var inactiveCount = filteredTeams.filter(function(t) { return t.isInactive; }).length;
+        var ownerlessCount = filteredTeams.filter(function(t) { return t.hasNoOwner; }).length;
+
+        // Update values
+        var totalEl = document.getElementById('teams-sum-total');
+        var activeEl = document.getElementById('teams-sum-active');
+        var inactiveEl = document.getElementById('teams-sum-inactive');
+        var ownerlessEl = document.getElementById('teams-sum-ownerless');
+
+        if (totalEl) totalEl.textContent = total;
+        if (activeEl) activeEl.textContent = activeCount;
+        if (inactiveEl) inactiveEl.textContent = inactiveCount;
+        if (ownerlessEl) ownerlessEl.textContent = ownerlessCount;
+
+        // Update card styling based on values
+        var inactiveCard = document.getElementById('teams-card-inactive');
+        var ownerlessCard = document.getElementById('teams-card-ownerless');
+
+        if (inactiveCard) {
+            inactiveCard.className = 'summary-card' + (inactiveCount > 0 ? ' card-warning' : '');
+        }
+        if (ownerlessCard) {
+            ownerlessCard.className = 'summary-card' + (ownerlessCount > 0 ? ' card-danger' : '');
+        }
+
+        // Update value text colors
+        if (inactiveEl) {
+            inactiveEl.className = 'summary-value' + (inactiveCount > 0 ? ' text-warning' : '');
+        }
+        if (ownerlessEl) {
+            ownerlessEl.className = 'summary-value' + (ownerlessCount > 0 ? ' text-critical' : '');
+        }
     }
 
     /**
@@ -379,11 +422,11 @@ const PageTeams = (function() {
             '    <p class="page-description">Governance gaps: inactive, ownerless, and guest access</p>',
             '</div>',
             '',
-            '<div class="summary-cards">',
-            '    <div class="summary-card card-info"><div class="summary-value">' + teams.length + '</div><div class="summary-label">Total Teams</div></div>',
-            '    <div class="summary-card"><div class="summary-value">' + activeCount + '</div><div class="summary-label">Active</div></div>',
-            '    <div class="summary-card' + inactiveCardClass + '"><div class="summary-value' + inactiveTextClass + '">' + inactiveCount + '</div><div class="summary-label">Inactive (90d+)</div></div>',
-            '    <div class="summary-card' + ownerlessCardClass + '"><div class="summary-value' + ownerlessTextClass + '">' + ownerlessCount + '</div><div class="summary-label">Ownerless</div></div>',
+            '<div class="summary-cards" id="teams-summary-cards">',
+            '    <div class="summary-card card-info" id="teams-card-total"><div class="summary-value" id="teams-sum-total">' + teams.length + '</div><div class="summary-label">Total Teams</div></div>',
+            '    <div class="summary-card" id="teams-card-active"><div class="summary-value" id="teams-sum-active">' + activeCount + '</div><div class="summary-label">Active</div></div>',
+            '    <div class="summary-card' + inactiveCardClass + '" id="teams-card-inactive"><div class="summary-value' + inactiveTextClass + '" id="teams-sum-inactive">' + inactiveCount + '</div><div class="summary-label">Inactive (90d+)</div></div>',
+            '    <div class="summary-card' + ownerlessCardClass + '" id="teams-card-ownerless"><div class="summary-value' + ownerlessTextClass + '" id="teams-sum-ownerless">' + ownerlessCount + '</div><div class="summary-label">Ownerless</div></div>',
             '</div>',
             '',
             '<div class="analytics-grid" id="teams-charts"></div>',
