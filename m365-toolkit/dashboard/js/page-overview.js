@@ -1090,61 +1090,7 @@ const PageOverview = (function() {
         container.appendChild(adminGrid);
 
         // Insights section
-        var insightsList = el('div', 'insights-list');
-
-        // Generate insights based on data
-        if (s.mfaPct < 90) {
-            insightsList.appendChild(createInsightCard('warning', 'MFA', 'Security Gap',
-                (100 - s.mfaPct) + '% of users (' + s.noMfaUsers + ') are not enrolled in MFA.',
-                'Enable MFA for all users to prevent account compromise.', 'security'));
-        }
-
-        if (s.compliancePct < 80) {
-            insightsList.appendChild(createInsightCard('warning', 'COMPLIANCE', 'Device Risk',
-                s.nonCompliantDevices + ' devices (' + (100 - s.compliancePct) + '%) are non-compliant.',
-                'Review and remediate non-compliant devices.', 'devices'));
-        }
-
-        if (s.activeAlerts > 0) {
-            insightsList.appendChild(createInsightCard('critical', 'ALERTS', 'Active Threats',
-                s.activeAlerts + ' security alert' + (s.activeAlerts !== 1 ? 's' : '') + ' require attention.',
-                'Investigate and resolve active security alerts immediately.', 'security'));
-        }
-
-        if (s.serviceHealthActiveIssues > 0) {
-            insightsList.appendChild(createInsightCard('warning', 'SERVICE', 'Service Health Issues',
-                s.serviceHealthActiveIssues + ' active service health issue' + (s.serviceHealthActiveIssues !== 1 ? 's' : '') + ' reported by Microsoft 365.',
-                'Review the Service Health dashboard for impact and updates.', null));
-        }
-
-        if (s.messageCenterActionRequired > 0) {
-            insightsList.appendChild(createInsightCard('info', 'MESSAGE', 'Message Center Actions',
-                s.messageCenterActionRequired + ' message' + (s.messageCenterActionRequired !== 1 ? 's require' : ' requires') + ' action in the Message Center.',
-                'Review messages and complete required actions.', null));
-        }
-
-        if (licenseData.totalWaste > 0) {
-            insightsList.appendChild(createInsightCard('info', 'COST', 'License Waste',
-                licenseData.totalWaste + ' licenses are assigned to disabled or inactive users.',
-                'Review license assignments to reduce costs.', 'licenses'));
-        }
-
-        // Secure Score insight
-        var secureScore = overviewState.secureScore;
-        if (secureScore && secureScore.scorePct < 70) {
-            insightsList.appendChild(createInsightCard('info', 'SCORE', 'Secure Score',
-                'Microsoft Secure Score is ' + secureScore.scorePct + '%. Consider implementing recommended actions.',
-                'Review and complete improvement actions.', 'security'));
-        }
-
-        // Healthy state
-        if (healthScore >= 90 && s.activeAlerts === 0) {
-            insightsList.appendChild(createInsightCard('success', 'HEALTHY', 'Tenant Health',
-                'Your tenant is in good health with ' + healthScore + '% overall score.',
-                null, null));
-        }
-
-        container.appendChild(insightsList);
+        renderQuickStatsSection(container);
     }
 
     /**
@@ -1152,7 +1098,17 @@ const PageOverview = (function() {
      */
     function renderStatsTab(container) {
         container.textContent = '';
+        renderQuickStatsContent(container);
+    }
 
+    function renderQuickStatsSection(container) {
+        var section = el('div', 'analytics-section');
+        section.appendChild(el('h3', null, 'Quick Stats'));
+        renderQuickStatsContent(section);
+        container.appendChild(section);
+    }
+
+    function renderQuickStatsContent(container) {
         // Donut charts row
         var chartsGrid = el('div', 'overview-charts-grid');
         var s = overviewState.summary;
