@@ -23,6 +23,9 @@ const PageUsers = (function() {
     /** Current filter state */
     let currentFilters = {};
 
+    /** Active group filter (from hash params) */
+    var groupFilter = null;
+
     /** Column selector instance */
     var colSelector = null;
 
@@ -46,6 +49,119 @@ const PageUsers = (function() {
             result[key] = value;
         });
         return result;
+    }
+
+    function updateHashParams(updates) {
+        var hash = window.location.hash || '';
+        var raw = hash.replace(/^#/, '');
+        var parts = raw.split('?');
+        var page = parts[0] || 'users';
+        var params = new URLSearchParams(parts[1] || '');
+
+        Object.keys(updates || {}).forEach(function(key) {
+            var value = updates[key];
+            if (value === null || value === undefined || value === '') {
+                params.delete(key);
+            } else {
+                params.set(key, value);
+            }
+        });
+
+        var newHash = '#' + page + (params.toString() ? '?' + params.toString() : '');
+        if (newHash !== window.location.hash) {
+            window.location.hash = newHash;
+        }
+    }
+
+    function buildGroupFilterFromHash() {
+        var params = getHashParams();
+        var groupId = params.groupId || '';
+        var groupName = params.groupName || params.group || '';
+        var roleParam = (params.groupRole || params.role || 'members').toLowerCase();
+
+        if (!groupId && !groupName) return null;
+
+        var role = (roleParam === 'owners' || roleParam === 'owner') ? 'owners' : 'members';
+        var group = null;
+
+        if (typeof DataRelationships !== 'undefined') {
+            if (groupId) group = DataRelationships.getGroup(groupId);
+            if (!group && groupName) group = DataRelationships.getGroupByName(groupName);
+        }
+
+        var list = [];
+        var totalCount = 0;
+        if (group) {
+            groupId = group.id || groupId;
+            groupName = group.displayName || groupName;
+            list = role === 'owners' ? (group.owners || []) : (group.members || []);
+            totalCount = role === 'owners' ? (group.ownerCount || list.length) : (group.memberCount || list.length);
+        }
+
+        var userIdSet = {};
+        var userUpnSet = {};
+        list.forEach(function(m) {
+            if (m.id) userIdSet[m.id] = true;
+            var upn = (m.userPrincipalName || m.mail || '').toLowerCase();
+            if (upn) userUpnSet[upn] = true;
+        });
+
+        return {
+            groupId: groupId,
+            groupName: groupName,
+            role: role,
+            listCount: list.length,
+            totalCount: totalCount,
+            userIdSet: userIdSet,
+            userUpnSet: userUpnSet,
+            isMissingList: list.length === 0 && totalCount > 0,
+            isUnknown: !group
+        };
+    }
+
+    function setGroupFilterFromHash() {
+        groupFilter = buildGroupFilterFromHash();
+    }
+
+    function clearGroupFilter() {
+        groupFilter = null;
+        updateHashParams({
+            groupId: null,
+            groupName: null,
+            groupRole: null,
+            group: null
+        });
+    }
+
+    function updateGroupFilterBanner() {
+        var banner = document.getElementById('users-group-filter-banner');
+        if (!banner) return;
+
+        if (!groupFilter) {
+            banner.classList.add('hidden');
+            banner.innerHTML = '';
+            return;
+        }
+
+        var name = escapeHtml(groupFilter.groupName || groupFilter.groupId || 'Group');
+        var roleLabel = groupFilter.role === 'owners' ? 'Owners' : 'Members';
+        var detail = '';
+
+        if (groupFilter.isUnknown) {
+            detail = 'Group not found in dataset.';
+        } else if (groupFilter.isMissingList) {
+            detail = 'Membership list not collected; showing 0 of ' + (groupFilter.totalCount || 0) + '.';
+        } else if (groupFilter.totalCount && groupFilter.totalCount !== groupFilter.listCount) {
+            detail = 'Showing ' + groupFilter.listCount + ' of ' + groupFilter.totalCount + ' collected.';
+        }
+
+        var html = '<strong>Group filter:</strong> ' + name + ' (' + roleLabel + ').';
+        if (detail) {
+            html += ' <span class="text-muted">' + escapeHtml(detail) + '</span>';
+        }
+
+        banner.innerHTML = html;
+        banner.classList.remove('hidden');
     }
 
     function getDeviceIndex() {
@@ -128,6 +244,12 @@ const PageUsers = (function() {
             activeFilters.lastSignIn = signinRange;
         }
 
+        if (groupFilter) {
+            var groupLabel = groupFilter.groupName || groupFilter.groupId || 'Group';
+            var roleLabel = groupFilter.role === 'owners' ? 'Owners' : 'Members';
+            activeFilters.group = groupLabel + ' (' + roleLabel + ')';
+        }
+
         filterChipsInstance.update(activeFilters);
     }
 
@@ -163,6 +285,8 @@ const PageUsers = (function() {
                 var signinInputs = signinEl.querySelectorAll('input');
                 signinInputs.forEach(function(i) { i.value = ''; });
             }
+
+            clearGroupFilter();
         } else {
             // Clear specific filter
             switch (removedKey) {
@@ -199,6 +323,9 @@ const PageUsers = (function() {
                         inputs.forEach(function(i) { i.value = ''; });
                     }
                     break;
+                case 'group':
+                    clearGroupFilter();
+                    break;
             }
         }
 
@@ -213,6 +340,9 @@ const PageUsers = (function() {
         var allUsers = DataLoader.getData('users');
         var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
         deviceIndex = null;
+        if (!groupFilter) {
+            groupFilter = buildGroupFilterFromHash();
+        }
 
         // Build filter configuration
         const filterConfig = {
@@ -244,6 +374,15 @@ const PageUsers = (function() {
             });
         }
 
+        if (groupFilter) {
+            filteredData = filteredData.filter(function(u) {
+                if (!u) return false;
+                if (groupFilter.userIdSet && groupFilter.userIdSet[u.id]) return true;
+                var upn = (u.userPrincipalName || u.mail || '').toLowerCase();
+                return upn && groupFilter.userUpnSet && groupFilter.userUpnSet[upn];
+            });
+        }
+
         // Date range filters
         var createdRange = Filters.getValue('users-created-range');
         if (createdRange && (createdRange.from || createdRange.to)) {
@@ -262,6 +401,8 @@ const PageUsers = (function() {
                 return true;
             });
         }
+
+        updateGroupFilterBanner();
 
         var signinRange = Filters.getValue('users-signin-range');
         if (signinRange && (signinRange.from || signinRange.to)) {
@@ -1751,6 +1892,12 @@ const PageUsers = (function() {
         chipsDiv.id = 'users-filter-chips';
         container.appendChild(chipsDiv);
 
+        // Group filter banner
+        var groupBanner = document.createElement('div');
+        groupBanner.id = 'users-group-filter-banner';
+        groupBanner.className = 'group-filter-banner hidden';
+        container.appendChild(groupBanner);
+
         // Table toolbar
         var toolbar = document.createElement('div');
         toolbar.className = 'table-toolbar';
@@ -1863,6 +2010,8 @@ const PageUsers = (function() {
             Filters.setValue('users-search', searchSeed);
         }
 
+        setGroupFilterFromHash();
+
         // Bind export button
         Export.bindExportButton('users-table', 'users');
 
@@ -1971,7 +2120,7 @@ const PageUsers = (function() {
         var initialTab = 'overview';
         if (hashParams.tab && allowed[hashParams.tab]) {
             initialTab = hashParams.tab;
-        } else if (hashParams.search || hashParams.user || hashParams.upn) {
+        } else if (hashParams.search || hashParams.user || hashParams.upn || hashParams.groupId || hashParams.groupName || hashParams.groupRole) {
             initialTab = 'users';
         }
         currentTab = initialTab;

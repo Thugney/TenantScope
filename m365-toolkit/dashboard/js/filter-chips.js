@@ -54,7 +54,8 @@ const FilterChips = (function() {
         category: 'Category',
         riskLevel: 'Risk Level',
         state: 'State',
-        dateRange: 'Date Range'
+        dateRange: 'Date Range',
+        group: 'Group'
     };
 
     /** Human-readable values for common filter values */

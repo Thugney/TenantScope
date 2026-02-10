@@ -172,10 +172,8 @@ const PageGroups = (function() {
                 { key: 'userSource', label: 'Source', formatter: formatSource },
                 { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: function(v, row) {
                     var count = v || 0;
-                    if (row.groupType === 'Microsoft 365' && row.displayName) {
-                        return '<a href="#teams?search=' + encodeURIComponent(row.displayName) + '" class="entity-link" onclick="event.stopPropagation();" title="View in Teams">' + count + '</a>';
-                    }
-                    return String(count);
+                    if (!row || !row.id || count === 0) return String(count);
+                    return buildGroupUserFilterLink(row, 'members', String(count));
                 }},
                 { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
                 { key: 'mail', label: 'Email', formatter: function(v, row) {
@@ -235,6 +233,20 @@ const PageGroups = (function() {
         return '<span class="badge badge-neutral">' + value + '</span>';
     }
 
+    function buildGroupUserFilterLink(group, role, label) {
+        if (!group || !group.id) return label;
+        var params = [
+            'tab=users',
+            'groupId=' + encodeURIComponent(group.id),
+            'groupRole=' + encodeURIComponent(role || 'members')
+        ];
+        if (group.displayName) {
+            params.push('groupName=' + encodeURIComponent(group.displayName));
+        }
+        var title = role === 'owners' ? 'View group owners in Users' : 'View group members in Users';
+        return '<a href="#users?' + params.join('&') + '" class="entity-link" onclick="event.stopPropagation();" title="' + title + '">' + label + '</a>';
+    }
+
     /**
      * Formats mail field.
      */
@@ -246,11 +258,11 @@ const PageGroups = (function() {
     /**
      * Formats owner count with critical color if zero.
      */
-    function formatOwnerCount(value) {
+    function formatOwnerCount(value, row) {
         if (!value || value === 0) {
             return '<span class="text-critical font-bold">0</span>';
         }
-        return String(value);
+        return buildGroupUserFilterLink(row, 'owners', String(value));
     }
 
     /**
