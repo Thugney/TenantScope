@@ -352,7 +352,7 @@ const PageDevices = (function() {
             html += '<div class="analytics-section">';
             html += '<h3>Devices Needing Attention (' + needsAttention.length + ')</h3>';
             html += '<table class="data-table"><thead><tr>';
-            html += '<th>Device</th><th>User</th><th>Issues</th><th>Last Sync</th><th>Admin</th>';
+            html += '<th>Device</th><th>User</th><th>Issues</th><th>Last Sync</th><th>Actions</th>';
             html += '</tr></thead><tbody>';
 
             needsAttention.slice(0, 10).forEach(function(d) {
@@ -524,7 +524,7 @@ const PageDevices = (function() {
                 { key: 'certExpiryDate', label: 'Cert Expiry Date' },
                 // Admin
                 { key: 'notes', label: 'Notes' },
-                { key: '_adminLinks', label: 'Admin' }
+                { key: '_adminLinks', label: 'Actions' }
             ],
             defaultVisible: ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'managementSource', 'threatStateDisplay', '_adminLinks'],
             onColumnsChanged: function() { applyDeviceFilters(); }
@@ -570,15 +570,35 @@ const PageDevices = (function() {
         var ownerFilter = Filters.getValue('devices-ownership');
         if (ownerFilter && ownerFilter !== 'all') filterConfig.exact.ownership = ownerFilter;
 
-        var sourceFilter = Filters.getValue('devices-source');
-        if (sourceFilter && sourceFilter !== 'all') filterConfig.exact.managementSource = sourceFilter;
-
         var filtered = Filters.apply(devices, filterConfig);
 
-        // Stale filter
+        // Management source filter (Intune vs Entra) - with fallback for older data
+        var sourceFilter = Filters.getValue('devices-source');
+        if (sourceFilter && sourceFilter !== 'all') {
+            filtered = filtered.filter(function(d) {
+                // Use managementSource if available, otherwise derive from managementAgent
+                var source = d.managementSource;
+                if (!source) {
+                    // Fallback: if managementAgent is 'mdm' or 'easMdm', it's Intune; 'entra' means Entra-only
+                    var agent = d.managementAgent || '';
+                    if (agent === 'mdm' || agent === 'easMdm' || agent === 'configManager') {
+                        source = 'Intune';
+                    } else if (agent === 'entra') {
+                        source = 'Entra';
+                    } else {
+                        source = 'Intune'; // Default to Intune for managed devices
+                    }
+                }
+                return source === sourceFilter;
+            });
+        }
+
+        // Stale filter - handle both boolean and string values
         var staleCheckbox = document.getElementById('devices-stale');
         if (staleCheckbox && staleCheckbox.checked) {
-            filtered = filtered.filter(function(d) { return d.isStale === true; });
+            filtered = filtered.filter(function(d) {
+                return d.isStale === true || d.isStale === 'true' || d.isStale === 'True';
+            });
         }
 
         // Update summary cards with filtered data
