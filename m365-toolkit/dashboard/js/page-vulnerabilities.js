@@ -333,115 +333,6 @@ const PageVulnerabilities = (function() {
 
     function renderOverviewTab(container, vulns, summary, insights) {
         container.textContent = '';
-        summary = summary || {};
-        insights = insights || [];
-
-        // Summary Cards
-        var cards = el('div', 'signal-cards');
-
-        // Total Vulnerabilities
-        var totalCard = el('div', 'signal-card signal-card--info');
-        totalCard.appendChild(el('div', 'signal-card-value', String(summary.totalVulnerabilities || vulns.length)));
-        totalCard.appendChild(el('div', 'signal-card-label', 'Total CVEs'));
-        cards.appendChild(totalCard);
-
-        // Critical
-        var critCount = summary.criticalCount || vulns.filter(function(v) { return v.severity === 'critical'; }).length;
-        var critCard = el('div', 'signal-card signal-card--' + (critCount > 0 ? 'critical' : 'success'));
-        critCard.appendChild(el('div', 'signal-card-value', String(critCount)));
-        critCard.appendChild(el('div', 'signal-card-label', 'Critical'));
-        cards.appendChild(critCard);
-
-        // High
-        var highCount = summary.highCount || vulns.filter(function(v) { return v.severity === 'high'; }).length;
-        var highCard = el('div', 'signal-card signal-card--' + (highCount > 0 ? 'warning' : 'success'));
-        highCard.appendChild(el('div', 'signal-card-value', String(highCount)));
-        highCard.appendChild(el('div', 'signal-card-label', 'High'));
-        cards.appendChild(highCard);
-
-        // Exploited in Wild
-        var exploitedCount = summary.exploitedInWild || vulns.filter(function(v) { return v.exploitedInWild; }).length;
-        var exploitedCard = el('div', 'signal-card signal-card--' + (exploitedCount > 0 ? 'critical' : 'success'));
-        exploitedCard.appendChild(el('div', 'signal-card-value', String(exploitedCount)));
-        exploitedCard.appendChild(el('div', 'signal-card-label', 'Actively Exploited'));
-        cards.appendChild(exploitedCard);
-
-        // Affected Devices
-        var affectedDevices = summary.totalAffectedDevices || 0;
-        var affectedCard = el('div', 'signal-card signal-card--warning');
-        affectedCard.appendChild(el('div', 'signal-card-value', String(affectedDevices)));
-        affectedCard.appendChild(el('div', 'signal-card-label', 'Affected Devices'));
-        cards.appendChild(affectedCard);
-
-        container.appendChild(cards);
-
-        // Insights Section
-        if (insights.length > 0) {
-            var insightsSection = el('div', 'analytics-section');
-            insightsSection.appendChild(el('h3', null, 'Security Insights'));
-
-            var insightsList = el('div', 'insights-list');
-            insights.forEach(function(insight) {
-                var card = el('div', 'insight-card insight-' + insight.severity);
-                var header = el('div', 'insight-header');
-                header.appendChild(el('span', 'badge badge-' + insight.severity, insight.severity.toUpperCase()));
-                header.appendChild(el('span', 'insight-category', insight.title));
-                card.appendChild(header);
-                card.appendChild(el('p', 'insight-description', insight.description));
-                if (insight.recommendedAction) {
-                    var actionP = el('p', 'insight-action');
-                    actionP.appendChild(el('strong', null, 'Action: '));
-                    actionP.appendChild(document.createTextNode(insight.recommendedAction));
-                    card.appendChild(actionP);
-                }
-                insightsList.appendChild(card);
-            });
-            insightsSection.appendChild(insightsList);
-            container.appendChild(insightsSection);
-        }
-
-        // Severity Breakdown
-        var breakdownSection = el('div', 'analytics-section');
-        breakdownSection.appendChild(el('h3', null, 'Severity Breakdown'));
-
-        var medCount = summary.mediumCount || vulns.filter(function(v) { return v.severity === 'medium'; }).length;
-        var lowCount = summary.lowCount || vulns.filter(function(v) { return v.severity === 'low'; }).length;
-
-        var heatmap = el('div', 'risk-heatmap');
-        var bar = el('div', 'heatmap-bar');
-        var total = critCount + highCount + medCount + lowCount;
-        if (total > 0) {
-            if (critCount > 0) {
-                var critSeg = el('div', 'heatmap-segment bg-critical');
-                critSeg.style.width = (critCount / total * 100) + '%';
-                bar.appendChild(critSeg);
-            }
-            if (highCount > 0) {
-                var highSeg = el('div', 'heatmap-segment bg-warning');
-                highSeg.style.width = (highCount / total * 100) + '%';
-                bar.appendChild(highSeg);
-            }
-            if (medCount > 0) {
-                var medSeg = el('div', 'heatmap-segment bg-info');
-                medSeg.style.width = (medCount / total * 100) + '%';
-                bar.appendChild(medSeg);
-            }
-            if (lowCount > 0) {
-                var lowSeg = el('div', 'heatmap-segment bg-success');
-                lowSeg.style.width = (lowCount / total * 100) + '%';
-                bar.appendChild(lowSeg);
-            }
-        }
-        heatmap.appendChild(bar);
-
-        var legend = el('div', 'heatmap-legend');
-        legend.appendChild(createLegendItem('Critical', critCount, 'bg-critical'));
-        legend.appendChild(createLegendItem('High', highCount, 'bg-warning'));
-        legend.appendChild(createLegendItem('Medium', medCount, 'bg-info'));
-        legend.appendChild(createLegendItem('Low', lowCount, 'bg-success'));
-        heatmap.appendChild(legend);
-        breakdownSection.appendChild(heatmap);
-        container.appendChild(breakdownSection);
 
         // Top Critical/Exploited CVEs Table
         var criticalVulns = vulns.filter(function(v) {
@@ -516,6 +407,11 @@ const PageVulnerabilities = (function() {
             tableWrap.appendChild(table);
             tableSection.appendChild(tableWrap);
             container.appendChild(tableSection);
+        } else {
+            var empty = el('div', 'empty-state');
+            empty.appendChild(el('div', 'empty-state-title', 'No Priority Vulnerabilities'));
+            empty.appendChild(el('div', 'empty-state-description', 'No critical or actively exploited CVEs detected.'));
+            container.appendChild(empty);
         }
     }
 
