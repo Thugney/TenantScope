@@ -5,6 +5,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-02-10
+
+### Added
+- Coverage Gaps page for endpoint security blind spots (Defender device health, ASR telemetry, endpoint security policy compliance, LAPS coverage, patch currency, device hardening).
+- New collectors for Defender health, ASR audit events, endpoint security states, LAPS coverage, and device hardening.
+- Patch currency gap signals in Windows Update data.
+
+### Changed
+- Dashboard build and documentation updated to include new datasets and permissions.
+
+### Fixed
+- Teams collector Graph queries now cast owners/members to user objects to avoid `BadRequest`.
+- SharePoint collector falls back to v1.0 usage report when beta endpoint fails.
+
 ## [1.5.8] - 2026-02-06
 
 ### Fixed

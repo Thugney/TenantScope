@@ -1,6 +1,6 @@
 # TenantScope - M365 Tenant Toolkit
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/Thugney/TenantScope/releases)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/Thugney/TenantScope/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-7.0%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
 [![GitHub stars](https://img.shields.io/github/stars/Thugney/TenantScope?style=social)](https://github.com/Thugney/TenantScope/stargazers)
@@ -28,7 +28,7 @@ All data stays local. No cloud services. No external dependencies.
 
 ## Key Features
 
-- **37 Data Collectors** - Comprehensive Graph API coverage across M365 workloads
+- **42 Data Collectors** - Comprehensive Graph API coverage across M365 workloads
 - **Cross-Entity Navigation** - Click users to see devices, sign-ins, roles; click devices to see users, vulnerabilities
 - **Deep Links** - Direct links to Entra, Intune, and Defender admin portals for immediate action
 - **Problem Detection** - Aggregated critical issues with severity-based prioritization

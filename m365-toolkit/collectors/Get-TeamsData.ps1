@@ -160,7 +160,8 @@ try {
         )
 
         $members = @()
-        $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$select=id,displayName,mail,userPrincipalName,userType"
+        # Restrict to user objects to avoid directoryObject select errors.
+        $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members/microsoft.graph.user?`$select=id,displayName,mail,userPrincipalName,userType"
 
         do {
             $response = Invoke-GraphWithRetry -ScriptBlock {
@@ -218,7 +219,7 @@ try {
     $teamsGroups = @()
     try {
         # Use direct API to get groups with expanded owners
-        $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$select=id,displayName,description,visibility,createdDateTime,mail,assignedLabels&`$expand=owners(`$select=id,userPrincipalName,mail)"
+        $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$select=id,displayName,description,visibility,createdDateTime,mail,assignedLabels&`$expand=owners/microsoft.graph.user(`$select=id,userPrincipalName,mail)"
 
         do {
             $response = Invoke-GraphWithRetry -ScriptBlock {

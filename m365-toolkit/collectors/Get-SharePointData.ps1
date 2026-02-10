@@ -138,7 +138,18 @@ try {
     Write-Host "      Fetching SharePoint site usage report..." -ForegroundColor Gray
 
     $reportPeriod = Get-ReportPeriod -Days $inactiveThreshold
-    $reportData = Get-ReportCsvData -Uri "https://graph.microsoft.com/beta/reports/getSharePointSiteUsageDetail(period='$reportPeriod')" -OperationName "SharePoint usage report" -TempPrefix "sp-usage"
+    $reportData = @()
+    $reportUri = "https://graph.microsoft.com/beta/reports/getSharePointSiteUsageDetail(period='$reportPeriod')"
+    try {
+        $reportData = Get-ReportCsvData -Uri $reportUri -OperationName "SharePoint usage report (beta)" -TempPrefix "sp-usage"
+    }
+    catch {
+        Write-Host "      [!] Beta report failed, falling back to v1.0: $($_.Exception.Message)" -ForegroundColor Yellow
+        $errors += "SharePoint beta report failed: $($_.Exception.Message)"
+        $reportUri = "https://graph.microsoft.com/v1.0/reports/getSharePointSiteUsageDetail(period='$reportPeriod')"
+        $reportData = Get-ReportCsvData -Uri $reportUri -OperationName "SharePoint usage report (v1.0)" -TempPrefix "sp-usage"
+    }
+
     Write-Host "      Report ($reportPeriod) contains $($reportData.Count) sites" -ForegroundColor Gray
 
     # ========================================================================

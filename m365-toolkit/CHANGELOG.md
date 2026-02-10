@@ -5,6 +5,22 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.0] - 2026-02-10
+
+### Added
+- **Coverage Gaps page** highlighting endpoint security blind spots across Defender device health, ASR telemetry, endpoint security policy compliance, LAPS coverage, patch currency, and device hardening.
+- **New collectors**: `Get-DefenderDeviceHealth.ps1`, `Get-ASRAuditEvents.ps1`, `Get-EndpointSecurityStates.ps1`, `Get-LapsCoverage.ps1`, `Get-DeviceHardening.ps1`.
+- **Patch currency gap signals** in `Get-WindowsUpdateStatus.ps1` (quality update age).
+- New config thresholds and collection windows for coverage gaps.
+
+### Changed
+- Dashboard data loader and build pipeline include the new datasets.
+- Documentation updated with new permissions and configuration fields.
+
+### Fixed
+- Teams collector now casts owners/members to user objects to avoid Graph `BadRequest` responses.
+- SharePoint collector falls back to the v1.0 usage report when beta fails.
+
 ## [2.3.1] - 2026-02-10
 
 ### Changed
@@ -702,6 +718,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Collectors | Major Features |
 |---------|------|------------|----------------|
+| 2.4.0 | 2026-02-10 | 42 | Coverage Gaps page, endpoint security coverage collectors, patch currency gaps |
+| 2.3.1 | 2026-02-10 | 37 | SharedData collection deduplication and dependency-ordered collectors |
 | 2.3.0 | 2026-02-09 | 27 | Groups Management: full Entra ID group inventory with membership, licenses |
 | 2.2.0 | 2026-02-08 | 26 | Single-pane-of-glass: cross-entity navigation, Problem Summary page |
 | 2.1.1 | 2026-02-08 | 26 | Dashboard Server with usage tracking, app-only authentication |
