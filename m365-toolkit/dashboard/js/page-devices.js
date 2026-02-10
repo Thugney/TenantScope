@@ -1816,6 +1816,19 @@ const PageDevices = (function() {
         return Math.min(score, 100);
     }
 
+    function getDeviceUserLabel(device) {
+        if (!device) return '--';
+        var direct = device.primaryUserDisplayName || device.userDisplayName || device.userName || device.userPrincipalName || device.emailAddress;
+        if (direct) return direct;
+        if (typeof DataRelationships !== 'undefined' && DataRelationships.getDeviceUser) {
+            var user = DataRelationships.getDeviceUser(device);
+            if (user) {
+                return user.displayName || user.userPrincipalName || user.mail || '--';
+            }
+        }
+        return '--';
+    }
+
     /**
      * Returns risk tier based on score.
      */
@@ -1843,127 +1856,7 @@ const PageDevices = (function() {
             };
         }).sort(function(a, b) { return b.score - a.score; });
 
-        // Count by tier
-        var tierCounts = { critical: 0, high: 0, medium: 0, low: 0 };
-        var totalScore = 0;
-        scoredDevices.forEach(function(sd) {
-            tierCounts[sd.tier]++;
-            totalScore += sd.score;
-        });
-        var avgScore = devices.length > 0 ? Math.round(totalScore / devices.length) : 0;
-        var overallTier = getRiskTier(avgScore);
-
         var html = '';
-
-        // Risk Overview Section
-        html += '<div class="analytics-section">';
-        html += '<h3>Device Fleet Risk Overview</h3>';
-        html += '<div class="signal-cards">';
-
-        // Overall Risk Score Card
-        html += '<div class="signal-card signal-card--' + overallTier.class + '">';
-        html += '<div class="signal-card-value">' + avgScore + '</div>';
-        html += '<div class="signal-card-label">Avg Risk Score</div>';
-        html += '</div>';
-
-        // Critical Devices
-        html += '<div class="signal-card signal-card--' + (tierCounts.critical > 0 ? 'critical' : 'success') + '">';
-        html += '<div class="signal-card-value">' + tierCounts.critical + '</div>';
-        html += '<div class="signal-card-label">Critical Risk</div>';
-        html += '</div>';
-
-        // High Risk
-        html += '<div class="signal-card signal-card--' + (tierCounts.high > 0 ? 'warning' : 'success') + '">';
-        html += '<div class="signal-card-value">' + tierCounts.high + '</div>';
-        html += '<div class="signal-card-label">High Risk</div>';
-        html += '</div>';
-
-        // Medium Risk
-        html += '<div class="signal-card signal-card--info">';
-        html += '<div class="signal-card-value">' + tierCounts.medium + '</div>';
-        html += '<div class="signal-card-label">Medium Risk</div>';
-        html += '</div>';
-
-        // Low Risk
-        html += '<div class="signal-card signal-card--success">';
-        html += '<div class="signal-card-value">' + tierCounts.low + '</div>';
-        html += '<div class="signal-card-label">Low Risk</div>';
-        html += '</div>';
-
-        html += '</div>'; // signal-cards
-        html += '</div>'; // analytics-section
-
-        // Risk Distribution Heat Map
-        html += '<div class="analytics-section">';
-        html += '<h3>Risk Distribution</h3>';
-        html += '<div class="risk-heatmap">';
-
-        // Create heat map grid showing device risk visually
-        var totalDevices = devices.length;
-        var critPct = totalDevices > 0 ? Math.round((tierCounts.critical / totalDevices) * 100) : 0;
-        var highPct = totalDevices > 0 ? Math.round((tierCounts.high / totalDevices) * 100) : 0;
-        var medPct = totalDevices > 0 ? Math.round((tierCounts.medium / totalDevices) * 100) : 0;
-        var lowPct = totalDevices > 0 ? Math.round((tierCounts.low / totalDevices) * 100) : 0;
-
-        html += '<div class="heatmap-bar">';
-        if (critPct > 0) html += '<div class="heatmap-segment bg-critical" style="width:' + critPct + '%"></div>';
-        if (highPct > 0) html += '<div class="heatmap-segment bg-warning" style="width:' + highPct + '%"></div>';
-        if (medPct > 0) html += '<div class="heatmap-segment bg-info" style="width:' + medPct + '%"></div>';
-        if (lowPct > 0) html += '<div class="heatmap-segment bg-success" style="width:' + lowPct + '%"></div>';
-        html += '</div>';
-
-        html += '<div class="heatmap-legend">';
-        html += '<span class="legend-item"><span class="legend-dot bg-critical"></span>Critical ' + critPct + '%</span>';
-        html += '<span class="legend-item"><span class="legend-dot bg-warning"></span>High ' + highPct + '%</span>';
-        html += '<span class="legend-item"><span class="legend-dot bg-info"></span>Medium ' + medPct + '%</span>';
-        html += '<span class="legend-item"><span class="legend-dot bg-success"></span>Low ' + lowPct + '%</span>';
-        html += '</div>';
-        html += '</div>'; // risk-heatmap
-        html += '</div>'; // analytics-section
-
-        // Risk Factor Breakdown
-        html += '<div class="analytics-section">';
-        html += '<h3>Risk Factor Breakdown</h3>';
-        html += '<div class="analytics-grid">';
-
-        // Non-compliant devices
-        var nonCompliant = devices.filter(function(d) { return d.complianceState === 'noncompliant'; }).length;
-        html += '<div class="analytics-card">';
-        html += '<h4>Compliance Issues</h4>';
-        html += '<div class="platform-list">';
-        html += '<div class="platform-row"><span class="platform-name">Non-compliant devices</span><span class="platform-policies">' + nonCompliant + '</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (nonCompliant > 0 ? 'bg-critical' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (nonCompliant / totalDevices * 100) : 0) + '%"></div></div></div>';
-        html += '</div></div>';
-
-        // Unencrypted devices
-        var unencrypted = devices.filter(function(d) { return d.isEncrypted === false; }).length;
-        html += '<div class="analytics-card">';
-        html += '<h4>Encryption Gaps</h4>';
-        html += '<div class="platform-list">';
-        html += '<div class="platform-row"><span class="platform-name">Unencrypted devices</span><span class="platform-policies">' + unencrypted + '</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (unencrypted > 0 ? 'bg-critical' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (unencrypted / totalDevices * 100) : 0) + '%"></div></div></div>';
-        html += '</div></div>';
-
-        // Certificate issues
-        var certIssues = devices.filter(function(d) { return d.certStatus === 'expired' || d.certStatus === 'critical'; }).length;
-        html += '<div class="analytics-card">';
-        html += '<h4>Certificate Issues</h4>';
-        html += '<div class="platform-list">';
-        html += '<div class="platform-row"><span class="platform-name">Expired/Critical certs</span><span class="platform-policies">' + certIssues + '</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (certIssues > 0 ? 'bg-warning' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (certIssues / totalDevices * 100) : 0) + '%"></div></div></div>';
-        html += '</div></div>';
-
-        // Stale devices
-        var stale = devices.filter(function(d) { return d.isStale; }).length;
-        html += '<div class="analytics-card">';
-        html += '<h4>Stale Devices</h4>';
-        html += '<div class="platform-list">';
-        html += '<div class="platform-row"><span class="platform-name">No activity 30+ days</span><span class="platform-policies">' + stale + '</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill ' + (stale > 0 ? 'bg-warning' : 'bg-success') + '" style="width:' + (totalDevices > 0 ? (stale / totalDevices * 100) : 0) + '%"></div></div></div>';
-        html += '</div></div>';
-
-        html += '</div>'; // analytics-grid
-        html += '</div>'; // analytics-section
 
         // Prioritized Remediation List
         html += '<div class="analytics-section">';
@@ -1986,17 +1879,17 @@ const PageDevices = (function() {
                 if (d.isEncrypted === false) issues.push('Unencrypted');
                 if (d.certStatus === 'expired') issues.push('Cert expired');
                 else if (d.certStatus === 'critical') issues.push('Cert critical');
-                if (d.windowsSupported === false) issues.push('Unsupported OS');
-                if (d.isStale) issues.push('Stale');
+            if (d.windowsSupported === false) issues.push('Unsupported OS');
+            if (d.isStale) issues.push('Stale');
 
-                html += '<tr>';
-                html += '<td><span class="badge badge-' + sd.tierClass + '">' + sd.tierLabel + '</span></td>';
-                html += '<td>' + (d.deviceName || d.displayName || '--') + '</td>';
-                html += '<td>' + (d.userDisplayName || d.userName || '--') + '</td>';
-                html += '<td class="text-' + sd.tierClass + ' font-bold">' + sd.score + '</td>';
-                html += '<td>' + (issues.length > 0 ? issues.join(', ') : 'None') + '</td>';
-                html += '</tr>';
-            });
+            html += '<tr>';
+            html += '<td><span class="badge badge-' + sd.tierClass + '">' + sd.tierLabel + '</span></td>';
+            html += '<td>' + (d.deviceName || d.displayName || '--') + '</td>';
+            html += '<td>' + getDeviceUserLabel(d) + '</td>';
+            html += '<td class="text-' + sd.tierClass + ' font-bold">' + sd.score + '</td>';
+            html += '<td>' + (issues.length > 0 ? issues.join(', ') : 'None') + '</td>';
+            html += '</tr>';
+        });
 
             html += '</tbody></table>';
         } else {
