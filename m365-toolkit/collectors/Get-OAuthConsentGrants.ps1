@@ -49,7 +49,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -128,36 +131,49 @@ try {
     Write-Host "      Retrieved $($grants.Count) OAuth permission grants" -ForegroundColor Gray
 
     # -----------------------------------------------------------------------
-    # 2. Build service principal lookup (reuse from enterprise apps if exists)
+    # 2. Build service principal lookup
+    # Reuses SharedData.ServicePrincipals from Get-EnterpriseAppData to avoid
+    # a duplicate API call. Falls back to fetching directly if SharedData not available.
     # -----------------------------------------------------------------------
     Write-Host "      Building service principal lookup..." -ForegroundColor Gray
 
     $spLookup = @{}
-    $spResponse = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$select=id,appId,displayName,publisherName,appOwnerOrganizationId,verifiedPublisher,accountEnabled&`$top=999" `
-            -OutputType PSObject
-    } -OperationName "Service principal lookup"
-
-    if ($spResponse.value) {
-        foreach ($sp in $spResponse.value) {
-            $spLookup[$sp.id] = $sp
+    if ($SharedData -and $SharedData.ContainsKey('ServicePrincipals') -and $SharedData['ServicePrincipals'].Count -gt 0) {
+        # Reuse service principals already fetched by Get-EnterpriseAppData
+        foreach ($sp in $SharedData['ServicePrincipals']) {
+            $spId = if ($sp.id) { $sp.id } elseif ($sp.Id) { $sp.Id } else { $null }
+            if ($spId) { $spLookup[$spId] = $sp }
         }
+        Write-Host "      Reusing $($spLookup.Count) service principals from shared data (no extra API call)" -ForegroundColor Gray
     }
-
-    # Handle pagination
-    while ($spResponse.'@odata.nextLink') {
+    else {
+        # Fallback: fetch from API if shared data not available
         $spResponse = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $spResponse.'@odata.nextLink' -OutputType PSObject
-        } -OperationName "Service principal pagination"
+            Invoke-MgGraphRequest -Method GET `
+                -Uri "https://graph.microsoft.com/v1.0/servicePrincipals?`$select=id,appId,displayName,publisherName,appOwnerOrganizationId,verifiedPublisher,accountEnabled&`$top=999" `
+                -OutputType PSObject
+        } -OperationName "Service principal lookup"
+
         if ($spResponse.value) {
             foreach ($sp in $spResponse.value) {
                 $spLookup[$sp.id] = $sp
             }
         }
-    }
 
-    Write-Host "      Loaded $($spLookup.Count) service principals for lookup" -ForegroundColor Gray
+        # Handle pagination
+        while ($spResponse.'@odata.nextLink') {
+            $spResponse = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $spResponse.'@odata.nextLink' -OutputType PSObject
+            } -OperationName "Service principal pagination"
+            if ($spResponse.value) {
+                foreach ($sp in $spResponse.value) {
+                    $spLookup[$sp.id] = $sp
+                }
+            }
+        }
+
+        Write-Host "      Loaded $($spLookup.Count) service principals for lookup" -ForegroundColor Gray
+    }
 
     # -----------------------------------------------------------------------
     # 3. Process each grant

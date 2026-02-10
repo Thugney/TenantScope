@@ -43,7 +43,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -519,20 +522,46 @@ try {
     # Collect Device Windows Update Compliance
     # ========================================
     try {
-        $windowsDevices = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,osVersion,lastSyncDateTime,complianceState,userPrincipalName,model&`$top=500" `
-                -OutputType PSObject
-        } -OperationName "Device compliance retrieval"
-
-        $allDevices = @($windowsDevices.value)
-
-        # Handle pagination
-        while ($windowsDevices.'@odata.nextLink') {
+        # Reuse managed devices from SharedData (populated by Get-DeviceData) to avoid
+        # a duplicate API call. Falls back to fetching directly if SharedData not available.
+        $allDevices = @()
+        if ($SharedData -and $SharedData.ContainsKey('ManagedDevices') -and $SharedData['ManagedDevices'].Count -gt 0) {
+            # Reuse devices already fetched by Get-DeviceData - filter to Windows
+            # and normalize property names for compatibility
+            $allDevices = @($SharedData['ManagedDevices'] | Where-Object {
+                $os = if ($_.OperatingSystem) { $_.OperatingSystem } else { $_.operatingSystem }
+                $os -eq 'Windows'
+            } | ForEach-Object {
+                # Normalize to camelCase for consistency with rest of this collector
+                [PSCustomObject]@{
+                    id                = if ($_.Id) { $_.Id } else { $_.id }
+                    deviceName        = if ($_.DeviceName) { $_.DeviceName } else { $_.deviceName }
+                    osVersion         = if ($_.OsVersion) { $_.OsVersion } else { $_.osVersion }
+                    lastSyncDateTime  = if ($_.LastSyncDateTime) { $_.LastSyncDateTime } else { $_.lastSyncDateTime }
+                    complianceState   = if ($_.ComplianceState) { $_.ComplianceState } else { $_.complianceState }
+                    userPrincipalName = if ($_.UserPrincipalName) { $_.UserPrincipalName } else { $_.userPrincipalName }
+                    model             = if ($_.Model) { $_.Model } else { $_.model }
+                }
+            })
+            Write-Host "      Reusing $($allDevices.Count) Windows devices from shared data (no extra API call)" -ForegroundColor Gray
+        }
+        else {
+            # Fallback: fetch from API if shared data not available
             $windowsDevices = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri $windowsDevices.'@odata.nextLink' -OutputType PSObject
-            } -OperationName "Device compliance pagination"
-            $allDevices += $windowsDevices.value
+                Invoke-MgGraphRequest -Method GET `
+                    -Uri "https://graph.microsoft.com/beta/deviceManagement/managedDevices?`$filter=operatingSystem eq 'Windows'&`$select=id,deviceName,osVersion,lastSyncDateTime,complianceState,userPrincipalName,model&`$top=500" `
+                    -OutputType PSObject
+            } -OperationName "Device compliance retrieval"
+
+            $allDevices = @($windowsDevices.value)
+
+            # Handle pagination
+            while ($windowsDevices.'@odata.nextLink') {
+                $windowsDevices = Invoke-GraphWithRetry -ScriptBlock {
+                    Invoke-MgGraphRequest -Method GET -Uri $windowsDevices.'@odata.nextLink' -OutputType PSObject
+                } -OperationName "Device compliance pagination"
+                $allDevices += $windowsDevices.value
+            }
         }
 
         $upToDateCount = 0

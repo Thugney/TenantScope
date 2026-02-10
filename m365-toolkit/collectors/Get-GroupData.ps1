@@ -47,7 +47,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -206,6 +209,11 @@ try {
     } while ($uri)
 
     Write-Host "      Retrieved $($allGroups.Count) groups" -ForegroundColor Gray
+
+    # Share groups data with downstream collectors (Get-TeamsData)
+    if ($SharedData -is [hashtable]) {
+        $SharedData['Groups'] = $allGroups
+    }
 
     # Load users.json to cross-reference license assignments
     $usersPath = Join-Path (Split-Path $OutputPath -Parent) "users.json"

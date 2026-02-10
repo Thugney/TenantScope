@@ -41,7 +41,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -256,6 +259,11 @@ try {
     } -OperationName "CA policy retrieval"
 
     Write-Host "      Retrieved $($policies.Count) policies from Graph API" -ForegroundColor Gray
+
+    # Share CA policies with downstream collectors (Get-NamedLocations)
+    if ($SharedData -is [hashtable]) {
+        $SharedData['CAPolicies'] = $policies
+    }
 
     # Process each policy
     $processedPolicies = @()

@@ -43,7 +43,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -95,30 +98,41 @@ $deviceCount = 0
 try {
     Write-Host "    Collecting BitLocker encryption status..." -ForegroundColor Gray
 
-    # Get managed devices - use v1.0 endpoint without $select for maximum compatibility
-    # Some tenants have issues with specific field selections
+    # Reuse managed devices from SharedData (populated by Get-DeviceData) to avoid
+    # a duplicate API call. Falls back to fetching directly if SharedData not available.
     $allDevices = @()
-    $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
+    if ($SharedData -and $SharedData.ContainsKey('ManagedDevices') -and $SharedData['ManagedDevices'].Count -gt 0) {
+        # Reuse devices already fetched by Get-DeviceData - filter to Windows only
+        $allDevices = @($SharedData['ManagedDevices'] | Where-Object {
+            $os = if ($_.OperatingSystem) { $_.OperatingSystem } else { $_.operatingSystem }
+            $os -like "Windows*"
+        })
+        Write-Host "      Reusing $($allDevices.Count) Windows devices from shared data (no extra API call)" -ForegroundColor Gray
+    }
+    else {
+        # Fallback: fetch from API if shared data not available
+        $devicesUri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices"
 
-    do {
-        $devicesResponse = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $devicesUri -OutputType PSObject
-        } -OperationName "Device retrieval"
+        do {
+            $devicesResponse = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $devicesUri -OutputType PSObject
+            } -OperationName "Device retrieval"
 
-        if ($devicesResponse.value) {
-            $allDevices += $devicesResponse.value
-        }
-        $devicesUri = $devicesResponse.'@odata.nextLink'
+            if ($devicesResponse.value) {
+                $allDevices += $devicesResponse.value
+            }
+            $devicesUri = $devicesResponse.'@odata.nextLink'
 
-        if ($allDevices.Count % 100 -eq 0 -and $allDevices.Count -gt 0) {
-            Write-Host "      Retrieved $($allDevices.Count) devices..." -ForegroundColor Gray
-        }
-    } while ($devicesUri)
+            if ($allDevices.Count % 100 -eq 0 -and $allDevices.Count -gt 0) {
+                Write-Host "      Retrieved $($allDevices.Count) devices..." -ForegroundColor Gray
+            }
+        } while ($devicesUri)
 
-    # Filter to Windows devices only (client-side)
-    $allDevices = $allDevices | Where-Object { $_.operatingSystem -like "Windows*" }
+        # Filter to Windows devices only (client-side)
+        $allDevices = $allDevices | Where-Object { $_.operatingSystem -like "Windows*" }
 
-    Write-Host "      Retrieved $($allDevices.Count) Windows devices" -ForegroundColor Gray
+        Write-Host "      Retrieved $($allDevices.Count) Windows devices" -ForegroundColor Gray
+    }
 
     # Try to get recovery keys (requires BitLockerKey.ReadBasic.All or BitLockerKey.Read.All)
     # Note: User-Agent header is required for BitLocker API
@@ -188,30 +202,33 @@ try {
         $recoveryKeyInfo = if ($hasRecoveryKey) { $recoveryKeys[$device.id] } else { @() }
 
         # Determine encryption state (isEncrypted is boolean only - no encryptionState in API)
+        # Handle both PascalCase (from SDK/SharedData) and camelCase (from REST)
+        $isEncryptedRaw = if ($null -ne $device.IsEncrypted) { $device.IsEncrypted } else { $device.isEncrypted }
         # Use lowercase values to match dashboard expectations
-        $encryptionState = if ($null -eq $device.isEncrypted) {
+        $encryptionState = if ($null -eq $isEncryptedRaw) {
             "unknown"
-        } elseif ($device.isEncrypted -eq $true) {
+        } elseif ($isEncryptedRaw -eq $true) {
             "encrypted"
         } else {
             "notEncrypted"
         }
 
-        $daysSinceSync = Get-DaysSinceDate -DateValue $device.lastSyncDateTime
+        $lastSyncVal = if ($device.LastSyncDateTime) { $device.LastSyncDateTime } else { $device.lastSyncDateTime }
+        $daysSinceSync = Get-DaysSinceDate -DateValue $lastSyncVal
 
         $processedDevice = [PSCustomObject]@{
-            id                = $device.id
-            deviceName        = $device.deviceName
-            userPrincipalName = $device.userPrincipalName
-            manufacturer      = $device.manufacturer
-            model             = $device.model
-            serialNumber      = $device.serialNumber
-            osVersion         = $device.osVersion
-            complianceState   = $device.complianceState
-            lastSyncDateTime  = Format-IsoDate -DateValue $device.lastSyncDateTime
+            id                = if ($device.Id) { $device.Id } else { $device.id }
+            deviceName        = if ($device.DeviceName) { $device.DeviceName } else { $device.deviceName }
+            userPrincipalName = if ($device.UserPrincipalName) { $device.UserPrincipalName } else { $device.userPrincipalName }
+            manufacturer      = if ($device.Manufacturer) { $device.Manufacturer } else { $device.manufacturer }
+            model             = if ($device.Model) { $device.Model } else { $device.model }
+            serialNumber      = if ($device.SerialNumber) { $device.SerialNumber } else { $device.serialNumber }
+            osVersion         = if ($device.OsVersion) { $device.OsVersion } else { $device.osVersion }
+            complianceState   = if ($device.ComplianceState) { $device.ComplianceState } else { $device.complianceState }
+            lastSyncDateTime  = Format-IsoDate -DateValue $lastSyncVal
             daysSinceSync     = $daysSinceSync
             # Encryption info
-            isEncrypted       = if ($null -eq $device.isEncrypted) { $null } else { [bool]$device.isEncrypted }
+            isEncrypted       = if ($null -eq $isEncryptedRaw) { $null } else { [bool]$isEncryptedRaw }
             encryptionState   = $encryptionState
             # Recovery keys (use recoveryKeyEscrowed for dashboard compatibility)
             hasRecoveryKey    = $hasRecoveryKey

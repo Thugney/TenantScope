@@ -50,7 +50,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -168,6 +171,13 @@ try {
     catch {
         Write-Host "      Could not retrieve risk detections: $($_.Exception.Message)" -ForegroundColor Yellow
         $errors += "Risk detections: $($_.Exception.Message)"
+    }
+
+    # Share risky users and risk detections with downstream collectors (Get-SignInData)
+    # so they don't need to re-fetch from the API
+    if ($SharedData -is [hashtable]) {
+        $SharedData['RiskyUsers'] = $riskyUsers
+        $SharedData['RiskDetections'] = $riskDetections
     }
 
     # -----------------------------------------------------------------------

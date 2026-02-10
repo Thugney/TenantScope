@@ -45,7 +45,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -79,24 +82,33 @@ try {
         }
     }
 
-    # Get all applications with credentials
-    $apps = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/v1.0/applications?`$select=id,appId,displayName,createdDateTime,passwordCredentials,keyCredentials,signInAudience" `
-            -OutputType PSObject
-    } -OperationName "Application retrieval"
-
-    $allApps = @($apps.value)
-
-    # Handle pagination
-    while ($apps.'@odata.nextLink') {
-        $apps = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $apps.'@odata.nextLink' -OutputType PSObject
-        } -OperationName "Application pagination"
-        $allApps += $apps.value
+    # Reuse app registrations from SharedData (populated by Get-EnterpriseAppData) to avoid
+    # a duplicate API call. Falls back to fetching directly if SharedData not available.
+    $allApps = @()
+    if ($SharedData -and $SharedData.ContainsKey('AppRegistrations') -and $SharedData['AppRegistrations'].Count -gt 0) {
+        $allApps = @($SharedData['AppRegistrations'])
+        Write-Host "      Reusing $($allApps.Count) app registrations from shared data (no extra API call)" -ForegroundColor Gray
     }
+    else {
+        # Fallback: fetch from API if shared data not available
+        $apps = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET `
+                -Uri "https://graph.microsoft.com/v1.0/applications?`$select=id,appId,displayName,createdDateTime,passwordCredentials,keyCredentials,signInAudience" `
+                -OutputType PSObject
+        } -OperationName "Application retrieval"
 
-    Write-Host "      Retrieved $($allApps.Count) applications" -ForegroundColor Gray
+        $allApps = @($apps.value)
+
+        # Handle pagination
+        while ($apps.'@odata.nextLink') {
+            $apps = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $apps.'@odata.nextLink' -OutputType PSObject
+            } -OperationName "Application pagination"
+            $allApps += $apps.value
+        }
+
+        Write-Host "      Retrieved $($allApps.Count) applications" -ForegroundColor Gray
+    }
 
     foreach ($app in $allApps) {
         $secrets = @()

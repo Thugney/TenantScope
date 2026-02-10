@@ -47,7 +47,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -146,6 +149,13 @@ try {
     }
 
     Write-Host "      Retrieved $($servicePrincipals.Count) service principals" -ForegroundColor Gray
+
+    # Share app registrations and service principals with downstream collectors
+    # (Get-ServicePrincipalSecrets, Get-OAuthConsentGrants) to avoid duplicate API calls
+    if ($SharedData -is [hashtable]) {
+        $SharedData['AppRegistrations'] = $appRegistrations
+        $SharedData['ServicePrincipals'] = $servicePrincipals
+    }
 
     # -----------------------------------------------------------------------
     # 3. Process each service principal

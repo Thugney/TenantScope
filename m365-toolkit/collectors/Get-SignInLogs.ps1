@@ -50,7 +50,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -402,6 +405,11 @@ try {
 
     $signInData.collectionDate = (Get-Date).ToString("o")
     $signInData.logDays = $logDays
+
+    # Share sign-in logs with downstream collectors (Get-AppSignInData)
+    if ($SharedData -is [hashtable]) {
+        $SharedData['SignInLogs'] = $signInData.signIns
+    }
 
     # Save data
     Save-CollectorData -Data $signInData -OutputPath $OutputPath | Out-Null

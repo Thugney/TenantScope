@@ -44,7 +44,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -70,15 +73,22 @@ try {
 
     Write-Host "      Retrieved $($locations.Count) named locations" -ForegroundColor Gray
 
-    # Also get CA policies to see which locations are used
+    # Reuse CA policies from SharedData (populated by Get-ConditionalAccessData) to avoid
+    # a duplicate API call. Falls back to fetching directly if SharedData not available.
     $caPolicies = @()
-    try {
-        $caPolicies = Invoke-GraphWithRetry -ScriptBlock {
-            Get-MgIdentityConditionalAccessPolicy -All
-        } -OperationName "CA policies for location mapping"
+    if ($SharedData -and $SharedData.ContainsKey('CAPolicies') -and $SharedData['CAPolicies'].Count -gt 0) {
+        $caPolicies = @($SharedData['CAPolicies'])
+        Write-Host "      Reusing $($caPolicies.Count) CA policies from shared data (no extra API call)" -ForegroundColor Gray
     }
-    catch {
-        Write-Host "      Could not retrieve CA policies for mapping: $($_.Exception.Message)" -ForegroundColor Yellow
+    else {
+        try {
+            $caPolicies = Invoke-GraphWithRetry -ScriptBlock {
+                Get-MgIdentityConditionalAccessPolicy -All
+            } -OperationName "CA policies for location mapping"
+        }
+        catch {
+            Write-Host "      Could not retrieve CA policies for mapping: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     }
 
     # Build location usage map from CA policies
