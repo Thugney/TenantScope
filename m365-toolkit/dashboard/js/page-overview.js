@@ -127,9 +127,6 @@ const PageOverview = (function() {
             case 'overview':
                 renderOverviewTab(container);
                 break;
-            case 'cockpit':
-                renderCockpitTab(container);
-                break;
         }
     }
 
@@ -1860,8 +1857,7 @@ const PageOverview = (function() {
         // Tab bar
         var tabBar = el('div', 'tab-bar');
         var tabs = [
-            { id: 'overview', label: 'Overview' },
-            { id: 'cockpit', label: 'Security Cockpit' }
+            { id: 'overview', label: 'Overview' }
         ];
         tabs.forEach(function(t) {
             var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
