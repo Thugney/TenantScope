@@ -343,14 +343,23 @@ try {
                         -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
                         -OutputType PSObject
 
-                    # Handle null values from Graph API - use 0 as default
-                    $compliant = if ($null -ne $statusOverview.compliantDeviceCount) { $statusOverview.compliantDeviceCount } else { 0 }
-                    $remediated = if ($null -ne $statusOverview.remediatedDeviceCount) { $statusOverview.remediatedDeviceCount } else { 0 }
-                    $successCount = $compliant + $remediated
-                    $errorCount = if ($null -ne $statusOverview.errorDeviceCount) { $statusOverview.errorDeviceCount } else { 0 }
-                    $conflictCount = if ($null -ne $statusOverview.conflictDeviceCount) { $statusOverview.conflictDeviceCount } else { 0 }
-                    $pendingCount = if ($null -ne $statusOverview.pendingDeviceCount) { $statusOverview.pendingDeviceCount } else { 0 }
-                    $notApplicableCount = if ($null -ne $statusOverview.notApplicableDeviceCount) { $statusOverview.notApplicableDeviceCount } else { 0 }
+                    # Graph API returns successCount/errorCount/etc (not compliantDeviceCount)
+                    # Try both naming conventions for compatibility
+                    $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
+                                   elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
+                                   else { 0 }
+                    $errorCount = if ($null -ne $statusOverview.errorCount) { [int]$statusOverview.errorCount }
+                                 elseif ($null -ne $statusOverview.errorDeviceCount) { [int]$statusOverview.errorDeviceCount }
+                                 else { 0 }
+                    $conflictCount = if ($null -ne $statusOverview.conflictCount) { [int]$statusOverview.conflictCount }
+                                    elseif ($null -ne $statusOverview.conflictDeviceCount) { [int]$statusOverview.conflictDeviceCount }
+                                    else { 0 }
+                    $pendingCount = if ($null -ne $statusOverview.pendingCount) { [int]$statusOverview.pendingCount }
+                                   elseif ($null -ne $statusOverview.pendingDeviceCount) { [int]$statusOverview.pendingDeviceCount }
+                                   else { 0 }
+                    $notApplicableCount = if ($null -ne $statusOverview.notApplicableCount) { [int]$statusOverview.notApplicableCount }
+                                         elseif ($null -ne $statusOverview.notApplicableDeviceCount) { [int]$statusOverview.notApplicableDeviceCount }
+                                         else { 0 }
                 }
                 elseif ($source -eq "configurationPolicies") {
                     # Try deviceStatusOverview for Settings Catalog policies (beta endpoint)
@@ -359,13 +368,23 @@ try {
                             -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
                             -OutputType PSObject
 
-                        $compliant = if ($null -ne $statusOverview.compliantDeviceCount) { $statusOverview.compliantDeviceCount } else { 0 }
-                        $remediated = if ($null -ne $statusOverview.remediatedDeviceCount) { $statusOverview.remediatedDeviceCount } else { 0 }
-                        $successCount = $compliant + $remediated
-                        $errorCount = if ($null -ne $statusOverview.errorDeviceCount) { $statusOverview.errorDeviceCount } else { 0 }
-                        $conflictCount = if ($null -ne $statusOverview.conflictDeviceCount) { $statusOverview.conflictDeviceCount } else { 0 }
-                        $pendingCount = if ($null -ne $statusOverview.pendingDeviceCount) { $statusOverview.pendingDeviceCount } else { 0 }
-                        $notApplicableCount = if ($null -ne $statusOverview.notApplicableDeviceCount) { $statusOverview.notApplicableDeviceCount } else { 0 }
+                        # Graph API returns successCount/errorCount/etc (not compliantDeviceCount)
+                        # Try both naming conventions for compatibility
+                        $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
+                                       elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
+                                       else { 0 }
+                        $errorCount = if ($null -ne $statusOverview.errorCount) { [int]$statusOverview.errorCount }
+                                     elseif ($null -ne $statusOverview.errorDeviceCount) { [int]$statusOverview.errorDeviceCount }
+                                     else { 0 }
+                        $conflictCount = if ($null -ne $statusOverview.conflictCount) { [int]$statusOverview.conflictCount }
+                                        elseif ($null -ne $statusOverview.conflictDeviceCount) { [int]$statusOverview.conflictDeviceCount }
+                                        else { 0 }
+                        $pendingCount = if ($null -ne $statusOverview.pendingCount) { [int]$statusOverview.pendingCount }
+                                       elseif ($null -ne $statusOverview.pendingDeviceCount) { [int]$statusOverview.pendingDeviceCount }
+                                       else { 0 }
+                        $notApplicableCount = if ($null -ne $statusOverview.notApplicableCount) { [int]$statusOverview.notApplicableCount }
+                                             elseif ($null -ne $statusOverview.notApplicableDeviceCount) { [int]$statusOverview.notApplicableDeviceCount }
+                                             else { 0 }
                     }
                     catch {
                         # Settings Catalog deviceStatusOverview not available, will use fallbacks
