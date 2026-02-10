@@ -19,7 +19,7 @@
 const PageAuditLogs = (function() {
     'use strict';
 
-    var currentTab = 'overview';
+    var currentTab = 'events';
     var auditState = null;
     var colSelector = null;
 
@@ -36,9 +36,6 @@ const PageAuditLogs = (function() {
         if (!container || !auditState) return;
 
         switch (currentTab) {
-            case 'overview':
-                renderOverview(container, auditState);
-                break;
             case 'events':
                 renderEventsTab(container, auditState);
                 break;
@@ -579,15 +576,10 @@ const PageAuditLogs = (function() {
         // Tab bar
         var tabBar = document.createElement('div');
         tabBar.className = 'tab-bar';
-        var overviewBtn = document.createElement('button');
-        overviewBtn.className = 'tab-btn active';
-        overviewBtn.dataset.tab = 'overview';
-        overviewBtn.textContent = 'Overview';
         var eventsBtn = document.createElement('button');
-        eventsBtn.className = 'tab-btn';
+        eventsBtn.className = 'tab-btn active';
         eventsBtn.dataset.tab = 'events';
         eventsBtn.textContent = 'All Events (' + totalEvents + ')';
-        tabBar.appendChild(overviewBtn);
         tabBar.appendChild(eventsBtn);
         container.appendChild(tabBar);
 
@@ -602,7 +594,7 @@ const PageAuditLogs = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        currentTab = 'overview';
+        currentTab = 'events';
         renderContent();
     }
 

@@ -239,132 +239,12 @@ const PageEnterpriseApps = (function() {
     // ========================================================================
 
     function renderOverview(container, data) {
-        var summary = data.summary;
         var apps = data.apps;
-        var insights = data.insights || [];
-
-        // Calculate rates for third-party apps with credentials (status distribution)
-        var statusTotal = summary.expiredCredentials + summary.criticalIn7Days + summary.warningIn30Days + summary.attentionIn90Days + summary.healthyCredentials;
-        var healthyRate = statusTotal > 0
-            ? Math.round((summary.healthyCredentials / statusTotal) * 100)
-            : 0;
-        var rateClass = healthyRate >= 80 ? 'text-success' : healthyRate >= 50 ? 'text-warning' : 'text-critical';
-
-        // Safe: all values are computed integers from trusted collector data
-        var html = '<div class="analytics-section">';
-        html += '<h3>Credential Health Overview</h3>';
-        html += '<div class="compliance-overview">';
-
-        // Donut chart - matching Devices page pattern
-        html += '<div class="compliance-chart">';
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var expiredDash = statusTotal > 0 ? (summary.expiredCredentials / statusTotal) * circumference : 0;
-        var criticalDash = statusTotal > 0 ? (summary.criticalIn7Days / statusTotal) * circumference : 0;
-        var warningDash = statusTotal > 0 ? (summary.warningIn30Days / statusTotal) * circumference : 0;
-        var attentionDash = statusTotal > 0 ? (summary.attentionIn90Days / statusTotal) * circumference : 0;
-        var healthyDash = statusTotal > 0 ? (summary.healthyCredentials / statusTotal) * circumference : 0;
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        var offset = 0;
-        if (summary.expiredCredentials > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + expiredDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += expiredDash;
-        }
-        if (summary.criticalIn7Days > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="#ea580c" stroke-width="10" stroke-dasharray="' + criticalDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += criticalDash;
-        }
-        if (summary.warningIn30Days > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + warningDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += warningDash;
-        }
-        if (summary.attentionIn90Days > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-accent)" stroke-width="10" stroke-dasharray="' + attentionDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += attentionDash;
-        }
-        if (summary.healthyCredentials > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + healthyDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-        }
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + healthyRate + '%</span><span class="donut-label">Healthy</span></div>';
-        html += '</div></div>';
-
-        // Legend
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Expired: <strong>' + summary.expiredCredentials + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-orange"></span> Critical (7d): <strong>' + summary.criticalIn7Days + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Warning (30d): <strong>' + summary.warningIn30Days + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Attention (90d): <strong>' + summary.attentionIn90Days + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Healthy: <strong>' + summary.healthyCredentials + '</strong></div>';
-        html += '<div class="legend-item">No Creds: <strong>' + summary.appsWithNoCredentials + '</strong></div>';
-        html += '</div></div></div>';
-
-        // Analytics Grid - matching Devices page pattern
-        html += '<div class="analytics-grid">';
-
-        // Publisher Breakdown
-        html += '<div class="analytics-card">';
-        html += '<h4>Publisher Breakdown</h4>';
-        html += '<div class="platform-list">';
-        var pubTotal = summary.totalApps || 1;
-        var msPct = Math.round((summary.microsoftApps / pubTotal) * 100);
-        var tpPct = Math.round((summary.thirdPartyApps / pubTotal) * 100);
-        html += '<div class="platform-row"><span class="platform-name">Microsoft</span><span class="platform-policies">' + summary.microsoftApps + ' apps</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + msPct + '%"></div></div><span class="platform-rate">' + msPct + '%</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">Third-party</span><span class="platform-policies">' + summary.thirdPartyApps + ' apps</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill bg-purple" style="width:' + tpPct + '%"></div></div><span class="platform-rate">' + tpPct + '%</span></div>';
-        html += '</div></div>';
-
-        // App Type Breakdown
-        html += '<div class="analytics-card">';
-        html += '<h4>App Types</h4>';
-        html += '<div class="platform-list">';
-        var typeLabels = { 'application': 'Applications', 'managed-identity': 'Managed ID', 'legacy': 'Legacy', 'social-idp': 'Social IdP', 'other': 'Other' };
-        Object.keys(summary.appsByType || {}).forEach(function(type) {
-            var count = summary.appsByType[type];
-            var pct = Math.round((count / pubTotal) * 100);
-            html += '<div class="platform-row"><span class="platform-name">' + (typeLabels[type] || type) + '</span><span class="platform-policies">' + count + '</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div><span class="platform-rate">' + pct + '%</span></div>';
-        });
-        html += '</div></div>';
-
-        // Quick Stats
-        html += '<div class="analytics-card">';
-        html += '<h4>Quick Stats</h4>';
-        html += '<div class="platform-list">';
-        html += '<div class="platform-row"><span class="platform-name">Total Apps</span><span class="platform-policies">' + summary.totalApps + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">With Secrets</span><span class="platform-policies">' + summary.appsWithSecrets + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">With Certificates</span><span class="platform-policies">' + summary.appsWithCertificates + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">Active</span><span class="platform-policies">' + summary.enabledApps + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">Disabled</span><span class="platform-policies text-warning">' + summary.disabledApps + '</span></div>';
-        html += '</div></div>';
-
-        html += '</div>'; // end analytics-grid
-
-        // Insights Section - only if there are insights
-        if (insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Insights</h3>';
-            html += '<div class="insights-list">';
-            insights.forEach(function(insight) {
-                var severityClass = insight.severity === 'critical' ? 'insight-critical' :
-                                    insight.severity === 'warning' ? 'insight-warning' : 'insight-info';
-                html += '<div class="insight-card ' + severityClass + '">';
-                html += '<div class="insight-header"><span class="insight-title">' + (insight.title || '') + '</span>';
-                html += '<span class="insight-count">' + (insight.count || 0) + '</span></div>';
-                html += '<p class="insight-description">' + (insight.description || '') + '</p>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Needing Attention Section
         var needsAttention = apps.filter(function(a) {
             return !a.isMicrosoft && (a.credentialStatus === 'expired' || a.credentialStatus === 'critical');
         }).slice(0, 10);
 
+        var html = '';
         if (needsAttention.length > 0) {
             html += '<div class="analytics-section">';
             html += '<h3>Credentials Needing Attention</h3>';
@@ -382,6 +262,8 @@ const PageEnterpriseApps = (function() {
                 html += '</tr>';
             });
             html += '</tbody></table></div>';
+        } else {
+            html = '<div class="empty-state"><p>No credentials needing attention.</p></div>';
         }
 
         container.innerHTML = html;

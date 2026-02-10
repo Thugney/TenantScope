@@ -93,112 +93,7 @@ const PageBitLocker = (function() {
     }
 
     function renderOverview(container, data) {
-        var summary = data.summary;
         var devices = data.devices;
-
-        var encrypted = summary.encryptedDevices || 0;
-        var notEncrypted = summary.notEncryptedDevices || 0;
-        var unknown = summary.unknownDevices || 0;
-        var total = summary.totalDevices || devices.length;
-        var withKeys = summary.devicesWithRecoveryKeys || 0;
-        var rate = summary.encryptionRate || 0;
-        var rateClass = rate >= 90 ? 'text-success' : rate >= 70 ? 'text-warning' : 'text-critical';
-
-        var html = '<div class="analytics-section">';
-        html += '<h3>Encryption Compliance</h3>';
-        html += '<div class="compliance-overview">';
-        html += '<div class="compliance-chart">';
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var totalForChart = encrypted + notEncrypted + unknown;
-        var encryptedDash = totalForChart > 0 ? (encrypted / totalForChart) * circumference : 0;
-        var notEncryptedDash = totalForChart > 0 ? (notEncrypted / totalForChart) * circumference : 0;
-        var unknownDash = totalForChart > 0 ? (unknown / totalForChart) * circumference : 0;
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        var offset = 0;
-        if (encrypted > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + encryptedDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += encryptedDash;
-        }
-        if (notEncrypted > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + notEncryptedDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += notEncryptedDash;
-        }
-        if (unknown > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + unknownDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-        }
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(rate) + '%</span><span class="donut-label">Encrypted</span></div>';
-        html += '</div>';
-        html += '</div>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Encrypted: <strong>' + encrypted + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Not Encrypted: <strong>' + notEncrypted + '</strong></div>';
-        if (unknown > 0) {
-            html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Unknown: <strong>' + unknown + '</strong></div>';
-        }
-        html += '<div class="legend-item">Keys Escrowed: <strong>' + withKeys + '</strong></div>';
-        html += '</div></div></div>';
-
-        // Analytics Grid
-        html += '<div class="analytics-grid">';
-
-        // Manufacturer Breakdown - simple list
-        html += '<div class="analytics-card">';
-        html += '<h4>By Manufacturer</h4>';
-        html += '<div class="stat-list">';
-        var mfrKeys = Object.keys(summary.manufacturerBreakdown || {}).sort(function(a, b) {
-            return (summary.manufacturerBreakdown[b] ? summary.manufacturerBreakdown[b].total : 0) -
-                   (summary.manufacturerBreakdown[a] ? summary.manufacturerBreakdown[a].total : 0);
-        }).slice(0, 5);
-        mfrKeys.forEach(function(mfr) {
-            var m = summary.manufacturerBreakdown[mfr];
-            var mRate = m.total > 0 ? Math.round((m.encrypted / m.total) * 100) : 0;
-            var rateClass = mRate >= 90 ? 'text-success' : mRate >= 70 ? 'text-warning' : 'text-critical';
-            html += '<div class="stat-row"><span class="stat-label">' + mfr + '</span>';
-            html += '<span class="stat-value"><span class="' + rateClass + '">' + mRate + '%</span> (' + m.encrypted + '/' + m.total + ')</span></div>';
-        });
-        html += '</div></div>';
-
-        // OS Version Breakdown - simple list
-        var osVersions = {};
-        devices.forEach(function(d) {
-            var os = d.osVersion || 'Unknown';
-            var osDisplay = os.indexOf('10.0.22') === 0 ? 'Windows 11' :
-                            os.indexOf('10.0.19') === 0 ? 'Windows 10' : os;
-            if (!osVersions[osDisplay]) osVersions[osDisplay] = { total: 0, encrypted: 0 };
-            osVersions[osDisplay].total++;
-            if (d.encryptionState === 'encrypted') osVersions[osDisplay].encrypted++;
-        });
-
-        html += '<div class="analytics-card">';
-        html += '<h4>By OS Version</h4>';
-        html += '<div class="stat-list">';
-        Object.keys(osVersions).sort(function(a, b) {
-            return osVersions[b].total - osVersions[a].total;
-        }).forEach(function(os) {
-            var o = osVersions[os];
-            var oRate = o.total > 0 ? Math.round((o.encrypted / o.total) * 100) : 0;
-            var rateClass = oRate >= 90 ? 'text-success' : oRate >= 70 ? 'text-warning' : 'text-critical';
-            html += '<div class="stat-row"><span class="stat-label">' + os + '</span>';
-            html += '<span class="stat-value"><span class="' + rateClass + '">' + oRate + '%</span> (' + o.encrypted + '/' + o.total + ')</span></div>';
-        });
-        html += '</div></div>';
-
-        // Recovery Key Status - simple list
-        html += '<div class="analytics-card">';
-        html += '<h4>Recovery Key Status</h4>';
-        html += '<div class="stat-list">';
-        html += '<div class="stat-row"><span class="stat-label">Keys Escrowed</span><span class="stat-value text-success">' + withKeys + '</span></div>';
-        var keysMissing = devices.filter(function(d) { return d.encryptionState === 'encrypted' && d.recoveryKeyEscrowed === false; }).length;
-        html += '<div class="stat-row"><span class="stat-label">Keys Missing</span><span class="stat-value ' + (keysMissing > 0 ? 'text-warning' : 'text-muted') + '">' + keysMissing + '</span></div>';
-        var multipleKeys = devices.filter(function(d) { return d.recoveryKeyCount > 1; }).length;
-        html += '<div class="stat-row"><span class="stat-label">Multiple Keys</span><span class="stat-value text-info">' + multipleKeys + '</span></div>';
-        html += '</div></div>';
-
-        html += '</div>'; // end analytics-grid
 
         // Devices Needing Attention
         var needsAttention = devices.filter(function(d) {
@@ -207,6 +102,7 @@ const PageBitLocker = (function() {
                    (d.daysSinceSync && d.daysSinceSync > 14);
         });
 
+        var html = '';
         if (needsAttention.length > 0) {
             html += '<div class="analytics-section">';
             html += '<h3>Devices Needing Attention (' + needsAttention.length + ')</h3>';
@@ -237,6 +133,8 @@ const PageBitLocker = (function() {
                 html += '<p class="text-muted">Showing 10 of ' + needsAttention.length + ' devices. View the Devices tab for all.</p>';
             }
             html += '</div>';
+        } else {
+            html = '<div class="empty-state"><p>No devices needing attention.</p></div>';
         }
 
         container.innerHTML = html;

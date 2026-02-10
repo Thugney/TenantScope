@@ -214,131 +214,8 @@ const PageDevices = (function() {
     }
 
     function renderOverview(container, data) {
-        var summary = data.summary;
-        var devices = data.devices;
-        var insights = data.insights || [];
+        var devices = (data && data.devices) ? data.devices : [];
 
-        var rateClass = summary.complianceRate >= 90 ? 'text-success' : summary.complianceRate >= 70 ? 'text-warning' : 'text-critical';
-        var compliant = summary.compliantDevices || 0;
-        var noncompliant = summary.noncompliantDevices || 0;
-        var unknown = summary.unknownDevices || 0;
-
-        var html = '<div class="analytics-section">';
-        html += '<h3>Device Compliance Overview</h3>';
-        html += '<div class="compliance-overview">';
-        html += '<div class="compliance-chart">';
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var totalForChart = compliant + noncompliant + unknown;
-        var compliantDash = totalForChart > 0 ? (compliant / totalForChart) * circumference : 0;
-        var noncompliantDash = totalForChart > 0 ? (noncompliant / totalForChart) * circumference : 0;
-        var unknownDash = totalForChart > 0 ? (unknown / totalForChart) * circumference : 0;
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        var offset = 0;
-        if (compliant > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + compliantDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += compliantDash;
-        }
-        if (noncompliant > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + noncompliantDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += noncompliantDash;
-        }
-        if (unknown > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + unknownDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-        }
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(summary.complianceRate) + '%</span><span class="donut-label">Compliant</span></div>';
-        html += '</div>';
-        html += '</div>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Compliant: <strong>' + compliant + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Non-Compliant: <strong>' + noncompliant + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Unknown: <strong>' + unknown + '</strong></div>';
-        html += '</div></div></div>';
-
-        // Analytics Grid
-        html += '<div class="analytics-grid">';
-
-        // Priority Signals
-        var certRisk = (summary.certExpired || 0) + (summary.certCritical || 0);
-        var unsupportedWindows = summary.winUnsupportedCount || 0;
-        var notEncrypted = summary.notEncryptedDevices || 0;
-        var stale = summary.staleDevices || 0;
-        html += '<div class="analytics-card">';
-        html += '<h4>Priority Signals</h4>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot ' + (noncompliant > 0 ? 'bg-critical' : 'bg-success') + '"></span> Non-Compliant: <strong>' + noncompliant + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot ' + (notEncrypted > 0 ? 'bg-critical' : 'bg-success') + '"></span> Not Encrypted: <strong>' + notEncrypted + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot ' + (stale > 0 ? 'bg-warning' : 'bg-success') + '"></span> Stale Devices: <strong>' + stale + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot ' + (certRisk > 0 ? 'bg-critical' : 'bg-success') + '"></span> Cert Expired/Critical: <strong>' + certRisk + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot ' + (unsupportedWindows > 0 ? 'bg-warning' : 'bg-success') + '"></span> Unsupported Windows: <strong>' + unsupportedWindows + '</strong></div>';
-        html += '</div></div>';
-
-        // OS Breakdown
-        html += '<div class="analytics-card">';
-        html += '<h4>Platform Breakdown</h4>';
-        html += '<div class="platform-list">';
-        var osKeys = Object.keys(summary.osBreakdown).sort(function(a, b) {
-            return summary.osBreakdown[b] - summary.osBreakdown[a];
-        });
-        osKeys.forEach(function(os) {
-            var count = summary.osBreakdown[os];
-            var pct = summary.totalDevices > 0 ? Math.round((count / summary.totalDevices) * 100) : 0;
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + os + '</span>';
-            html += '<span class="platform-policies">' + count + ' devices</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div>';
-            html += '<span class="platform-rate">' + pct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        // Manufacturer Breakdown
-        html += '<div class="analytics-card">';
-        html += '<h4>Manufacturer Breakdown</h4>';
-        html += '<div class="platform-list">';
-        var mfrKeys = Object.keys(summary.manufacturerBreakdown).sort(function(a, b) {
-            return summary.manufacturerBreakdown[b] - summary.manufacturerBreakdown[a];
-        }).slice(0, 6);
-        mfrKeys.forEach(function(mfr) {
-            var count = summary.manufacturerBreakdown[mfr];
-            var pct = summary.totalDevices > 0 ? Math.round((count / summary.totalDevices) * 100) : 0;
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + mfr + '</span>';
-            html += '<span class="platform-policies">' + count + ' devices</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div>';
-            html += '<span class="platform-rate">' + pct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        // Ownership Breakdown
-        html += '<div class="analytics-card">';
-        html += '<h4>Ownership Breakdown</h4>';
-        html += '<div class="platform-list">';
-        var corpPct = summary.totalDevices > 0 ? Math.round((summary.corporateDevices / summary.totalDevices) * 100) : 0;
-        var persPct = summary.totalDevices > 0 ? Math.round((summary.personalDevices / summary.totalDevices) * 100) : 0;
-        html += '<div class="platform-row"><span class="platform-name">Corporate</span><span class="platform-policies">' + summary.corporateDevices + ' devices</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + corpPct + '%"></div></div><span class="platform-rate">' + corpPct + '%</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">Personal</span><span class="platform-policies">' + summary.personalDevices + ' devices</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill bg-neutral" style="width:' + persPct + '%"></div></div><span class="platform-rate">' + persPct + '%</span></div>';
-        html += '</div></div>';
-
-        html += '</div>'; // end analytics-grid
-
-        // Quick Status Cards
-        html += '<div class="analytics-section">';
-        html += '<h3>Quick Status</h3>';
-        html += '<div class="summary-cards" style="margin-bottom:0">';
-        html += '<div class="summary-card' + (summary.notEncryptedDevices > 0 ? ' card-warning' : ' card-success') + '"><div class="summary-value">' + summary.notEncryptedDevices + '</div><div class="summary-label">Not Encrypted</div></div>';
-        html += '<div class="summary-card' + (summary.certExpired > 0 ? ' card-danger' : ' card-success') + '"><div class="summary-value">' + summary.certExpired + '</div><div class="summary-label">Certs Expired</div></div>';
-        html += '<div class="summary-card' + (summary.certCritical > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + summary.certCritical + '</div><div class="summary-label">Certs Critical</div></div>';
-        html += '<div class="summary-card' + (summary.winUnsupportedCount > 0 ? ' card-danger' : ' card-success') + '"><div class="summary-value">' + summary.winUnsupportedCount + '</div><div class="summary-label">Win Unsupported</div></div>';
-        html += '</div></div>';
-
-        // Devices Needing Attention
         var needsAttention = devices.filter(function(d) {
             return d.complianceState === 'noncompliant' ||
                    d.isStale === true ||
@@ -348,6 +225,7 @@ const PageDevices = (function() {
                    d.isEncrypted === false;
         });
 
+        var html = '';
         if (needsAttention.length > 0) {
             html += '<div class="analytics-section">';
             html += '<h3>Devices Needing Attention (' + needsAttention.length + ')</h3>';
@@ -382,42 +260,11 @@ const PageDevices = (function() {
                 html += '<p class="text-muted">Showing 10 of ' + needsAttention.length + ' devices. View the All Devices tab for complete list.</p>';
             }
             html += '</div>';
+        } else {
+            html = '<div class="empty-state"><p>No devices needing attention.</p></div>';
         }
-
-        // Insights section
-        if (insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Device Insights</h3>';
-            html += '<div class="insights-list">';
-            insights.forEach(function(insight) {
-                var severityClass = 'insight-' + (insight.severity || 'info');
-                var badgeClass = insight.severity === 'critical' ? 'badge-danger' :
-                                 insight.severity === 'high' ? 'badge-warning' :
-                                 insight.severity === 'medium' ? 'badge-info' : 'badge-neutral';
-                html += '<div class="insight-card ' + severityClass + '">';
-                html += '<div class="insight-header">';
-                html += '<span class="badge ' + badgeClass + '">' + (insight.severity || 'info').toUpperCase() + '</span>';
-                html += '<span class="insight-category">' + (insight.category || '') + '</span>';
-                html += '</div>';
-                html += '<p class="insight-description">' + insight.description + '</p>';
-                if (insight.recommendedAction) {
-                    html += '<p class="insight-action"><strong>Action:</strong> ' + insight.recommendedAction + '</p>';
-                }
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Devices per Person
-        html += '<div class="analytics-section">';
-        html += '<h3>Devices per Person</h3>';
-        html += '<div id="devices-per-person-container"></div>';
-        html += '</div>';
 
         container.innerHTML = html;
-
-        // Render devices per person
-        renderDevicesPerPerson(devices);
     }
 
     function renderDevicesTab(container, devices) {

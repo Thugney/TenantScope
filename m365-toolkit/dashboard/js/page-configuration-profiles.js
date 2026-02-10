@@ -132,184 +132,14 @@ const PageConfigurationProfiles = (function() {
     }
 
     function renderOverviewTab(container, data) {
-        var summary = data.summary || {};
         var profiles = data.profiles || [];
-        var insights = data.insights || [];
-
-        var totalDevices = summary.totalDevices || 0;
-        var successDevices = summary.successDevices || 0;
-        var errorDevices = summary.errorDevices || 0;
-        var conflictDevices = summary.conflictDevices || 0;
-        var pendingDevices = summary.pendingDevices || 0;
-        var overallSuccessRate = summary.overallSuccessRate || 0;
-        var platformBreakdown = summary.platformBreakdown || {};
-        var typeBreakdown = summary.typeBreakdown || {};
-
-        var successPct = totalDevices > 0 ? Math.round((successDevices / totalDevices) * 100) : 0;
-        var errorPct = totalDevices > 0 ? Math.round((errorDevices / totalDevices) * 100) : 0;
-        var conflictPct = totalDevices > 0 ? Math.round((conflictDevices / totalDevices) * 100) : 0;
-        var pendingPct = totalDevices > 0 ? Math.round((pendingDevices / totalDevices) * 100) : 0;
-
-        var rateClass = overallSuccessRate >= 90 ? 'text-success' : overallSuccessRate >= 70 ? 'text-warning' : 'text-critical';
-
-        var html = '<div class="analytics-section">';
-        html += '<h3>Overall Deployment Status</h3>';
-        html += '<div class="compliance-overview">';
-        html += '<div class="compliance-chart">';
-
-        // Create SVG donut chart
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var totalForChart = successDevices + errorDevices + conflictDevices + pendingDevices;
-        var successDash = totalForChart > 0 ? (successDevices / totalForChart) * circumference : 0;
-        var errorDash = totalForChart > 0 ? (errorDevices / totalForChart) * circumference : 0;
-        var conflictDash = totalForChart > 0 ? (conflictDevices / totalForChart) * circumference : 0;
-        var pendingDash = totalForChart > 0 ? (pendingDevices / totalForChart) * circumference : 0;
-
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        var offset = 0;
-        if (successDevices > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + successDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += successDash;
-        }
-        if (errorDevices > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + errorDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += errorDash;
-        }
-        if (conflictDevices > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + conflictDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += conflictDash;
-        }
-        if (pendingDevices > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-neutral)" stroke-width="10" stroke-dasharray="' + pendingDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-        }
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(overallSuccessRate) + '%</span><span class="donut-label">Success</span></div>';
-        html += '</div>';
-        html += '</div>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Success: <strong>' + SF.formatCount ? successDevices.toLocaleString() : successDevices + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Errors: <strong>' + errorDevices.toLocaleString() + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Conflicts: <strong>' + conflictDevices.toLocaleString() + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-neutral"></span> Pending: <strong>' + pendingDevices.toLocaleString() + '</strong></div>';
-        html += '</div></div></div>';
-
-        // Analytics Grid with mini bars
-        html += '<div class="analytics-grid">';
-
-        // Platform Breakdown with mini bars
-        html += '<div class="analytics-card">';
-        html += '<h4>Platform Breakdown</h4>';
-        html += '<div class="platform-list">';
-        var platformKeys = Object.keys(platformBreakdown).sort(function(a, b) {
-            return platformBreakdown[b].profiles - platformBreakdown[a].profiles;
-        });
-        platformKeys.forEach(function(platform) {
-            var stats = platformBreakdown[platform];
-            var platformTotal = stats.success + stats.errors;
-            var platformPct = platformTotal > 0 ? Math.round((stats.success / platformTotal) * 100) : 0;
-            var platformIcon = getPlatformIcon(platform);
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + platformIcon + ' ' + platform + '</span>';
-            html += '<span class="platform-policies">' + stats.profiles + ' profiles</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill bg-success" style="width:' + platformPct + '%"></div></div>';
-            html += '<span class="platform-rate ' + (platformPct >= 90 ? 'text-success' : platformPct >= 70 ? 'text-warning' : 'text-critical') + '">' + platformPct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        // Profile Types with mini bars
-        html += '<div class="analytics-card">';
-        html += '<h4>Profile Types</h4>';
-        html += '<div class="platform-list">';
-        var typeKeys = Object.keys(typeBreakdown).sort(function(a, b) {
-            return typeBreakdown[b].profiles - typeBreakdown[a].profiles;
-        }).slice(0, 6);
-        typeKeys.forEach(function(pType) {
-            var stats = typeBreakdown[pType];
-            var typeTotal = stats.success + stats.errors;
-            var typePct = typeTotal > 0 ? Math.round((stats.success / typeTotal) * 100) : 0;
-            var typeIcon = getTypeIcon(pType);
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + typeIcon + ' ' + pType + '</span>';
-            html += '<span class="platform-policies">' + stats.profiles + '</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + typePct + '%"></div></div>';
-            html += '<span class="platform-rate ' + (typePct >= 90 ? 'text-success' : typePct >= 70 ? 'text-warning' : 'text-critical') + '">' + typePct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        // Deployment Status Card
-        html += '<div class="analytics-card">';
-        html += '<h4>Deployment Status</h4>';
-        html += '<div class="platform-list">';
-        var statusItems = [
-            { label: 'Successful', count: successDevices, pct: successPct, cls: 'bg-success' },
-            { label: 'Errors', count: errorDevices, pct: errorPct, cls: 'bg-critical' },
-            { label: 'Conflicts', count: conflictDevices, pct: conflictPct, cls: 'bg-warning' },
-            { label: 'Pending', count: pendingDevices, pct: totalDevices > 0 ? Math.round((pendingDevices / totalDevices) * 100) : 0, cls: 'bg-neutral' }
-        ];
-        statusItems.forEach(function(item) {
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + item.label + '</span>';
-            html += '<span class="platform-policies">' + item.count.toLocaleString() + '</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill ' + item.cls + '" style="width:' + item.pct + '%"></div></div>';
-            html += '<span class="platform-rate">' + item.pct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        html += '</div>'; // analytics-grid
-
-        // Quick Status Cards
-        html += '<div class="analytics-section">';
-        html += '<h3>Quick Status</h3>';
-        html += '<div class="summary-cards" style="margin-bottom:0">';
-        html += '<div class="summary-card' + (summary.profilesWithErrors > 0 ? ' card-danger' : ' card-success') + '"><div class="summary-value">' + (summary.profilesWithErrors || 0) + '</div><div class="summary-label">Profiles with Errors</div></div>';
-        html += '<div class="summary-card' + (summary.profilesWithConflicts > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + (summary.profilesWithConflicts || 0) + '</div><div class="summary-label">Profiles with Conflicts</div></div>';
-        html += '<div class="summary-card card-info"><div class="summary-value">' + Object.keys(platformBreakdown).length + '</div><div class="summary-label">Platforms</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + Object.keys(typeBreakdown).length + '</div><div class="summary-label">Profile Types</div></div>';
-        html += '</div></div>';
-
-        // Insights Section
-        if (insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Deployment Insights</h3>';
-            html += '<div class="insights-list">';
-            insights.forEach(function(insight) {
-                var severityClass = 'insight-' + (insight.severity || 'info');
-                var badgeClass = insight.severity === 'critical' ? 'badge-critical' :
-                                 insight.severity === 'high' ? 'badge-warning' :
-                                 insight.severity === 'medium' ? 'badge-info' : 'badge-neutral';
-                html += '<div class="insight-card ' + severityClass + '">';
-                html += '<div class="insight-header">';
-                html += '<span class="badge ' + badgeClass + '">' + (insight.severity || 'info').toUpperCase() + '</span>';
-                html += '<span class="insight-category">' + (insight.category || 'Configuration') + '</span>';
-                html += '</div>';
-                html += '<p class="insight-description">' + insight.description + '</p>';
-                if (insight.recommendedAction) {
-                    html += '<p class="insight-action"><strong>Action:</strong> ' + insight.recommendedAction + '</p>';
-                }
-                if (insight.impactedProfiles || insight.affectedDevices || insight.impactedDevices) {
-                    html += '<div class="insight-stats">';
-                    if (insight.impactedProfiles) html += '<span class="badge badge-neutral">' + insight.impactedProfiles + ' profiles</span>';
-                    if (insight.affectedDevices) html += '<span class="badge badge-neutral">' + insight.affectedDevices + ' devices</span>';
-                    if (insight.impactedDevices) html += '<span class="badge badge-neutral">' + insight.impactedDevices + ' devices</span>';
-                    html += '</div>';
-                }
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
         // Profiles Needing Attention
         var problemProfiles = profiles.filter(function(p) {
             var mapped = typeof p.errorCount !== 'undefined' ? p : mapProfile(p);
             return (mapped.errorCount || 0) > 0 || (mapped.conflictCount || 0) > 0;
         }).slice(0, 10);
 
+        var html = '';
         if (problemProfiles.length > 0) {
             html += '<div class="analytics-section">';
             html += '<h3>Profiles Needing Attention (' + problemProfiles.length + ')</h3>';
@@ -334,6 +164,8 @@ const PageConfigurationProfiles = (function() {
                 html += '<p class="text-muted">Showing 10 of ' + problemProfiles.length + ' profiles. View the Profiles tab for complete list.</p>';
             }
             html += '</div>';
+        } else {
+            html = '<div class="empty-state"><p>No profiles needing attention.</p></div>';
         }
 
         container.innerHTML = html;

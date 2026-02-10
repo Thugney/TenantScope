@@ -8,7 +8,7 @@ const PageAppDeployments = (function() {
 
     var colSelector = null;
     var rawData = null;
-    var currentTab = 'overview';
+    var currentTab = 'apps';
 
     // Extract and normalize data from nested structure
     function getData() {
@@ -206,9 +206,6 @@ const PageAppDeployments = (function() {
         if (!container || !rawData) return;
 
         switch (currentTab) {
-            case 'overview':
-                renderOverviewTab(container);
-                break;
             case 'apps':
                 renderAppsTab(container);
                 break;
@@ -768,8 +765,7 @@ const PageAppDeployments = (function() {
 
         // Tabs
         html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="overview">Overview</button>';
-        html += '<button class="tab-btn" data-tab="apps">All Apps</button>';
+        html += '<button class="tab-btn active" data-tab="apps">All Apps</button>';
         html += '<button class="tab-btn" data-tab="failed-devices">Failed Devices</button>';
         html += '</div>';
 
@@ -786,7 +782,7 @@ const PageAppDeployments = (function() {
         });
 
         // Render initial tab
-        currentTab = 'overview';
+        currentTab = 'apps';
         renderTabContent();
     }
 

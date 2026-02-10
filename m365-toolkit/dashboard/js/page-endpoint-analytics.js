@@ -99,169 +99,9 @@ const PageEndpointAnalytics = (function() {
     }
 
     function renderOverview(container, rawData) {
-        var overview = rawData.overview || {};
         var devices = extractDevices(rawData);
-        var summary = computeSummary(devices);
-        var total = summary.total;
-
-        var avgScore = overview.overallScore || summary.avgHealth;
-        var scoreClass = avgScore >= 70 ? 'text-success' : avgScore >= 50 ? 'text-warning' : 'text-critical';
-
-        var html = '<div class="analytics-grid">';
-
-        // Overall Score Card with Donut Chart
-        html += '<div class="analytics-card score-card">';
-        html += '<h3>Overall Endpoint Score</h3>';
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var scoreOffset = circumference - (avgScore / 100) * circumference;
-        var strokeColor = avgScore >= 70 ? 'var(--color-success)' : avgScore >= 50 ? 'var(--color-warning)' : 'var(--color-critical)';
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + strokeColor + '" stroke-width="10" stroke-dasharray="' + circumference + '" stroke-dashoffset="' + scoreOffset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + scoreClass + '">' + avgScore + '</span><span class="donut-label">out of 100</span></div>';
-        html += '</div></div>';
-
-        // Score Breakdown
-        html += '<div class="analytics-card">';
-        html += '<h3>Score Categories</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">Startup Performance</span><span class="category-score">' + (overview.startupPerformanceScore || summary.avgStartup || '--') + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">App Reliability</span><span class="category-score">' + (overview.appReliabilityScore || '--') + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Work From Anywhere</span><span class="category-score">' + (overview.workFromAnywhereScore || '--') + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Battery Health</span><span class="category-score">' + (overview.batteryHealthScore || '--') + '</span></div>';
-        html += '</div></div>';
-
-        // Device Health Distribution with Donut Chart
-        html += '<div class="analytics-card">';
-        html += '<h3>Device Health Distribution</h3>';
-        html += '<div class="compliance-overview">';
-        html += '<div class="compliance-chart">';
-        if (total > 0) {
-            var healthRadius = 40;
-            var healthCircum = 2 * Math.PI * healthRadius;
-            var excellentDash = (summary.excellent / total) * healthCircum;
-            var goodDash = (summary.good / total) * healthCircum;
-            var fairDash = (summary.fair / total) * healthCircum;
-            var poorDash = (summary.poor / total) * healthCircum;
-            html += '<div class="donut-chart">';
-            html += '<svg viewBox="0 0 100 100" class="donut">';
-            html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-            var offset = 0;
-            if (summary.excellent > 0) {
-                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + excellentDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
-                offset += excellentDash;
-            }
-            if (summary.good > 0) {
-                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-accent)" stroke-width="10" stroke-dasharray="' + goodDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
-                offset += goodDash;
-            }
-            if (summary.fair > 0) {
-                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + fairDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
-                offset += fairDash;
-            }
-            if (summary.poor > 0) {
-                html += '<circle cx="50" cy="50" r="' + healthRadius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + poorDash + ' ' + healthCircum + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
-            }
-            html += '</svg>';
-            html += '<div class="donut-center"><span class="donut-value">' + total + '</span><span class="donut-label">Devices</span></div>';
-            html += '</div>';
-        }
-        html += '</div>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Excellent (80+): <strong>' + summary.excellent + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Good (60-79): <strong>' + summary.good + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Fair (40-59): <strong>' + summary.fair + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Poor (<40): <strong>' + summary.poor + '</strong></div>';
-        html += '</div></div></div>';
-
-        html += '</div>'; // analytics-grid
-
-        // Mini Bars for Model Breakdown
-        var modelBreakdown = {};
-        devices.forEach(function(d) {
-            var model = d.model || 'Unknown';
-            if (!modelBreakdown[model]) modelBreakdown[model] = 0;
-            modelBreakdown[model]++;
-        });
-        var modelKeys = Object.keys(modelBreakdown).sort(function(a, b) {
-            return modelBreakdown[b] - modelBreakdown[a];
-        }).slice(0, 6);
-
-        if (modelKeys.length > 0) {
-            html += '<div class="analytics-grid">';
-
-            // Model Distribution
-            html += '<div class="analytics-card">';
-            html += '<h4>Top Models</h4>';
-            html += '<div class="platform-list">';
-            modelKeys.forEach(function(model) {
-                var count = modelBreakdown[model];
-                var pct = total > 0 ? Math.round((count / total) * 100) : 0;
-                html += '<div class="platform-row">';
-                html += '<span class="platform-name">' + model + '</span>';
-                html += '<span class="platform-policies">' + SF.formatCount(count) + ' devices</span>';
-                html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div>';
-                html += '<span class="platform-rate">' + SF.formatPercentage(pct) + '</span>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-
-            // Health Status Distribution
-            html += '<div class="analytics-card">';
-            html += '<h4>Health Breakdown</h4>';
-            html += '<div class="platform-list">';
-            var healthData = [
-                { label: 'Excellent (80+)', count: summary.excellent, cls: 'bg-success' },
-                { label: 'Good (60-79)', count: summary.good, cls: 'bg-info' },
-                { label: 'Fair (40-59)', count: summary.fair, cls: 'bg-warning' },
-                { label: 'Poor (<40)', count: summary.poor, cls: 'bg-critical' }
-            ];
-            healthData.forEach(function(h) {
-                var pct = total > 0 ? Math.round((h.count / total) * 100) : 0;
-                html += '<div class="platform-row">';
-                html += '<span class="platform-name">' + h.label + '</span>';
-                html += '<span class="platform-policies">' + h.count + ' devices</span>';
-                html += '<div class="mini-bar"><div class="mini-bar-fill ' + h.cls + '" style="width:' + pct + '%"></div></div>';
-                html += '<span class="platform-rate">' + pct + '%</span>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-
-            html += '</div>'; // analytics-grid
-        }
-
-        // Insights section
-        var insights = rawData.insights || [];
-        if (insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Actionable Insights</h3>';
-            html += '<div class="insights-list">';
-            insights.forEach(function(ins) {
-                var severityClass = ins.severity === 'critical' ? 'insight-critical' :
-                                   ins.severity === 'high' ? 'insight-high' :
-                                   ins.severity === 'info' ? 'insight-info' : 'insight-warning';
-                html += '<div class="insight-card ' + severityClass + '">';
-                html += '<div class="insight-header">';
-                html += SF.formatSeverity(ins.severity);
-                html += '<span class="insight-category">' + (ins.category || '') + '</span>';
-                html += '</div>';
-                html += '<p class="insight-description"><strong>' + (ins.title || 'Insight') + '</strong> - ' + (ins.description || '') + '</p>';
-                if (ins.impactedDevices) {
-                    html += '<p class="insight-impact">Impacted: <strong>' + ins.impactedDevices + ' devices</strong></p>';
-                }
-                if (ins.recommendedAction) {
-                    html += '<p class="insight-action"><strong>Action:</strong> ' + ins.recommendedAction + '</p>';
-                }
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Devices Needing Attention
         var needsAttentionList = devices.filter(function(d) { return d.needsAttention || d.healthScore < 50; });
+        var html = '';
         if (needsAttentionList.length > 0) {
             html += '<div class="analytics-section">';
             html += '<h3>Devices Needing Attention (' + needsAttentionList.length + ')</h3>';
@@ -279,6 +119,8 @@ const PageEndpointAnalytics = (function() {
                 html += '<p class="text-muted">Showing 10 of ' + needsAttentionList.length + ' devices. View the All Devices tab for complete list.</p>';
             }
             html += '</div>';
+        } else {
+            html = '<div class="empty-state"><p>No devices needing attention.</p></div>';
         }
 
         container.innerHTML = html;

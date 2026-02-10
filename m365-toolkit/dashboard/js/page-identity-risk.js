@@ -10,7 +10,7 @@ const PageIdentityRisk = (function() {
     'use strict';
 
     var SF = window.SharedFormatters || {};
-    var currentTab = 'overview';
+    var currentTab = 'risky-users';
     var state = {
         summary: {},
         riskyUsers: [],
@@ -77,8 +77,7 @@ const PageIdentityRisk = (function() {
         html += '</div>';
 
         html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="overview">Overview</button>';
-        html += '<button class="tab-btn" data-tab="risky-users">Risky Users (' + state.riskyUsers.length + ')</button>';
+        html += '<button class="tab-btn active" data-tab="risky-users">Risky Users (' + state.riskyUsers.length + ')</button>';
         html += '<button class="tab-btn" data-tab="detections">Detections (' + state.detections.length + ')</button>';
         html += '</div>';
         html += '<div class="content-area" id="identity-risk-content"></div>';
@@ -95,7 +94,7 @@ const PageIdentityRisk = (function() {
             });
         });
 
-        currentTab = 'overview';
+        currentTab = 'risky-users';
         renderTabContent();
     }
 
@@ -103,9 +102,7 @@ const PageIdentityRisk = (function() {
         const container = document.getElementById('identity-risk-content');
         if (!container) return;
 
-        if (currentTab === 'overview') {
-            renderOverview(container);
-        } else if (currentTab === 'risky-users') {
+        if (currentTab === 'risky-users') {
             renderRiskyUsersTab(container);
         } else if (currentTab === 'detections') {
             renderDetectionsTab(container);
@@ -182,126 +179,6 @@ const PageIdentityRisk = (function() {
 
         var tableContainer = document.getElementById('detections-table');
         if (tableContainer) tableContainer.innerHTML = renderDetectionsTable(filtered);
-    }
-
-    function renderOverview(container) {
-        const summary = state.summary;
-        const totalRisky = summary.totalRiskyUsers || 0;
-        const high = summary.highRiskUsers || 0;
-        const medium = summary.mediumRiskUsers || 0;
-        const low = summary.lowRiskUsers || 0;
-
-        const totalDetections = summary.totalDetections || 0;
-        const recent24 = summary.recentDetections24h || 0;
-        const recent7d = summary.recentDetections7d || 0;
-
-        const byType = Array.isArray(summary.detectionsByType) ? summary.detectionsByType.slice() : [];
-        const byLocation = Array.isArray(summary.detectionsByLocation) ? summary.detectionsByLocation.slice() : [];
-
-        let html = '<div class="analytics-grid">';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>Risk Level Distribution</h3>';
-        html += '<div class="compliance-overview">';
-        html += '<div class="compliance-chart">';
-        if (totalRisky > 0) {
-            html += buildDonutChart([
-                { value: high, color: 'var(--color-critical)' },
-                { value: medium, color: 'var(--color-warning)' },
-                { value: low, color: 'var(--color-accent)' }
-            ], totalRisky, 'Users');
-        } else {
-            html += '<div class="text-muted">No risky users detected</div>';
-        }
-        html += '</div>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> High: <strong>' + high + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Medium: <strong>' + medium + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-info"></span> Low: <strong>' + low + '</strong></div>';
-        html += '</div></div></div>';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>Risk State Overview</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">At Risk</span><span class="category-score">' + (summary.atRiskUsers || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Confirmed Compromised</span><span class="category-score">' + (summary.confirmedCompromised || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Remediated</span><span class="category-score">' + (summary.remediatedUsers || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Dismissed</span><span class="category-score">' + (summary.dismissedUsers || 0) + '</span></div>';
-        html += '</div></div>';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>Detection Activity</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">Detections (24h)</span><span class="category-score">' + recent24 + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Detections (7d)</span><span class="category-score">' + recent7d + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Total Detections</span><span class="category-score">' + totalDetections + '</span></div>';
-        html += '</div></div>';
-
-        html += '</div>';
-
-        if (byType.length > 0) {
-            byType.sort((a, b) => (b.count || 0) - (a.count || 0));
-            const topTypes = byType.slice(0, 6);
-            const maxType = topTypes[0]?.count || 1;
-
-            html += '<div class="analytics-grid">';
-            html += '<div class="analytics-card">';
-            html += '<h3>Top Detection Types</h3>';
-            html += '<div class="platform-list">';
-            topTypes.forEach(item => {
-                const count = item.count || 0;
-                const pct = Math.round((count / maxType) * 100);
-                const severityClass = item.severity === 'high' ? 'bg-critical' :
-                    item.severity === 'medium' ? 'bg-warning' :
-                    item.severity === 'low' ? 'bg-info' : 'bg-info';
-                html += '<div class="platform-row">';
-                html += '<span class="platform-name">' + escapeHtml(item.type || 'Unknown') + '</span>';
-                html += '<span class="platform-policies">' + count + ' detections</span>';
-                html += '<div class="mini-bar"><div class="mini-bar-fill ' + severityClass + '" style="width:' + pct + '%"></div></div>';
-                html += '<span class="platform-rate">' + pct + '%</span>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-
-            const locs = byLocation.slice().sort((a, b) => (b.count || 0) - (a.count || 0)).slice(0, 6);
-            if (locs.length > 0) {
-                const maxLoc = locs[0].count || 1;
-                html += '<div class="analytics-card">';
-                html += '<h3>Top Locations</h3>';
-                html += '<div class="platform-list">';
-                locs.forEach(loc => {
-                    const count = loc.count || 0;
-                    const pct = Math.round((count / maxLoc) * 100);
-                    html += '<div class="platform-row">';
-                    html += '<span class="platform-name">' + escapeHtml(loc.country || 'Unknown') + '</span>';
-                    html += '<span class="platform-policies">' + count + ' detections</span>';
-                    html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div>';
-                    html += '<span class="platform-rate">' + pct + '%</span>';
-                    html += '</div>';
-                });
-                html += '</div></div>';
-            }
-            html += '</div>';
-        }
-
-        if (state.insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Actionable Insights</h3>';
-            html += '<div class="insights-list">';
-            state.insights.forEach(ins => {
-                const cls = insightClass(ins.severity);
-                html += '<div class="insight-card ' + cls + '">';
-                html += '<div class="insight-header"><strong>' + escapeHtml(ins.title || 'Insight') + '</strong></div>';
-                html += '<p class="insight-description">' + escapeHtml(ins.description || '') + '</p>';
-                if (ins.recommendedAction) {
-                    html += '<p class="insight-action"><strong>Action:</strong> ' + escapeHtml(ins.recommendedAction) + '</p>';
-                }
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        container.innerHTML = html;
     }
 
     function renderRiskyUsersTable(users) {

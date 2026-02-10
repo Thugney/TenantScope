@@ -18,7 +18,7 @@ const PageUsers = (function() {
     var AU = window.ActionUtils || {};
 
     /** Current tab */
-    var currentTab = 'overview';
+    var currentTab = 'users';
 
     /** Current filter state */
     let currentFilters = {};
@@ -1586,9 +1586,6 @@ const PageUsers = (function() {
         if (!container || !usersState) return;
 
         switch (currentTab) {
-            case 'overview':
-                renderOverviewTab(container);
-                break;
             case 'quality':
                 renderDataQualityTab(container);
                 break;
@@ -1596,14 +1593,6 @@ const PageUsers = (function() {
                 renderUsersTab(container);
                 break;
         }
-    }
-
-    /**
-     * Renders the Overview tab with ASR Rules pattern.
-     */
-    function renderOverviewTab(container) {
-        container.textContent = '';
-        renderUsersOverview(container, usersState.stats);
     }
 
     /**
@@ -1733,52 +1722,7 @@ const PageUsers = (function() {
         // Sort stale by days descending
         staleAccounts.sort(function(a, b) { return b.days - a.days; });
 
-        // Calculate quality score (100 = perfect)
-        var totalUsers = users.length;
-        var issues = staleAccounts.length + neverSignedIn.length + namingIssues.length +
-                     potentialDuplicates.length + syncIssues.length + missingData.length;
-        var qualityScore = totalUsers > 0 ? Math.max(0, Math.round(100 - (issues / totalUsers * 100))) : 100;
-        var qualityTier = qualityScore >= 90 ? 'success' : qualityScore >= 70 ? 'warning' : 'critical';
-
         var html = '';
-
-        // Data Quality Overview
-        html += '<div class="analytics-section">';
-        html += '<h3>Data Quality Overview</h3>';
-        html += '<div class="signal-cards">';
-
-        // Quality Score
-        html += '<div class="signal-card signal-card--' + qualityTier + '">';
-        html += '<div class="signal-card-value">' + qualityScore + '%</div>';
-        html += '<div class="signal-card-label">Quality Score</div>';
-        html += '</div>';
-
-        // Stale Accounts
-        html += '<div class="signal-card signal-card--' + (staleAccounts.length > 0 ? 'warning' : 'success') + '">';
-        html += '<div class="signal-card-value">' + staleAccounts.length + '</div>';
-        html += '<div class="signal-card-label">Stale (90+ days)</div>';
-        html += '</div>';
-
-        // Never Signed In
-        html += '<div class="signal-card signal-card--' + (neverSignedIn.length > 0 ? 'warning' : 'success') + '">';
-        html += '<div class="signal-card-value">' + neverSignedIn.length + '</div>';
-        html += '<div class="signal-card-label">Never Signed In</div>';
-        html += '</div>';
-
-        // Sync Issues
-        html += '<div class="signal-card signal-card--' + (syncIssues.length > 0 ? 'critical' : 'success') + '">';
-        html += '<div class="signal-card-value">' + syncIssues.length + '</div>';
-        html += '<div class="signal-card-label">Sync Issues</div>';
-        html += '</div>';
-
-        // Duplicates
-        html += '<div class="signal-card signal-card--' + (potentialDuplicates.length > 0 ? 'warning' : 'success') + '">';
-        html += '<div class="signal-card-value">' + potentialDuplicates.length + '</div>';
-        html += '<div class="signal-card-label">Potential Duplicates</div>';
-        html += '</div>';
-
-        html += '</div>'; // signal-cards
-        html += '</div>'; // analytics-section
 
         // Issues Breakdown Grid
         html += '<div class="analytics-section">';
@@ -2102,13 +2046,12 @@ const PageUsers = (function() {
         var tabBar = document.createElement('div');
         tabBar.className = 'tab-bar';
         var tabs = [
-            { id: 'overview', label: 'Overview' },
             { id: 'quality', label: 'Data Quality' },
             { id: 'users', label: 'All Users (' + total + ')' }
         ];
         tabs.forEach(function(t) {
             var btn = document.createElement('button');
-            btn.className = 'tab-btn' + (t.id === 'overview' ? ' active' : '');
+            btn.className = 'tab-btn' + (t.id === 'users' ? ' active' : '');
             btn.dataset.tab = t.id;
             btn.textContent = t.label;
             tabBar.appendChild(btn);
@@ -2127,8 +2070,8 @@ const PageUsers = (function() {
         });
 
         var hashParams = getHashParams();
-        var allowed = { overview: true, quality: true, users: true };
-        var initialTab = 'overview';
+        var allowed = { quality: true, users: true };
+        var initialTab = 'users';
         if (hashParams.tab && allowed[hashParams.tab]) {
             initialTab = hashParams.tab;
         } else if (hashParams.search || hashParams.user || hashParams.upn || hashParams.groupId || hashParams.groupName || hashParams.groupRole) {

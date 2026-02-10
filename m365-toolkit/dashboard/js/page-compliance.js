@@ -9,7 +9,7 @@
 const PageCompliance = (function() {
     'use strict';
 
-    var currentTab = 'overview';
+    var currentTab = 'retention';
     var state = {
         retentionData: null,
         ediscoveryData: null,
@@ -75,8 +75,7 @@ const PageCompliance = (function() {
         html += '</div>';
 
         html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="overview">Overview</button>';
-        html += '<button class="tab-btn" data-tab="retention">Retention</button>';
+        html += '<button class="tab-btn active" data-tab="retention">Retention</button>';
         html += '<button class="tab-btn" data-tab="sensitivity">Sensitivity Labels</button>';
         html += '<button class="tab-btn" data-tab="ediscovery">eDiscovery</button>';
         html += '<button class="tab-btn" data-tab="access-reviews">Access Reviews</button>';
@@ -95,7 +94,7 @@ const PageCompliance = (function() {
             });
         });
 
-        currentTab = 'overview';
+        currentTab = 'retention';
         renderTabContent();
     }
 
@@ -103,9 +102,7 @@ const PageCompliance = (function() {
         const container = document.getElementById('compliance-content');
         if (!container) return;
 
-        if (currentTab === 'overview') {
-            renderOverview(container);
-        } else if (currentTab === 'retention') {
+        if (currentTab === 'retention') {
             container.innerHTML = renderRetentionTab(state.retentionData);
         } else if (currentTab === 'sensitivity') {
             container.innerHTML = renderSensitivityTab(state.sensitivityData);

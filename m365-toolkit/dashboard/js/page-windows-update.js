@@ -106,157 +106,10 @@ const PageWindowsUpdate = (function() {
     }
 
     function renderOverview(container, data) {
-        var summary = data.summary;
-        var rings = data.updateRings;
-        var feature = data.featureUpdates;
-        var quality = data.qualityUpdates;
-        var drivers = data.driverUpdates;
-
-        var rateClass = summary.complianceRate >= 90 ? 'text-success' : summary.complianceRate >= 70 ? 'text-warning' : 'text-critical';
-
-        var html = '<div class="analytics-section">';
-        html += '<h3>Device Update Compliance</h3>';
-        html += '<div class="compliance-overview">';
-        html += '<div class="compliance-chart">';
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var totalForChart = summary.devicesUpToDate + summary.devicesPendingUpdate + summary.devicesWithErrors;
-        var upToDateDash = totalForChart > 0 ? (summary.devicesUpToDate / totalForChart) * circumference : 0;
-        var pendingDash = totalForChart > 0 ? (summary.devicesPendingUpdate / totalForChart) * circumference : 0;
-        var errorDash = totalForChart > 0 ? (summary.devicesWithErrors / totalForChart) * circumference : 0;
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        var offset = 0;
-        if (summary.devicesUpToDate > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + upToDateDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += upToDateDash;
-        }
-        if (summary.devicesPendingUpdate > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-warning)" stroke-width="10" stroke-dasharray="' + pendingDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += pendingDash;
-        }
-        if (summary.devicesWithErrors > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + errorDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-        }
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + rateClass + '">' + Math.round(summary.complianceRate) + '%</span><span class="donut-label">Up to Date</span></div>';
-        html += '</div>';
-        html += '</div>';
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> Up to Date: <strong>' + SF.formatCount(summary.devicesUpToDate) + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-warning"></span> Pending: <strong>' + SF.formatCount(summary.devicesPendingUpdate) + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> Errors: <strong>' + SF.formatCount(summary.devicesWithErrors, { zeroIsGood: true }) + '</strong></div>';
-        html += '</div></div></div>';
-
-        // Analytics Grid
-        html += '<div class="analytics-grid">';
-
-        // Update Rings Breakdown
-        if (rings.length > 0) {
-            html += '<div class="analytics-card">';
-            html += '<h4>Update Rings</h4>';
-            html += '<div class="platform-list">';
-            rings.forEach(function(ring) {
-                var total = ring.totalDevices || 0;
-                var success = ring.successDevices || 0;
-                var pct = total > 0 ? Math.round((success / total) * 100) : 0;
-                var isPaused = ring.qualityUpdatesPaused || ring.featureUpdatesPaused;
-                html += '<div class="platform-row">';
-                html += '<span class="platform-name">' + (ring.displayName || '--');
-                if (isPaused) html += ' <span class="badge badge-warning" style="font-size:0.7em">Paused</span>';
-                html += '</span>';
-                html += '<span class="platform-policies">' + total + ' devices</span>';
-                html += '<div class="mini-bar"><div class="mini-bar-fill bg-success" style="width:' + pct + '%"></div></div>';
-                html += '<span class="platform-rate">' + pct + '%</span>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Feature Updates Progress
-        if (feature.length > 0) {
-            html += '<div class="analytics-card">';
-            html += '<h4>Feature Updates</h4>';
-            html += '<div class="platform-list">';
-            feature.forEach(function(f) {
-                var state = f.deploymentState || {};
-                var total = state.total || 0;
-                var succeeded = state.succeeded || 0;
-                var pct = total > 0 ? Math.round((succeeded / total) * 100) : 0;
-                html += '<div class="platform-row">';
-                html += '<span class="platform-name">' + (f.featureUpdateVersion || f.displayName || '--') + '</span>';
-                html += '<span class="platform-policies">' + succeeded + '/' + total + '</span>';
-                html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div>';
-                html += '<span class="platform-rate">' + pct + '%</span>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Quality Updates Progress
-        if (quality.length > 0) {
-            html += '<div class="analytics-card">';
-            html += '<h4>Quality Updates</h4>';
-            html += '<div class="platform-list">';
-            quality.forEach(function(q) {
-                var state = q.deploymentState || {};
-                var total = state.total || (state.succeeded || 0) + (state.pending || 0) + (state.failed || 0);
-                var succeeded = state.succeeded || 0;
-                var pct = total > 0 ? Math.round((succeeded / total) * 100) : 0;
-                var isExpedited = q.isExpedited || q.expeditedUpdateSettings;
-                html += '<div class="platform-row">';
-                html += '<span class="platform-name">' + (q.releaseDateDisplayName || q.displayName || '--');
-                if (isExpedited) html += ' <span class="badge badge-warning" style="font-size:0.7em">Expedited</span>';
-                html += '</span>';
-                html += '<span class="platform-policies">' + succeeded + '/' + total + '</span>';
-                html += '<div class="mini-bar"><div class="mini-bar-fill bg-info" style="width:' + pct + '%"></div></div>';
-                html += '<span class="platform-rate">' + pct + '%</span>';
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        html += '</div>'; // end analytics-grid
-
-        // Quick Status Cards
-        html += '<div class="analytics-section">';
-        html += '<h3>Quick Status</h3>';
-        html += '<div class="summary-cards" style="margin-bottom:0">';
-        html += '<div class="summary-card' + (summary.pausedRings > 0 ? ' card-warning' : ' card-success') + '"><div class="summary-value">' + summary.pausedRings + '</div><div class="summary-label">Paused Rings</div></div>';
-        html += '<div class="summary-card card-info"><div class="summary-value">' + summary.expeditedUpdatesActive + '</div><div class="summary-label">Expedited Updates</div></div>';
-        html += '<div class="summary-card' + (summary.driversNeedingReview > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + summary.driversNeedingReview + '</div><div class="summary-label">Drivers Pending Review</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + drivers.length + '</div><div class="summary-label">Driver Updates</div></div>';
-        html += '</div></div>';
-
-        // Insight Cards
-        var insights = generateInsights(data);
-        if (insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Update Insights</h3>';
-            html += '<div class="insights-list">';
-            insights.forEach(function(insight) {
-                var severityClass = 'insight-' + (insight.severity || 'info');
-                var badgeClass = insight.severity === 'critical' ? 'badge-critical' :
-                                 insight.severity === 'high' ? 'badge-warning' :
-                                 insight.severity === 'medium' ? 'badge-info' : 'badge-neutral';
-                html += '<div class="insight-card ' + severityClass + '">';
-                html += '<div class="insight-header">';
-                html += '<span class="badge ' + badgeClass + '">' + (insight.severity || 'info').toUpperCase() + '</span>';
-                html += '<span class="insight-category">' + (insight.category || '') + '</span>';
-                html += '</div>';
-                html += '<p class="insight-description">' + insight.description + '</p>';
-                if (insight.recommendedAction) {
-                    html += '<p class="insight-action"><strong>Action:</strong> ' + insight.recommendedAction + '</p>';
-                }
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        // Devices with Errors
         var deviceCompliance = data.deviceCompliance || [];
         var errorDevices = deviceCompliance.filter(function(d) { return d.updateStatus === 'error'; });
+
+        var html = '';
         if (errorDevices.length > 0) {
             html += '<div class="analytics-section">';
             html += '<h3>Devices with Update Errors (' + errorDevices.length + ')</h3>';
@@ -279,6 +132,8 @@ const PageWindowsUpdate = (function() {
                 html += '<p class="text-muted">Showing 10 of ' + errorDevices.length + ' devices with errors.</p>';
             }
             html += '</div>';
+        } else {
+            html = '<div class="empty-state"><p>No devices with update errors.</p></div>';
         }
 
         container.innerHTML = html;

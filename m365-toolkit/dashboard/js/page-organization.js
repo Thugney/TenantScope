@@ -16,7 +16,7 @@ const PageOrganization = (function() {
     'use strict';
 
     /** Current tab */
-    var currentTab = 'overview';
+    var currentTab = 'analysis';
 
     /** Cached page state */
     var orgState = null;
@@ -298,9 +298,6 @@ const PageOrganization = (function() {
         if (!container || !orgState) return;
 
         switch (currentTab) {
-            case 'overview':
-                renderOverviewTab(container);
-                break;
             case 'analysis':
                 renderAnalysisTab(container);
                 break;
@@ -362,6 +359,16 @@ const PageOrganization = (function() {
             return keys;
         }
 
+        function buildUserLink(name, upn) {
+            if (upn) {
+                var a = el('a', 'entity-link');
+                a.href = '#users?tab=users&search=' + encodeURIComponent(upn);
+                a.textContent = name;
+                return a;
+            }
+            return document.createTextNode(name);
+        }
+
         var managerIndex = {};
         hierarchy.managers.forEach(function(m) {
             if (!m || !m.userData) return;
@@ -380,69 +387,114 @@ const PageOrganization = (function() {
             return null;
         }
 
-        var childMap = {};
-        hierarchy.managers.forEach(function(m) {
-            var children = [];
-            (m.directReports || []).forEach(function(r) {
-                var childMgr = resolveManagerFromUser(r);
-                if (childMgr && childMgr !== m) {
-                    children.push(childMgr);
-                }
-            });
-            if (children.length > 0) {
-                var uniq = {};
-                children.forEach(function(c) { uniq[c.key] = c; });
-                childMap[m.key] = Object.values(uniq);
-            }
-        });
-
         var roots = (hierarchy.rootManagers && hierarchy.rootManagers.length > 0)
             ? hierarchy.rootManagers.slice()
             : hierarchy.managers.filter(function(m) { return !m || !m.userData || !m.userData.managerId; });
 
         roots.sort(function(a, b) { return (b.directReports || []).length - (a.directReports || []).length; });
 
-        var maxRoots = 10;
+        var maxRoots = 8;
         var maxDepth = 3;
-        var maxChildren = 12;
+        var maxManagerChildren = 6;
+        var maxLeafChips = 12;
         var shownRoots = roots.slice(0, maxRoots);
         var visited = new Set();
 
-        function renderNode(manager, depth) {
-            if (!manager || visited.has(manager.key) || depth > maxDepth) return '';
+        var tree = el('div', 'org-tree');
+
+        function renderNode(manager, depth, isRoot) {
+            if (!manager || visited.has(manager.key) || depth > maxDepth) return null;
             visited.add(manager.key);
+
+            var node = el('div', 'org-node org-node--manager' + (isRoot ? ' org-node--root' : ''));
+            var card = el('div', 'org-node-card');
+            var header = el('div', 'org-node-header');
 
             var name = manager.name || (manager.userData && manager.userData.displayName) || 'Unknown';
             var upn = manager.userPrincipalName || (manager.userData && manager.userData.userPrincipalName) || '';
-            var link = upn ? '<a href="#users?tab=users&search=' + encodeURIComponent(upn) + '" class="text-link">' + name + '</a>' : name;
-            var reports = (manager.directReports || []).length;
-            var html = '<div style="margin-left:' + (depth * 16) + 'px;margin-bottom:6px;">';
-            html += '<div><strong>' + link + '</strong> <span class="text-muted">(' + reports + ')</span></div>';
+            var title = el('div', 'org-node-title');
+            title.appendChild(buildUserLink(name, upn));
+            header.appendChild(title);
 
-            var children = childMap[manager.key] || [];
-            if (children.length > 0 && depth < maxDepth) {
-                var limited = children.slice(0, maxChildren);
-                limited.forEach(function(child) {
-                    html += renderNode(child, depth + 1);
+            var badges = el('div', 'org-node-badges');
+            var reportCount = (manager.directReports || []).length;
+            var reportBadge = el('span', 'badge badge-info', reportCount + ' reports');
+            badges.appendChild(reportBadge);
+            header.appendChild(badges);
+
+            card.appendChild(header);
+
+            var meta = el('div', 'org-node-meta');
+            var metaParts = [];
+            if (manager.jobTitle) metaParts.push(manager.jobTitle);
+            if (manager.department) metaParts.push(manager.department);
+            if (manager.officeLocation) metaParts.push(manager.officeLocation);
+            if (metaParts.length > 0) {
+                meta.textContent = metaParts.join(' • ');
+                card.appendChild(meta);
+            }
+
+            var directReports = manager.directReports || [];
+            if (directReports.length > 0) {
+                var leafReports = [];
+                var managerReports = [];
+
+                directReports.forEach(function(r) {
+                    var childMgr = resolveManagerFromUser(r);
+                    if (childMgr && childMgr !== manager) {
+                        managerReports.push(childMgr);
+                    } else {
+                        leafReports.push(r);
+                    }
                 });
-                if (children.length > maxChildren) {
-                    html += '<div style="margin-left:' + ((depth + 1) * 16) + 'px" class="text-muted">+ ' + (children.length - maxChildren) + ' more managers</div>';
+
+                if (leafReports.length > 0) {
+                    var chips = el('div', 'org-node-chips');
+                    var shownLeaves = leafReports.slice(0, maxLeafChips);
+                    shownLeaves.forEach(function(r) {
+                        var label = r.displayName || r.userPrincipalName || r.mail || 'User';
+                        var chip = el('span', 'org-chip');
+                        var link = buildUserLink(label, r.userPrincipalName || r.mail);
+                        chip.appendChild(link);
+                        chips.appendChild(chip);
+                    });
+                    if (leafReports.length > maxLeafChips) {
+                        chips.appendChild(el('span', 'org-chip org-chip--muted', '+ ' + (leafReports.length - maxLeafChips) + ' more'));
+                    }
+                    card.appendChild(chips);
+                }
+
+                if (managerReports.length > 0 && depth < maxDepth) {
+                    var childrenWrap = el('div', 'org-node-children');
+                    var shownManagers = managerReports.slice(0, maxManagerChildren);
+                    shownManagers.forEach(function(child) {
+                        var childNode = renderNode(child, depth + 1, false);
+                        if (childNode) childrenWrap.appendChild(childNode);
+                    });
+                    if (managerReports.length > maxManagerChildren) {
+                        childrenWrap.appendChild(el('div', 'org-node-more', '+ ' + (managerReports.length - maxManagerChildren) + ' more managers'));
+                    }
+                    node.appendChild(card);
+                    node.appendChild(childrenWrap);
+                    return node;
                 }
             }
-            html += '</div>';
-            return html;
+
+            node.appendChild(card);
+            return node;
         }
 
-        var html = '';
-        shownRoots.forEach(function(r) {
-            html += renderNode(r, 0);
+        shownRoots.forEach(function(root) {
+            var node = renderNode(root, 0, true);
+            if (node) tree.appendChild(node);
         });
 
         if (roots.length > maxRoots) {
-            html += '<div class="text-muted">Showing top ' + maxRoots + ' root managers. Use All Managers for full list.</div>';
+            var note = el('div', 'org-hierarchy-note', 'Showing top ' + maxRoots + ' root managers. Use All Managers for the full list.');
+            tree.appendChild(note);
         }
 
-        container.innerHTML = html || '<div class="empty-state"><div class="empty-state-title">No hierarchy nodes</div><div class="empty-state-description">Manager relationships could not be resolved.</div></div>';
+        container.appendChild(tree);
     }
 
     /**
@@ -675,12 +727,11 @@ const PageOrganization = (function() {
         // Tab bar
         var tabBar = el('div', 'tab-bar');
         var tabs = [
-            { id: 'overview', label: 'Overview' },
             { id: 'analysis', label: 'Analysis' },
             { id: 'managers', label: 'All Managers (' + hierarchy.totalManagers + ')' }
         ];
         tabs.forEach(function(t) {
-            var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
+            var btn = el('button', 'tab-btn' + (t.id === 'analysis' ? ' active' : ''));
             btn.dataset.tab = t.id;
             btn.textContent = t.label;
             tabBar.appendChild(btn);
@@ -697,7 +748,7 @@ const PageOrganization = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        currentTab = 'overview';
+        currentTab = 'analysis';
         renderContent();
     }
 
