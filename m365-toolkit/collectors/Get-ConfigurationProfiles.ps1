@@ -109,6 +109,95 @@ function Get-ProfilePlatform {
     }
 }
 
+function Convert-ReportRows {
+    <#
+    .SYNOPSIS
+        Converts Intune report responses into an array of objects.
+    #>
+    param([Parameter(Mandatory)]$Report)
+
+    if (-not $Report) { return @() }
+
+    if ($Report.values -and $Report.columns) {
+        $cols = @($Report.columns | ForEach-Object { $_.name })
+        $rows = @()
+        foreach ($row in $Report.values) {
+            $obj = [ordered]@{}
+            for ($i = 0; $i -lt $cols.Count; $i++) {
+                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+            }
+            $rows += [PSCustomObject]$obj
+        }
+        return $rows
+    }
+
+    if ($Report.value -and $Report.schema) {
+        $cols = @($Report.schema | ForEach-Object { $_.name })
+        $rows = @()
+        foreach ($row in $Report.value) {
+            if (-not ($row -is [System.Array])) { continue }
+            $obj = [ordered]@{}
+            for ($i = 0; $i -lt $cols.Count; $i++) {
+                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+            }
+            $rows += [PSCustomObject]$obj
+        }
+        return $rows
+    }
+
+    if ($Report.value -and $Report.value[0] -and $Report.value[0].PSObject) {
+        return @($Report.value)
+    }
+
+    return @()
+}
+
+function Get-ReportValue {
+    param(
+        [Parameter(Mandatory)]$Row,
+        [Parameter(Mandatory)][string[]]$Names
+    )
+
+    foreach ($name in $Names) {
+        $prop = $Row.PSObject.Properties[$name]
+        if ($prop) { return $prop.Value }
+    }
+    return $null
+}
+
+function Get-ConfigurationPolicyReportMap {
+    $map = @{}
+    $body = @{
+        select = @(
+            "policyId","policyName","platform",
+            "deviceCount","successDeviceCount","errorDeviceCount","conflictDeviceCount","pendingDeviceCount","notApplicableDeviceCount"
+        )
+        skip = 0
+        top = 2000
+    } | ConvertTo-Json -Depth 6
+
+    $report = $null
+    try {
+        $report = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method POST `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getConfigurationPolicyDeviceSummaryReport" `
+                -Body $body -OutputType PSObject
+        } -OperationName "Configuration policy device summary report"
+    }
+    catch {
+        return $map
+    }
+
+    $rows = Convert-ReportRows -Report $report
+    foreach ($row in $rows) {
+        $id = Get-ReportValue -Row $row -Names @("policyId","id")
+        if (-not $id) { continue }
+        $map[$id] = $row
+    }
+
+    return $map
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -208,6 +297,7 @@ try {
     # ========================================
 
     $processedProfiles = @()
+    $policyReportMap = Get-ConfigurationPolicyReportMap
 
     # Build a cache for group names
     $groupNameCache = @{}
@@ -281,6 +371,20 @@ try {
             # Fallback to deviceStatuses when overview is unavailable or zeroed
             $totalFromOverview = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
             if ($source -eq "configurationPolicies" -or $totalFromOverview -eq 0) {
+                if ($source -eq "configurationPolicies" -and $policyReportMap.ContainsKey($profile.id)) {
+                    $row = $policyReportMap[$profile.id]
+                    $successCount = [int](Get-ReportValue -Row $row -Names @("successDeviceCount","successCount"))
+                    $errorCount = [int](Get-ReportValue -Row $row -Names @("errorDeviceCount","errorCount"))
+                    $conflictCount = [int](Get-ReportValue -Row $row -Names @("conflictDeviceCount","conflictCount"))
+                    $pendingCount = [int](Get-ReportValue -Row $row -Names @("pendingDeviceCount","pendingCount"))
+                    $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+                    if (($successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount) -gt 0) {
+                        $usedStatusFallback = $true
+                    }
+                }
+            }
+
+            if (($source -eq "configurationPolicies" -and -not $usedStatusFallback) -or $totalFromOverview -eq 0) {
                 try {
                     $statusUri = if ($source -eq "deviceConfigurations") {
                         "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$top=100"

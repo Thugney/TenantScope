@@ -182,6 +182,113 @@ function Get-AppInstallSummary {
     }
 }
 
+function Convert-ReportRows {
+    <#
+    .SYNOPSIS
+        Converts Intune report responses into an array of objects.
+    #>
+    param([Parameter(Mandatory)]$Report)
+
+    if (-not $Report) { return @() }
+
+    # Pattern: { columns: [...], values: [[...], ...] }
+    if ($Report.values -and $Report.columns) {
+        $cols = @($Report.columns | ForEach-Object { $_.name })
+        $rows = @()
+        foreach ($row in $Report.values) {
+            $obj = [ordered]@{}
+            for ($i = 0; $i -lt $cols.Count; $i++) {
+                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+            }
+            $rows += [PSCustomObject]$obj
+        }
+        return $rows
+    }
+
+    # Pattern: { schema: [...], value: [[...], ...] }
+    if ($Report.value -and $Report.schema) {
+        $cols = @($Report.schema | ForEach-Object { $_.name })
+        $rows = @()
+        foreach ($row in $Report.value) {
+            if (-not ($row -is [System.Array])) { continue }
+            $obj = [ordered]@{}
+            for ($i = 0; $i -lt $cols.Count; $i++) {
+                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+            }
+            $rows += [PSCustomObject]$obj
+        }
+        return $rows
+    }
+
+    # Pattern: { value: [ {..}, {..} ] }
+    if ($Report.value -and $Report.value[0] -and $Report.value[0].PSObject) {
+        return @($Report.value)
+    }
+
+    return @()
+}
+
+function Get-ReportValue {
+    param(
+        [Parameter(Mandatory)]$Row,
+        [Parameter(Mandatory)][string[]]$Names
+    )
+
+    foreach ($name in $Names) {
+        $prop = $Row.PSObject.Properties[$name]
+        if ($prop) { return $prop.Value }
+    }
+    return $null
+}
+
+function Get-AppInstallReportMap {
+    <#
+    .SYNOPSIS
+        Retrieves app install summary report and returns map keyed by appId.
+    #>
+    $map = @{}
+    $body = @{
+        select = @(
+            "appId","appName","installedDeviceCount","failedDeviceCount",
+            "pendingInstallDeviceCount","notInstalledDeviceCount","notApplicableDeviceCount",
+            "deviceCount"
+        )
+        skip = 0
+        top = 2000
+    } | ConvertTo-Json -Depth 6
+
+    $report = $null
+    try {
+        $report = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method POST `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getAppInstallSummaryReport" `
+                -Body $body -OutputType PSObject
+        } -OperationName "App install summary report"
+    }
+    catch {
+        # Fallback to alternate report endpoint name (if supported)
+        try {
+            $report = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST `
+                    -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getAppInstallStatusReport" `
+                    -Body $body -OutputType PSObject
+            } -OperationName "App install status report"
+        }
+        catch {
+            return $map
+        }
+    }
+
+    $rows = Convert-ReportRows -Report $report
+    foreach ($row in $rows) {
+        $id = Get-ReportValue -Row $row -Names @("appId", "id")
+        if (-not $id) { continue }
+        $map[$id] = $row
+    }
+
+    return $map
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -240,6 +347,7 @@ try {
     Write-Host "      Retrieved $($allApps.Count) assigned apps" -ForegroundColor Gray
 
     $processedApps = @()
+    $installReportMap = Get-AppInstallReportMap
 
     foreach ($app in $allApps) {
         try {
@@ -278,15 +386,28 @@ try {
             $deviceStatuses = @()
             $usedInstallSummary = $false
 
+            # Prefer report summary map when available (covers all app types)
+            if ($installReportMap.ContainsKey($app.id)) {
+                $row = $installReportMap[$app.id]
+                $installedCount = [int](Get-ReportValue -Row $row -Names @("installedDeviceCount","installedCount"))
+                $failedCount = [int](Get-ReportValue -Row $row -Names @("failedDeviceCount","failedCount"))
+                $pendingCount = [int](Get-ReportValue -Row $row -Names @("pendingInstallDeviceCount","pendingCount"))
+                $notInstalledCount = [int](Get-ReportValue -Row $row -Names @("notInstalledDeviceCount","notInstalledCount"))
+                $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+                $usedInstallSummary = $true
+            }
+
             # Prefer aggregate install summary when available
-            $installSummary = Get-AppInstallSummary -AppId $app.id
-            if ($installSummary) {
+            if (-not $usedInstallSummary) {
+                $installSummary = Get-AppInstallSummary -AppId $app.id
+                if ($installSummary) {
                 $installedCount = $installSummary.installed
                 $failedCount = $installSummary.failed
                 $pendingCount = $installSummary.pending
                 $notInstalledCount = $installSummary.notInstalled
                 $notApplicableCount = $installSummary.notApplicable
                 $usedInstallSummary = $true
+                }
             }
 
             try {
