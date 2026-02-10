@@ -246,13 +246,13 @@ try {
     }
 
     # Load licenses.json for SKU names
-    $licensesPath = Join-Path (Split-Path $OutputPath -Parent) "licenses.json"
+    $licensesPath = Join-Path (Split-Path $OutputPath -Parent) "license-skus.json"
     if (Test-Path $licensesPath) {
         $licensesData = Get-Content $licensesPath -Raw | ConvertFrom-Json
         $licenses = if ($licensesData.PSObject.Properties['licenses']) { $licensesData.licenses } else { $licensesData }
         foreach ($lic in $licenses) {
-            if ($lic.skuId -and $lic.displayName -and -not $skuNameMap.ContainsKey($lic.skuId)) {
-                $skuNameMap[$lic.skuId] = $lic.displayName
+            if ($lic.skuId -and $lic.skuName -and -not $skuNameMap.ContainsKey($lic.skuId)) {
+                $skuNameMap[$lic.skuId] = $lic.skuName
             }
         }
     }
@@ -341,7 +341,7 @@ try {
             memberCount = $userMembers.Count
             ownerCount = $owners.Count
             guestMemberCount = $guestCount
-            licensedMemberCount = ($assignedLicenses | Measure-Object -Property assignedUserCount -Sum).Sum
+            licensedMemberCount = [int](($assignedLicenses | Measure-Object -Property assignedUserCount -Sum).Sum)
 
             members = @($userMembers | ForEach-Object {
                 [PSCustomObject]@{
