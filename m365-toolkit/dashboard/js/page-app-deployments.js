@@ -34,11 +34,38 @@ const PageAppDeployments = (function() {
     }
 
     // Map collector field names to display field names
+    // Supports multiple field name variations from Graph API and collector
     function mapApp(a) {
         var version = a.version || a.displayVersion || a.appVersion || a.committedContentVersion || null;
-        var installRate = (a.successRate !== null && a.successRate !== undefined)
-            ? a.successRate
-            : ((a.installRate !== null && a.installRate !== undefined) ? a.installRate : null);
+
+        // Get device status counts - check multiple possible field names
+        // Graph API uses: installedDeviceCount, failedDeviceCount, etc.
+        // Collector may use: installedDevices, failedDevices, etc.
+        var dso = a.deviceStatusOverview || {};
+        var installedCount = a.installedDeviceCount || a.installedDevices || a.installedCount || dso.installedDeviceCount || 0;
+        var failedCount = a.failedDeviceCount || a.failedDevices || a.failedCount || dso.failedDeviceCount || 0;
+        var pendingCount = a.pendingInstallDeviceCount || a.pendingDevices || a.pendingCount || dso.pendingInstallDeviceCount || 0;
+        var notInstalledCount = a.notInstalledDeviceCount || a.notInstalledDevices || a.notInstalledCount || dso.notInstalledDeviceCount || 0;
+        var notApplicableCount = a.notApplicableDeviceCount || a.notApplicableDevices || a.notApplicableCount || dso.notApplicableDeviceCount || 0;
+
+        // Calculate total if not provided
+        var totalDevices = a.totalDevices || a.totalDeviceCount ||
+            (installedCount + failedCount + pendingCount + notInstalledCount + notApplicableCount) || 0;
+
+        // Calculate install rate if not provided
+        var installRate = null;
+        if (a.successRate !== null && a.successRate !== undefined) {
+            installRate = a.successRate;
+        } else if (a.installRate !== null && a.installRate !== undefined) {
+            installRate = a.installRate;
+        } else if (totalDevices > 0) {
+            // Calculate from counts
+            var attemptedDevices = installedCount + failedCount + pendingCount;
+            if (attemptedDevices > 0) {
+                installRate = Math.round((installedCount / attemptedDevices) * 1000) / 10;
+            }
+        }
+
         return {
             id: a.id,
             displayName: a.displayName,
@@ -59,31 +86,33 @@ const PageAppDeployments = (function() {
             assignmentCount: a.assignmentCount || (a.assignments ? a.assignments.length : 0),
             hasRequiredAssignment: a.hasRequiredAssignment,
             // Installation status
-            installedCount: a.installedDevices || a.installedCount || 0,
-            failedCount: a.failedDevices || a.failedCount || 0,
-            pendingCount: a.pendingDevices || a.pendingCount || 0,
-            notInstalledCount: a.notInstalledDevices || a.notInstalledCount || 0,
-            notApplicableCount: a.notApplicableDevices || a.notApplicableCount || 0,
-            totalDevices: a.totalDevices || 0,
+            installedCount: installedCount,
+            failedCount: failedCount,
+            pendingCount: pendingCount,
+            notInstalledCount: notInstalledCount,
+            notApplicableCount: notApplicableCount,
+            totalDevices: totalDevices,
             installRate: installRate,
             // Device statuses (failed only)
             deviceStatuses: a.deviceStatuses || [],
             // Health
-            hasFailures: a.hasFailures || (a.failedDevices > 0) || (a.failedCount > 0),
+            hasFailures: a.hasFailures || failedCount > 0,
             needsAttention: a.needsAttention
         };
     }
 
-    // Build summary from flat array (legacy support)
+    // Build summary from apps array
+    // Handles both raw apps (from collector) and mapped apps (after mapApp)
     function buildSummaryFromArray(apps) {
         var totalInstalled = 0, totalFailed = 0, totalPending = 0;
         var platformBreakdown = {}, typeBreakdown = {};
         var appsWithFailures = 0;
 
         apps.forEach(function(a) {
-            var installed = a.installedDevices || a.installedCount || 0;
-            var failed = a.failedDevices || a.failedCount || 0;
-            var pending = a.pendingDevices || a.pendingCount || 0;
+            // Support multiple field name variations
+            var installed = a.installedCount || a.installedDevices || a.installedDeviceCount || 0;
+            var failed = a.failedCount || a.failedDevices || a.failedDeviceCount || 0;
+            var pending = a.pendingCount || a.pendingDevices || a.pendingInstallDeviceCount || 0;
 
             totalInstalled += installed;
             totalFailed += failed;
@@ -149,16 +178,17 @@ const PageAppDeployments = (function() {
 
     function renderOverviewTab(container) {
         var apps = (rawData.apps || []).map(mapApp);
-        // Always compute summary from apps to ensure accurate install/failed counts
-        var computedSummary = buildSummaryFromArray(apps);
+        var summary = (rawData.summary && rawData.summary.totalApps !== undefined)
+            ? rawData.summary
+            : buildSummaryFromArray(apps);
         var insights = rawData.insights || [];
 
-        var totalInstalled = computedSummary.totalInstalled || 0;
-        var totalFailed = computedSummary.totalFailed || 0;
-        var totalPending = computedSummary.totalPending || 0;
-        var overallInstallRate = computedSummary.overallInstallRate || 0;
-        var platformBreakdown = computedSummary.platformBreakdown || {};
-        var typeBreakdown = computedSummary.typeBreakdown || {};
+        var totalInstalled = summary.totalInstalled || 0;
+        var totalFailed = summary.totalFailed || 0;
+        var totalPending = summary.totalPending || 0;
+        var overallInstallRate = summary.overallInstallRate || 0;
+        var platformBreakdown = summary.platformBreakdown || {};
+        var typeBreakdown = summary.typeBreakdown || {};
 
         var total = totalInstalled + totalFailed + totalPending;
         var installedPct = total > 0 ? Math.round((totalInstalled / total) * 100) : 0;
