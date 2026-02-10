@@ -119,28 +119,28 @@ try {
         $isHighPrivilege = $role.DisplayName -in $highPrivilegeRoles
 
         # Get role members - includes users, service principals, and groups
+        # Use direct API call to get all member types with their properties
         $members = @()
         $userMembers = @()
         $servicePrincipalMembers = @()
         $groupMembers = @()
 
         try {
-            $roleMembers = Invoke-GraphWithRetry -ScriptBlock {
-                Get-MgDirectoryRoleMember -DirectoryRoleId $role.Id -All
-            } -OperationName "Role member retrieval"
+            $membersUri = "https://graph.microsoft.com/v1.0/directoryRoles/$($role.Id)/members"
+            $roleMembers = Get-GraphAllPages -Uri $membersUri -OperationName "Role member retrieval"
 
             foreach ($member in $roleMembers) {
-                $memberType = $member.AdditionalProperties.'@odata.type'
-                $memberId = $member.Id
-                $memberName = $member.AdditionalProperties.displayName
+                $memberType = $member.'@odata.type'
+                $memberId = $member.id
+                $memberName = $member.displayName
 
                 # Process based on member type - SECURITY CRITICAL: Include ALL principal types
                 if ($memberType -eq '#microsoft.graph.user' -or $null -eq $memberType) {
                     # User member
-                    $memberUpn = $member.AdditionalProperties.userPrincipalName
+                    $memberUpn = $member.userPrincipalName
 
                     # Try to get additional info from user lookup
-                    $accountEnabled = $true
+                    $accountEnabled = if ($null -ne $member.accountEnabled) { $member.accountEnabled } else { $true }
                     $isInactive = $false
                     $daysSinceLastSignIn = $null
                     $mfaRegistered = $null
@@ -176,8 +176,8 @@ try {
                 }
                 elseif ($memberType -eq '#microsoft.graph.servicePrincipal') {
                     # Service Principal (App) - SECURITY CRITICAL
-                    $appId = $member.AdditionalProperties.appId
-                    $servicePrincipalType = $member.AdditionalProperties.servicePrincipalType
+                    $appId = $member.appId
+                    $servicePrincipalType = $member.servicePrincipalType
 
                     $memberObj = [PSCustomObject]@{
                         id                   = $memberId
@@ -185,7 +185,7 @@ try {
                         memberType           = "ServicePrincipal"
                         appId                = $appId
                         servicePrincipalType = $servicePrincipalType
-                        accountEnabled       = $member.AdditionalProperties.accountEnabled
+                        accountEnabled       = $member.accountEnabled
                     }
 
                     $members += $memberObj
@@ -194,7 +194,7 @@ try {
                 elseif ($memberType -eq '#microsoft.graph.group') {
                     # Group - SECURITY CRITICAL: Role-assignable groups
                     $groupType = "Security"
-                    if ($member.AdditionalProperties.groupTypes -contains 'Unified') {
+                    if ($member.groupTypes -contains 'Unified') {
                         $groupType = "Microsoft365"
                     }
 
@@ -203,8 +203,8 @@ try {
                         displayName       = $memberName
                         memberType        = "Group"
                         groupType         = $groupType
-                        isRoleAssignable  = $member.AdditionalProperties.isAssignableToRole
-                        securityEnabled   = $member.AdditionalProperties.securityEnabled
+                        isRoleAssignable  = $member.isAssignableToRole
+                        securityEnabled   = $member.securityEnabled
                     }
 
                     $members += $memberObj

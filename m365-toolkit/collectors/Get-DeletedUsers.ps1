@@ -77,8 +77,9 @@ try {
         Write-Host "      Trying alternative method..." -ForegroundColor Gray
 
         try {
+            # Explicitly select deletedDateTime to ensure it's returned
             $response = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/directory/deletedItems/microsoft.graph.user" -OutputType PSObject
+                Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/directory/deletedItems/microsoft.graph.user?`$select=id,displayName,userPrincipalName,mail,userType,department,jobTitle,deletedDateTime" -OutputType PSObject
             } -OperationName "Deleted users (direct API)"
 
             # Handle paged results

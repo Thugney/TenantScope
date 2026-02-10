@@ -249,6 +249,7 @@ try {
 
         $processedUser = [PSCustomObject]@{
             id                       = $userId
+            userId                   = $userId  # Also expose as userId for dashboard compatibility
             userPrincipalName        = $userPrincipalName
             userDisplayName          = $userDisplayName
             riskLevel                = $riskLevel

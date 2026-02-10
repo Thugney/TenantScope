@@ -353,12 +353,27 @@ try {
                     $notApplicableCount = if ($null -ne $statusOverview.notApplicableDeviceCount) { $statusOverview.notApplicableDeviceCount } else { 0 }
                 }
                 elseif ($source -eq "configurationPolicies") {
-                    # Settings Catalog policies don't have deviceStatusOverview endpoint
-                    # Use deviceStatuses as fallback for deployment counts
-                    $successCount = 0
-                    $errorCount = 0
-                    $conflictCount = 0
-                    $pendingCount = 0
+                    # Try deviceStatusOverview for Settings Catalog policies (beta endpoint)
+                    try {
+                        $statusOverview = Invoke-MgGraphRequest -Method GET `
+                            -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
+                            -OutputType PSObject
+
+                        $compliant = if ($null -ne $statusOverview.compliantDeviceCount) { $statusOverview.compliantDeviceCount } else { 0 }
+                        $remediated = if ($null -ne $statusOverview.remediatedDeviceCount) { $statusOverview.remediatedDeviceCount } else { 0 }
+                        $successCount = $compliant + $remediated
+                        $errorCount = if ($null -ne $statusOverview.errorDeviceCount) { $statusOverview.errorDeviceCount } else { 0 }
+                        $conflictCount = if ($null -ne $statusOverview.conflictDeviceCount) { $statusOverview.conflictDeviceCount } else { 0 }
+                        $pendingCount = if ($null -ne $statusOverview.pendingDeviceCount) { $statusOverview.pendingDeviceCount } else { 0 }
+                        $notApplicableCount = if ($null -ne $statusOverview.notApplicableDeviceCount) { $statusOverview.notApplicableDeviceCount } else { 0 }
+                    }
+                    catch {
+                        # Settings Catalog deviceStatusOverview not available, will use fallbacks
+                        $successCount = 0
+                        $errorCount = 0
+                        $conflictCount = 0
+                        $pendingCount = 0
+                    }
                 }
             }
             catch {
@@ -368,23 +383,33 @@ try {
                 }
             }
 
-            # Fallback to deviceStatuses when overview is unavailable or zeroed
+            # Fallback to report API or deviceStatuses when overview is unavailable or zeroed
             $totalFromOverview = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
             if ($source -eq "configurationPolicies" -or $totalFromOverview -eq 0) {
+                # Try report API for Settings Catalog policies
                 if ($source -eq "configurationPolicies" -and $policyReportMap.ContainsKey($profile.id)) {
                     $row = $policyReportMap[$profile.id]
-                    $successCount = [int](Get-ReportValue -Row $row -Names @("successDeviceCount","successCount"))
-                    $errorCount = [int](Get-ReportValue -Row $row -Names @("errorDeviceCount","errorCount"))
-                    $conflictCount = [int](Get-ReportValue -Row $row -Names @("conflictDeviceCount","conflictCount"))
-                    $pendingCount = [int](Get-ReportValue -Row $row -Names @("pendingDeviceCount","pendingCount"))
-                    $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
-                    if (($successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount) -gt 0) {
+                    $reportSuccess = [int](Get-ReportValue -Row $row -Names @("successDeviceCount","successCount"))
+                    $reportError = [int](Get-ReportValue -Row $row -Names @("errorDeviceCount","errorCount"))
+                    $reportConflict = [int](Get-ReportValue -Row $row -Names @("conflictDeviceCount","conflictCount"))
+                    $reportPending = [int](Get-ReportValue -Row $row -Names @("pendingDeviceCount","pendingCount"))
+                    $reportNotApplicable = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+
+                    # Only use report data if we got at least some counts
+                    if (($reportSuccess + $reportError + $reportConflict + $reportPending + $reportNotApplicable) -gt 0) {
+                        $successCount = $reportSuccess
+                        $errorCount = $reportError
+                        $conflictCount = $reportConflict
+                        $pendingCount = $reportPending
+                        $notApplicableCount = $reportNotApplicable
                         $usedStatusFallback = $true
                     }
                 }
             }
 
-            if (($source -eq "configurationPolicies" -and -not $usedStatusFallback) -or $totalFromOverview -eq 0) {
+            # Final fallback: enumerate deviceStatuses if still no data
+            $totalSoFar = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
+            if ($totalSoFar -eq 0) {
                 try {
                     $statusUri = if ($source -eq "deviceConfigurations") {
                         "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$top=100"

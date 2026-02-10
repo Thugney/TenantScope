@@ -198,8 +198,21 @@ try {
     }
 
     foreach ($device in $allDevices) {
-        $hasRecoveryKey = $recoveryKeys.ContainsKey($device.id)
-        $recoveryKeyInfo = if ($hasRecoveryKey) { $recoveryKeys[$device.id] } else { @() }
+        # Recovery keys use Azure AD device ID, not Intune device ID
+        $intuneId = if ($device.Id) { $device.Id } else { $device.id }
+        $azureAdId = if ($device.AzureADDeviceId) { $device.AzureADDeviceId } elseif ($device.azureADDeviceId) { $device.azureADDeviceId } elseif ($device.azureAdDeviceId) { $device.azureAdDeviceId } else { $null }
+
+        # Try both Azure AD device ID (primary) and Intune device ID (fallback)
+        $hasRecoveryKey = $false
+        $recoveryKeyInfo = @()
+        if ($azureAdId -and $recoveryKeys.ContainsKey($azureAdId)) {
+            $hasRecoveryKey = $true
+            $recoveryKeyInfo = $recoveryKeys[$azureAdId]
+        }
+        elseif ($intuneId -and $recoveryKeys.ContainsKey($intuneId)) {
+            $hasRecoveryKey = $true
+            $recoveryKeyInfo = $recoveryKeys[$intuneId]
+        }
 
         # Determine encryption state (isEncrypted is boolean only - no encryptionState in API)
         # Handle both PascalCase (from SDK/SharedData) and camelCase (from REST)

@@ -132,6 +132,8 @@ try {
 
     # Process each location
     $processedLocations = @()
+    $blockedCountriesList = @()
+    $allowedCountriesList = @()
     $summary = @{
         totalLocations = 0
         ipRangeLocations = 0
@@ -142,6 +144,8 @@ try {
         unusedLocations = 0
         totalIpRanges = 0
         totalCountries = 0
+        blockedCountries = 0
+        allowedCountries = 0
     }
 
     foreach ($location in $locations) {
@@ -186,11 +190,29 @@ try {
         $usage = $locationUsage[$locationId]
         $isUsed = ($null -ne $usage -and ($usage.includedIn.Count -gt 0 -or $usage.excludedFrom.Count -gt 0))
         $usedByPolicies = @()
+        $isBlockedLocation = $false
+        $isAllowedLocation = $false
         if ($usage) {
             $usedByPolicies = @($usage.includedIn + $usage.excludedFrom | ForEach-Object { $_.policyName } | Sort-Object -Unique)
+            # If location is included in policies (targeted for blocking/restrictions), it's a "blocked" location
+            # If location is excluded from policies (trusted/allowed), it's an "allowed" location
+            if ($usage.includedIn.Count -gt 0) { $isBlockedLocation = $true }
+            if ($usage.excludedFrom.Count -gt 0) { $isAllowedLocation = $true }
         }
 
         if ($isUsed) { $summary.usedLocations++ } else { $summary.unusedLocations++ }
+
+        # Track country counts for blocked/allowed
+        if ($countriesAndRegions.Count -gt 0) {
+            if ($isBlockedLocation) {
+                $blockedCountriesList += $countriesAndRegions
+                $summary.blockedCountries += $countriesAndRegions.Count
+            }
+            if ($isAllowedLocation -or $isTrusted) {
+                $allowedCountriesList += $countriesAndRegions
+                $summary.allowedCountries += $countriesAndRegions.Count
+            }
+        }
 
         # Build flags
         $flags = @()

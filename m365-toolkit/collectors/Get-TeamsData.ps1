@@ -198,7 +198,7 @@ try {
                     activeUsers    = Get-ReportIntValue -Row $row -Keys @('Active Users')
                     activeChannels = Get-ReportIntValue -Row $row -Keys @('Active Channels')
                     postMessages   = Get-ReportIntValue -Row $row -Keys @('Post Messages')
-                    memberCount    = Get-ReportIntValue -Row $row -Keys @('Member Count', 'Members', 'Team Members', 'Team Member Count')
+                    memberCount    = Get-ReportIntValue -Row $row -Keys @('Member Count', 'MemberCount', 'Members', 'Team Members', 'Team Member Count', 'TeamMemberCount', 'Total Members', 'TotalMembers')
                 }
             }
         }
@@ -264,7 +264,22 @@ try {
         $lastActivityDate = if ($activity) { $activity.lastActivity } else { $null }
         $guestCount = if ($activity) { $activity.guestCount } else { 0 }
         $activeUsers = if ($activity) { $activity.activeUsers } else { 0 }
-        $memberCount = if ($activity) { $activity.memberCount } else { 0 }
+        $memberCount = if ($activity -and $activity.memberCount -gt 0) { $activity.memberCount } else { 0 }
+
+        # Fallback: Get member count from transitiveMemberCount if report doesn't have it
+        if ($memberCount -eq 0 -and $membersAvailable -and $groupId) {
+            try {
+                $memberCountUri = "https://graph.microsoft.com/v1.0/groups/$groupId`?`$select=id&`$count=true"
+                $membersUri = "https://graph.microsoft.com/v1.0/groups/$groupId/members/`$count"
+                $countResponse = Invoke-MgGraphRequest -Method GET -Uri $membersUri -Headers @{ 'ConsistencyLevel' = 'eventual' } -OutputType PSObject -ErrorAction SilentlyContinue
+                if ($countResponse -is [int]) {
+                    $memberCount = $countResponse
+                }
+            }
+            catch {
+                # Silently ignore count errors - will remain 0
+            }
+        }
 
         # Get owner count from expanded data
         $owners = if ($group.owners) { $group.owners } else { @() }

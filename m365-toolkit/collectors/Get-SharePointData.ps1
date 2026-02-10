@@ -186,10 +186,20 @@ try {
                 $siteIdParts = $site.id -split ','
                 if ($siteIdParts.Count -ge 2) {
                     $siteGuid = $siteIdParts[1]
+                    # Extract group ID from siteCollection if available (for group-connected sites)
+                    $groupId = $null
+                    if ($site.siteCollection -and $site.siteCollection.root -and $site.siteCollection.root.siteId) {
+                        # Some sites may not have direct groupId
+                    }
+                    # Check if the site has a group relationship
+                    if ($site.'@microsoft.graph.tips'.groupId) {
+                        $groupId = $site.'@microsoft.graph.tips'.groupId
+                    }
                     $siteLookup[$siteGuid] = @{
                         url = $site.webUrl
                         displayName = $site.displayName
                         createdDateTime = $site.createdDateTime
+                        groupId = $groupId
                     }
                 }
             }
@@ -276,8 +286,25 @@ try {
             $template = Get-SiteTemplate -RootWebTemplate $rootWebTemplate -SiteUrl $siteUrl
             $isPersonalSite = ($template -eq "OneDrive")
 
-            # Determine group connection from template (Group Id not in report)
-            $isGroupConnected = ($template -eq "Group")
+            # Try to get group ID from report or lookup
+            $groupId = $null
+            # Check if report has Group Id column (may be available in some tenants/reports)
+            if ($row.'Group Id' -and $row.'Group Id'.Trim()) {
+                $groupId = $row.'Group Id'.Trim()
+            }
+            elseif ($row.'Group ID' -and $row.'Group ID'.Trim()) {
+                $groupId = $row.'Group ID'.Trim()
+            }
+            elseif ($row.'GroupId' -and $row.'GroupId'.Trim()) {
+                $groupId = $row.'GroupId'.Trim()
+            }
+            # Try from site lookup
+            elseif ($siteLookup.ContainsKey($siteId) -and $siteLookup[$siteId].groupId) {
+                $groupId = $siteLookup[$siteId].groupId
+            }
+
+            # Determine group connection from template or group ID presence
+            $isGroupConnected = ($template -eq "Group") -or ($null -ne $groupId)
 
             # Calculate activity status
             $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
@@ -330,6 +357,7 @@ try {
                 isInactive          = $isInactive
                 createdDateTime     = $createdDate
                 isGroupConnected    = $isGroupConnected
+                groupId             = $groupId
                 template            = $template
                 isPersonalSite      = $isPersonalSite
                 # Sharing & governance fields (beta endpoint)

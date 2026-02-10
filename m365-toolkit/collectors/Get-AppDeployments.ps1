@@ -387,26 +387,40 @@ try {
             $usedInstallSummary = $false
 
             # Prefer report summary map when available (covers all app types)
+            # Only use it if we get actual non-zero data
             if ($installReportMap.ContainsKey($app.id)) {
                 $row = $installReportMap[$app.id]
-                $installedCount = [int](Get-ReportValue -Row $row -Names @("installedDeviceCount","installedCount"))
-                $failedCount = [int](Get-ReportValue -Row $row -Names @("failedDeviceCount","failedCount"))
-                $pendingCount = [int](Get-ReportValue -Row $row -Names @("pendingInstallDeviceCount","pendingCount"))
-                $notInstalledCount = [int](Get-ReportValue -Row $row -Names @("notInstalledDeviceCount","notInstalledCount"))
-                $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
-                $usedInstallSummary = $true
+                $reportInstalled = [int](Get-ReportValue -Row $row -Names @("installedDeviceCount","installedCount"))
+                $reportFailed = [int](Get-ReportValue -Row $row -Names @("failedDeviceCount","failedCount"))
+                $reportPending = [int](Get-ReportValue -Row $row -Names @("pendingInstallDeviceCount","pendingCount"))
+                $reportNotInstalled = [int](Get-ReportValue -Row $row -Names @("notInstalledDeviceCount","notInstalledCount"))
+                $reportNotApplicable = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+
+                # Only use report data if we got at least some counts
+                if (($reportInstalled + $reportFailed + $reportPending + $reportNotInstalled + $reportNotApplicable) -gt 0) {
+                    $installedCount = $reportInstalled
+                    $failedCount = $reportFailed
+                    $pendingCount = $reportPending
+                    $notInstalledCount = $reportNotInstalled
+                    $notApplicableCount = $reportNotApplicable
+                    $usedInstallSummary = $true
+                }
             }
 
-            # Prefer aggregate install summary when available
+            # Fallback to aggregate install summary endpoint when report data unavailable
             if (-not $usedInstallSummary) {
                 $installSummary = Get-AppInstallSummary -AppId $app.id
                 if ($installSummary) {
-                $installedCount = $installSummary.installed
-                $failedCount = $installSummary.failed
-                $pendingCount = $installSummary.pending
-                $notInstalledCount = $installSummary.notInstalled
-                $notApplicableCount = $installSummary.notApplicable
-                $usedInstallSummary = $true
+                    $summaryTotal = $installSummary.installed + $installSummary.failed + $installSummary.pending + $installSummary.notInstalled + $installSummary.notApplicable
+                    # Only use summary data if we got at least some counts
+                    if ($summaryTotal -gt 0) {
+                        $installedCount = $installSummary.installed
+                        $failedCount = $installSummary.failed
+                        $pendingCount = $installSummary.pending
+                        $notInstalledCount = $installSummary.notInstalled
+                        $notApplicableCount = $installSummary.notApplicable
+                        $usedInstallSummary = $true
+                    }
                 }
             }
 

@@ -194,6 +194,10 @@ try {
         riskyScopeBreakdown = @{}
     }
 
+    # Build user lookup for principalDisplayName
+    $userLookup = @{}
+    $userLookupErrorLogged = $false
+
     foreach ($grant in $grants) {
         $clientId = $grant.clientId
         $principalId = $grant.principalId
@@ -205,6 +209,34 @@ try {
         $appDisplayName = if ($appInfo) { $appInfo.displayName } else { "Unknown App" }
         $appPublisher = if ($appInfo -and $appInfo.publisherName) { $appInfo.publisherName } else { "Unknown" }
         $appOwnerOrgId = if ($appInfo) { $appInfo.appOwnerOrganizationId } else { $null }
+        # Get appId from service principal
+        $appId = if ($appInfo -and $appInfo.appId) { $appInfo.appId } else { $null }
+
+        # Get principal display name (user name for user consent grants)
+        $principalDisplayName = $null
+        if ($principalId -and $consentType -ne "AllPrincipals") {
+            if ($userLookup.ContainsKey($principalId)) {
+                $principalDisplayName = $userLookup[$principalId]
+            }
+            else {
+                try {
+                    $userInfo = Invoke-MgGraphRequest -Method GET `
+                        -Uri "https://graph.microsoft.com/v1.0/users/$principalId`?`$select=displayName" `
+                        -OutputType PSObject -ErrorAction SilentlyContinue
+                    if ($userInfo -and $userInfo.displayName) {
+                        $principalDisplayName = $userInfo.displayName
+                        $userLookup[$principalId] = $principalDisplayName
+                    }
+                }
+                catch {
+                    if (-not $userLookupErrorLogged) {
+                        # Don't log every user lookup failure, just track it happened
+                        $userLookupErrorLogged = $true
+                    }
+                    $userLookup[$principalId] = $null
+                }
+            }
+        }
 
         # Determine if Microsoft app
         $isMicrosoft = $false
@@ -287,12 +319,14 @@ try {
         $processedGrant = [PSCustomObject]@{
             id                     = $grant.id
             clientId               = $clientId
+            appId                  = $appId  # Application ID from service principal
             appDisplayName         = $appDisplayName
             appPublisher           = $appPublisher
             isMicrosoft            = $isMicrosoft
             isVerifiedPublisher    = $isVerifiedPublisher
             verifiedPublisherName  = $verifiedPublisherName
             principalId            = $principalId
+            principalDisplayName   = $principalDisplayName  # User display name for user consent
             consentType            = $consentType
             isAdminConsent         = $isAdminConsent
             scope                  = $scope
@@ -301,6 +335,7 @@ try {
             highRiskScopes         = $highRiskScopes
             mediumRiskScopes       = $mediumRiskScopes
             riskLevel              = $riskLevel
+            grantedDateTime        = $grant.startTime  # startTime is when consent was granted
             expiryTime             = $grant.expiryTime
             startTime              = $grant.startTime
             flags                  = $flags

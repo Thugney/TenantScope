@@ -102,19 +102,54 @@ try {
     # This is critical for security - understanding what guests can access
     Write-Host "      Collecting group memberships for guests..." -ForegroundColor Gray
     $guestGroupMemberships = @{}
+    $membershipErrorLogged = $false
 
     foreach ($guest in $graphGuests) {
         try {
-            $memberships = Get-MgUserMemberOf -UserId $guest.Id -All -ErrorAction SilentlyContinue
+            # Use direct API call to get all needed properties for group membership analysis
+            $membershipsUri = "https://graph.microsoft.com/v1.0/users/$($guest.Id)/memberOf?`$select=id,displayName,securityEnabled,groupTypes,resourceProvisioningOptions"
+            $memberships = Get-GraphAllPages -Uri $membershipsUri -OperationName "Guest group memberships"
+
+            $totalGroups = 0
+            $securityGroups = 0
+            $m365Groups = 0
+            $teams = 0
+            $directoryRoles = 0
+
+            foreach ($membership in $memberships) {
+                $odataType = $membership.'@odata.type'
+                if ($odataType -eq '#microsoft.graph.group') {
+                    $totalGroups++
+                    # Check security enabled (handle both casing)
+                    $secEnabled = Get-GraphPropertyValue -Object $membership -PropertyNames @("securityEnabled", "SecurityEnabled")
+                    if ($secEnabled -eq $true) { $securityGroups++ }
+
+                    # Check for M365 group (Unified in groupTypes)
+                    $groupTypes = Get-GraphPropertyValue -Object $membership -PropertyNames @("groupTypes", "GroupTypes")
+                    if ($groupTypes -and $groupTypes -contains 'Unified') { $m365Groups++ }
+
+                    # Check for Teams (Team in resourceProvisioningOptions)
+                    $resourceOptions = Get-GraphPropertyValue -Object $membership -PropertyNames @("resourceProvisioningOptions", "ResourceProvisioningOptions")
+                    if ($resourceOptions -and $resourceOptions -contains 'Team') { $teams++ }
+                }
+                elseif ($odataType -eq '#microsoft.graph.directoryRole') {
+                    $directoryRoles++
+                }
+            }
+
             $guestGroupMemberships[$guest.Id] = @{
-                totalGroups      = ($memberships | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' }).Count
-                securityGroups   = ($memberships | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' -and $_.SecurityEnabled }).Count
-                m365Groups       = ($memberships | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' -and $_.GroupTypes -contains 'Unified' }).Count
-                teams            = ($memberships | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.group' -and $_.ResourceProvisioningOptions -contains 'Team' }).Count
-                directoryRoles   = ($memberships | Where-Object { $_.'@odata.type' -eq '#microsoft.graph.directoryRole' }).Count
+                totalGroups      = $totalGroups
+                securityGroups   = $securityGroups
+                m365Groups       = $m365Groups
+                teams            = $teams
+                directoryRoles   = $directoryRoles
             }
         }
         catch {
+            if (-not $membershipErrorLogged) {
+                Write-Host "      [!] Could not get group memberships: $($_.Exception.Message)" -ForegroundColor Yellow
+                $membershipErrorLogged = $true
+            }
             $guestGroupMemberships[$guest.Id] = @{
                 totalGroups      = 0
                 securityGroups   = 0
