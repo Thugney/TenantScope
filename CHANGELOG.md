@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-02-10
+
+### Added
+- **Clickable drill-down properties**: Every property in user and device detail modals is now clickable, navigating to the relevant page filtered by that value
+- **DrillDown module** (`property-panels.js`): Reusable system for clickable property links, entity links, and badge links across all pages
+- **URL filter parameter support**: All 33 pages now accept incoming filter parameters via hash URL (e.g., `#devices?search=laptop01`)
+- **Cross-entity navigation**: Click a device in a user's panel to open that device's details; click a user in a device panel to open their profile
+- **User modal drill-down**: Department, manager, MFA status, risk level, admin roles, licenses, devices, groups, teams, sign-ins, CA policies, OAuth apps, and PIM roles are all clickable
+- **Device modal drill-down**: Primary user, manufacturer, model, OS, BitLocker status, Windows Update, compliance state, vulnerabilities, Defender alerts, config profiles, app deployments, and ASR rules are all clickable
+- **Detail function public APIs**: `showUserDetails` and `showDeviceDetails` (plus detail functions on 20+ other pages) are now exposed for cross-page access
+
+### Changed
+- All page modules updated to parse URL filter parameters and auto-apply them on render
+- CSS additions for drill-down link styling, hover effects, and clickable badge indicators
+
 ## [1.5.8] - 2026-02-06
 
 ### Fixed
