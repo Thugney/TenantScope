@@ -149,17 +149,16 @@ const PageAppDeployments = (function() {
 
     function renderOverviewTab(container) {
         var apps = (rawData.apps || []).map(mapApp);
-        var summary = (rawData.summary && rawData.summary.totalApps !== undefined)
-            ? rawData.summary
-            : buildSummaryFromArray(apps);
+        // Always compute summary from apps to ensure accurate install/failed counts
+        var computedSummary = buildSummaryFromArray(apps);
         var insights = rawData.insights || [];
 
-        var totalInstalled = summary.totalInstalled || 0;
-        var totalFailed = summary.totalFailed || 0;
-        var totalPending = summary.totalPending || 0;
-        var overallInstallRate = summary.overallInstallRate || 0;
-        var platformBreakdown = summary.platformBreakdown || {};
-        var typeBreakdown = summary.typeBreakdown || {};
+        var totalInstalled = computedSummary.totalInstalled || 0;
+        var totalFailed = computedSummary.totalFailed || 0;
+        var totalPending = computedSummary.totalPending || 0;
+        var overallInstallRate = computedSummary.overallInstallRate || 0;
+        var platformBreakdown = computedSummary.platformBreakdown || {};
+        var typeBreakdown = computedSummary.typeBreakdown || {};
 
         var total = totalInstalled + totalFailed + totalPending;
         var installedPct = total > 0 ? Math.round((totalInstalled / total) * 100) : 0;
