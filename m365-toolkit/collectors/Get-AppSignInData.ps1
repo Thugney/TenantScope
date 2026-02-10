@@ -43,7 +43,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -112,86 +115,123 @@ $signInCount = 0
 try {
     Write-Host "    Collecting application sign-in data..." -ForegroundColor Gray
 
-    # Collect sign-ins from the last N days (configurable)
-    $daysBack = 30
-    if ($Config.collection -and $Config.collection.signInLogDays) {
-        $daysBack = $Config.collection.signInLogDays
-    }
-    $startDate = (Get-Date).AddDays(-$daysBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
-
-    # Build initial URI with filter and select for efficiency
-    $baseUri = "https://graph.microsoft.com/v1.0/auditLogs/signIns"
-    $filter = "createdDateTime ge $startDate"
-    $select = "appDisplayName,resourceDisplayName,userPrincipalName,createdDateTime,isInteractive,status,location"
-    $uri = "$baseUri`?`$filter=$filter&`$select=$select&`$top=500"
-
+    # Reuse sign-in logs from SharedData (populated by Get-SignInLogs) to avoid
+    # a duplicate API call. Falls back to fetching directly if SharedData not available.
     $processedSignIns = @()
-    $pageCount = 0
-    $maxPages = 20  # Limit to avoid very long runs (500 * 20 = 10,000 records max)
 
-    do {
-        $pageCount++
-        $response = Invoke-SignInGraphRequest -Uri $uri
+    if ($SharedData -and $SharedData.ContainsKey('SignInLogs') -and $SharedData['SignInLogs'].Count -gt 0) {
+        Write-Host "      Reusing $($SharedData['SignInLogs'].Count) sign-in logs from shared data (no extra API call)" -ForegroundColor Gray
 
-        # If pagination failed, stop but keep what we have
-        if ($null -eq $response) {
-            Write-Host "      Stopping pagination early - collected $signInCount records" -ForegroundColor Yellow
-            break
-        }
-
-        $signIns = $response.value
-        if (-not $signIns -or $signIns.Count -eq 0) {
-            break
-        }
-
-        foreach ($signIn in $signIns) {
+        foreach ($signIn in $SharedData['SignInLogs']) {
             $statusCode = 0
             $statusReason = "Success"
-            if ($signIn.status) {
-                $statusCode = $signIn.status.errorCode
-                if ($signIn.status.failureReason) {
-                    $statusReason = $signIn.status.failureReason
+            if ($signIn.errorCode) {
+                $statusCode = $signIn.errorCode
+                if ($signIn.failureReason) {
+                    $statusReason = $signIn.failureReason
                 }
                 elseif ($statusCode -ne 0) {
                     $statusReason = "Error $statusCode"
                 }
             }
 
-            $city = $null
-            $country = $null
-            if ($signIn.location) {
-                $city = $signIn.location.city
-                $country = $signIn.location.countryOrRegion
-            }
-
             $processedSignIn = [PSCustomObject]@{
                 appDisplayName       = $signIn.appDisplayName
-                resourceDisplayName  = $signIn.resourceDisplayName
+                resourceDisplayName  = $null
                 userPrincipalName    = $signIn.userPrincipalName
                 createdDateTime      = $signIn.createdDateTime
                 isInteractive        = [bool]$signIn.isInteractive
                 statusCode           = $statusCode
                 statusReason         = $statusReason
-                city                 = $city
-                country              = $country
+                city                 = $signIn.city
+                country              = $signIn.country
             }
 
             $processedSignIns += $processedSignIn
             $signInCount++
         }
-
-        Write-Host "      Page $pageCount`: $signInCount sign-ins collected..." -ForegroundColor Gray
-
-        # Get next page
-        $uri = $response.'@odata.nextLink'
-
-        # Safety limit
-        if ($pageCount -ge $maxPages) {
-            Write-Host "      Reached page limit ($maxPages) - stopping collection" -ForegroundColor Yellow
-            break
+    }
+    else {
+        # Fallback: fetch from API if shared data not available
+        $daysBack = 30
+        if ($Config.collection -and $Config.collection.signInLogDays) {
+            $daysBack = $Config.collection.signInLogDays
         }
+        $startDate = (Get-Date).AddDays(-$daysBack).ToString("yyyy-MM-ddTHH:mm:ssZ")
 
-    } while ($uri)
+        # Build initial URI with filter and select for efficiency
+        $baseUri = "https://graph.microsoft.com/v1.0/auditLogs/signIns"
+        $filter = "createdDateTime ge $startDate"
+        $select = "appDisplayName,resourceDisplayName,userPrincipalName,createdDateTime,isInteractive,status,location"
+        $uri = "$baseUri`?`$filter=$filter&`$select=$select&`$top=500"
+
+        $pageCount = 0
+        $maxPages = 20  # Limit to avoid very long runs (500 * 20 = 10,000 records max)
+
+        do {
+            $pageCount++
+            $response = Invoke-SignInGraphRequest -Uri $uri
+
+            # If pagination failed, stop but keep what we have
+            if ($null -eq $response) {
+                Write-Host "      Stopping pagination early - collected $signInCount records" -ForegroundColor Yellow
+                break
+            }
+
+            $signIns = $response.value
+            if (-not $signIns -or $signIns.Count -eq 0) {
+                break
+            }
+
+            foreach ($signIn in $signIns) {
+                $statusCode = 0
+                $statusReason = "Success"
+                if ($signIn.status) {
+                    $statusCode = $signIn.status.errorCode
+                    if ($signIn.status.failureReason) {
+                        $statusReason = $signIn.status.failureReason
+                    }
+                    elseif ($statusCode -ne 0) {
+                        $statusReason = "Error $statusCode"
+                    }
+                }
+
+                $city = $null
+                $country = $null
+                if ($signIn.location) {
+                    $city = $signIn.location.city
+                    $country = $signIn.location.countryOrRegion
+                }
+
+                $processedSignIn = [PSCustomObject]@{
+                    appDisplayName       = $signIn.appDisplayName
+                    resourceDisplayName  = $signIn.resourceDisplayName
+                    userPrincipalName    = $signIn.userPrincipalName
+                    createdDateTime      = $signIn.createdDateTime
+                    isInteractive        = [bool]$signIn.isInteractive
+                    statusCode           = $statusCode
+                    statusReason         = $statusReason
+                    city                 = $city
+                    country              = $country
+                }
+
+                $processedSignIns += $processedSignIn
+                $signInCount++
+            }
+
+            Write-Host "      Page $pageCount`: $signInCount sign-ins collected..." -ForegroundColor Gray
+
+            # Get next page
+            $uri = $response.'@odata.nextLink'
+
+            # Safety limit
+            if ($pageCount -ge $maxPages) {
+                Write-Host "      Reached page limit ($maxPages) - stopping collection" -ForegroundColor Yellow
+                break
+            }
+
+        } while ($uri)
+    }
 
     # Save data using shared utility
     Save-CollectorData -Data $processedSignIns -OutputPath $OutputPath | Out-Null

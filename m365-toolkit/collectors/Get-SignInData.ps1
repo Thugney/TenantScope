@@ -44,7 +44,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -72,43 +75,57 @@ try {
 
     Write-Host "      Filtering to last $daysBack days (since $filterDate)" -ForegroundColor Gray
 
-    # Try to get risk detections
+    # Reuse risk detections and risky users from SharedData (populated by Get-IdentityRiskData)
+    # to avoid duplicate API calls. Falls back to fetching directly if SharedData not available.
     $riskDetections = @()
-
-    try {
-        # Get risk detections within the configured time window
-        $riskDetections = Invoke-GraphWithRetry -ScriptBlock {
-            Get-MgRiskDetection -Filter "detectedDateTime ge $filterDate" -All
-        } -OperationName "Risk detection retrieval"
-        Write-Host "      Retrieved $($riskDetections.Count) risk detections" -ForegroundColor Gray
-    }
-    catch {
-        if ($_.Exception.Message -match "license|subscription|P2|Premium") {
-            Write-Host "      [!] Risk detections require Entra ID P2 license" -ForegroundColor Yellow
-            $errors += "Risk detections require Entra ID P2 license"
-        }
-        else {
-            Write-Host "      [!] Could not retrieve risk detections: $($_.Exception.Message)" -ForegroundColor Yellow
-            $errors += "Risk detections error: $($_.Exception.Message)"
-        }
-    }
-
-    # Pause before next API call to avoid throttling
-    Start-Sleep -Seconds 10
-
-    # Also try to get risky users for additional context
     $riskyUsers = @{}
-    try {
-        $riskyUserList = Invoke-GraphWithRetry -ScriptBlock {
-            Get-MgRiskyUser -All
-        } -OperationName "Risky user retrieval"
-        foreach ($ru in $riskyUserList) {
-            $riskyUsers[$ru.Id] = $ru
+
+    if ($SharedData -and $SharedData.ContainsKey('RiskDetections') -and $SharedData.ContainsKey('RiskyUsers')) {
+        # Reuse data already fetched by Get-IdentityRiskData
+        $riskDetections = @($SharedData['RiskDetections'])
+        Write-Host "      Reusing $($riskDetections.Count) risk detections from shared data (no extra API call)" -ForegroundColor Gray
+
+        $riskyUsersList = @($SharedData['RiskyUsers'])
+        foreach ($ru in $riskyUsersList) {
+            $ruId = if ($ru.Id) { $ru.Id } elseif ($ru.id) { $ru.id } else { $null }
+            if ($ruId) { $riskyUsers[$ruId] = $ru }
         }
-        Write-Host "      Retrieved $($riskyUserList.Count) risky users" -ForegroundColor Gray
+        Write-Host "      Reusing $($riskyUsersList.Count) risky users from shared data (no extra API call)" -ForegroundColor Gray
     }
-    catch {
-        Write-Host "      [!] Could not retrieve risky users: $($_.Exception.Message)" -ForegroundColor Yellow
+    else {
+        # Fallback: fetch from API if shared data not available
+        try {
+            $riskDetections = Invoke-GraphWithRetry -ScriptBlock {
+                Get-MgRiskDetection -Filter "detectedDateTime ge $filterDate" -All
+            } -OperationName "Risk detection retrieval"
+            Write-Host "      Retrieved $($riskDetections.Count) risk detections" -ForegroundColor Gray
+        }
+        catch {
+            if ($_.Exception.Message -match "license|subscription|P2|Premium") {
+                Write-Host "      [!] Risk detections require Entra ID P2 license" -ForegroundColor Yellow
+                $errors += "Risk detections require Entra ID P2 license"
+            }
+            else {
+                Write-Host "      [!] Could not retrieve risk detections: $($_.Exception.Message)" -ForegroundColor Yellow
+                $errors += "Risk detections error: $($_.Exception.Message)"
+            }
+        }
+
+        # Pause before next API call to avoid throttling
+        Start-Sleep -Seconds 10
+
+        try {
+            $riskyUserList = Invoke-GraphWithRetry -ScriptBlock {
+                Get-MgRiskyUser -All
+            } -OperationName "Risky user retrieval"
+            foreach ($ru in $riskyUserList) {
+                $riskyUsers[$ru.Id] = $ru
+            }
+            Write-Host "      Retrieved $($riskyUserList.Count) risky users" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Could not retrieve risky users: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
     }
 
     # Process risk detections

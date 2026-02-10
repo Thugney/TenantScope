@@ -41,7 +41,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -284,6 +287,12 @@ try {
     }
 
     Write-Host "      Retrieved $($managedDevices.Count) devices from Intune" -ForegroundColor Gray
+
+    # Share managed devices with downstream collectors (BitLockerStatus, WindowsUpdateStatus, UserData)
+    # so they don't need to re-fetch from the API
+    if ($SharedData -is [hashtable]) {
+        $SharedData['ManagedDevices'] = $managedDevices
+    }
 
     # Build lookup for Azure AD device IDs to avoid duplicates when adding Entra-only devices
     $managedAzureAdIds = @{}

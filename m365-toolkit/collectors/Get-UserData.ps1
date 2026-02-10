@@ -48,7 +48,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================
@@ -131,46 +134,61 @@ try {
 
     # -----------------------------------------------------------------------
     # Build user-to-device lookup from Intune managed devices
-    # This is done once to avoid per-user API calls
+    # Reuses SharedData.ManagedDevices from Get-DeviceData if available,
+    # otherwise fetches from Graph API (fallback for standalone runs)
     # -----------------------------------------------------------------------
     $userDeviceLookup = @{}
     try {
         Write-Host "      Building user-device mapping from Intune..." -ForegroundColor Gray
 
-        $deviceResponse = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,userPrincipalName,userId,managementAgent,complianceState,operatingSystem&`$top=999" `
-                -OutputType PSObject
-        } -OperationName "Managed devices for user linking"
-
         $managedDevices = @()
-        if ($deviceResponse.value) {
-            $managedDevices = @($deviceResponse.value)
+        if ($SharedData -and $SharedData.ContainsKey('ManagedDevices') -and $SharedData['ManagedDevices'].Count -gt 0) {
+            # Reuse devices already fetched by Get-DeviceData
+            $managedDevices = @($SharedData['ManagedDevices'])
+            Write-Host "      Reusing $($managedDevices.Count) managed devices from shared data (no extra API call)" -ForegroundColor Gray
         }
-
-        # Handle pagination
-        while ($deviceResponse.'@odata.nextLink') {
+        else {
+            # Fallback: fetch from API if shared data not available
             $deviceResponse = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri $deviceResponse.'@odata.nextLink' -OutputType PSObject
-            } -OperationName "Managed devices pagination"
+                Invoke-MgGraphRequest -Method GET `
+                    -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices?`$select=id,deviceName,userPrincipalName,userId,managementAgent,complianceState,operatingSystem&`$top=999" `
+                    -OutputType PSObject
+            } -OperationName "Managed devices for user linking"
+
             if ($deviceResponse.value) {
-                $managedDevices += $deviceResponse.value
+                $managedDevices = @($deviceResponse.value)
+            }
+
+            # Handle pagination
+            while ($deviceResponse.'@odata.nextLink') {
+                $deviceResponse = Invoke-GraphWithRetry -ScriptBlock {
+                    Invoke-MgGraphRequest -Method GET -Uri $deviceResponse.'@odata.nextLink' -OutputType PSObject
+                } -OperationName "Managed devices pagination"
+                if ($deviceResponse.value) {
+                    $managedDevices += $deviceResponse.value
+                }
             }
         }
 
-        # Build lookup by userId
+        # Build lookup by userId - handle both PascalCase and camelCase property names
         foreach ($device in $managedDevices) {
-            $userId = $device.userId
+            $userId = if ($device.UserId) { $device.UserId } elseif ($device.userId) { $device.userId } else { $null }
             if ($userId) {
                 if (-not $userDeviceLookup.ContainsKey($userId)) {
                     $userDeviceLookup[$userId] = @()
                 }
+                $deviceName = if ($device.DeviceName) { $device.DeviceName } else { $device.deviceName }
+                $os = if ($device.OperatingSystem) { $device.OperatingSystem } else { $device.operatingSystem }
+                $compliance = if ($device.ComplianceState) { $device.ComplianceState } else { $device.complianceState }
+                $mgmtAgent = if ($device.ManagementAgent) { $device.ManagementAgent } else { $device.managementAgent }
+                $devId = if ($device.Id) { $device.Id } else { $device.id }
+
                 $userDeviceLookup[$userId] += @{
-                    deviceId = $device.id
-                    deviceName = $device.deviceName
-                    operatingSystem = $device.operatingSystem
-                    complianceState = $device.complianceState
-                    managementAgent = $device.managementAgent
+                    deviceId = $devId
+                    deviceName = $deviceName
+                    operatingSystem = $os
+                    complianceState = $compliance
+                    managementAgent = $mgmtAgent
                 }
             }
         }

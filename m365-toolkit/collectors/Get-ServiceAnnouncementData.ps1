@@ -38,7 +38,10 @@ param(
     [hashtable]$Config,
 
     [Parameter(Mandatory)]
-    [string]$OutputPath
+    [string]$OutputPath,
+
+    [Parameter()]
+    [hashtable]$SharedData = @{}
 )
 
 # ============================================================================

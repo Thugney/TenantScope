@@ -106,7 +106,9 @@ param(
                  "AuditLogData", "PIMData", "TeamsData", "SharePointData", "SecureScoreData",
                  "AppSignInData", "ConditionalAccessData", "CompliancePolicies", "ConfigurationProfiles",
                  "WindowsUpdateStatus", "BitLockerStatus", "AppDeployments", "EndpointAnalytics",
-                 "ServicePrincipalSecrets", "ASRRules", "SignInLogs", "ServiceAnnouncementData")]
+                 "ServicePrincipalSecrets", "ASRRules", "SignInLogs", "ServiceAnnouncementData",
+                 "OAuthConsentGrants", "NamedLocations", "IdentityRiskData", "VulnerabilityData",
+                 "AccessReviewData", "RetentionData", "eDiscoveryData", "SensitivityLabelsData")]
     [string[]]$CollectorsToRun,
 
     # App-only authentication parameters (for scheduled/unattended execution)
@@ -594,28 +596,43 @@ Write-Host "[4/6] Running data collectors..." -ForegroundColor Cyan
 Write-Host ""
 
 # Define all collectors with their output files
+# IMPORTANT: Order matters! Primary collectors that populate SharedData must run
+# before downstream collectors that reuse that data. The dependency order is:
+#   - DeviceData populates SharedData.ManagedDevices → BitLockerStatus, WindowsUpdateStatus, UserData reuse
+#   - IdentityRiskData populates SharedData.RiskyUsers/RiskDetections → SignInData reuses
+#   - ConditionalAccessData populates SharedData.CAPolicies → NamedLocations reuses
+#   - EnterpriseAppData populates SharedData.AppRegistrations/ServicePrincipals → ServicePrincipalSecrets, OAuthConsentGrants reuse
+#   - SignInLogs populates SharedData.SignInLogs → AppSignInData reuses
+#   - GroupData populates SharedData.Groups → TeamsData reuses
 $collectors = @(
+    # ---- PRIMARY COLLECTORS (populate shared data) ----
     # Core identity & licensing
-    @{ Name = "Get-UserData";      Script = "Get-UserData.ps1";      Output = "users.json" },
     @{ Name = "Get-LicenseData";   Script = "Get-LicenseData.ps1";   Output = "license-skus.json" },
-    @{ Name = "Get-GuestData";     Script = "Get-GuestData.ps1";     Output = "guests.json" },
     @{ Name = "Get-MFAData";       Script = "Get-MFAData.ps1";       Output = "mfa-status.json" },
     @{ Name = "Get-AdminRoleData"; Script = "Get-AdminRoleData.ps1"; Output = "admin-roles.json" },
     @{ Name = "Get-DeletedUsers";  Script = "Get-DeletedUsers.ps1";  Output = "deleted-users.json" },
     @{ Name = "Get-GroupData";     Script = "Get-GroupData.ps1";     Output = "groups.json" },
-    # Security & risk
+    # Device management (DeviceData first - populates SharedData.ManagedDevices)
+    @{ Name = "Get-DeviceData";    Script = "Get-DeviceData.ps1";    Output = "devices.json" },
+    # Identity now gets UserData after DeviceData (reuses SharedData.ManagedDevices)
+    @{ Name = "Get-UserData";      Script = "Get-UserData.ps1";      Output = "users.json" },
+    @{ Name = "Get-GuestData";     Script = "Get-GuestData.ps1";     Output = "guests.json" },
+    # Security & risk (IdentityRiskData first - populates SharedData.RiskyUsers/RiskDetections)
+    @{ Name = "Get-IdentityRiskData"; Script = "Get-IdentityRiskData.ps1"; Output = "identity-risk-data.json" },
     @{ Name = "Get-SignInData";    Script = "Get-SignInData.ps1";    Output = "risky-signins.json" },
     @{ Name = "Get-SignInLogs";    Script = "Get-SignInLogs.ps1";    Output = "signin-logs.json" },
     @{ Name = "Get-DefenderData";  Script = "Get-DefenderData.ps1";  Output = "defender-alerts.json" },
     @{ Name = "Get-VulnerabilityData"; Script = "Get-VulnerabilityData.ps1"; Output = "vulnerabilities.json" },
     @{ Name = "Get-SecureScoreData"; Script = "Get-SecureScoreData.ps1"; Output = "secure-score.json" },
+    # CA policies (ConditionalAccessData first - populates SharedData.CAPolicies)
     @{ Name = "Get-ConditionalAccessData"; Script = "Get-ConditionalAccessData.ps1"; Output = "conditional-access.json" },
-    @{ Name = "Get-ASRRules";      Script = "Get-ASRRules.ps1";      Output = "asr-rules.json" },
-    @{ Name = "Get-OAuthConsentGrants"; Script = "Get-OAuthConsentGrants.ps1"; Output = "oauth-consent-grants.json" },
     @{ Name = "Get-NamedLocations"; Script = "Get-NamedLocations.ps1"; Output = "named-locations.json" },
-    @{ Name = "Get-IdentityRiskData"; Script = "Get-IdentityRiskData.ps1"; Output = "identity-risk-data.json" },
-    # Device management
-    @{ Name = "Get-DeviceData";    Script = "Get-DeviceData.ps1";    Output = "devices.json" },
+    @{ Name = "Get-ASRRules";      Script = "Get-ASRRules.ps1";      Output = "asr-rules.json" },
+    # Applications (EnterpriseAppData first - populates SharedData.AppRegistrations/ServicePrincipals)
+    @{ Name = "Get-EnterpriseAppData"; Script = "Get-EnterpriseAppData.ps1"; Output = "enterprise-apps.json" },
+    @{ Name = "Get-ServicePrincipalSecrets"; Script = "Get-ServicePrincipalSecrets.ps1"; Output = "service-principal-secrets.json" },
+    @{ Name = "Get-OAuthConsentGrants"; Script = "Get-OAuthConsentGrants.ps1"; Output = "oauth-consent-grants.json" },
+    # ---- REMAINING COLLECTORS (independent or downstream) ----
     @{ Name = "Get-AutopilotData"; Script = "Get-AutopilotData.ps1"; Output = "autopilot.json" },
     @{ Name = "Get-CompliancePolicies"; Script = "Get-CompliancePolicies.ps1"; Output = "compliance-policies.json" },
     @{ Name = "Get-ConfigurationProfiles"; Script = "Get-ConfigurationProfiles.ps1"; Output = "configuration-profiles.json" },
@@ -623,9 +640,6 @@ $collectors = @(
     @{ Name = "Get-BitLockerStatus"; Script = "Get-BitLockerStatus.ps1"; Output = "bitlocker-status.json" },
     @{ Name = "Get-AppDeployments"; Script = "Get-AppDeployments.ps1"; Output = "app-deployments.json" },
     @{ Name = "Get-EndpointAnalytics"; Script = "Get-EndpointAnalytics.ps1"; Output = "endpoint-analytics.json" },
-    # Applications & governance
-    @{ Name = "Get-EnterpriseAppData"; Script = "Get-EnterpriseAppData.ps1"; Output = "enterprise-apps.json" },
-    @{ Name = "Get-ServicePrincipalSecrets"; Script = "Get-ServicePrincipalSecrets.ps1"; Output = "service-principal-secrets.json" },
     @{ Name = "Get-AuditLogData";     Script = "Get-AuditLogData.ps1";     Output = "audit-logs.json" },
     @{ Name = "Get-PIMData";          Script = "Get-PIMData.ps1";          Output = "pim-activity.json" },
     @{ Name = "Get-AccessReviewData"; Script = "Get-AccessReviewData.ps1"; Output = "access-review-data.json" },
@@ -633,10 +647,11 @@ $collectors = @(
     @{ Name = "Get-RetentionData";   Script = "Get-RetentionData.ps1";   Output = "retention-data.json" },
     @{ Name = "Get-eDiscoveryData";  Script = "Get-eDiscoveryData.ps1";  Output = "ediscovery-data.json" },
     @{ Name = "Get-SensitivityLabelsData"; Script = "Get-SensitivityLabelsData.ps1"; Output = "sensitivity-labels-data.json" },
-    # Collaboration
+    # Collaboration (TeamsData reuses SharedData.Groups from GroupData)
     @{ Name = "Get-TeamsData";        Script = "Get-TeamsData.ps1";        Output = "teams.json" },
     @{ Name = "Get-SharePointData";   Script = "Get-SharePointData.ps1";   Output = "sharepoint-sites.json" },
     @{ Name = "Get-ServiceAnnouncementData"; Script = "Get-ServiceAnnouncementData.ps1"; Output = "service-announcements.json" },
+    # AppSignInData reuses SharedData.SignInLogs from SignInLogs
     @{ Name = "Get-AppSignInData";  Script = "Get-AppSignInData.ps1";  Output = "app-signins.json" }
 )
 
@@ -649,6 +664,15 @@ if ($CollectorsToRun) {
 
 # Initialize results tracking
 $collectorResults = @{}
+
+# ============================================================================
+# SHARED DATA CACHE
+# ============================================================================
+# To avoid duplicate Graph API calls across collectors, we pass a shared data
+# hashtable that primary collectors populate and downstream collectors reuse.
+# This eliminates redundant API calls for: managed devices, risky users/detections,
+# CA policies, applications, service principals, groups, and sign-in logs.
+$sharedData = @{}
 
 # Run each collector
 foreach ($collector in $collectors) {
@@ -673,8 +697,8 @@ foreach ($collector in $collectors) {
     }
 
     try {
-        # Execute the collector script
-        $result = & $collectorPath -Config $configContent -OutputPath $outputPath
+        # Execute the collector script with shared data for deduplication
+        $result = & $collectorPath -Config $configContent -OutputPath $outputPath -SharedData $sharedData
 
         $collectorEnd = Get-Date
         $duration = ($collectorEnd - $collectorStart).TotalSeconds
