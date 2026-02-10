@@ -1424,9 +1424,6 @@ const PageUsers = (function() {
             case 'overview':
                 renderOverviewTab(container);
                 break;
-            case 'analysis':
-                renderAnalysisTab(container);
-                break;
             case 'quality':
                 renderDataQualityTab(container);
                 break;
@@ -1927,7 +1924,6 @@ const PageUsers = (function() {
         tabBar.className = 'tab-bar';
         var tabs = [
             { id: 'overview', label: 'Overview' },
-            { id: 'analysis', label: 'Analysis' },
             { id: 'quality', label: 'Data Quality' },
             { id: 'users', label: 'All Users (' + total + ')' }
         ];
