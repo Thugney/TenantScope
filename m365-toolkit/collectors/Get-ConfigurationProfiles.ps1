@@ -183,17 +183,34 @@ function Get-ConfigurationPolicyReportMap {
                 -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getConfigurationPolicyDeviceSummaryReport" `
                 -Body $body -OutputType PSObject
         } -OperationName "Configuration policy device summary report"
+
+        # Debug: show report structure
+        if ($report) {
+            $hasValues = $null -ne $report.values
+            $hasColumns = $null -ne $report.columns
+            $hasValue = $null -ne $report.value
+            $hasSchema = $null -ne $report.schema
+            Write-Host "      Report API response: values=$hasValues columns=$hasColumns value=$hasValue schema=$hasSchema" -ForegroundColor Gray
+            if ($report.values) {
+                Write-Host "      Report contains $($report.values.Count) rows" -ForegroundColor Gray
+            }
+        }
     }
     catch {
+        Write-Host "      Report API failed: $($_.Exception.Message)" -ForegroundColor Yellow
         return $map
     }
 
     $rows = Convert-ReportRows -Report $report
+    Write-Host "      Parsed $($rows.Count) report rows" -ForegroundColor Gray
+
     foreach ($row in $rows) {
-        $id = Get-ReportValue -Row $row -Names @("policyId","id")
+        $id = Get-ReportValue -Row $row -Names @("policyId","id","PolicyId")
         if (-not $id) { continue }
         $map[$id] = $row
     }
+
+    Write-Host "      Report map contains $($map.Count) policies" -ForegroundColor Gray
 
     return $map
 }
@@ -343,6 +360,12 @@ try {
                         -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
                         -OutputType PSObject
 
+                    # Debug: show first profile's status overview properties
+                    if ($profileCount -eq 0) {
+                        $props = $statusOverview.PSObject.Properties | ForEach-Object { "$($_.Name)=$($_.Value)" }
+                        Write-Host "      [DEBUG] First deviceConfig statusOverview: $($props -join ', ')" -ForegroundColor Cyan
+                    }
+
                     # Graph API returns successCount/errorCount/etc (not compliantDeviceCount)
                     # Try both naming conventions for compatibility
                     $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
@@ -367,6 +390,12 @@ try {
                         $statusOverview = Invoke-MgGraphRequest -Method GET `
                             -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
                             -OutputType PSObject
+
+                        # Debug: show first Settings Catalog policy's status overview properties
+                        if ($profileCount -lt 5 -and $source -eq "configurationPolicies") {
+                            $props = $statusOverview.PSObject.Properties | ForEach-Object { "$($_.Name)=$($_.Value)" }
+                            Write-Host "      [DEBUG] configPolicy statusOverview: $($props -join ', ')" -ForegroundColor Cyan
+                        }
 
                         # Graph API returns successCount/errorCount/etc (not compliantDeviceCount)
                         # Try both naming conventions for compatibility
@@ -404,6 +433,7 @@ try {
 
             # Fallback to report API or deviceStatuses when overview is unavailable or zeroed
             $totalFromOverview = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
+            $statusSource = "overview"
             if ($source -eq "configurationPolicies" -or $totalFromOverview -eq 0) {
                 # Try report API for Settings Catalog policies
                 if ($source -eq "configurationPolicies" -and $policyReportMap.ContainsKey($profile.id)) {
@@ -422,6 +452,7 @@ try {
                         $pendingCount = $reportPending
                         $notApplicableCount = $reportNotApplicable
                         $usedStatusFallback = $true
+                        $statusSource = "report"
                     }
                 }
             }
@@ -453,11 +484,18 @@ try {
 
                     if ($deviceStatusList.Count -gt 0) {
                         $usedStatusFallback = $true
+                        $statusSource = "deviceStatuses"
                     }
                 }
                 catch {
                     Write-Warning "      Failed to get device statuses for profile $($profile.displayName): $($_.Exception.Message)"
                 }
+            }
+
+            # Debug: show first few profiles' final status counts
+            if ($profileCount -lt 3) {
+                $finalTotal = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
+                Write-Host "      [DEBUG] Profile '$($profile.displayName)' [$source]: success=$successCount err=$errorCount conflict=$conflictCount pending=$pendingCount na=$notApplicableCount (source: $statusSource)" -ForegroundColor Cyan
             }
 
             # Get assignments for this profile
@@ -684,6 +722,10 @@ try {
             ($profileData.summary.successDevices / $profileData.summary.totalDevices) * 100, 1
         )
     }
+
+    # Debug: Show summary totals
+    Write-Host "      [DEBUG] Summary totals: devices=$($profileData.summary.totalDevices) success=$($profileData.summary.successDevices) errors=$($profileData.summary.errorDevices) conflicts=$($profileData.summary.conflictDevices) pending=$($profileData.summary.pendingDevices)" -ForegroundColor Cyan
+    Write-Host "      [DEBUG] Profiles with errors: $($profileData.summary.profilesWithErrors), with conflicts: $($profileData.summary.profilesWithConflicts)" -ForegroundColor Cyan
 
     # Sort setting failures
     $profileData.settingFailures = $profileData.settingFailures |
