@@ -73,6 +73,13 @@ const PageUsers = (function() {
         }
     }
 
+    function getGroupsData() {
+        if (typeof DataLoader === 'undefined' || !DataLoader.getData) return [];
+        var groupsData = DataLoader.getData('groups') || [];
+        if (groupsData.groups) return groupsData.groups;
+        return Array.isArray(groupsData) ? groupsData : [];
+    }
+
     function buildGroupFilterFromHash() {
         var params = getHashParams();
         var groupId = params.groupId || '';
@@ -84,9 +91,13 @@ const PageUsers = (function() {
         var role = (roleParam === 'owners' || roleParam === 'owner') ? 'owners' : 'members';
         var group = null;
 
-        if (typeof DataRelationships !== 'undefined') {
-            if (groupId) group = DataRelationships.getGroup(groupId);
-            if (!group && groupName) group = DataRelationships.getGroupByName(groupName);
+        var groups = getGroupsData();
+        if (groupId) {
+            group = groups.find(function(g) { return g && g.id === groupId; }) || null;
+        }
+        if (!group && groupName) {
+            var nameLower = groupName.toLowerCase();
+            group = groups.find(function(g) { return g && g.displayName && g.displayName.toLowerCase() === nameLower; }) || null;
         }
 
         var list = [];
