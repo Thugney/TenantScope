@@ -289,6 +289,15 @@ const DataLoader = (function() {
                 // Build collector error map from metadata
                 buildCollectorErrors();
 
+                // Build entity index (raw data, no filters)
+                if (typeof EntityIndex !== 'undefined' && EntityIndex.buildFromDataLoader) {
+                    try {
+                        EntityIndex.buildFromDataLoader();
+                    } catch (err) {
+                        console.warn('DataLoader: Entity index build failed', err.message || err);
+                    }
+                }
+
                 // Check if any meaningful data was loaded
                 const hasData = dataStore.users.length > 0 ||
                     dataStore.devices.length > 0 ||
@@ -361,6 +370,16 @@ const DataLoader = (function() {
                 }
             }
             return data || [];
+        },
+
+        /**
+         * Gets raw data without global filters applied.
+         *
+         * @param {string} type - Data type key
+         * @returns {any} Raw data
+         */
+        getRawData(type) {
+            return dataStore[type] || [];
         },
 
         /**
