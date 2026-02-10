@@ -21,6 +21,7 @@ const PageAuditLogs = (function() {
 
     var currentTab = 'overview';
     var auditState = null;
+    var colSelector = null;
 
     function switchTab(tab) {
         currentTab = tab;
@@ -387,6 +388,11 @@ const PageAuditLogs = (function() {
         if (!row.initiatedBy && row.initiatedByApp) {
             return '<span class="initiator-app" title="App-initiated">' + escapeHtml(initiator) + '</span>';
         }
+
+        // If it looks like a UPN (contains @), link to the users page
+        if (row.initiatedBy && row.initiatedBy.indexOf('@') !== -1) {
+            return '<a href="#users?search=' + encodeURIComponent(row.initiatedBy) + '" class="entity-link" onclick="event.stopPropagation();" title="View user">' + escapeHtml(initiator) + '</a>';
+        }
         return escapeHtml(initiator);
     }
 
@@ -403,23 +409,110 @@ const PageAuditLogs = (function() {
     }
 
     function renderEventsTab(container, state) {
-        container.textContent = '';
-        var tableDiv = document.createElement('div');
-        tableDiv.id = 'audit-logs-table';
-        container.appendChild(tableDiv);
+        // Build category options from the data
+        var categoryOptions = '';
+        var cats = Object.keys(state.categories).sort();
+        cats.forEach(function(cat) {
+            categoryOptions += '<option value="' + escapeHtml(cat) + '">' + escapeHtml(cat) + '</option>';
+        });
+
+        var html = '<div class="filter-bar">';
+        html += '<input type="text" class="filter-input" id="audit-search" placeholder="Search audit logs...">';
+        html += '<select class="filter-select" id="audit-category"><option value="all">All Categories</option>';
+        html += categoryOptions;
+        html += '</select>';
+        html += '<select class="filter-select" id="audit-status"><option value="all">All Status</option>';
+        html += '<option value="Success">Success</option><option value="Failure">Failure</option></select>';
+        html += '<div id="audit-colselector"></div>';
+        html += '</div>';
+        html += '<div class="table-container" id="audit-logs-table"></div>';
+
+        container.innerHTML = html;
+
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'audit-colselector',
+                storageKey: 'tenantscope-audit-cols-v1',
+                allColumns: [
+                    { key: 'activityDateTime', label: 'Date' },
+                    { key: 'initiatedBy', label: 'Initiated By' },
+                    { key: 'activityDisplayName', label: 'Activity' },
+                    { key: 'targetResource', label: 'Target' },
+                    { key: 'category', label: 'Category' },
+                    { key: 'result', label: 'Status' },
+                    { key: 'operationType', label: 'Operation' }
+                ],
+                defaultVisible: ['activityDateTime', 'initiatedBy', 'activityDisplayName', 'targetResource', 'category', 'result', 'operationType'],
+                onColumnsChanged: function() { applyAuditFilters(); }
+            });
+        }
+
+        Filters.setup('audit-search', applyAuditFilters);
+        Filters.setup('audit-category', applyAuditFilters);
+        Filters.setup('audit-status', applyAuditFilters);
+        applyAuditFilters();
+    }
+
+    function applyAuditFilters() {
+        if (!auditState) return;
+        var logs = auditState.auditLogs;
+
+        var filterConfig = {
+            search: Filters.getValue('audit-search'),
+            searchFields: ['activityDisplayName', 'initiatedBy', 'initiatedByApp', 'targetResource', 'category'],
+            exact: {}
+        };
+
+        var catFilter = Filters.getValue('audit-category');
+        if (catFilter && catFilter !== 'all') filterConfig.exact.category = catFilter;
+
+        var statusFilter = Filters.getValue('audit-status');
+        if (statusFilter && statusFilter !== 'all') filterConfig.exact.result = statusFilter;
+
+        var filtered = Filters.apply(logs, filterConfig);
+        renderEventsTable(filtered);
+    }
+
+    function formatTarget(value, row) {
+        var target = row.targetResource || '';
+        if (!target) return '--';
+        var escaped = escapeHtml(target);
+
+        // If target looks like a UPN (user), link to users page
+        if (target.indexOf('@') !== -1) {
+            return '<a href="#users?search=' + encodeURIComponent(target) + '" class="entity-link" onclick="event.stopPropagation();" title="View user">' + escaped + '</a>';
+        }
+
+        // If target type indicates a group, link to groups page
+        if (row.targetResourceType && row.targetResourceType.toLowerCase() === 'group') {
+            return '<a href="#groups?search=' + encodeURIComponent(target) + '" class="entity-link" onclick="event.stopPropagation();" title="View group">' + escaped + '</a>';
+        }
+
+        // If target type indicates a device, link to devices page
+        if (row.targetResourceType && row.targetResourceType.toLowerCase() === 'device') {
+            return '<a href="#devices?search=' + encodeURIComponent(target) + '" class="entity-link" onclick="event.stopPropagation();" title="View device">' + escaped + '</a>';
+        }
+
+        return escaped;
+    }
+
+    function renderEventsTable(data) {
+        var visible = colSelector ? colSelector.getVisible() : ['activityDateTime', 'initiatedBy', 'activityDisplayName', 'targetResource', 'category', 'result', 'operationType'];
+
+        var allDefs = [
+            { key: 'activityDateTime', label: 'Date', formatter: Tables.formatters.datetime },
+            { key: 'initiatedBy', label: 'Initiated By', className: 'cell-truncate', formatter: formatInitiator },
+            { key: 'activityDisplayName', label: 'Activity', className: 'cell-truncate' },
+            { key: 'targetResource', label: 'Target', className: 'cell-truncate', formatter: formatTarget },
+            { key: 'category', label: 'Category' },
+            { key: 'result', label: 'Status', formatter: Tables.formatters.resultStatus },
+            { key: 'operationType', label: 'Operation' }
+        ];
 
         Tables.render({
             containerId: 'audit-logs-table',
-            data: state.auditLogs,
-            columns: [
-                { key: 'activityDateTime', label: 'Date', formatter: Tables.formatters.datetime },
-                { key: 'initiatedBy', label: 'Initiated By', filterable: true, className: 'cell-truncate', formatter: formatInitiator },
-                { key: 'activityDisplayName', label: 'Activity', filterable: true, className: 'cell-truncate' },
-                { key: 'targetResource', label: 'Target', filterable: true, className: 'cell-truncate' },
-                { key: 'category', label: 'Category', filterable: true },
-                { key: 'result', label: 'Status', filterable: true, formatter: Tables.formatters.resultStatus },
-                { key: 'operationType', label: 'Operation', filterable: true }
-            ],
+            data: data,
+            columns: allDefs.filter(function(col) { return visible.indexOf(col.key) !== -1; }),
             pageSize: 25,
             onRowClick: showAuditLogDetails
         });

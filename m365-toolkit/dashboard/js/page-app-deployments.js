@@ -335,9 +335,10 @@ const PageAppDeployments = (function() {
                 { key: 'installRate', label: 'Success Rate' },
                 { key: 'isFeatured', label: 'Featured' },
                 { key: 'createdDateTime', label: 'Created' },
-                { key: 'lastModifiedDateTime', label: 'Last Modified' }
+                { key: 'lastModifiedDateTime', label: 'Last Modified' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'installRate'],
+            defaultVisible: ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'installRate', '_adminLinks'],
             onColumnsChanged: function() { applyAppsFilters(); }
         });
 
@@ -423,7 +424,10 @@ const PageAppDeployments = (function() {
                 return v ? '<span class="badge badge-info">Featured</span>' : '<span class="text-muted">--</span>';
             }},
             { key: 'createdDateTime', label: 'Created', formatter: function(v) { return Tables.formatters.date(v); } },
-            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return Tables.formatters.date(v); } }
+            { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return Tables.formatters.date(v); } },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+            }}
         ];
 
         Tables.render({
@@ -482,8 +486,14 @@ const PageAppDeployments = (function() {
 
     function renderFailedDevicesTable(data) {
         var columns = [
-            { key: 'deviceName', label: 'Device Name' },
-            { key: 'userName', label: 'User' },
+            { key: 'deviceName', label: 'Device Name', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userName', label: 'User', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'failedAppCount', label: 'Failed Apps', formatter: function(v) {
                 var cls = v >= 3 ? 'text-critical' : v >= 2 ? 'text-warning' : '';
                 return '<span class="' + cls + ' font-bold">' + (v || 0) + '</span>';

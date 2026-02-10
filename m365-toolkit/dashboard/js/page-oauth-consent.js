@@ -195,6 +195,8 @@ const PageOAuthConsent = (function() {
         container.innerHTML = html;
     }
 
+    var colSelector = null;
+
     function renderGrantsTab(container) {
         let html = '<div class="filter-bar">';
         html += '<input type="text" class="filter-input" id="oauth-search" placeholder="Search apps, publishers, users...">';
@@ -209,10 +211,30 @@ const PageOAuthConsent = (function() {
         html += '<option value="admin">Admin Consent</option>';
         html += '<option value="user">User Consent</option>';
         html += '</select>';
+        html += '<div id="oauth-colselector"></div>';
         html += '</div>';
         html += '<div id="oauth-grants-table"></div>';
 
         container.innerHTML = html;
+
+        if (typeof ColumnSelector !== 'undefined') {
+            colSelector = ColumnSelector.create({
+                containerId: 'oauth-colselector',
+                storageKey: 'tenantscope-oauth-cols-v1',
+                allColumns: [
+                    { key: 'appDisplayName', label: 'Application' },
+                    { key: 'appPublisher', label: 'Publisher' },
+                    { key: 'riskLevel', label: 'Risk Level' },
+                    { key: 'isAdminConsent', label: 'Consent Type' },
+                    { key: 'principalDisplayName', label: 'User' },
+                    { key: 'scopeCount', label: 'Scopes' },
+                    { key: 'highRiskScopes', label: 'High-Risk Scopes' },
+                    { key: '_adminLinks', label: 'Admin' }
+                ],
+                defaultVisible: ['appDisplayName', 'appPublisher', 'riskLevel', 'isAdminConsent', 'principalDisplayName', 'scopeCount', 'highRiskScopes', '_adminLinks'],
+                onColumnsChanged: function() { applyGrantFilters(); }
+            });
+        }
 
         Filters.setup('oauth-search', applyGrantFilters);
         Filters.setup('oauth-risk', applyGrantFilters);
@@ -247,35 +269,54 @@ const PageOAuthConsent = (function() {
             return;
         }
 
+        var visible = colSelector ? colSelector.getVisible() : ['appDisplayName', 'appPublisher', 'riskLevel', 'isAdminConsent', 'principalDisplayName', 'scopeCount', 'highRiskScopes', '_adminLinks'];
+
+        var allDefs = [
+            { key: 'appDisplayName', label: 'Application', formatter: function(v, row) {
+                var name = escapeHtml(v || 'Unknown App');
+                return '<a href="#enterprise-apps?search=' + encodeURIComponent(v || '') + '" class="entity-link"><strong>' + name + '</strong></a>';
+            }},
+            { key: 'appPublisher', label: 'Publisher', formatter: function(v, row) {
+                var publisher = escapeHtml(v || 'Unknown');
+                var tags = '';
+                if (row.isMicrosoft) tags += ' <span class="tag">Microsoft</span>';
+                else if (row.isVerifiedPublisher) tags += ' <span class="tag">Verified</span>';
+                else tags += ' <span class="tag">Unverified</span>';
+                return publisher + tags;
+            }},
+            { key: 'riskLevel', label: 'Risk Level', formatter: function(v) { return formatSeverityBadge(v); } },
+            { key: 'isAdminConsent', label: 'Consent Type', formatter: function(v) {
+                return v ? '<span class="badge badge-info">Admin</span>' : '<span class="badge badge-neutral">User</span>';
+            }},
+            { key: 'principalDisplayName', label: 'User', formatter: function(v, row) {
+                var upn = row.principalDisplayName || '';
+                if (upn) {
+                    return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link">' + escapeHtml(upn) + '</a>';
+                }
+                return '<span class="text-muted">All Users</span>';
+            }},
+            { key: 'scopeCount', label: 'Scopes' },
+            { key: 'highRiskScopes', label: 'High-Risk Scopes', formatter: function(v) {
+                var list = Array.isArray(v) ? v : [];
+                var html = list.slice(0, 3).map(function(s) {
+                    return '<code class="scope-tag scope-tag--danger">' + escapeHtml(s) + '</code>';
+                }).join(' ');
+                if (list.length > 3) html += ' <span class="more-tag">+' + (list.length - 3) + ' more</span>';
+                return html || '<span class="text-muted">--</span>';
+            }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.appId || row.clientAppId) {
+                    var appId = row.appId || row.clientAppId;
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/ManagedAppMenuBlade/appId/' + encodeURIComponent(appId) + '/Permissions" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '--';
+            }}
+        ];
+
         Tables.render({
             containerId: 'oauth-grants-table',
             data: grants,
-            columns: [
-                { key: 'appDisplayName', label: 'Application', formatter: function(v, row) {
-                    return '<strong>' + escapeHtml(v || 'Unknown App') + '</strong>';
-                }},
-                { key: 'appPublisher', label: 'Publisher', formatter: function(v, row) {
-                    var publisher = escapeHtml(v || 'Unknown');
-                    var tags = '';
-                    if (row.isMicrosoft) tags += ' <span class="tag">Microsoft</span>';
-                    else if (row.isVerifiedPublisher) tags += ' <span class="tag">Verified</span>';
-                    else tags += ' <span class="tag">Unverified</span>';
-                    return publisher + tags;
-                }},
-                { key: 'riskLevel', label: 'Risk Level', formatter: function(v) { return formatSeverityBadge(v); } },
-                { key: 'isAdminConsent', label: 'Consent Type', formatter: function(v) {
-                    return v ? '<span class="badge badge-info">Admin</span>' : '<span class="badge badge-neutral">User</span>';
-                }},
-                { key: 'scopeCount', label: 'Scopes' },
-                { key: 'highRiskScopes', label: 'High-Risk Scopes', formatter: function(v) {
-                    var list = Array.isArray(v) ? v : [];
-                    var html = list.slice(0, 3).map(function(s) {
-                        return '<code class="scope-tag scope-tag--danger">' + escapeHtml(s) + '</code>';
-                    }).join(' ');
-                    if (list.length > 3) html += ' <span class="more-tag">+' + (list.length - 3) + ' more</span>';
-                    return html || '<span class="text-muted">--</span>';
-                }}
-            ],
+            columns: allDefs.filter(function(col) { return visible.indexOf(col.key) !== -1; }),
             pageSize: 50,
             onRowClick: showGrantDetails
         });

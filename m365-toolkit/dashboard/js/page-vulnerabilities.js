@@ -17,6 +17,7 @@ const PageVulnerabilities = (function() {
 
     var currentTab = 'overview';
     var deviceIndex = null;
+    var vulnColSelector = null;
 
     function el(tag, className, textContent) {
         var elem = document.createElement(tag);
@@ -538,16 +539,127 @@ const PageVulnerabilities = (function() {
             return;
         }
 
+        // Filter bar
+        var filterBar = el('div', 'filter-bar');
+        var searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'filter-input';
+        searchInput.id = 'vuln-search';
+        searchInput.placeholder = 'Search vulnerabilities...';
+        filterBar.appendChild(searchInput);
+
+        var sevSelect = document.createElement('select');
+        sevSelect.className = 'filter-select';
+        sevSelect.id = 'vuln-severity';
+        [['all', 'All Severities'], ['critical', 'Critical'], ['high', 'High'], ['medium', 'Medium'], ['low', 'Low']].forEach(function(opt) {
+            var o = document.createElement('option');
+            o.value = opt[0];
+            o.textContent = opt[1];
+            sevSelect.appendChild(o);
+        });
+        filterBar.appendChild(sevSelect);
+
+        // Exploited filter
+        var exploitedSelect = document.createElement('select');
+        exploitedSelect.className = 'filter-select';
+        exploitedSelect.id = 'vuln-exploited';
+        [['all', 'All Exploit Status'], ['true', 'Exploited'], ['false', 'Not Exploited']].forEach(function(opt) {
+            var o = document.createElement('option');
+            o.value = opt[0];
+            o.textContent = opt[1];
+            exploitedSelect.appendChild(o);
+        });
+        filterBar.appendChild(exploitedSelect);
+
+        var colSelectorDiv = el('div');
+        colSelectorDiv.id = 'vuln-colselector';
+        filterBar.appendChild(colSelectorDiv);
+        container.appendChild(filterBar);
+
+        var tableContainer = el('div');
+        tableContainer.id = 'vuln-table-container';
+        container.appendChild(tableContainer);
+
+        vulnColSelector = ColumnSelector.create({
+            containerId: 'vuln-colselector',
+            storageKey: 'tenantscope-vuln-cols-v1',
+            allColumns: [
+                { key: 'cveId', label: 'CVE ID' },
+                { key: 'name', label: 'Name' },
+                { key: 'severity', label: 'Severity' },
+                { key: 'cvss', label: 'CVSS' },
+                { key: 'product', label: 'Product' },
+                { key: 'exploited', label: 'Exploited' },
+                { key: 'devices', label: 'Devices' },
+                { key: 'patch', label: 'Patch' },
+                { key: 'action', label: 'Action' },
+                { key: 'admin', label: 'Admin' }
+            ],
+            defaultVisible: ['cveId', 'name', 'severity', 'cvss', 'exploited', 'devices', 'patch', 'admin'],
+            onColumnsChanged: function() { applyVulnFilters(); }
+        });
+
+        function applyVulnFilters() {
+            var search = (searchInput.value || '').toLowerCase();
+            var sev = sevSelect.value;
+            var exploited = exploitedSelect.value;
+            var filtered = vulns.filter(function(v) {
+                if (search && (v.id || '').toLowerCase().indexOf(search) === -1 &&
+                    (v.name || '').toLowerCase().indexOf(search) === -1 &&
+                    (v.product || '').toLowerCase().indexOf(search) === -1) return false;
+                if (sev && sev !== 'all' && v.severity !== sev) return false;
+                if (exploited && exploited !== 'all') {
+                    if (exploited === 'true' && !v.exploitedInWild) return false;
+                    if (exploited === 'false' && v.exploitedInWild) return false;
+                }
+                return true;
+            });
+            renderVulnTable(tableContainer, filtered);
+        }
+
+        Filters.setup('vuln-search', applyVulnFilters);
+        Filters.setup('vuln-severity', applyVulnFilters);
+        Filters.setup('vuln-exploited', applyVulnFilters);
+
+        var sorted = vulns.slice().sort(function(a, b) {
+            var sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
+            return (sevOrder[a.severity] || 4) - (sevOrder[b.severity] || 4);
+        });
+        renderVulnTable(tableContainer, sorted);
+    }
+
+    function renderVulnTable(container, vulns) {
+        container.textContent = '';
+        if (vulns.length === 0) {
+            container.innerHTML = '<div class="empty-state"><p>No matching vulnerabilities</p></div>';
+            return;
+        }
         var sorted = vulns.slice().sort(function(a, b) {
             var sevOrder = { critical: 0, high: 1, medium: 2, low: 3 };
             return (sevOrder[a.severity] || 4) - (sevOrder[b.severity] || 4);
         });
 
+        var visible = vulnColSelector ? vulnColSelector.getVisible() : ['cveId', 'name', 'severity', 'cvss', 'product', 'exploited', 'devices', 'patch', 'action', 'admin'];
+
+        // Column definitions mapped by key
+        var colDefs = {
+            'cveId': { label: 'CVE ID' },
+            'name': { label: 'Name' },
+            'severity': { label: 'Severity' },
+            'cvss': { label: 'CVSS' },
+            'product': { label: 'Product' },
+            'exploited': { label: 'Exploited' },
+            'devices': { label: 'Devices' },
+            'patch': { label: 'Patch' },
+            'action': { label: 'Action' },
+            'admin': { label: 'Admin' }
+        };
+
         var table = el('table', 'data-table');
         var thead = el('thead');
         var headerRow = el('tr');
-        ['CVE ID', 'Name', 'Severity', 'CVSS', 'Product', 'Exploited', 'Devices', 'Patch', 'Action'].forEach(function(h) {
-            headerRow.appendChild(el('th', null, h));
+        visible.forEach(function(key) {
+            if (colDefs[key]) headerRow.appendChild(el('th', null, colDefs[key].label));
         });
         thead.appendChild(headerRow);
         table.appendChild(thead);
@@ -555,49 +667,80 @@ const PageVulnerabilities = (function() {
         var tbody = el('tbody');
         sorted.forEach(function(v) {
             var row = el('tr');
-            var cveCell = el('td');
-            cveCell.appendChild(createCveLink(v.id, 'font-bold cve-link'));
-            row.appendChild(cveCell);
-            var nameCell = el('td');
-            nameCell.textContent = (v.name || '').substring(0, 35);
-            row.appendChild(nameCell);
 
-            var sevCell = el('td');
-            var sevClass = v.severity === 'critical' ? 'critical' : v.severity === 'high' ? 'warning' : v.severity === 'medium' ? 'info' : 'success';
-            var sevBadge = el('span', 'badge badge-' + sevClass);
-            sevBadge.textContent = (v.severity || 'unknown').toUpperCase();
-            sevCell.appendChild(sevBadge);
-            row.appendChild(sevCell);
-
-            row.appendChild(el('td', 'cell-right', String(v.cvssScore || '--')));
-            row.appendChild(el('td', null, (v.product || '--').substring(0, 20)));
-
-            var exploitCell = el('td');
-            if (v.exploitedInWild) {
-                var exploitBadge = el('span', 'badge badge-critical');
-                exploitBadge.textContent = 'YES';
-                exploitCell.appendChild(exploitBadge);
-            } else {
-                exploitCell.textContent = 'No';
-            }
-            row.appendChild(exploitCell);
-
-            row.appendChild(buildAffectedDevicesCell(v));
-
-            var patchCell = el('td');
-            if (v.patchAvailable) {
-                var patchBadge = el('span', 'badge badge-success');
-                patchBadge.textContent = 'Yes';
-                patchCell.appendChild(patchBadge);
-            } else {
-                patchCell.textContent = 'No';
-            }
-            row.appendChild(patchCell);
-
-            var actionCell = el('td');
-            actionCell.style.fontSize = 'var(--font-size-xs)';
-            actionCell.textContent = (v.recommendedAction || '--').substring(0, 30);
-            row.appendChild(actionCell);
+            visible.forEach(function(key) {
+                if (key === 'cveId') {
+                    var cveCell = el('td');
+                    cveCell.appendChild(createCveLink(v.id, 'font-bold cve-link'));
+                    row.appendChild(cveCell);
+                } else if (key === 'name') {
+                    var nameCell = el('td');
+                    var vulnName = (v.name || '').substring(0, 35);
+                    if (vulnName) {
+                        var nameLink = el('a', 'entity-link');
+                        nameLink.href = '#vulnerabilities';
+                        nameLink.textContent = vulnName;
+                        nameLink.title = v.name || '';
+                        nameCell.appendChild(nameLink);
+                    } else {
+                        nameCell.textContent = '--';
+                    }
+                    row.appendChild(nameCell);
+                } else if (key === 'severity') {
+                    var sevCell = el('td');
+                    var sevClass = v.severity === 'critical' ? 'critical' : v.severity === 'high' ? 'warning' : v.severity === 'medium' ? 'info' : 'success';
+                    var sevBadge = el('span', 'badge badge-' + sevClass);
+                    sevBadge.textContent = (v.severity || 'unknown').toUpperCase();
+                    sevCell.appendChild(sevBadge);
+                    row.appendChild(sevCell);
+                } else if (key === 'cvss') {
+                    row.appendChild(el('td', 'cell-right', String(v.cvssScore || '--')));
+                } else if (key === 'product') {
+                    row.appendChild(el('td', null, (v.product || '--').substring(0, 20)));
+                } else if (key === 'exploited') {
+                    var exploitCell = el('td');
+                    if (v.exploitedInWild) {
+                        var exploitBadge = el('span', 'badge badge-critical');
+                        exploitBadge.textContent = 'YES';
+                        exploitCell.appendChild(exploitBadge);
+                    } else {
+                        exploitCell.textContent = 'No';
+                    }
+                    row.appendChild(exploitCell);
+                } else if (key === 'devices') {
+                    row.appendChild(buildAffectedDevicesCell(v));
+                } else if (key === 'patch') {
+                    var patchCell = el('td');
+                    if (v.patchAvailable) {
+                        var patchBadge = el('span', 'badge badge-success');
+                        patchBadge.textContent = 'Yes';
+                        patchCell.appendChild(patchBadge);
+                    } else {
+                        patchCell.textContent = 'No';
+                    }
+                    row.appendChild(patchCell);
+                } else if (key === 'action') {
+                    var actionCell = el('td');
+                    actionCell.style.fontSize = 'var(--font-size-xs)';
+                    actionCell.textContent = (v.recommendedAction || '--').substring(0, 30);
+                    row.appendChild(actionCell);
+                } else if (key === 'admin') {
+                    var adminCell = el('td');
+                    if (v.id) {
+                        var adminLink = document.createElement('a');
+                        adminLink.href = 'https://security.microsoft.com/vulnerabilities/vulnerability/' + encodeURIComponent(v.id) + '/overview';
+                        adminLink.target = '_blank';
+                        adminLink.rel = 'noopener';
+                        adminLink.className = 'admin-link';
+                        adminLink.title = 'Open in Defender';
+                        adminLink.textContent = 'Defender';
+                        adminCell.appendChild(adminLink);
+                    } else {
+                        adminCell.textContent = '--';
+                    }
+                    row.appendChild(adminCell);
+                }
+            });
 
             tbody.appendChild(row);
         });

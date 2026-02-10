@@ -115,7 +115,10 @@ const PageSignInLogs = (function() {
                 if (!v) return '--';
                 return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
             }},
-            { key: 'appDisplayName', label: 'Application' },
+            { key: 'appDisplayName', label: 'Application', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'status', label: 'Status', formatter: function(v) {
                 var statuses = { 'success': 'badge-success', 'failure': 'badge-critical', 'interrupted': 'badge-warning' };
                 return '<span class="badge ' + (statuses[v] || 'badge-neutral') + '">' + (v || 'Unknown') + '</span>';
@@ -132,6 +135,13 @@ const PageSignInLogs = (function() {
             { key: 'riskLevel', label: 'Risk', formatter: function(v) {
                 var risks = { 'high': 'badge-critical', 'medium': 'badge-warning', 'low': 'badge-info', 'none': 'badge-success' };
                 return '<span class="badge ' + (risks[v] || 'badge-neutral') + '">' + (v || 'None') + '</span>';
+            }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                var links = [];
+                if (row.userId) {
+                    links.push('<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row.userId) + '/SignInActivity" target="_blank" rel="noopener" class="admin-link" title="View sign-ins in Entra">Entra</a>');
+                }
+                return links.length > 0 ? links.join(' ') : '--';
             }}
         ];
         Tables.render({ containerId: 'signin-table', data: data, columns: allDefs.filter(function(c) { return visible.indexOf(c.key) !== -1; }), pageSize: 100 });
@@ -352,7 +362,10 @@ const PageSignInLogs = (function() {
                         if (!v) return '--';
                         return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
                     }},
-                    { key: 'appDisplayName', label: 'Application' },
+                    { key: 'appDisplayName', label: 'Application', formatter: function(v) {
+                        if (!v) return '--';
+                        return '<a href="#enterprise-apps?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+                    }},
                     { key: 'riskLevel', label: 'Risk', formatter: function(v) {
                         var cls = v === 'high' ? 'badge-critical' : 'badge-warning';
                         return '<span class="badge ' + cls + '">' + v + '</span>';
@@ -431,9 +444,10 @@ const PageSignInLogs = (function() {
                 { key: 'status', label: 'Status' },
                 { key: 'mfaSatisfied', label: 'MFA' },
                 { key: 'location', label: 'Location' },
-                { key: 'riskLevel', label: 'Risk' }
+                { key: 'riskLevel', label: 'Risk' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['createdDateTime', 'userPrincipalName', 'appDisplayName', 'status', 'mfaSatisfied', 'location', 'riskLevel'],
+            defaultVisible: ['createdDateTime', 'userPrincipalName', 'appDisplayName', 'status', 'mfaSatisfied', 'location', 'riskLevel', '_adminLinks'],
             onColumnsChanged: function() { applyFilters(); }
         });
 

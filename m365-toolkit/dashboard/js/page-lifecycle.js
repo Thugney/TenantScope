@@ -739,14 +739,42 @@ const PageLifecycle = (function() {
             { key: 'issueType', label: 'Issue Type' },
             { key: 'severity', label: 'Severity', formatter: formatSeverity },
             { key: 'entityType', label: 'Entity Type', formatter: formatEntityType },
-            { key: 'displayName', label: 'Name' },
-            { key: 'identifier', label: 'Identifier', className: 'cell-truncate' },
+            { key: 'displayName', label: 'Name', formatter: function(v, row) {
+                if (!v) return '--';
+                if (row.entityType === 'Team') return '<a href="#teams?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+                if (row.entityType === 'Site') return '<a href="#sharepoint?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+                if (row.entityType === 'Guest') return '<a href="#guests?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'identifier', label: 'Identifier', className: 'cell-truncate', formatter: function(v, row) {
+                if (!v) return '--';
+                if (row.entityType === 'User' || row.entityType === 'Admin') return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+                if (row.entityType === 'Guest') return '<a href="#guests?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+                return v;
+            }},
             { key: 'department', label: 'Dept/Role/Owner' },
             { key: 'detail1', label: 'Detail' },
             { key: 'detail2', label: 'Additional' },
             { key: 'daysInactive', label: 'Days Inactive', formatter: Tables.formatters.inactiveDays, className: 'cell-right' },
             { key: 'lastActivity', label: 'Last Activity', formatter: Tables.formatters.date },
-            { key: 'createdDate', label: 'Created', formatter: Tables.formatters.date }
+            { key: 'createdDate', label: 'Created', formatter: Tables.formatters.date },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.entityType === 'User' || row.entityType === 'Admin') {
+                    var id = row._original ? (row._original.id || row._original.userId) : null;
+                    if (id) return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                if (row.entityType === 'Guest') {
+                    var gid = row._original ? row._original.id : null;
+                    if (gid) return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(gid) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                if (row.entityType === 'Team') {
+                    return '<a href="https://admin.teams.microsoft.com/teams/manage" target="_blank" rel="noopener" class="admin-link" title="Open in Teams Admin">Teams</a>';
+                }
+                if (row.entityType === 'Site') {
+                    return '<a href="https://admin.microsoft.com/Adminportal/Home#/SharePoint" target="_blank" rel="noopener" class="admin-link" title="Open SP Admin">SharePoint</a>';
+                }
+                return '--';
+            }}
         ];
 
         var columns = allDefs.filter(function(col) {
@@ -883,10 +911,11 @@ const PageLifecycle = (function() {
                     { key: 'detail2', label: 'Additional' },
                     { key: 'daysInactive', label: 'Days Inactive' },
                     { key: 'lastActivity', label: 'Last Activity' },
-                    { key: 'createdDate', label: 'Created' }
+                    { key: 'createdDate', label: 'Created' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
                 defaultVisible: [
-                    'category', 'issueType', 'severity', 'displayName', 'identifier', 'detail1', 'daysInactive'
+                    'category', 'issueType', 'severity', 'displayName', 'identifier', 'detail1', 'daysInactive', '_adminLinks'
                 ],
                 onColumnsChanged: applyIssuesFilters
             });

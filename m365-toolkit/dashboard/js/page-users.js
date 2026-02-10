@@ -343,19 +343,36 @@ const PageUsers = (function() {
 
         // All column definitions
         var allDefs = [
-            { key: 'displayName', label: 'Name' },
-            { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            { key: 'displayName', label: 'Name', formatter: function(v, row) {
+                if (!v) return '--';
+                var upn = row.userPrincipalName || '';
+                return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+            }},
             { key: 'mail', label: 'Email', className: 'cell-truncate' },
             { key: 'domain', label: 'Domain', formatter: formatDomain },
             { key: 'accountEnabled', label: 'Status', formatter: Tables.formatters.enabledStatus },
             { key: 'userSource', label: 'Source', formatter: formatUserSource },
-            { key: 'department', label: 'Department' },
+            { key: 'department', label: 'Department', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'jobTitle', label: 'Job Title' },
             { key: 'companyName', label: 'Company' },
             { key: 'officeLocation', label: 'Office' },
             { key: 'city', label: 'City' },
             { key: 'country', label: 'Country' },
-            { key: 'manager', label: 'Manager' },
+            { key: 'manager', label: 'Manager', formatter: function(v, row) {
+                if (!v) return '--';
+                var mgrUpn = row.managerUpn || '';
+                if (mgrUpn) {
+                    return '<a href="#users?search=' + encodeURIComponent(mgrUpn) + '" class="entity-link">' + v + '</a>';
+                }
+                return v;
+            }},
             { key: 'usageLocation', label: 'Usage Location' },
             { key: 'createdDateTime', label: 'Created', formatter: Tables.formatters.date },
             { key: 'lastSignIn', label: 'Last Sign-In', formatter: Tables.formatters.date },
@@ -366,7 +383,12 @@ const PageUsers = (function() {
                 var count = getDeviceCountForUser(row);
                 return buildDevicesLink(row, count);
             }},
-            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags }
+            { key: 'flags', label: 'Flags', formatter: Tables.formatters.flags },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (!row.id) return '--';
+                var url = 'https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row.id);
+                return '<a href="' + url + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra ID">Entra</a>';
+            }}
         ];
 
         // Filter to visible columns only
@@ -1818,11 +1840,13 @@ const PageUsers = (function() {
                     { key: 'onPremSyncAge', label: 'Sync Age (days)' },
                     { key: 'onPremSamAccountName', label: 'SAM Account' },
                     { key: 'mobilePhone', label: 'Mobile Phone' },
-                    { key: 'businessPhones', label: 'Business Phones' }
+                    { key: 'businessPhones', label: 'Business Phones' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
                 defaultVisible: [
                     'displayName', 'userPrincipalName', 'domain', 'accountEnabled', 'department',
-                    'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'deviceCount', 'flags'
+                    'lastSignIn', 'daysSinceLastSignIn', 'mfaRegistered', 'licenseCount', 'deviceCount', 'flags',
+                    '_adminLinks'
                 ],
                 onColumnsChanged: applyFilters
             });

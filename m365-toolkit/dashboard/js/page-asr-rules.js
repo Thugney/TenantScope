@@ -340,9 +340,10 @@ const PageASRRules = (function() {
                 { key: 'blockCount', label: 'Block Count' },
                 { key: 'auditCount', label: 'Audit Count' },
                 { key: 'warnCount', label: 'Warn Count' },
-                { key: 'coverage', label: 'Coverage' }
+                { key: 'coverage', label: 'Coverage' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['ruleName', 'mode', 'isDeployed', 'blockCount', 'auditCount', 'coverage'],
+            defaultVisible: ['ruleName', 'mode', 'isDeployed', 'blockCount', 'auditCount', 'coverage', '_adminLinks'],
             onColumnsChanged: function() { applyFilters(); }
         });
 
@@ -435,6 +436,9 @@ const PageASRRules = (function() {
             }},
             { key: 'coverage', label: 'Coverage', formatter: function(v) {
                 return Fmt.formatPercentage ? Fmt.formatPercentage(v, { inverse: true }) : formatCoverage(v);
+            }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://security.microsoft.com/asr" target="_blank" rel="noopener" class="admin-link" title="Open in Defender">Defender</a>';
             }}
         ];
 

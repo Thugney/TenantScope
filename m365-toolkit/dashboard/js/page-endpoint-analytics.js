@@ -478,9 +478,10 @@ const PageEndpointAnalytics = (function() {
                 { key: 'bootTimeSeconds', label: 'Boot Time' },
                 { key: 'healthStatus', label: 'Health Status' },
                 { key: 'blueScreenCount', label: 'Blue Screens' },
-                { key: 'restartCount', label: 'Restarts' }
+                { key: 'restartCount', label: 'Restarts' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['deviceName', 'model', 'healthScore', 'startupScore', 'bootTimeSeconds', 'healthStatus'],
+            defaultVisible: ['deviceName', 'model', 'healthScore', 'startupScore', 'bootTimeSeconds', 'healthStatus', '_adminLinks'],
             onColumnsChanged: function() { applyDeviceFilters(); }
         });
 
@@ -515,7 +516,10 @@ const PageEndpointAnalytics = (function() {
         var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'model', 'healthScore', 'startupScore', 'bootTimeSeconds', 'healthStatus'];
 
         var allDefs = [
-            { key: 'deviceName', label: 'Device Name', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
+            { key: 'deviceName', label: 'Device Name', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
             { key: 'model', label: 'Model' },
             { key: 'manufacturer', label: 'Manufacturer' },
             { key: 'healthScore', label: 'Health Score', formatter: formatHealthScoreBadge },
@@ -525,7 +529,14 @@ const PageEndpointAnalytics = (function() {
             { key: 'bootTimeSeconds', label: 'Boot Time', formatter: formatBootTime },
             { key: 'healthStatus', label: 'Health Status', formatter: function(v) { return SF.formatHealthStatus(v); }},
             { key: 'blueScreenCount', label: 'Blue Screens', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
-            { key: 'restartCount', label: 'Restarts', formatter: function(v) { return SF.formatCount(v); }}
+            { key: 'restartCount', label: 'Restarts', formatter: function(v) { return SF.formatCount(v); }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.id || row.deviceId) {
+                    var id = row.id || row.deviceId;
+                    return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+                }
+                return '--';
+            }}
         ];
 
         Tables.render({

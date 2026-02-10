@@ -106,10 +106,82 @@ const PageIdentityRisk = (function() {
         if (currentTab === 'overview') {
             renderOverview(container);
         } else if (currentTab === 'risky-users') {
-            container.innerHTML = renderRiskyUsersTable(state.riskyUsers);
+            renderRiskyUsersTab(container);
         } else if (currentTab === 'detections') {
-            container.innerHTML = renderDetectionsTable(state.detections);
+            renderDetectionsTab(container);
         }
+    }
+
+    function renderRiskyUsersTab(container) {
+        var html = '<div class="filter-bar">';
+        html += '<input type="text" class="filter-input" id="risk-search" placeholder="Search users...">';
+        html += '<select class="filter-select" id="risk-level"><option value="all">All Risk Levels</option>';
+        html += '<option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="none">None</option></select>';
+        html += '<select class="filter-select" id="risk-state"><option value="all">All States</option>';
+        html += '<option value="atRisk">At Risk</option><option value="confirmedCompromised">Confirmed Compromised</option>';
+        html += '<option value="remediated">Remediated</option><option value="dismissed">Dismissed</option></select>';
+        html += '</div>';
+        html += '<div id="risky-users-table"></div>';
+        container.innerHTML = html;
+
+        Filters.setup('risk-search', applyRiskyUsersFilter);
+        Filters.setup('risk-level', applyRiskyUsersFilter);
+        Filters.setup('risk-state', applyRiskyUsersFilter);
+        applyRiskyUsersFilter();
+    }
+
+    function applyRiskyUsersFilter() {
+        var users = state.riskyUsers;
+        var search = (Filters.getValue('risk-search') || '').toLowerCase();
+        var level = Filters.getValue('risk-level');
+        var riskState = Filters.getValue('risk-state');
+
+        var filtered = users.filter(function(user) {
+            if (search && (user.userDisplayName || '').toLowerCase().indexOf(search) === -1 &&
+                (user.userPrincipalName || '').toLowerCase().indexOf(search) === -1) {
+                return false;
+            }
+            if (level && level !== 'all' && (user.riskLevel || '').toLowerCase() !== level) return false;
+            if (riskState && riskState !== 'all' && (user.riskState || '').toLowerCase() !== riskState.toLowerCase()) return false;
+            return true;
+        });
+
+        var tableContainer = document.getElementById('risky-users-table');
+        if (tableContainer) tableContainer.innerHTML = renderRiskyUsersTable(filtered);
+    }
+
+    function renderDetectionsTab(container) {
+        var html = '<div class="filter-bar">';
+        html += '<input type="text" class="filter-input" id="detect-search" placeholder="Search detections...">';
+        html += '<select class="filter-select" id="detect-severity"><option value="all">All Severities</option>';
+        html += '<option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>';
+        html += '</div>';
+        html += '<div id="detections-table"></div>';
+        container.innerHTML = html;
+
+        Filters.setup('detect-search', applyDetectionsFilter);
+        Filters.setup('detect-severity', applyDetectionsFilter);
+        applyDetectionsFilter();
+    }
+
+    function applyDetectionsFilter() {
+        var detections = state.detections;
+        var search = (Filters.getValue('detect-search') || '').toLowerCase();
+        var severity = Filters.getValue('detect-severity');
+
+        var filtered = detections.filter(function(det) {
+            if (search && (det.userDisplayName || '').toLowerCase().indexOf(search) === -1 &&
+                (det.userPrincipalName || '').toLowerCase().indexOf(search) === -1 &&
+                (det.riskEventType || '').toLowerCase().indexOf(search) === -1) {
+                return false;
+            }
+            var detSev = (det.severity || det.riskLevel || '').toLowerCase();
+            if (severity && severity !== 'all' && detSev !== severity) return false;
+            return true;
+        });
+
+        var tableContainer = document.getElementById('detections-table');
+        if (tableContainer) tableContainer.innerHTML = renderDetectionsTable(filtered);
     }
 
     function renderOverview(container) {
@@ -248,6 +320,7 @@ const PageIdentityRisk = (function() {
                             <th>Detections</th>
                             <th>Last Updated</th>
                             <th>Flags</th>
+                            <th>Admin</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -266,6 +339,7 @@ const PageIdentityRisk = (function() {
                                 <td>${user.detectionCount || 0}</td>
                                 <td>${formatDate(user.riskLastUpdatedDateTime)}</td>
                                 <td>${(user.flags || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}</td>
+                                <td>${user.id ? '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>' : '--'}</td>
                             </tr>
                         `).join('')}
                     </tbody>
@@ -292,6 +366,7 @@ const PageIdentityRisk = (function() {
                             <th>IP Address</th>
                             <th>Location</th>
                             <th>Detected</th>
+                            <th>Admin</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -313,6 +388,7 @@ const PageIdentityRisk = (function() {
                                 <td><code>${escapeHtml(det.ipAddress || '--')}</code></td>
                                 <td>${escapeHtml(det.location?.countryOrRegion || '--')}</td>
                                 <td>${formatDate(det.detectedDateTime)}</td>
+                                <td>${det.id ? '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>' : '--'}</td>
                             </tr>
                             `;
                         }).join('')}

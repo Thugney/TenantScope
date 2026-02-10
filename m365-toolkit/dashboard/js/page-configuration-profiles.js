@@ -394,9 +394,10 @@ const PageConfigurationProfiles = (function() {
                 { key: 'conflictCount', label: 'Conflicts' },
                 { key: 'pendingCount', label: 'Pending' },
                 { key: 'successRate', label: 'Success Rate' },
-                { key: 'lastModified', label: 'Last Modified' }
+                { key: 'lastModified', label: 'Last Modified' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'profileType', 'platform', 'successCount', 'errorCount', 'successRate'],
+            defaultVisible: ['displayName', 'profileType', 'platform', 'successCount', 'errorCount', 'successRate', '_adminLinks'],
             onColumnsChanged: function() { applyProfilesFilters(); }
         });
 
@@ -463,6 +464,9 @@ const PageConfigurationProfiles = (function() {
             }},
             { key: 'lastModified', label: 'Last Modified', formatter: function(v) {
                 return SF.formatDate ? SF.formatDate(v) : Tables.formatters.date(v);
+            }},
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesComplianceMenu/~/policies" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
             }}
         ];
 
@@ -524,9 +528,13 @@ const PageConfigurationProfiles = (function() {
     function renderFailedDevicesTable(data) {
         var columns = [
             { key: 'deviceName', label: 'Device Name', formatter: function(v) {
-                return '<strong>' + (v || '--') + '</strong>';
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
             }},
-            { key: 'userName', label: 'User', className: 'cell-truncate' },
+            { key: 'userName', label: 'User', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'failedProfileCount', label: 'Failed Profiles', formatter: function(v) {
                 var cls = v >= 3 ? 'text-critical font-bold' : v >= 2 ? 'text-warning font-bold' : 'text-warning';
                 return '<span class="' + cls + '">' + (v || 0) + '</span>';

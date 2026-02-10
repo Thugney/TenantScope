@@ -271,9 +271,10 @@ const PageBitLocker = (function() {
                 { key: 'osVersion', label: 'OS Version' },
                 { key: 'complianceState', label: 'Compliance' },
                 { key: 'lastSyncDateTime', label: 'Last Sync' },
-                { key: 'daysSinceSync', label: 'Days Since Sync' }
+                { key: 'daysSinceSync', label: 'Days Since Sync' },
+                { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['deviceName', 'userPrincipalName', 'encryptionState', 'recoveryKeyEscrowed', 'manufacturer', 'model', 'lastSyncDateTime'],
+            defaultVisible: ['deviceName', 'userPrincipalName', 'encryptionState', 'recoveryKeyEscrowed', 'manufacturer', 'model', 'lastSyncDateTime', '_adminLinks'],
             onColumnsChanged: function() { applyDeviceFilters(); }
         });
 
@@ -317,8 +318,14 @@ const PageBitLocker = (function() {
         var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'userPrincipalName', 'encryptionState', 'recoveryKeyEscrowed', 'manufacturer', 'model', 'lastSyncDateTime'];
 
         var allDefs = [
-            { key: 'deviceName', label: 'Device Name', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
-            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate' },
+            { key: 'deviceName', label: 'Device Name', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'encryptionState', label: 'Encryption', formatter: SF.formatEncryptionState || formatEncryptionStateFallback },
             { key: 'recoveryKeyEscrowed', label: 'Key Escrowed', formatter: SF.formatBoolean || formatBooleanFallback },
             { key: 'recoveryKeyCount', label: 'Key Count', formatter: function(v) {
@@ -330,7 +337,14 @@ const PageBitLocker = (function() {
             { key: 'osVersion', label: 'OS Version', formatter: formatOsVersion },
             { key: 'complianceState', label: 'Compliance', formatter: SF.formatCompliance || formatComplianceFallback },
             { key: 'lastSyncDateTime', label: 'Last Sync', formatter: SF.formatDateTime || formatDateTimeFallback },
-            { key: 'daysSinceSync', label: 'Days Since Sync', formatter: SF.formatDaysSinceSync || formatDaysSinceSyncFallback }
+            { key: 'daysSinceSync', label: 'Days Since Sync', formatter: SF.formatDaysSinceSync || formatDaysSinceSyncFallback },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.id || row.deviceId) {
+                    var id = row.id || row.deviceId;
+                    return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
+                }
+                return '--';
+            }}
         ];
 
         Tables.render({
