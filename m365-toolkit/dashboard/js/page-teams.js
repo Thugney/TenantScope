@@ -174,8 +174,9 @@ const PageTeams = (function() {
                     return '<span class="text-critical font-bold">0</span>';
                 }
                 // Link to owners on users page if ownerUpns available
-                if (row.ownerUpns && row.ownerUpns.length > 0) {
-                    return '<a href="#users?search=' + encodeURIComponent(row.ownerUpns[0]) + '" class="entity-link" title="' + row.ownerUpns.join(', ') + '">' + v + '</a>';
+                var upns = row.ownerUpns;
+                if (upns && Array.isArray(upns) && upns.length > 0) {
+                    return '<a href="#users?search=' + encodeURIComponent(upns[0]) + '" class="entity-link" title="' + upns.join(', ') + '">' + v + '</a>';
                 }
                 return String(v);
             }},
@@ -357,7 +358,7 @@ const PageTeams = (function() {
 
         // Build owner links (clickable to users page) - safe: data from trusted collector
         var ownerLinksHtml = '--';
-        if (team.ownerUpns && team.ownerUpns.length > 0) {
+        if (team.ownerUpns && Array.isArray(team.ownerUpns) && team.ownerUpns.length > 0) {
             ownerLinksHtml = team.ownerUpns.map(function(upn) {
                 return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="text-link">' + upn + '</a>';
             }).join('<br>');
