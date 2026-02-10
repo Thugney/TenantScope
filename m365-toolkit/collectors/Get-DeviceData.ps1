@@ -304,10 +304,11 @@ try {
     }
 
     # Retrieve Entra ID devices that are not Intune-managed
+    # Include $expand=registeredOwners to get user info for Entra-only devices
     $entraDevices = @()
     try {
         Write-Host "    Collecting Entra ID registered devices..." -ForegroundColor Gray
-        $entraDevices = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/devices?`$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,registrationDateTime,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,deviceOwnership" -OperationName "Entra device retrieval"
+        $entraDevices = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/devices?`$select=id,deviceId,displayName,operatingSystem,operatingSystemVersion,trustType,registrationDateTime,approximateLastSignInDateTime,isCompliant,isManaged,accountEnabled,deviceOwnership&`$expand=registeredOwners(`$select=id,displayName,userPrincipalName)" -OperationName "Entra device retrieval"
 
         if ($entraDevices.Count -gt 0) {
             $entraDevices = @($entraDevices | Where-Object {
@@ -545,6 +546,18 @@ try {
         $entraOwnership = Get-GraphPropertyValue -Object $device -PropertyNames @("deviceOwnership", "DeviceOwnership")
         $entraAccountEnabled = Get-GraphPropertyValue -Object $device -PropertyNames @("accountEnabled", "AccountEnabled")
 
+        # Extract registered owner info (first owner if multiple)
+        $entraUserPrincipalName = $null
+        $entraUserDisplayName = $null
+        $entraUserId = $null
+        $registeredOwners = Get-GraphPropertyValue -Object $device -PropertyNames @("registeredOwners", "RegisteredOwners")
+        if ($registeredOwners -and $registeredOwners.Count -gt 0) {
+            $firstOwner = $registeredOwners[0]
+            $entraUserPrincipalName = Get-GraphPropertyValue -Object $firstOwner -PropertyNames @("userPrincipalName", "UserPrincipalName")
+            $entraUserDisplayName = Get-GraphPropertyValue -Object $firstOwner -PropertyNames @("displayName", "DisplayName")
+            $entraUserId = Get-GraphPropertyValue -Object $firstOwner -PropertyNames @("id", "Id")
+        }
+
         $daysSinceSync = Get-DaysSinceDate -DateValue $entraLastSignIn
         $activityStatus = Get-ActivityStatus -DaysSinceActivity $daysSinceSync -InactiveThreshold $staleThreshold
         $isStale = $activityStatus.isInactive
@@ -569,10 +582,10 @@ try {
             id                     = $entraDeviceId
             deviceName             = $entraName
             managedDeviceName      = $null
-            userPrincipalName      = $null
-            primaryUserDisplayName = $null
-            userId                 = $null
-            emailAddress           = $null
+            userPrincipalName      = $entraUserPrincipalName
+            primaryUserDisplayName = $entraUserDisplayName
+            userId                 = $entraUserId
+            emailAddress           = $entraUserPrincipalName  # UPN is typically the email
 
             # ===== AZURE AD INTEGRATION =====
             azureAdDeviceId        = $entraAadDeviceId
