@@ -103,7 +103,7 @@ function Get-GroupMembers {
     )
 
     $members = @()
-    $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$select=id,displayName,userPrincipalName,mail,userType&`$top=999"
+    $uri = "https://graph.microsoft.com/v1.0/groups/$GroupId/members?`$select=id,displayName,userPrincipalName,mail,userType&`$top=100"
 
     try {
         do {
@@ -193,20 +193,18 @@ try {
         "resourceProvisioningOptions"
     )
 
-    $uri = "https://graph.microsoft.com/v1.0/groups?`$select=$($selectProperties -join ',')&`$top=999"
+    $uri = "https://graph.microsoft.com/v1.0/groups?`$select=$($selectProperties -join ',')&`$top=100"
     $allGroups = @()
 
-    do {
-        $response = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
-        } -OperationName "Groups retrieval"
-
-        if ($response.value) {
-            $allGroups += $response.value
-        }
-
-        $uri = $response.'@odata.nextLink'
-    } while ($uri)
+    try {
+        $allGroups = Get-GraphAllPages -Uri $uri -OperationName "Groups retrieval"
+    }
+    catch {
+        Write-Host "      [!] Group retrieval failed with full property set. Retrying with reduced properties..." -ForegroundColor Yellow
+        $reducedProperties = $selectProperties | Where-Object { $_ -notin @("assignedLabels", "resourceProvisioningOptions") }
+        $fallbackUri = "https://graph.microsoft.com/v1.0/groups?`$select=$($reducedProperties -join ',')&`$top=100"
+        $allGroups = Get-GraphAllPages -Uri $fallbackUri -OperationName "Groups retrieval (reduced)"
+    }
 
     Write-Host "      Retrieved $($allGroups.Count) groups" -ForegroundColor Gray
 
