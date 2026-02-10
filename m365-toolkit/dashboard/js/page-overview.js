@@ -133,12 +133,6 @@ const PageOverview = (function() {
             case 'stats':
                 renderStatsTab(container);
                 break;
-            case 'agents':
-                renderAgentsTab(container);
-                break;
-            case 'executive':
-                renderExecutiveTab(container);
-                break;
         }
     }
 
@@ -1919,8 +1913,6 @@ const PageOverview = (function() {
         var tabs = [
             { id: 'overview', label: 'Overview' },
             { id: 'cockpit', label: 'Security Cockpit' },
-            { id: 'executive', label: 'Executive Summary' },
-            { id: 'agents', label: 'Quick Access' },
             { id: 'stats', label: 'Quick Stats' }
         ];
         tabs.forEach(function(t) {
