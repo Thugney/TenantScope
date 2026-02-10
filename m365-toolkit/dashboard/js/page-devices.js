@@ -697,7 +697,7 @@ const PageDevices = (function() {
             { key: 'deviceCategory', label: 'Category' },
             { key: 'physicalMemoryGB', label: 'RAM (GB)', formatter: function(v) { return v ? v + ' GB' : '--'; }},
             // Security
-            { key: 'isEncrypted', label: 'Encrypted', formatter: formatBoolean },
+            { key: 'isEncrypted', label: 'Encrypted', formatter: formatEncrypted },
             { key: 'jailBroken', label: 'Jailbroken', formatter: formatJailbroken },
             { key: 'isSupervised', label: 'Supervised', formatter: formatBoolean },
             { key: 'threatStateDisplay', label: 'Threat State', formatter: formatThreatState },
@@ -1028,6 +1028,13 @@ const PageDevices = (function() {
         if (v === true) return '<span class="text-success font-bold">Yes</span>';
         if (v === false) return '<span class="text-critical">No</span>';
         return '<span class="text-muted">--</span>';
+    }
+
+    function formatEncrypted(v, row) {
+        if (row && row.managementSource === 'Entra') {
+            return '<span class="text-muted">N/A</span>';
+        }
+        return formatBoolean(v);
     }
 
     function formatStale(v) {
