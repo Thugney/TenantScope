@@ -32,6 +32,15 @@ const ColumnSelector = (function() {
 
         // Load saved state or use defaults
         var visible = loadState(config.storageKey, config.defaultVisible);
+        var allowedKeys = Array.isArray(config.allColumns)
+            ? config.allColumns.map(c => c.key)
+            : [];
+        if (allowedKeys.length > 0) {
+            visible = visible.filter(k => allowedKeys.includes(k));
+            if (visible.length === 0) {
+                visible = config.defaultVisible.slice();
+            }
+        }
 
         var wrapper = document.createElement('div');
         wrapper.className = 'column-selector';
