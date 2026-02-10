@@ -2146,6 +2146,10 @@ table {
     margin-bottom: var(--spacing-lg);
 }
 
+.focus-breakdown-row.single {
+    grid-template-columns: 1fr;
+}
+
 /* Focus Table */
 .focus-table-wrapper {
     background: var(--color-bg-secondary);

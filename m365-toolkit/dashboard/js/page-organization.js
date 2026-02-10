@@ -324,13 +324,7 @@ const PageOrganization = (function() {
     function renderAnalysisTab(container) {
         container.textContent = '';
 
-        var fbRow = el('div', 'focus-breakdown-row');
-        var focusPanel = el('div', 'focus-panel');
-        focusPanel.appendChild(el('h3', 'panel-title', 'Focus: Managers by Direct Reports'));
-        var focusTable = el('div');
-        focusTable.id = 'manager-focus-table';
-        focusPanel.appendChild(focusTable);
-        fbRow.appendChild(focusPanel);
+        var fbRow = el('div', 'focus-breakdown-row single');
 
         var breakdownPanel = el('div', 'breakdown-panel');
         breakdownPanel.appendChild(el('h3', 'panel-title', 'Breakdown: Department Analysis'));
@@ -340,7 +334,6 @@ const PageOrganization = (function() {
         fbRow.appendChild(breakdownPanel);
         container.appendChild(fbRow);
 
-        renderManagerFocus(orgState.hierarchy.managers);
         renderDeptBreakdown(orgState.hierarchy.departments);
     }
 
