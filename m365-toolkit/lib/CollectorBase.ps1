@@ -35,12 +35,19 @@
 function Invoke-GraphWithRetry {
     <#
     .SYNOPSIS
-        Executes a Graph API call with automatic retry on throttling.
+        Executes a Graph API call with automatic retry on throttling and transient errors.
 
     .DESCRIPTION
         Wraps Graph API calls with exponential backoff retry logic.
-        Automatically handles HTTP 429 (Too Many Requests) responses
-        and other throttling-related errors.
+        Automatically handles:
+        - HTTP 429 (Too Many Requests) - throttling responses
+        - HTTP 500 (Internal Server Error) - transient server errors
+        - HTTP 502 (Bad Gateway) - transient proxy/gateway errors
+        - HTTP 503 (Service Unavailable) - temporary service issues
+        - HTTP 504 (Gateway Timeout) - transient timeout errors
+
+        Per Microsoft Graph best practices, 5xx errors are often transient
+        and should be retried with exponential backoff.
 
     .PARAMETER ScriptBlock
         The script block containing the Graph API call to execute.
@@ -93,20 +100,30 @@ function Invoke-GraphWithRetry {
         catch {
             $errorMessage = $_.Exception.Message
 
-            # Check if this is a throttling error
-            if ($errorMessage -match "429|throttl|TooManyRequests|Too many retries|Rate limit") {
+            # Check if this is a throttling error (429)
+            $isThrottling = $errorMessage -match "429|throttl|TooManyRequests|Too many retries|Rate limit"
+
+            # Check if this is a transient server error (5xx) that should be retried
+            # Microsoft Graph recommends retrying on 500, 502, 503, 504 errors with exponential backoff
+            $isTransientServerError = $errorMessage -match "InternalServerError|500|502|503|504|BadGateway|ServiceUnavailable|GatewayTimeout"
+
+            if ($isThrottling -or $isTransientServerError) {
                 $attempt++
                 if ($attempt -gt $MaxRetries) {
                     Write-Host "      Max retries ($MaxRetries) exceeded for: $OperationName" -ForegroundColor Red
                     throw
                 }
 
-                $waitSeconds = $BaseBackoffSeconds * [Math]::Pow(2, $attempt - 1)
-                Write-Host "      Throttled. Waiting ${waitSeconds}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
+                # Use shorter initial backoff for transient errors (they often recover quickly)
+                $backoffBase = if ($isThrottling) { $BaseBackoffSeconds } else { [Math]::Max(10, $BaseBackoffSeconds / 6) }
+                $waitSeconds = $backoffBase * [Math]::Pow(2, $attempt - 1)
+
+                $errorType = if ($isThrottling) { "Throttled" } else { "Transient error" }
+                Write-Host "      $errorType. Waiting ${waitSeconds}s (attempt $attempt/$MaxRetries)..." -ForegroundColor Yellow
                 Start-Sleep -Seconds $waitSeconds
             }
             else {
-                # Not a throttling error, re-throw immediately
+                # Not a retryable error, re-throw immediately
                 throw
             }
         }
