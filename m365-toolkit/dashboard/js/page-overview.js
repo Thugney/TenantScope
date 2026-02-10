@@ -500,13 +500,24 @@ const PageOverview = (function() {
         });
         container.appendChild(categoryGrid);
 
-        // Action Items Section
+        // Action + Quick Navigation row
+        var actionsRow = el('div', 'cockpit-actions-row');
+        var actionsColumn = null;
+
         if (signals.actionItems.length > 0) {
             var actionsSection = el('div', 'cockpit-actions-section');
             actionsSection.appendChild(el('h3', null, 'Action Required (' + signals.actionItems.length + ')'));
 
             var actionsList = el('div', 'cockpit-actions-list');
-            signals.actionItems.forEach(function(item) {
+            var severityOrder = { critical: 0, warning: 1, info: 2, success: 3 };
+            var sortedActions = signals.actionItems.slice().sort(function(a, b) {
+                var aRank = severityOrder[a.severity] !== undefined ? severityOrder[a.severity] : 9;
+                var bRank = severityOrder[b.severity] !== undefined ? severityOrder[b.severity] : 9;
+                if (aRank !== bRank) return aRank - bRank;
+                return (a.title || '').localeCompare(b.title || '');
+            });
+
+            sortedActions.forEach(function(item) {
                 var actionCard = el('div', 'cockpit-action-card action-' + item.severity);
                 if (item.navigateTo) {
                     actionCard.style.cursor = 'pointer';
@@ -530,14 +541,16 @@ const PageOverview = (function() {
                 actionsList.appendChild(actionCard);
             });
             actionsSection.appendChild(actionsList);
-            container.appendChild(actionsSection);
+            actionsColumn = actionsSection;
         } else {
             var noActions = el('div', 'cockpit-no-actions');
             noActions.appendChild(el('div', 'no-actions-icon', '\u2713'));
             noActions.appendChild(el('h3', null, 'All Clear'));
             noActions.appendChild(el('p', null, 'No critical security issues detected. Keep up the good work!'));
-            container.appendChild(noActions);
+            actionsColumn = noActions;
         }
+
+        actionsRow.appendChild(actionsColumn);
 
         // Quick Links
         var quickLinks = el('div', 'cockpit-quick-links');
@@ -561,7 +574,8 @@ const PageOverview = (function() {
             linksGrid.appendChild(linkBtn);
         });
         quickLinks.appendChild(linksGrid);
-        container.appendChild(quickLinks);
+        actionsRow.appendChild(quickLinks);
+        container.appendChild(actionsRow);
     }
 
     /**

@@ -4472,6 +4472,14 @@ table {
     margin-bottom: var(--spacing-lg);
 }
 
+.cockpit-actions-row {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: var(--spacing-lg);
+    align-items: start;
+    margin-bottom: var(--spacing-lg);
+}
+
 .cockpit-actions-section h3 {
     margin: 0 0 var(--spacing-md) 0;
     font-size: var(--font-size-base);
@@ -5399,4 +5407,10 @@ table {
 .initiator-app::before {
     content: '🤖 ';
     font-style: normal;
+}
+
+@media (max-width: 1024px) {
+    .cockpit-actions-row {
+        grid-template-columns: 1fr;
+    }
 }
