@@ -717,9 +717,6 @@ const PageGuests = (function() {
             case 'overview':
                 renderOverviewTab(container);
                 break;
-            case 'analysis':
-                renderAnalysisTab(container);
-                break;
             case 'guests':
                 renderGuestsTab(container);
                 break;
@@ -929,7 +926,6 @@ const PageGuests = (function() {
         tabBar.className = 'tab-bar';
         var tabs = [
             { id: 'overview', label: 'Overview' },
-            { id: 'analysis', label: 'Analysis' },
             { id: 'guests', label: 'All Guests (' + total + ')' }
         ];
         tabs.forEach(function(t) {
