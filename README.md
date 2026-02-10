@@ -1,8 +1,10 @@
 # TenantScope - M365 Tenant Toolkit
 
-[![Version](https://img.shields.io/badge/version-2.1.1-blue.svg)](https://github.com/Thugney/TenantScope/releases)
+[![Version](https://img.shields.io/badge/version-2.4.0-blue.svg)](https://github.com/Thugney/TenantScope/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![PowerShell](https://img.shields.io/badge/PowerShell-7.0%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
+[![Dashboard](https://img.shields.io/badge/Dashboard-33%20Pages-4CAF50.svg?logo=html5&logoColor=white)](#documentation)
+[![Collectors](https://img.shields.io/badge/Collectors-27%20Scripts-FF6F00.svg?logo=microsoftgraph&logoColor=white)](#documentation)
 [![GitHub stars](https://img.shields.io/github/stars/Thugney/TenantScope?style=social)](https://github.com/Thugney/TenantScope/stargazers)
 
 [![Author](https://img.shields.io/badge/Author-Robel-brightgreen.svg)](https://github.com/Thugney)
@@ -28,9 +30,11 @@ All data stays local. No cloud services. No external dependencies.
 
 ## Key Features
 
-- **37 Data Collectors** - Comprehensive Graph API coverage across M365 workloads
-- **Cross-Entity Navigation** - Click users to see devices, sign-ins, roles; click devices to see users, vulnerabilities
-- **Deep Links** - Direct links to Entra, Intune, and Defender admin portals for immediate action
+- **27 Data Collectors** - Comprehensive Graph API coverage across M365 workloads
+- **33 Dashboard Pages** - Full-featured SPA with unified filtering, column selection, and search
+- **Unified Filtering** - Consistent search, dropdown filters, and column selectors across every data page
+- **Cross-Page Navigation** - Every entity (user, device, group, team, site) is a clickable link to its dedicated page
+- **Admin Portal Deep Links** - Direct links to Entra ID, Intune, Defender, Teams Admin, and SharePoint Admin portals
 - **Problem Detection** - Aggregated critical issues with severity-based prioritization
 - **Signal Cards** - Executive summary with risk scores and actionable insights
 - **Selective Collection** - Run specific collectors when you need fresh data on just users or devices

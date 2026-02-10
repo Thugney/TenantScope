@@ -157,7 +157,33 @@ Build flow:
 - `scripts/Build-Dashboard.ps1` copies JSON files to `dashboard/data/`
 - Generates `data-bundle.js` for CORS-safe local viewing
 
-### 7. Utility Scripts
+### 7. Dashboard Interaction Patterns
+
+**Unified Filtering:**
+Every data page follows a consistent filtering pattern using the `Filters` module:
+- `Filters.createFilterBar()` or inline `<div class="filter-bar">` for the filter container
+- `Filters.setup(elementId, callback)` to wire change/input events with debouncing
+- `Filters.apply(data, config)` to filter data using search, exact, includes, boolean, range, and dateRange filter types
+- `Filters.getValue(elementId)` / `Filters.setValue(elementId, value)` for programmatic access
+
+**Column Selector:**
+Each table provides a `ColumnSelector.create()` toggle button that lets users show/hide columns:
+- Preferences persist to `localStorage` per page
+- `onColumnsChanged` callback re-renders the table with visible columns only
+
+**Cross-Page Entity Links:**
+All entity references are rendered as clickable anchor elements with class `entity-link`:
+- Pattern: `<a href="#page?search=<encoded>" class="entity-link">Name</a>`
+- Pages parse the `search` query parameter on load to pre-filter results
+- Supported entity types: users, devices, groups, teams, guests, sharepoint, vulnerabilities
+
+**Admin Portal Deep Links:**
+Where applicable, tables include an "Admin" column with links to Microsoft admin portals:
+- Pattern: `<a href="https://entra.microsoft.com/..." target="_blank" rel="noopener" class="admin-link">Entra</a>`
+- Supported portals: Entra ID, Intune, Defender, Teams Admin, SharePoint Admin
+- URL generators in `data-relationships.js`: `getUserAdminUrls()`, `getDeviceAdminUrls()`, `getGroupAdminUrls()`
+
+### 8. Utility Scripts
 
 - `Install-Prerequisites.ps1`: Graph module setup and checks
 - `scripts/Schedule-Collection.ps1`: Scheduled task creation
@@ -169,6 +195,7 @@ Build flow:
 - Config-driven behavior
 - Graceful degradation on partial failures
 - Framework-free dashboard for portability
+- Unified UX patterns across all pages (filtering, navigation, admin links)
 
 ## Error Handling and Resilience
 
@@ -182,6 +209,7 @@ Build flow:
 - 5-second pauses between collectors
 - Report-based endpoints to avoid N+1 calls where possible
 - Dashboard loads all data once and renders from memory
+- O(1) cross-entity lookups via pre-built index maps
 
 ## Extension Points
 
@@ -190,7 +218,13 @@ To add a new collector:
 2. Add it to the collector list in `Invoke-DataCollection.ps1`.
 3. Add a new data type to the dashboard loader and page modules.
 
+To add a new dashboard page:
+1. Create `dashboard/js/page-newpage.js` following the page module pattern.
+2. Add to `pages` registry in `app.js`.
+3. Add navigation link in `index.html`.
+4. Include filter bar, column selector, entity links, and admin links following established patterns.
+
 ## Last Updated
 
-Architecture Version: 1.3  
-Last Updated: February 7, 2026
+Architecture Version: 1.4
+Last Updated: February 10, 2026

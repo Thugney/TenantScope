@@ -6,7 +6,7 @@
 
 **Author:** Robel ([GitHub](https://github.com/Thugney), [X](https://x.com/eriteach))
 **Repository:** https://github.com/Thugney/TenantScope
-**Version:** 2.1.1
+**Version:** 2.4.0
 **License:** MIT
 
 ## Overview
@@ -27,10 +27,12 @@ The dashboard is organized into functional groups:
 - **Users** - Member accounts with activity status, MFA enrollment, admin flags, and license assignments
 - **Organization** - Department-level analytics and organizational hierarchy
 - **Guests** - External users with invitation status, activity tracking, and stale guest identification
+- **Groups** - Entra ID groups with type classification, membership, ownership, licensing, and governance insights
 - **Lifecycle** - Computed reports for offboarding issues, onboarding gaps, and role hygiene
 
 **Licensing**
 - **Licenses** - SKU allocation with waste analysis showing licenses assigned to disabled/inactive users
+- **License Analysis** - Per-user license assignment details with admin portal links
 - **Overlap Analysis** - License overlap detection for cost optimization
 
 **Security**
@@ -69,24 +71,40 @@ The dashboard is organized into functional groups:
 **Audit**
 - **Audit Logs** - Administrative activity monitoring with search and filtering
 
+### Unified Filtering and Column Selection
+
+Every data page uses a consistent filtering pattern:
+
+- **Search** - Debounced text search across relevant fields (name, email, ID, etc.)
+- **Dropdown Filters** - Contextual exact-match filters (e.g., OS type, compliance state, severity, department)
+- **Column Selector** - Toggle visible columns per table, preferences saved to localStorage
+- **Filter Wiring** - All filters use `Filters.setup()` + `Filters.apply()` for consistent behavior
+
 ### Data Relationships and Cross-Page Navigation
 
-TenantScope links entities across data types for comprehensive context:
+Every entity name across all pages is a clickable link that navigates to the relevant page with a pre-filled search:
 
-- Click a user to see their devices, sign-ins, admin roles, MFA status, Teams membership, and licenses
-- Click a device to see its primary user, compliance status, BitLocker state, Windows Update status, and vulnerabilities
-- Click a Team to see its linked SharePoint site, owners, and guest members
-- Cross-reference vulnerabilities with affected devices
-- View Defender alerts linked to specific users and devices
+- **Users** (`#users?search=...`) - Click any user name or UPN from devices, sign-ins, groups, licenses, lifecycle, etc.
+- **Devices** (`#devices?search=...`) - Click device names from users, compliance, app deployments, BitLocker, etc.
+- **Groups** (`#groups?search=...`) - Click group names from users, conditional access, licenses
+- **Teams** (`#teams?search=...`) - Click team names from lifecycle, SharePoint, users
+- **Guests** (`#guests?search=...`) - Click guest accounts from Teams, lifecycle, OAuth consent
+- **SharePoint** (`#sharepoint?search=...`) - Click site names from Teams, lifecycle
+- **Vulnerabilities** (`#vulnerabilities?search=...`) - Click CVE IDs from device profiles
+
+Detail modals provide comprehensive profiles with related data from multiple sources (e.g., a user modal shows devices, sign-ins, roles, MFA, Teams, groups, and licenses).
 
 ### Deep Links to Admin Portals
 
-Each entity includes direct links to the corresponding admin portal for immediate action:
+Every applicable entity includes direct links to the corresponding Microsoft admin portal for immediate action:
 
-- **Users**: Entra ID user profile, authentication methods, devices, groups, directory roles
-- **Devices**: Intune device blade, compliance state, BitLocker keys, Entra device details
-- **Security**: Defender security portal, PIM activation
-- **Teams/SharePoint**: Admin center links for management
+- **Entra ID** (`entra.microsoft.com`) - User profiles, group management, device details, conditional access policies, enterprise apps, PIM roles
+- **Intune** (`intune.microsoft.com`) - Device management blades, compliance policies, configuration profiles, BitLocker recovery keys
+- **Defender** (`security.microsoft.com`) - Security alerts, vulnerability details, ASR rules, risky users
+- **Teams Admin** (`admin.teams.microsoft.com`) - Team management and governance
+- **SharePoint Admin** - Site collection management
+
+Admin links open in new tabs with `rel="noopener"` for security. Links are contextual - each entity type shows only the relevant portal links.
 
 ### Problem Detection and Signal Cards
 
@@ -321,17 +339,20 @@ m365-toolkit/
 ├── data/                          # Collected JSON data (gitignored)
 │   └── sample/                    # Sample data for testing
 │
-├── dashboard/                     # Static HTML dashboard
+├── dashboard/                     # Static HTML dashboard (33 pages)
 │   ├── index.html
 │   ├── css/style.css
 │   ├── js/
-│   │   ├── app.js                 # Main application
-│   │   ├── data-loader.js         # Data loading
-│   │   ├── data-relationships.js  # Cross-entity lookups
-│   │   ├── filters.js             # Filtering utilities
-│   │   ├── tables.js              # Table rendering
+│   │   ├── app.js                 # Main application + hash-based routing
+│   │   ├── data-loader.js         # Data loading (bundle or fetch)
+│   │   ├── data-relationships.js  # Cross-entity lookups + admin URL generators
+│   │   ├── filters.js             # Unified filtering (search, exact, includes, boolean, range, dateRange)
+│   │   ├── tables.js              # Reusable table component with sorting + pagination
+│   │   ├── column-selector.js     # Column visibility toggle with localStorage persistence
 │   │   ├── export.js              # CSV export
-│   │   └── page-*.js              # Individual page modules
+│   │   ├── global-search.js       # Ctrl+K universal search
+│   │   ├── dashboard-charts.js    # SVG donut chart component
+│   │   └── page-*.js              # Individual page modules (33 pages)
 │   └── data/                      # Data files for dashboard
 │
 └── scripts/

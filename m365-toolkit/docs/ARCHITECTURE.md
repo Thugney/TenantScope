@@ -174,12 +174,13 @@ m365-toolkit/
 |       |-- data-loader.js       # Data loading and caching
 |       |-- data-relationships.js # Cross-entity lookups
 |       |-- app.js               # Main app controller, routing
-|       |-- tables.js            # Reusable table component
-|       |-- filters.js           # Search and filter utilities
-|       |-- dashboard-charts.js  # Chart rendering (Chart.js)
+|       |-- tables.js            # Reusable table component (sort, paginate, row click)
+|       |-- filters.js           # Unified filtering (search, exact, includes, boolean, range, dateRange)
+|       |-- column-selector.js   # Column visibility toggle with localStorage persistence
+|       |-- dashboard-charts.js  # SVG donut chart rendering
 |       |-- toast.js             # Notification system
 |       |-- global-search.js     # Ctrl+K universal search
-|       +-- page-*.js            # Page-specific modules
+|       +-- page-*.js            # Page-specific modules (33 pages)
 |
 +-- docs/
     |-- ARCHITECTURE.md          # This file
@@ -292,13 +293,14 @@ Scripts are loaded in dependency order in `index.html`:
 ```
 data-bundle.js          # 1. Embedded JSON data (generated)
 data-loader.js          # 2. DataLoader: loads data into memory
-data-relationships.js   # 3. DataRelationships: cross-entity lookups
+data-relationships.js   # 3. DataRelationships: cross-entity lookups + admin URL generators
 toast.js                # 4. Notification system
-dashboard-charts.js     # 5. Chart utilities
-filters.js              # 6. Filter utilities
-tables.js               # 7. Table component
-page-*.js               # 8. Page modules
-app.js                  # 9. Main app (runs last, initializes everything)
+dashboard-charts.js     # 5. SVG donut chart utilities
+filters.js              # 6. Unified filter utilities (search, exact, includes, boolean, range, dateRange)
+tables.js               # 7. Reusable table component (sort, paginate, row click)
+column-selector.js      # 8. Column visibility toggle with localStorage persistence
+page-*.js               # 9. Page modules (33 pages, each with filters + entity links + admin links)
+app.js                  # 10. Main app (runs last, initializes routing)
 ```
 
 ### DataLoader Module
@@ -392,9 +394,25 @@ const DataRelationships = {
     // Admin portal URL generators
     getUserAdminUrls: function(user) {
         return {
-            entra: 'https://entra.microsoft.com/.../' + user.id,
-            defender: 'https://security.microsoft.com/users/' + user.id,
-            pim: 'https://entra.microsoft.com/...'
+            entraProfile: 'https://entra.microsoft.com/#view/.../UserProfileMenuBlade/userId/' + user.id,
+            entraAuth: 'https://entra.microsoft.com/#view/.../UserAuthMethodsMenuBlade/userId/' + user.id,
+            entraDevices: 'https://entra.microsoft.com/#view/.../UserDevicesMenuBlade/userId/' + user.id,
+            defender: 'https://security.microsoft.com/users/' + user.id
+        };
+    },
+
+    getDeviceAdminUrls: function(device) {
+        return {
+            intune: 'https://intune.microsoft.com/#blade/.../deviceId/' + device.id,
+            entra: 'https://entra.microsoft.com/#view/.../Device.../ObjectId/' + device.azureADDeviceId
+        };
+    },
+
+    getGroupAdminUrls: function(group) {
+        return {
+            entra: 'https://entra.microsoft.com/#view/.../ObjectId/' + group.id,
+            members: 'https://entra.microsoft.com/#view/.../GroupMembersMenuBlade/...',
+            licenses: 'https://entra.microsoft.com/#view/.../GroupLicensesMenuBlade/...'
         };
     }
 };
@@ -402,42 +420,86 @@ const DataRelationships = {
 
 ### Page Module Pattern
 
-Each page follows this pattern:
+Each page follows this pattern with unified filtering, entity links, and admin portal deep links:
 
 ```javascript
-const PageUsers = {
-    render: function(container) {
-        // 1. Create page structure using DOM methods
-        var header = document.createElement('div');
-        header.className = 'page-header';
-        // ... build DOM structure
+const PageExample = (function() {
+    'use strict';
 
-        // 2. Get data
-        const users = DataLoader.getData('users');
+    var colSelector = null;
 
-        // 3. Render stats cards
-        this.renderStats(users);
+    function render(container) {
+        var data = DataLoader.getData('dataType') || [];
 
-        // 4. Render table with filters
-        this.renderTable(users);
-    },
+        // 1. Page header + summary cards
+        // 2. Filter bar (search + dropdowns + column selector)
+        var html = '<div class="filter-bar">';
+        html += '<input type="text" class="filter-input" id="example-search" placeholder="Search...">';
+        html += '<select class="filter-select" id="example-status">...</select>';
+        html += '<div id="example-colselector"></div>';
+        html += '</div>';
+        html += '<div id="example-table"></div>';
+        container.innerHTML = html;
 
-    renderStats: function(users) {
-        // Compute and display summary stats
-    },
+        // 3. Column selector
+        colSelector = ColumnSelector.create({
+            containerId: 'example-colselector',
+            storageKey: 'tenantscope-example-cols-v1',
+            allColumns: [
+                { key: 'name', label: 'Name' },
+                { key: '_adminLinks', label: 'Admin' }
+            ],
+            defaultVisible: ['name', '_adminLinks'],
+            onColumnsChanged: function() { applyFilters(); }
+        });
 
-    renderTable: function(users) {
-        // Use Tables module for consistent UI
+        // 4. Wire filters
+        Filters.setup('example-search', applyFilters);
+        Filters.setup('example-status', applyFilters);
+        applyFilters();
+    }
+
+    function applyFilters() {
+        var data = DataLoader.getData('dataType') || [];
+        var filtered = Filters.apply(data, {
+            search: Filters.getValue('example-search'),
+            searchFields: ['name', 'email'],
+            exact: { status: Filters.getValue('example-status') }
+        });
+        renderTable(filtered);
+    }
+
+    function renderTable(data) {
+        var visible = colSelector ? colSelector.getVisible() : ['name', '_adminLinks'];
+        var allDefs = [
+            // Entity links: clickable navigation to related pages
+            { key: 'name', label: 'Name', formatter: function(v) {
+                return '<a href="#users?search=' + encodeURIComponent(v) +
+                       '" class="entity-link">' + v + '</a>';
+            }},
+            // Admin portal deep links
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                return '<a href="https://entra.microsoft.com/.../' + row.id +
+                       '" target="_blank" rel="noopener" class="admin-link">Entra</a>';
+            }}
+        ];
         Tables.render({
-            containerId: 'users-table-container',
-            data: users,
-            columns: [...],
-            searchable: true,
-            exportable: true
+            containerId: 'example-table',
+            data: data,
+            columns: allDefs.filter(function(c) { return visible.indexOf(c.key) !== -1; }),
+            pageSize: 25
         });
     }
-};
+
+    return { render: render };
+})();
 ```
+
+**Key patterns across all pages:**
+- **Entity links** (`class="entity-link"`): Clickable anchors like `<a href="#users?search=<encoded>">` that navigate to the target page with a pre-filled search
+- **Admin links** (`class="admin-link"`): Direct portal links like `<a href="https://entra.microsoft.com/..." target="_blank" rel="noopener">Entra</a>`
+- **Filter bar** (`class="filter-bar"`): Contains search input, dropdown selects, and column selector
+- **Column selector**: `ColumnSelector.create()` with `storageKey` for persistence and `onColumnsChanged` for re-render
 
 ### Routing
 
@@ -708,10 +770,14 @@ App-Only (Application):
 
 ### Adding a New Dashboard Page
 
-1. Create `dashboard/js/page-newpage.js` following page module pattern
+1. Create `dashboard/js/page-newpage.js` following the page module pattern
 2. Add to `pages` registry in `app.js`
 3. Add navigation link in `index.html`
 4. Add script tag in `index.html` (before `app.js`)
+5. Include unified filter bar with search input and dropdown selects
+6. Add `ColumnSelector.create()` for column visibility toggle
+7. Add entity links (`class="entity-link"`) for cross-page navigation
+8. Add admin portal links (`class="admin-link"`) where applicable
 
 ### Adding Cross-Entity Relationships
 
