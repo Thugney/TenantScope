@@ -243,6 +243,8 @@ try {
             $conflictCount = 0
             $pendingCount = 0
             $notApplicableCount = 0
+            $usedStatusFallback = $false
+            $deviceStatusList = @()
 
             try {
                 if ($source -eq "deviceConfigurations") {
@@ -262,9 +264,7 @@ try {
                 }
                 elseif ($source -eq "configurationPolicies") {
                     # Settings Catalog policies don't have deviceStatusOverview endpoint
-                    # Instead, we can get assignment filter evaluation status or just use assignment counts
-                    # For now, we leave counts at 0 as Settings Catalog tracks status differently
-                    # The status is tracked per-setting rather than per-policy in the Intune portal
+                    # Use deviceStatuses as fallback for deployment counts
                     $successCount = 0
                     $errorCount = 0
                     $conflictCount = 0
@@ -275,6 +275,40 @@ try {
                 # Only log warning for legacy profiles that should support status overview
                 if ($source -eq "deviceConfigurations") {
                     Write-Warning "      Failed to get status overview for profile $($profile.displayName): $($_.Exception.Message)"
+                }
+            }
+
+            # Fallback to deviceStatuses when overview is unavailable or zeroed
+            $totalFromOverview = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
+            if ($source -eq "configurationPolicies" -or $totalFromOverview -eq 0) {
+                try {
+                    $statusUri = if ($source -eq "deviceConfigurations") {
+                        "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$top=100"
+                    } else {
+                        "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$top=100"
+                    }
+
+                    $deviceStatusList = Get-GraphAllPages -Uri $statusUri -OperationName "Profile device statuses"
+
+                    foreach ($status in $deviceStatusList) {
+                        $state = if ($status.status) { $status.status.ToString().ToLowerInvariant() } else { "" }
+                        switch ($state) {
+                            "success"     { $successCount++ }
+                            "compliant"   { $successCount++ }
+                            "error"       { $errorCount++ }
+                            "conflict"    { $conflictCount++ }
+                            "pending"     { $pendingCount++ }
+                            "notapplicable" { $notApplicableCount++ }
+                            default       { }
+                        }
+                    }
+
+                    if ($deviceStatusList.Count -gt 0) {
+                        $usedStatusFallback = $true
+                    }
+                }
+                catch {
+                    Write-Warning "      Failed to get device statuses for profile $($profile.displayName): $($_.Exception.Message)"
                 }
             }
 
@@ -304,15 +338,22 @@ try {
 
             if ($errorCount -gt 0 -or $conflictCount -gt 0) {
                 try {
-                    $statusUri = if ($source -eq "deviceConfigurations") {
-                        "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=50"
-                    } else {
-                        "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=50"
+                    $sourceStatuses = @()
+                    if ($usedStatusFallback -and $deviceStatusList.Count -gt 0) {
+                        $sourceStatuses = $deviceStatusList | Where-Object { $_.status -in @("error", "conflict") }
+                    }
+                    else {
+                        $statusUri = if ($source -eq "deviceConfigurations") {
+                            "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=50"
+                        } else {
+                            "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=50"
+                        }
+
+                        $deviceStatusResponse = Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
+                        $sourceStatuses = @($deviceStatusResponse.value)
                     }
 
-                    $deviceStatusResponse = Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
-
-                    foreach ($status in $deviceStatusResponse.value) {
+                    foreach ($status in $sourceStatuses) {
                         $deviceStatuses += [PSCustomObject]@{
                             deviceName = $status.deviceDisplayName
                             userName = $status.userName

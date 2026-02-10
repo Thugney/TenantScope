@@ -80,7 +80,7 @@ function Get-PrimaryArray {
 
 function Get-PropNames {
     param([Parameter(Mandatory)][array]$Items)
-    if ($Items.Count -eq 0) { return @() }
+    if (-not $Items -or $Items.Count -eq 0) { return @() }
     return (($Items | Select-Object -First 1 | Get-Member -MemberType NoteProperty).Name)
 }
 
@@ -124,7 +124,7 @@ function Get-SummaryZeroFields {
         [Parameter(Mandatory)]$SampleSummary,
         [Parameter(Mandatory)]$RealSummary
     )
-    if (-not $SampleSummary -or -not $RealSummary) { return @() }
+    if ($null -eq $SampleSummary -or $null -eq $RealSummary) { return @() }
     $result = @()
     foreach ($prop in $SampleSummary.PSObject.Properties) {
         $name = $prop.Name
@@ -154,6 +154,7 @@ Write-Host "SampleRoot: $SampleRoot"
 Write-Host ""
 
 foreach ($s in $sampleFiles) {
+    if ($s.Name -eq "collection-metadata.json") { continue }
     $realPath = Join-Path $DataRoot $s.Name
     if (-not (Test-Path $realPath)) { continue }
 
@@ -162,6 +163,10 @@ foreach ($s in $sampleFiles) {
 
     $samplePrimary = Get-PrimaryArray -Obj $sampleObj
     $realPrimary = Get-PrimaryArray -Obj $realObj
+    $realPrimaryPath = $samplePrimary.Path
+    if ($realPrimaryPath -and $realObj.PSObject.Properties[$realPrimaryPath] -and ($realObj.$realPrimaryPath -is [System.Array])) {
+        $realPrimary = @{ Path = $realPrimaryPath; Items = $realObj.$realPrimaryPath }
+    }
 
     $sampleItems = $samplePrimary.Items
     $realItems = $realPrimary.Items

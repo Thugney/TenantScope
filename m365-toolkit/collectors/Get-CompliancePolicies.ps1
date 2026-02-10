@@ -156,6 +156,8 @@ try {
             $errorCount = 0
             $conflictCount = 0
             $notApplicableCount = 0
+            $usedStatusFallback = $false
+            $deviceStatusList = @()
 
             try {
                 $statusSummary = Invoke-MgGraphRequest -Method GET `
@@ -173,15 +175,50 @@ try {
                 Write-Warning "      Failed to get status overview for policy $($policy.displayName): $($_.Exception.Message)"
             }
 
+            # Fallback: derive counts from deviceStatuses if overview returns zeros
+            $totalFromOverview = $compliantCount + $nonCompliantCount + $errorCount + $conflictCount + $notApplicableCount
+            if ($totalFromOverview -eq 0) {
+                try {
+                    $statusUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies/$($policy.id)/deviceStatuses?`$top=100"
+                    $deviceStatusList = Get-GraphAllPages -Uri $statusUri -OperationName "Compliance policy device statuses"
+
+                    foreach ($status in $deviceStatusList) {
+                        $state = if ($status.status) { $status.status.ToString().ToLowerInvariant() } else { "" }
+                        switch ($state) {
+                            "compliant"     { $compliantCount++ }
+                            "noncompliant"  { $nonCompliantCount++ }
+                            "error"         { $errorCount++ }
+                            "conflict"      { $conflictCount++ }
+                            "notapplicable" { $notApplicableCount++ }
+                            default         { }
+                        }
+                    }
+
+                    if ($deviceStatusList.Count -gt 0) {
+                        $usedStatusFallback = $true
+                    }
+                }
+                catch {
+                    Write-Warning "      Failed to get device statuses for policy $($policy.displayName): $($_.Exception.Message)"
+                }
+            }
+
             # Get non-compliant device details
             $deviceStatuses = @()
-            if ($nonCompliantCount -gt 0 -or $errorCount -gt 0) {
+            if ($nonCompliantCount -gt 0 -or $errorCount -gt 0 -or $conflictCount -gt 0) {
                 try {
-                    $deviceStatusResponse = Invoke-MgGraphRequest -Method GET `
-                        -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies/$($policy.id)/deviceStatuses?`$filter=status ne 'compliant'&`$top=100" `
-                        -OutputType PSObject
+                    $sourceStatuses = @()
+                    if ($usedStatusFallback -and $deviceStatusList.Count -gt 0) {
+                        $sourceStatuses = $deviceStatusList | Where-Object { $_.status -ne 'compliant' }
+                    }
+                    else {
+                        $deviceStatusResponse = Invoke-MgGraphRequest -Method GET `
+                            -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceCompliancePolicies/$($policy.id)/deviceStatuses?`$filter=status ne 'compliant'&`$top=100" `
+                            -OutputType PSObject
+                        $sourceStatuses = @($deviceStatusResponse.value)
+                    }
 
-                    foreach ($status in $deviceStatusResponse.value) {
+                    foreach ($status in $sourceStatuses) {
                         $deviceStatuses += [PSCustomObject]@{
                             # Note: The deviceId from this API is the status record ID, not the Intune device ID
                             # The dashboard will need to look up devices by name for linking

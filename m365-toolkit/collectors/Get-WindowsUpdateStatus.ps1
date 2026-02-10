@@ -163,6 +163,7 @@ try {
             $errorCount = 0
             $pendingCount = 0
             $ringName = if ($ring.displayName) { $ring.displayName } else { $ring.id }
+            $useStatusFallback = $false
 
             try {
                 $statusOverview = Invoke-MgGraphRequest -Method GET `
@@ -176,6 +177,10 @@ try {
             }
             catch {
                 Write-Host "      Warning: Could not get status for ring $ringName - $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+
+            if (($successCount + $errorCount + $pendingCount) -eq 0) {
+                $useStatusFallback = $true
             }
 
             # Get assignments for this ring
@@ -199,6 +204,20 @@ try {
                     -OperationName "Update ring device status retrieval"
 
                 foreach ($status in $deviceStatuses) {
+                    if ($useStatusFallback) {
+                        $state = if ($status.status) { $status.status.ToString().ToLowerInvariant() } else { "" }
+                        switch ($state) {
+                            "compliant" { $successCount++ }
+                            "success" { $successCount++ }
+                            "noncompliant" { $errorCount++ }
+                            "conflict" { $errorCount++ }
+                            "error" { $errorCount++ }
+                            "notapplicable" { $pendingCount++ }
+                            "unknown" { $pendingCount++ }
+                            default { }
+                        }
+                    }
+
                     $deviceId = Get-GraphPropertyValue -Object $status -PropertyNames @("deviceId", "managedDeviceId", "id")
                     if ([string]::IsNullOrWhiteSpace($deviceId)) { continue }
                     if (-not $deviceRingAssignments.ContainsKey($deviceId)) {
