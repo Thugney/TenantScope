@@ -123,6 +123,65 @@ function Get-InstallIntent {
     }
 }
 
+function Get-AppVersion {
+    <#
+    .SYNOPSIS
+        Resolves the most relevant version field across app types.
+    #>
+    param([Parameter(Mandatory)]$App)
+
+    $candidates = @(
+        $App.version,
+        $App.displayVersion,
+        $App.appVersion,
+        $App.committedContentVersion,
+        $App.productVersion
+    )
+
+    foreach ($v in $candidates) {
+        if ($v -and ($v -is [string] -or $v -is [int])) {
+            return $v
+        }
+    }
+
+    return $null
+}
+
+function Get-AppInstallSummary {
+    <#
+    .SYNOPSIS
+        Retrieves aggregate install counts for an app (when deviceStatuses is unavailable).
+    #>
+    param([Parameter(Mandatory)][string]$AppId)
+
+    try {
+        $summary = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$AppId/installSummary" -OutputType PSObject
+        } -OperationName "App install summary"
+    }
+    catch {
+        return $null
+    }
+
+    if (-not $summary) { return $null }
+
+    $installed = if ($null -ne $summary.installedDeviceCount) { [int]$summary.installedDeviceCount } else { 0 }
+    $failed = if ($null -ne $summary.failedDeviceCount) { [int]$summary.failedDeviceCount } else { 0 }
+    $pending = if ($null -ne $summary.pendingInstallDeviceCount) { [int]$summary.pendingInstallDeviceCount }
+               elseif ($null -ne $summary.pendingDeviceCount) { [int]$summary.pendingDeviceCount }
+               else { 0 }
+    $notInstalled = if ($null -ne $summary.notInstalledDeviceCount) { [int]$summary.notInstalledDeviceCount } else { 0 }
+    $notApplicable = if ($null -ne $summary.notApplicableDeviceCount) { [int]$summary.notApplicableDeviceCount } else { 0 }
+
+    return [PSCustomObject]@{
+        installed = $installed
+        failed = $failed
+        pending = $pending
+        notInstalled = $notInstalled
+        notApplicable = $notApplicable
+    }
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -186,6 +245,7 @@ try {
         try {
             $appType = Get-AppType -ODataType $app.'@odata.type'
             $platform = Get-AppPlatform -ODataType $app.'@odata.type'
+            $version = Get-AppVersion -App $app
 
             # Get assignments
             $assignments = @()
@@ -216,6 +276,18 @@ try {
             $notApplicableCount = 0
             $notInstalledCount = 0
             $deviceStatuses = @()
+            $usedInstallSummary = $false
+
+            # Prefer aggregate install summary when available
+            $installSummary = Get-AppInstallSummary -AppId $app.id
+            if ($installSummary) {
+                $installedCount = $installSummary.installed
+                $failedCount = $installSummary.failed
+                $pendingCount = $installSummary.pending
+                $notInstalledCount = $installSummary.notInstalled
+                $notApplicableCount = $installSummary.notApplicable
+                $usedInstallSummary = $true
+            }
 
             try {
                 # deviceStatuses endpoint only works for managed app types (Win32, LOB)
@@ -223,9 +295,12 @@ try {
                 # Use $top=100 as Graph API max for paginated endpoints
                 $deviceStatusUri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/deviceStatuses?`$top=100"
                 $allStatuses = @()
+                $useStatusCounts = -not $usedInstallSummary
 
                 do {
-                    $deviceStatus = Invoke-MgGraphRequest -Method GET -Uri $deviceStatusUri -OutputType PSObject
+                    $deviceStatus = Invoke-GraphWithRetry -ScriptBlock {
+                        Invoke-MgGraphRequest -Method GET -Uri $deviceStatusUri -OutputType PSObject
+                    } -OperationName "App device status retrieval"
                     if ($deviceStatus.value) {
                         $allStatuses += $deviceStatus.value
                     }
@@ -234,9 +309,9 @@ try {
 
                 foreach ($status in $allStatuses) {
                     switch ($status.installState) {
-                        "installed"      { $installedCount++ }
+                        "installed"      { if ($useStatusCounts) { $installedCount++ } }
                         "failed"         {
-                            $failedCount++
+                            if ($useStatusCounts) { $failedCount++ }
                             # Track failed device details with extended info
                             $deviceStatuses += [PSCustomObject]@{
                                 deviceName = $status.deviceName
@@ -264,9 +339,9 @@ try {
                                 $allFailedDevices[$deviceKey].failedCount++
                             }
                         }
-                        { $_ -in @("pending", "pendingInstall", "pendingReboot") } { $pendingCount++ }
-                        "notInstalled"   { $notInstalledCount++ }
-                        "notApplicable"  { $notApplicableCount++ }
+                        { $_ -in @("pending", "pendingInstall", "pendingReboot") } { if ($useStatusCounts) { $pendingCount++ } }
+                        "notInstalled"   { if ($useStatusCounts) { $notInstalledCount++ } }
+                        "notApplicable"  { if ($useStatusCounts) { $notApplicableCount++ } }
                         "unknown"        { } # Ignore unknown states
                         default          { } # Ignore other states
                     }
@@ -290,7 +365,7 @@ try {
                 publisher            = $app.publisher
                 appType              = $appType
                 platform             = $platform
-                version              = $app.version
+                version              = $version
                 createdDateTime      = Format-IsoDate -DateValue $app.createdDateTime
                 lastModifiedDateTime = Format-IsoDate -DateValue $app.lastModifiedDateTime
                 isFeatured           = [bool]$app.isFeatured

@@ -35,6 +35,10 @@ const PageAppDeployments = (function() {
 
     // Map collector field names to display field names
     function mapApp(a) {
+        var version = a.version || a.displayVersion || a.appVersion || a.committedContentVersion || null;
+        var installRate = (a.successRate !== null && a.successRate !== undefined)
+            ? a.successRate
+            : ((a.installRate !== null && a.installRate !== undefined) ? a.installRate : null);
         return {
             id: a.id,
             displayName: a.displayName,
@@ -42,7 +46,7 @@ const PageAppDeployments = (function() {
             publisher: a.publisher,
             appType: a.appType,
             platform: a.platform,
-            version: a.version,
+            version: version,
             isFeatured: a.isFeatured,
             // Dates
             createdDateTime: a.createdDateTime,
@@ -61,7 +65,7 @@ const PageAppDeployments = (function() {
             notInstalledCount: a.notInstalledDevices || a.notInstalledCount || 0,
             notApplicableCount: a.notApplicableDevices || a.notApplicableCount || 0,
             totalDevices: a.totalDevices || 0,
-            installRate: a.successRate || a.installRate || null,
+            installRate: installRate,
             // Device statuses (failed only)
             deviceStatuses: a.deviceStatuses || [],
             // Health
@@ -144,8 +148,10 @@ const PageAppDeployments = (function() {
     }
 
     function renderOverviewTab(container) {
-        var summary = rawData.summary || {};
         var apps = (rawData.apps || []).map(mapApp);
+        var summary = (rawData.summary && rawData.summary.totalApps !== undefined)
+            ? rawData.summary
+            : buildSummaryFromArray(apps);
         var insights = rawData.insights || [];
 
         var totalInstalled = summary.totalInstalled || 0;
