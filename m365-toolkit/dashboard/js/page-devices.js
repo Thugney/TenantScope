@@ -432,6 +432,8 @@ const PageDevices = (function() {
         html += '<option value="compliant">Compliant</option><option value="noncompliant">Non-Compliant</option><option value="unknown">Unknown</option></select>';
         html += '<select class="filter-select" id="devices-ownership"><option value="all">All Ownership</option>';
         html += '<option value="corporate">Corporate</option><option value="personal">Personal</option></select>';
+        html += '<select class="filter-select" id="devices-source"><option value="all">All Sources</option>';
+        html += '<option value="Intune">Intune MDM</option><option value="Entra">Entra ID Only</option></select>';
         html += '<label class="filter-checkbox"><input type="checkbox" id="devices-stale"> Stale only</label>';
         html += '<div id="devices-colselector"></div>';
         html += '</div>';
@@ -440,7 +442,7 @@ const PageDevices = (function() {
 
         colSelector = ColumnSelector.create({
             containerId: 'devices-colselector',
-            storageKey: 'tenantscope-devices-cols-v3',
+            storageKey: 'tenantscope-devices-cols-v4',
             allColumns: [
                 // Core identity
                 { key: 'deviceName', label: 'Device Name' },
@@ -524,7 +526,7 @@ const PageDevices = (function() {
                 { key: 'notes', label: 'Notes' },
                 { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'threatStateDisplay', '_adminLinks'],
+            defaultVisible: ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'managementSource', 'threatStateDisplay', '_adminLinks'],
             onColumnsChanged: function() { applyDeviceFilters(); }
         });
 
@@ -532,6 +534,7 @@ const PageDevices = (function() {
         Filters.setup('devices-os', applyDeviceFilters);
         Filters.setup('devices-compliance', applyDeviceFilters);
         Filters.setup('devices-ownership', applyDeviceFilters);
+        Filters.setup('devices-source', applyDeviceFilters);
         document.getElementById('devices-stale').addEventListener('change', applyDeviceFilters);
 
         var hashParams = getHashParams();
@@ -566,6 +569,9 @@ const PageDevices = (function() {
 
         var ownerFilter = Filters.getValue('devices-ownership');
         if (ownerFilter && ownerFilter !== 'all') filterConfig.exact.ownership = ownerFilter;
+
+        var sourceFilter = Filters.getValue('devices-source');
+        if (sourceFilter && sourceFilter !== 'all') filterConfig.exact.managementSource = sourceFilter;
 
         var filtered = Filters.apply(devices, filterConfig);
 
@@ -621,7 +627,7 @@ const PageDevices = (function() {
     }
 
     function renderDevicesTable(data) {
-        var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'threatStateDisplay'];
+        var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'managementSource', 'threatStateDisplay'];
 
         var allDefs = [
             // Core identity
