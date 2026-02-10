@@ -848,7 +848,6 @@ const PageLifecycle = (function() {
 
         // Table toolbar with proper flex layout
         var toolbar = el('div', 'table-toolbar');
-        toolbar.style.cssText = 'display:flex;align-items:center;gap:1rem;margin-bottom:1rem;';
         var colSelectorDiv = el('div');
         colSelectorDiv.id = 'lifecycle-col-selector';
         toolbar.appendChild(colSelectorDiv);
