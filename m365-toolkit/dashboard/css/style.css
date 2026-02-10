@@ -4474,7 +4474,7 @@ table {
 
 .cockpit-actions-row {
     display: grid;
-    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    grid-template-columns: 1fr;
     gap: var(--spacing-lg);
     align-items: start;
     margin-bottom: var(--spacing-lg);

@@ -552,29 +552,7 @@ const PageOverview = (function() {
 
         actionsRow.appendChild(actionsColumn);
 
-        // Quick Links
-        var quickLinks = el('div', 'cockpit-quick-links');
-        quickLinks.appendChild(el('h4', null, 'Quick Navigation'));
-        var linksGrid = el('div', 'quick-links-grid');
-        var links = [
-            { label: 'Identity Risk', icon: '\u26A0', page: 'identity-risk' },
-            { label: 'OAuth Apps', icon: '\uD83D\uDD10', page: 'oauth-consent' },
-            { label: 'Devices', icon: '\uD83D\uDCBB', page: 'devices' },
-            { label: 'Compliance', icon: '\uD83D\uDCCB', page: 'compliance' },
-            { label: 'Licenses', icon: '\uD83D\uDCB3', page: 'license-analysis' },
-            { label: 'Data Quality', icon: '\uD83D\uDCCA', page: 'data-quality' }
-        ];
-        links.forEach(function(link) {
-            var linkBtn = el('button', 'quick-link-btn');
-            linkBtn.appendChild(el('span', 'quick-link-icon', link.icon));
-            linkBtn.appendChild(el('span', 'quick-link-label', link.label));
-            linkBtn.addEventListener('click', function() {
-                window.location.hash = link.page;
-            });
-            linksGrid.appendChild(linkBtn);
-        });
-        quickLinks.appendChild(linksGrid);
-        actionsRow.appendChild(quickLinks);
+        // Quick Navigation removed to reduce visual clutter.
         container.appendChild(actionsRow);
     }
 
