@@ -32,20 +32,36 @@ const PageEnterpriseApps = (function() {
      * Extracts apps from raw data, handling both array and object formats.
      */
     function extractApps(rawData) {
+        var apps = normalizeApps(rawData);
         if (Array.isArray(rawData)) {
             return {
-                apps: rawData,
-                summary: computeSummary(rawData),
+                apps: apps,
+                summary: computeSummary(apps),
                 insights: []
             };
         }
+        var summary = (rawData && rawData.summary) ? rawData.summary : computeSummary(apps);
+        var insights = (rawData && rawData.insights) ? rawData.insights : [];
         return {
-            apps: rawData.apps || [],
-            summary: rawData.summary || computeSummary(rawData.apps || []),
-            insights: rawData.insights || []
+            apps: apps,
+            summary: summary,
+            insights: insights
         };
     }
 
+    /**
+     * Normalizes apps list from legacy and current data shapes.
+     */
+    function normalizeApps(rawData) {
+        if (Array.isArray(rawData)) return rawData;
+        if (!rawData || typeof rawData !== 'object') return [];
+        if (Array.isArray(rawData.apps)) return rawData.apps;
+        if (Array.isArray(rawData.servicePrincipals)) return rawData.servicePrincipals;
+        if (Array.isArray(rawData.items)) return rawData.items;
+        if (Array.isArray(rawData.value)) return rawData.value;
+        if (rawData.apps && Array.isArray(rawData.apps.apps)) return rawData.apps.apps;
+        return [];
+    }
     /**
      * Computes summary statistics from apps array.
      */
