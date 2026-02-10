@@ -3644,6 +3644,17 @@ table {
     padding: var(--spacing-lg);
 }
 
+.overview-duo {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    gap: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+}
+
+.overview-duo .analytics-section {
+    margin-bottom: 0;
+}
+
 .overview-card h3 {
     margin-bottom: var(--spacing-md);
     font-size: var(--font-size-base);

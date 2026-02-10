@@ -670,7 +670,9 @@ const PageOverview = (function() {
         });
         complianceOverview.appendChild(legend);
         section.appendChild(complianceOverview);
-        container.appendChild(section);
+
+        var overviewDuo = el('div', 'overview-duo');
+        overviewDuo.appendChild(section);
 
         // Compliance trend history
         var history = DataLoader.getData('trendHistory') || [];
@@ -726,8 +728,10 @@ const PageOverview = (function() {
             }
 
             trendSection.appendChild(trendCard);
-            container.appendChild(trendSection);
+            overviewDuo.appendChild(trendSection);
         }
+
+        container.appendChild(overviewDuo);
 
         // Collection issues
         var collectionErrors = (DataLoader.getCollectionErrors && DataLoader.getCollectionErrors()) || [];
