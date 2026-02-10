@@ -41,6 +41,7 @@
         'conditional-access': PageConditionalAccess,
         'organization': PageOrganization,
         'license-analysis': PageLicenseAnalysis,
+        'gaps': PageGaps,
         // New v2.0 pages
         'compliance-policies': PageCompliancePolicies,
         'configuration-profiles': PageConfigurationProfiles,
@@ -431,47 +432,6 @@
     }
 
     // ========================================================================
-    // MOBILE BOTTOM NAVIGATION
-    // ========================================================================
-
-    /**
-     * Sets up mobile bottom navigation.
-     */
-    function setupMobileBottomNav() {
-        var bottomNav = document.getElementById('mobile-bottom-nav');
-        var searchBtn = document.getElementById('mobile-search-btn');
-
-        if (!bottomNav) return;
-
-        // Handle search button
-        if (searchBtn && typeof GlobalSearch !== 'undefined') {
-            searchBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                GlobalSearch.open();
-            });
-        }
-
-        // Update active state on navigation
-        function updateMobileNavActive() {
-            var currentPage = getCurrentPage();
-            var items = bottomNav.querySelectorAll('.mobile-bottom-nav-item[data-page]');
-            items.forEach(function(item) {
-                if (item.dataset.page === currentPage) {
-                    item.classList.add('active');
-                } else {
-                    item.classList.remove('active');
-                }
-            });
-        }
-
-        // Update on hash change
-        window.addEventListener('hashchange', updateMobileNavActive);
-
-        // Initial update
-        updateMobileNavActive();
-    }
-
-    // ========================================================================
     // NAVIGATION HANDLERS
     // ========================================================================
 
@@ -567,9 +527,6 @@
         if (typeof KeyboardShortcuts !== 'undefined') {
             KeyboardShortcuts.init();
         }
-
-        // Setup mobile bottom nav
-        setupMobileBottomNav();
 
         // Render initial page
         renderCurrentPage();

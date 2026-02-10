@@ -3336,66 +3336,6 @@ table {
 }
 
 /* ========================================================================
-   MOBILE BOTTOM NAV (Quick Actions)
-   ======================================================================== */
-.mobile-bottom-nav {
-    display: none;
-    position: fixed;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    z-index: 1000;
-    background-color: var(--color-bg-primary);
-    border-top: 1px solid var(--color-bg-tertiary);
-    box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.1);
-    padding: var(--spacing-xs) 0;
-    padding-bottom: env(safe-area-inset-bottom, var(--spacing-xs));
-}
-
-@media (max-width: 768px) {
-    .mobile-bottom-nav {
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-    }
-
-    .content {
-        padding-bottom: 70px;
-    }
-}
-
-.mobile-bottom-nav-item {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-    padding: var(--spacing-xs) var(--spacing-sm);
-    color: var(--color-text-muted);
-    text-decoration: none;
-    font-size: 10px;
-    border-radius: var(--border-radius);
-    transition: all var(--transition-fast);
-    background: none;
-    border: none;
-    cursor: pointer;
-}
-
-.mobile-bottom-nav-item:hover,
-.mobile-bottom-nav-item.active {
-    color: var(--color-accent);
-    background-color: var(--color-bg-secondary);
-}
-
-.mobile-bottom-nav-item svg {
-    width: 20px;
-    height: 20px;
-}
-
-.mobile-bottom-nav-item span {
-    font-weight: 500;
-}
-
-/* ========================================================================
    TAB BAR (Windows Update, Endpoint Analytics pages)
    ======================================================================== */
 .tab-bar,

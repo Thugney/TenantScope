@@ -62,6 +62,12 @@ License: MIT
                         <span class="nav-text">Problems</span>
                     </a>
                 </li>
+                <li class="nav-item">
+                    <a href="#gaps" class="nav-link" data-page="gaps" aria-label="Coverage Gaps">
+                        <span class="nav-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12h6l3-9 3 18 3-9h3"></path></svg></span>
+                        <span class="nav-text">Coverage Gaps</span>
+                    </a>
+                </li>
 
                 <!-- IDENTITY GROUP -->
                 <li class="nav-group">
@@ -376,33 +382,6 @@ License: MIT
     </div>
 
     <!-- ================================================================== -->
-    <!-- MOBILE BOTTOM NAVIGATION                                            -->
-    <!-- Quick access to key pages on mobile devices                          -->
-    <!-- ================================================================== -->
-    <nav class="mobile-bottom-nav" id="mobile-bottom-nav" aria-label="Quick navigation">
-        <a href="#overview" class="mobile-bottom-nav-item" data-page="overview" aria-label="Overview">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect></svg>
-            <span>Overview</span>
-        </a>
-        <a href="#users" class="mobile-bottom-nav-item" data-page="users" aria-label="Users">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
-            <span>Users</span>
-        </a>
-        <a href="#devices" class="mobile-bottom-nav-item" data-page="devices" aria-label="Devices">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
-            <span>Devices</span>
-        </a>
-        <a href="#security" class="mobile-bottom-nav-item" data-page="security" aria-label="Security">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>
-            <span>Security</span>
-        </a>
-        <button class="mobile-bottom-nav-item" id="mobile-search-btn" aria-label="Search">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-            <span>Search</span>
-        </button>
-    </nav>
-
-    <!-- ================================================================== -->
     <!-- JAVASCRIPT MODULES                                                  -->
     <!-- Load order is important: data bundle first, then utilities, pages   -->
     <!-- ================================================================== -->
@@ -462,6 +441,7 @@ License: MIT
     <script src="js/page-compliance.js"></script>
     <script src="js/page-vulnerabilities.js"></script>
     <script src="js/page-problems.js"></script>
+    <script src="js/page-gaps.js"></script>
     <script src="js/usage-tracker.js"></script>
     <script src="js/app.js"></script>
 </body>
