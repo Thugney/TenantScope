@@ -84,7 +84,10 @@ const PageConditionalAccess = (function() {
         ];
 
         var allDefs = [
-            { key: 'displayName', label: 'Policy Name' },
+            { key: 'displayName', label: 'Policy Name', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#conditional-access?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
             { key: 'state', label: 'State', formatter: formatState },
             { key: 'policyType', label: 'Type', formatter: formatPolicyType },
             { key: 'riskLevel', label: 'Security Level', formatter: formatRiskLevel },

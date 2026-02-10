@@ -452,13 +452,25 @@ const PageLicenseAnalysis = (function() {
         var visible = colSelector ? colSelector.getVisible() : ['displayName', 'department', 'rule', 'higherLicense', 'lowerLicense', 'redundantCost'];
 
         var allDefs = [
-            { key: 'displayName', label: 'User' },
-            { key: 'userPrincipalName', label: 'Email', className: 'cell-truncate' },
+            { key: 'displayName', label: 'User', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userPrincipalName', label: 'Email', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+            }},
             { key: 'department', label: 'Department' },
             { key: 'rule', label: 'Overlap Rule' },
             { key: 'higherLicense', label: 'Keeps' },
             { key: 'lowerLicense', label: 'Redundant' },
-            { key: 'redundantCost', label: 'Monthly Waste', className: 'cell-right', formatter: formatCostCell }
+            { key: 'redundantCost', label: 'Monthly Waste', className: 'cell-right', formatter: formatCostCell },
+            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.userPrincipalName) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row.userPrincipalName) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '--';
+            }}
         ];
 
         var columns = allDefs.filter(function(col) {
@@ -569,9 +581,10 @@ const PageLicenseAnalysis = (function() {
                     { key: 'rule', label: 'Overlap Rule' },
                     { key: 'higherLicense', label: 'Keeps' },
                     { key: 'lowerLicense', label: 'Redundant' },
-                    { key: 'redundantCost', label: 'Monthly Waste' }
+                    { key: 'redundantCost', label: 'Monthly Waste' },
+                    { key: '_adminLinks', label: 'Admin' }
                 ],
-                defaultVisible: ['displayName', 'department', 'rule', 'higherLicense', 'lowerLicense', 'redundantCost'],
+                defaultVisible: ['displayName', 'department', 'rule', 'higherLicense', 'lowerLicense', 'redundantCost', '_adminLinks'],
                 onColumnsChanged: applyFilters
             });
         }

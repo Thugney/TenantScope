@@ -486,8 +486,14 @@ const PageAppDeployments = (function() {
 
     function renderFailedDevicesTable(data) {
         var columns = [
-            { key: 'deviceName', label: 'Device Name' },
-            { key: 'userName', label: 'User' },
+            { key: 'deviceName', label: 'Device Name', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userName', label: 'User', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link">' + v + '</a>';
+            }},
             { key: 'failedAppCount', label: 'Failed Apps', formatter: function(v) {
                 var cls = v >= 3 ? 'text-critical' : v >= 2 ? 'text-warning' : '';
                 return '<span class="' + cls + ' font-bold">' + (v || 0) + '</span>';

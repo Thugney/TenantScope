@@ -367,7 +367,7 @@ const PageEnterpriseApps = (function() {
     // ========================================================================
 
     function renderAppsTab(container, apps) {
-        container.innerHTML = '<div id="apps-filter"></div><div id="apps-table"></div>';
+        container.innerHTML = '<div id="apps-filter"></div><div class="table-toolbar"><div id="apps-col-selector"></div></div><div id="apps-table"></div>';
 
         // Create filter bar
         Filters.createFilterBar({
@@ -415,6 +415,27 @@ const PageEnterpriseApps = (function() {
             ],
             onFilter: function() { renderAppsTable(apps); }
         });
+
+        // Setup Column Selector
+        if (typeof ColumnSelector !== 'undefined') {
+            ColumnSelector.create({
+                containerId: 'apps-col-selector',
+                storageKey: 'tenantscope-enterprise-apps-cols',
+                allColumns: [
+                    { key: 'displayName', label: 'Application' },
+                    { key: 'publisher', label: 'Publisher' },
+                    { key: 'accountEnabled', label: 'Status' },
+                    { key: 'credentialStatus', label: 'Credentials' },
+                    { key: 'nearestExpiryDays', label: 'Expiry' },
+                    { key: 'secretCount', label: 'Secrets' },
+                    { key: 'certificateCount', label: 'Certs' },
+                    { key: 'appType', label: 'Type' },
+                    { key: '_adminLinks', label: 'Admin' }
+                ],
+                defaultVisible: ['displayName', 'publisher', 'accountEnabled', 'credentialStatus', 'nearestExpiryDays', 'secretCount', 'appType', '_adminLinks'],
+                onColumnsChanged: function() { renderAppsTable(apps); }
+            });
+        }
 
         // Bind export
         Export.bindExportButton('apps-table', 'enterprise-apps');

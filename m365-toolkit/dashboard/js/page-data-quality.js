@@ -223,9 +223,10 @@ const PageDataQuality = (function() {
             { key: 'mail', label: 'Email' },
             { key: 'usageLocation', label: 'Usage Location' },
             { key: 'userSource', label: 'User Source' },
-            { key: '_completeness', label: 'Completeness %' }
+            { key: '_completeness', label: 'Completeness %' },
+            { key: '_adminLinks', label: 'Admin' }
         ];
-        var defaultCols = ['displayName', 'department', 'jobTitle', 'companyName', 'officeLocation', 'city', 'mobilePhone', 'manager', '_completeness'];
+        var defaultCols = ['displayName', 'department', 'jobTitle', 'companyName', 'officeLocation', 'city', 'mobilePhone', 'manager', '_completeness', '_adminLinks'];
 
         ColumnSelector.create({
             containerId: 'dq-column-selector',
@@ -572,8 +573,14 @@ const PageDataQuality = (function() {
 
         // Build columns array based on visible keys
         var columnMap = {
-            'displayName':      { key: 'displayName', label: 'Name' },
-            'userPrincipalName': { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate' },
+            'displayName':      { key: 'displayName', label: 'Name', formatter: function(v, row) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            'userPrincipalName': { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate', formatter: function(v) {
+                if (!v) return '--';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+            }},
             'domain':           { key: 'domain', label: 'Domain' },
             'department':       { key: 'department', label: 'Department', formatter: formatMissing },
             'jobTitle':         { key: 'jobTitle', label: 'Job Title', formatter: formatMissing },
@@ -586,7 +593,13 @@ const PageDataQuality = (function() {
             'mail':             { key: 'mail', label: 'Email', formatter: formatMissing },
             'usageLocation':    { key: 'usageLocation', label: 'Usage Location', formatter: formatMissing },
             'userSource':       { key: 'userSource', label: 'User Source' },
-            '_completeness':    { key: '_completeness', label: 'Completeness', formatter: formatCompleteness }
+            '_completeness':    { key: '_completeness', label: 'Completeness', formatter: formatCompleteness },
+            '_adminLinks':      { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+                if (row.id) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '--';
+            }}
         };
 
         var columns = [];

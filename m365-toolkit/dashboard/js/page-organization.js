@@ -350,6 +350,52 @@ const PageOrganization = (function() {
     function renderManagersTab(container) {
         container.textContent = '';
 
+        // Filter bar for managers
+        var filterBar = el('div', 'filter-bar');
+        var searchInput = document.createElement('input');
+        searchInput.type = 'text';
+        searchInput.className = 'filter-input';
+        searchInput.id = 'org-mgr-search';
+        searchInput.placeholder = 'Search managers...';
+        filterBar.appendChild(searchInput);
+
+        // Department dropdown
+        var deptSelect = document.createElement('select');
+        deptSelect.className = 'filter-select';
+        deptSelect.id = 'org-mgr-dept';
+        var deptOpt = document.createElement('option');
+        deptOpt.value = 'all';
+        deptOpt.textContent = 'All Departments';
+        deptSelect.appendChild(deptOpt);
+        var depts = {};
+        orgState.hierarchy.managers.forEach(function(m) {
+            if (m.department && !depts[m.department]) depts[m.department] = true;
+        });
+        Object.keys(depts).sort().forEach(function(d) {
+            var o = document.createElement('option');
+            o.value = d;
+            o.textContent = d;
+            deptSelect.appendChild(o);
+        });
+        filterBar.appendChild(deptSelect);
+
+        // In-tenant filter
+        var tenantSelect = document.createElement('select');
+        tenantSelect.className = 'filter-select';
+        tenantSelect.id = 'org-mgr-tenant';
+        [['all', 'All Managers'], ['true', 'In Tenant'], ['false', 'External']].forEach(function(opt) {
+            var o = document.createElement('option');
+            o.value = opt[0];
+            o.textContent = opt[1];
+            tenantSelect.appendChild(o);
+        });
+        filterBar.appendChild(tenantSelect);
+
+        var colSelectorDiv = el('div');
+        colSelectorDiv.id = 'org-mgr-colselector';
+        filterBar.appendChild(colSelectorDiv);
+        container.appendChild(filterBar);
+
         // Managers table section
         var mgrSection = el('div', 'table-section');
         var mgrHeader = el('div', 'table-header');
@@ -380,7 +426,53 @@ const PageOrganization = (function() {
             container.appendChild(orphanSection);
         }
 
-        renderManagersTable(orgState.hierarchy.managers);
+        // Column selector for managers table
+        var mgrColSelector = ColumnSelector.create({
+            containerId: 'org-mgr-colselector',
+            storageKey: 'tenantscope-org-mgr-cols-v1',
+            allColumns: [
+                { key: 'name', label: 'Manager' },
+                { key: 'email', label: 'Email' },
+                { key: 'jobTitle', label: 'Job Title' },
+                { key: 'department', label: 'Department' },
+                { key: 'officeLocation', label: 'Office' },
+                { key: 'companyName', label: 'Company' },
+                { key: 'directReportsCount', label: 'Direct Reports' },
+                { key: 'isUser', label: 'In Tenant' },
+                { key: 'topReports', label: 'Sample Reports' },
+                { key: '_adminLinks', label: 'Admin' }
+            ],
+            defaultVisible: ['name', 'email', 'department', 'directReportsCount', 'isUser', '_adminLinks'],
+            onColumnsChanged: function() { applyMgrFilters(); }
+        });
+
+        function applyMgrFilters() {
+            var search = (Filters.getValue('org-mgr-search') || '').toLowerCase();
+            var dept = Filters.getValue('org-mgr-dept');
+            var tenant = Filters.getValue('org-mgr-tenant');
+
+            var filtered = orgState.hierarchy.managers.filter(function(m) {
+                if (search) {
+                    var nameMatch = (m.name || '').toLowerCase().indexOf(search) !== -1;
+                    var emailMatch = (m.userPrincipalName || m.managerUpn || '').toLowerCase().indexOf(search) !== -1;
+                    var deptMatch = (m.department || '').toLowerCase().indexOf(search) !== -1;
+                    if (!nameMatch && !emailMatch && !deptMatch) return false;
+                }
+                if (dept && dept !== 'all' && m.department !== dept) return false;
+                if (tenant && tenant !== 'all') {
+                    if (tenant === 'true' && !m.isUser) return false;
+                    if (tenant === 'false' && m.isUser) return false;
+                }
+                return true;
+            });
+            renderManagersTable(filtered, mgrColSelector);
+        }
+
+        Filters.setup('org-mgr-search', applyMgrFilters);
+        Filters.setup('org-mgr-dept', applyMgrFilters);
+        Filters.setup('org-mgr-tenant', applyMgrFilters);
+
+        applyMgrFilters();
         if (orgState.hierarchy.totalOrphans > 0) {
             renderOrphansTable(orgState.hierarchy.orphanUsers);
         }
@@ -949,13 +1041,21 @@ const PageOrganization = (function() {
         container.appendChild(table);
     }
 
-    function renderManagersTable(managers) {
+    function renderManagersTable(managers, colSel) {
         var container = document.getElementById('managers-table');
         if (!container) return;
 
-        var columns = [
-            { key: 'name', label: 'Manager', sortable: true },
-            { key: 'email', label: 'Email', sortable: true, formatter: function(v) { return v || '-'; } },
+        var visible = colSel ? colSel.getVisible() : null;
+
+        var allColumns = [
+            { key: 'name', label: 'Manager', sortable: true, formatter: function(v) {
+                if (!v || v === '-') return '-';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'email', label: 'Email', sortable: true, formatter: function(v) {
+                if (!v) return '-';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+            }},
             { key: 'jobTitle', label: 'Job Title', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'department', label: 'Department', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'officeLocation', label: 'Office', sortable: true, formatter: function(v) { return v || '-'; } },
@@ -964,7 +1064,13 @@ const PageOrganization = (function() {
             { key: 'isUser', label: 'In Tenant', sortable: true, formatter: function(v) {
                 return v ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">External</span>';
             }},
-            { key: 'topReports', label: 'Sample Reports', sortable: false }
+            { key: 'topReports', label: 'Sample Reports', sortable: false },
+            { key: '_adminLinks', label: 'Admin', sortable: false, formatter: function(v, row) {
+                if (row._raw && row._raw.userData && row._raw.userData.id) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row._raw.userData.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '--';
+            }}
         ];
 
         var tableData = managers.map(function(m) {
@@ -986,6 +1092,8 @@ const PageOrganization = (function() {
             };
         });
 
+        var columns = visible ? allColumns.filter(function(c) { return visible.indexOf(c.key) !== -1; }) : allColumns;
+
         Tables.render({
             containerId: 'managers-table',
             data: tableData,
@@ -1002,14 +1110,26 @@ const PageOrganization = (function() {
         if (!container) return;
 
         var columns = [
-            { key: 'displayName', label: 'Name', sortable: true },
-            { key: 'userPrincipalName', label: 'Email', sortable: true },
+            { key: 'displayName', label: 'Name', sortable: true, formatter: function(v) {
+                if (!v) return '-';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+            }},
+            { key: 'userPrincipalName', label: 'Email', sortable: true, formatter: function(v) {
+                if (!v) return '-';
+                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+            }},
             { key: 'department', label: 'Department', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'jobTitle', label: 'Job Title', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'officeLocation', label: 'Office', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'companyName', label: 'Company', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'accountEnabled', label: 'Status', sortable: true, formatter: function(v) {
                 return v ? '<span class="badge badge-success">Enabled</span>' : '<span class="badge badge-danger">Disabled</span>';
+            }},
+            { key: '_adminLinks', label: 'Admin', sortable: false, formatter: function(v, row) {
+                if (row.id) {
+                    return '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_UsersAndTenants/UserProfileMenuBlade/userId/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>';
+                }
+                return '--';
             }}
         ];
 
