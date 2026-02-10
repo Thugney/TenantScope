@@ -23,6 +23,7 @@
     const pages = {
         'overview': PageOverview,
         'users': PageUsers,
+        'user-360': PageUser360,
         'licenses': PageLicenses,
         'guests': PageGuests,
         'security': PageSecurity,
