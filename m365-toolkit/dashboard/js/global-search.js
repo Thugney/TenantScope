@@ -663,8 +663,22 @@ const GlobalSearch = (function() {
             inputEl.value = result.term;
             performSearch(result.term);
         } else {
+            if (result.category === 'users') {
+                var item = result.item || {};
+                var id = item.id || item.userId || '';
+                var upn = item.userPrincipalName || item.mail || item.displayName || '';
+                close();
+                if (id) {
+                    window.location.hash = '#user-360?id=' + encodeURIComponent(id);
+                } else if (upn) {
+                    window.location.hash = '#user-360?upn=' + encodeURIComponent(upn);
+                } else {
+                    navigateToPage(result.page);
+                }
+                addRecentSearch(inputEl.value);
+                return;
+            }
             navigateToPage(result.page);
-            // Add to recent searches
             addRecentSearch(inputEl.value);
         }
     }

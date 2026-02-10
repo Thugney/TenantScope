@@ -212,6 +212,16 @@ const PageUsers = (function() {
         return '<a href="#devices?tab=devices&user=' + upn + '">View ' + count + ' ' + label + '</a>';
     }
 
+    function buildUser360Link(user, label) {
+        if (!user) return label || '--';
+        var id = user.id || '';
+        var upn = user.userPrincipalName || user.mail || '';
+        var query = id ? ('id=' + encodeURIComponent(id)) : ('upn=' + encodeURIComponent(upn));
+        if (!id && !upn) return label || '--';
+        var text = label || user.displayName || upn || '--';
+        return '<a href="#user-360?' + query + '" class="entity-link"><strong>' + escapeHtml(text) + '</strong></a>';
+    }
+
     /**
      * Updates filter chips display with current filter values.
      */
@@ -510,12 +520,11 @@ const PageUsers = (function() {
         var allDefs = [
             { key: 'displayName', label: 'Name', formatter: function(v, row) {
                 if (!v) return '--';
-                var upn = row.userPrincipalName || '';
-                return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link"><strong>' + v + '</strong></a>';
+                return buildUser360Link(row, v);
             }},
             { key: 'userPrincipalName', label: 'UPN', className: 'cell-truncate', formatter: function(v) {
                 if (!v) return '--';
-                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+                return '<a href="#user-360?upn=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
             }},
             { key: 'mail', label: 'Email', className: 'cell-truncate' },
             { key: 'domain', label: 'Domain', formatter: formatDomain },
