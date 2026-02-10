@@ -19,6 +19,75 @@ var DepartmentFilter = (function() {
     var selectedDepartment = null;
     var upnToDeptMap = null;
 
+    function normalizeUpn(value) {
+        if (!value || typeof value !== 'string') return null;
+        var trimmed = value.trim();
+        if (!trimmed) return null;
+        if (trimmed.indexOf('<') >= 0 && trimmed.indexOf('>') >= 0) {
+            var match = trimmed.match(/<([^>]+)>/);
+            if (match && match[1]) trimmed = match[1];
+        }
+        trimmed = trimmed.replace(/^mailto:/i, '').replace(/^smtp:/i, '');
+        return trimmed.toLowerCase();
+    }
+
+    function extractUpnCandidates(value) {
+        if (!value) return [];
+        if (Array.isArray(value)) {
+            return value.map(function(v) { return normalizeUpn(v); }).filter(Boolean);
+        }
+        if (typeof value === 'string') {
+            return value.split(/[;,]/).map(function(v) { return normalizeUpn(v); }).filter(Boolean);
+        }
+        return [];
+    }
+
+    function matchesDepartment(value) {
+        if (!selectedDepartment || !upnToDeptMap) return false;
+        var candidates = extractUpnCandidates(value);
+        for (var i = 0; i < candidates.length; i++) {
+            if (upnToDeptMap[candidates[i]] === selectedDepartment) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    function filterByUpnFields(data, fields) {
+        if (!selectedDepartment || !data) return data;
+        var list = Array.isArray(fields) ? fields : [fields];
+        return data.filter(function(item) {
+            if (!item) return false;
+            for (var i = 0; i < list.length; i++) {
+                var field = list[i];
+                var value = item[field];
+                if (matchesDepartment(value)) {
+                    return true;
+                }
+            }
+            return false;
+        });
+    }
+
+    function filterGroupsByMembership(groups) {
+        if (!selectedDepartment || !Array.isArray(groups)) return groups;
+        return groups.filter(function(g) {
+            var members = g && g.members ? g.members : [];
+            var owners = g && g.owners ? g.owners : [];
+            if (members.length === 0 && owners.length === 0) {
+                return true; // keep when membership list is not available
+            }
+            var i;
+            for (i = 0; i < members.length; i++) {
+                if (matchesDepartment(members[i].userPrincipalName || members[i].mail || '')) return true;
+            }
+            for (i = 0; i < owners.length; i++) {
+                if (matchesDepartment(owners[i].userPrincipalName || owners[i].mail || '')) return true;
+            }
+            return false;
+        });
+    }
+
     /**
      * Initializes the department filter.
      * Extracts unique departments from user data and renders the selector.
@@ -45,6 +114,9 @@ var DepartmentFilter = (function() {
             var u = users[j];
             if (u.userPrincipalName && typeof u.userPrincipalName === 'string' && u.department && typeof u.department === 'string') {
                 upnToDeptMap[u.userPrincipalName.toLowerCase()] = u.department.trim();
+            }
+            if (u.mail && typeof u.mail === 'string' && u.department && typeof u.department === 'string') {
+                upnToDeptMap[u.mail.toLowerCase()] = u.department.trim();
             }
         }
 
@@ -117,6 +189,10 @@ var DepartmentFilter = (function() {
         return selectedDepartment;
     }
 
+    function isActive() {
+        return !!selectedDepartment;
+    }
+
     /**
      * Filters an array by a department field.
      * Returns all items if no department is selected.
@@ -150,11 +226,61 @@ var DepartmentFilter = (function() {
         });
     }
 
+    function applyToType(type, data) {
+        if (!selectedDepartment) return data;
+
+        switch (type) {
+            case 'users':
+                return filterData(data, 'department');
+            case 'devices':
+                return filterByUpnFields(data, ['userPrincipalName', 'emailAddress', 'userUpn', 'upn']);
+            case 'guests':
+                return filterByUpnFields(data, ['mail', 'userPrincipalName']);
+            case 'sharepointSites':
+                return filterByUpnFields(data, ['ownerPrincipalName']);
+            case 'teams':
+                return filterByUpnFields(data, ['ownerUpns', 'ownerUpn']);
+            case 'signinLogs':
+                if (!data || !data.signIns) return data;
+                return Object.assign({}, data, {
+                    signIns: filterByUpnFields(data.signIns, ['userPrincipalName', 'userUpn', 'user'])
+                });
+            case 'riskySignins':
+                return filterByUpnFields(data, ['userPrincipalName', 'userUpn']);
+            case 'defenderAlerts':
+                return filterByUpnFields(data, ['affectedUser']);
+            case 'auditLogs':
+                return filterByUpnFields(data, ['initiatedBy', 'targetResource']);
+            case 'pimActivity':
+                return filterByUpnFields(data, ['principalUpn']);
+            case 'identityRisk':
+                if (!data || typeof data !== 'object') return data;
+                return Object.assign({}, data, {
+                    riskyUsers: filterByUpnFields(data.riskyUsers || [], ['userPrincipalName', 'userUpn']),
+                    riskDetections: filterByUpnFields(data.riskDetections || [], ['userPrincipalName', 'userUpn'])
+                });
+            case 'appSignins':
+                return filterByUpnFields(data, ['userPrincipalName', 'userUpn']);
+            case 'groups':
+                if (!data) return data;
+                if (Array.isArray(data)) return filterGroupsByMembership(data);
+                if (data.groups && Array.isArray(data.groups)) {
+                    return Object.assign({}, data, { groups: filterGroupsByMembership(data.groups) });
+                }
+                return data;
+            default:
+                return data;
+        }
+    }
+
     return {
         init: init,
         getSelected: getSelected,
+        isActive: isActive,
         filterData: filterData,
-        filterByUPN: filterByUPN
+        filterByUPN: filterByUPN,
+        applyToType: applyToType,
+        refreshBanner: updateBanner
     };
 
 })();

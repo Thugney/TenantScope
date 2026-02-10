@@ -196,6 +196,9 @@
         try {
             page.render(container);
             applyHashParamsToPage(pageName);
+            if (typeof DepartmentFilter !== 'undefined' && DepartmentFilter.refreshBanner) {
+                DepartmentFilter.refreshBanner();
+            }
         } catch (error) {
             console.error('App: Error rendering page:', error);
             container.innerHTML = `

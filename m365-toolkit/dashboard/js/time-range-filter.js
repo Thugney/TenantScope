@@ -19,16 +19,22 @@ var TimeRangeFilter = (function() {
     var storageKey = 'tenantscope-time-range';
     var indicatorEl = null;
 
-    var applicablePages = {
-        'overview': true,
-        'security': true,
-        'signin-logs': true,
-        'audit-logs': true,
-        'pim': true,
-        'app-usage': true,
-        'identity-risk': true,
-        'report': true
-    };
+    var applicablePages = null;
+
+    var defaultDateFields = [
+        'createdDateTime',
+        'lastModifiedDateTime',
+        'activityDateTime',
+        'startDateTime',
+        'endDateTime',
+        'lastSignIn',
+        'lastSignInDateTime',
+        'lastActivityDate',
+        'detectedDateTime',
+        'riskLastUpdatedDateTime',
+        'lastUpdatedDateTime',
+        'expirationDateTime'
+    ];
 
     function init() {
         var slot = document.getElementById('time-range-filter-slot');
@@ -99,7 +105,7 @@ var TimeRangeFilter = (function() {
     function updateIndicator(pageName) {
         if (!indicatorEl) return;
         var page = pageName || getCurrentPage();
-        var applicable = !!applicablePages[page];
+        var applicable = !applicablePages || !!applicablePages[page];
         indicatorEl.textContent = applicable ? 'Applies to time-based data on this page' : 'Not applicable on this page';
         indicatorEl.classList.toggle('is-inactive', !applicable);
     }
@@ -158,6 +164,21 @@ var TimeRangeFilter = (function() {
             var value = resolveDate(item, fields);
             return isWithinRange(value, range);
         });
+    }
+
+    function applyToObjectArrays(data, fields, range) {
+        if (!data || typeof data !== 'object') return data;
+        var updated = null;
+        Object.keys(data).forEach(function(key) {
+            if (Array.isArray(data[key])) {
+                var filtered = filterArrayByFields(data[key], fields, range);
+                if (!updated) {
+                    updated = Object.assign({}, data);
+                }
+                updated[key] = filtered;
+            }
+        });
+        return updated || data;
     }
 
     function filterServiceAnnouncements(data, range) {
@@ -242,7 +263,10 @@ var TimeRangeFilter = (function() {
                     range
                 );
             default:
-                return data;
+                if (Array.isArray(data)) {
+                    return filterArrayByFields(data, defaultDateFields, range);
+                }
+                return applyToObjectArrays(data, defaultDateFields, range);
         }
     }
 

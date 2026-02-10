@@ -353,6 +353,13 @@ const DataLoader = (function() {
                     console.warn('DataLoader: Time range filter failed for', type, err.message || err);
                 }
             }
+            if (typeof DepartmentFilter !== 'undefined' && DepartmentFilter.isActive && DepartmentFilter.isActive()) {
+                try {
+                    data = DepartmentFilter.applyToType(type, data);
+                } catch (err) {
+                    console.warn('DataLoader: Department filter failed for', type, err.message || err);
+                }
+            }
             return data || [];
         },
 
