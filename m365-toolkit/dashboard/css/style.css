@@ -774,6 +774,14 @@ table {
     gap: var(--spacing-sm);
 }
 
+.table-toolbar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin: var(--spacing-sm) 0;
+}
+
 .table-wrapper {
     overflow-x: auto;
 }

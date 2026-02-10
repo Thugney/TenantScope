@@ -1747,11 +1747,6 @@ const PageUsers = (function() {
         var colSelectorDiv = document.createElement('div');
         colSelectorDiv.id = 'users-col-selector';
         toolbar.appendChild(colSelectorDiv);
-        var exportBtn = document.createElement('button');
-        exportBtn.className = 'btn btn-secondary btn-sm';
-        exportBtn.id = 'export-users-table';
-        exportBtn.textContent = 'Export CSV';
-        toolbar.appendChild(exportBtn);
         container.appendChild(toolbar);
 
         // Data table

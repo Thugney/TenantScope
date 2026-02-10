@@ -475,11 +475,6 @@ const PageConditionalAccess = (function() {
         var colSelectorDiv = document.createElement('div');
         colSelectorDiv.id = 'ca-col-selector';
         toolbar.appendChild(colSelectorDiv);
-        var exportBtn = document.createElement('button');
-        exportBtn.className = 'btn btn-secondary btn-sm';
-        exportBtn.id = 'export-ca-table';
-        exportBtn.textContent = 'Export CSV';
-        toolbar.appendChild(exportBtn);
         container.appendChild(toolbar);
 
         // Data table
@@ -839,7 +834,6 @@ const PageConditionalAccess = (function() {
         var html = '<div id="ca-filter"></div>';
         html += '<div class="table-toolbar">';
         html += '<div id="ca-col-selector"></div>';
-        html += '<button class="btn btn-secondary btn-sm" id="export-ca-table">Export CSV</button>';
         html += '</div>';
         html += '<div class="table-container" id="ca-table"></div>';
         container.innerHTML = html;

@@ -852,9 +852,7 @@ const PageLifecycle = (function() {
         var colSelectorDiv = el('div');
         colSelectorDiv.id = 'lifecycle-col-selector';
         toolbar.appendChild(colSelectorDiv);
-        var exportBtn = el('button', 'btn btn-secondary btn-sm', 'Export CSV');
-        exportBtn.id = 'export-lifecycle-table';
-        toolbar.appendChild(exportBtn);
+        // Export is provided in the filter bar; keep toolbar for column selector only.
         container.appendChild(toolbar);
 
         // Issues count

@@ -539,9 +539,6 @@ const PageLicenseAnalysis = (function() {
         var colSelectorDiv = el('div');
         colSelectorDiv.id = 'overlaps-col-selector';
         toolbar.appendChild(colSelectorDiv);
-        var exportBtn = el('button', 'btn btn-secondary btn-sm', 'Export CSV');
-        exportBtn.id = 'export-overlaps-table';
-        toolbar.appendChild(exportBtn);
         container.appendChild(toolbar);
 
         // Count
@@ -589,30 +586,8 @@ const PageLicenseAnalysis = (function() {
             });
         }
 
-        // Bind export
-        document.getElementById('export-overlaps-table').addEventListener('click', function() {
-            var exportData = analysisState.analysis.overlapUsers.map(function(o) {
-                return {
-                    Name: o.user.displayName,
-                    Email: o.user.userPrincipalName,
-                    Department: o.user.department || '',
-                    OverlapRule: o.rule,
-                    HigherLicense: o.higherLicense,
-                    RedundantLicense: o.lowerLicense,
-                    MonthlyCost: o.redundantCost
-                };
-            });
-            var columns = [
-                { key: 'Name', label: 'Name' },
-                { key: 'Email', label: 'Email' },
-                { key: 'Department', label: 'Department' },
-                { key: 'OverlapRule', label: 'Overlap Rule' },
-                { key: 'HigherLicense', label: 'Higher License' },
-                { key: 'RedundantLicense', label: 'Redundant License' },
-                { key: 'MonthlyCost', label: 'Monthly Cost' }
-            ];
-            Export.toCSV(exportData, columns, 'tenantscope-license-overlaps.csv');
-        });
+        // Bind export (filter bar button)
+        Export.bindExportButton('overlaps-table', 'tenantscope-license-overlaps');
 
         // Initial render
         applyFilters();

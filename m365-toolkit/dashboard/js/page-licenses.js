@@ -490,9 +490,6 @@ const PageLicenses = (function() {
         var colSelectorDiv = el('div');
         colSelectorDiv.id = 'licenses-col-selector';
         toolbar.appendChild(colSelectorDiv);
-        var exportBtn = el('button', 'btn btn-secondary btn-sm', 'Export CSV');
-        exportBtn.id = 'export-licenses-table';
-        toolbar.appendChild(exportBtn);
         container.appendChild(toolbar);
 
         // Count
