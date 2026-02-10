@@ -639,6 +639,15 @@ const Tables = (function() {
          * Formatters return HTML strings for display. Data comes from
          * locally-collected Graph API JSON, not user input.
          */
+        /**
+         * Escapes HTML special characters to prevent XSS.
+         * Exposed for use by page formatters.
+         *
+         * @param {string} text - Text to escape
+         * @returns {string} Escaped HTML
+         */
+        escapeHtml: escapeHtml,
+
         formatters: {
             date(value) {
                 if (!value) return '<span class="text-muted">--</span>';
