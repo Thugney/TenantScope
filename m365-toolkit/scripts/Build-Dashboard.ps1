@@ -125,10 +125,13 @@ $dataFiles = @(
     "risky-signins.json",
     "signin-logs.json",
     "defender-alerts.json",
+    "defender-device-health.json",
+    "device-hardening.json",
     "vulnerabilities.json",
     "secure-score.json",
     "conditional-access.json",
     "asr-rules.json",
+    "asr-audit-events.json",
     "identity-risk-data.json",
     "oauth-consent-grants.json",
     "named-locations.json",
@@ -137,10 +140,12 @@ $dataFiles = @(
     "autopilot.json",
     "compliance-policies.json",
     "configuration-profiles.json",
+    "endpoint-security-states.json",
     "windows-update-status.json",
     "bitlocker-status.json",
     "app-deployments.json",
     "endpoint-analytics.json",
+    "laps-coverage.json",
     # Applications & governance
     "enterprise-apps.json",
     "service-principal-secrets.json",
@@ -236,10 +241,13 @@ $bundleMap = @{
     "riskySignins"            = "risky-signins.json"
     "signinLogs"              = "signin-logs.json"
     "defenderAlerts"          = "defender-alerts.json"
+    "defenderDeviceHealth"    = "defender-device-health.json"
+    "deviceHardening"         = "device-hardening.json"
     "vulnerabilities"         = "vulnerabilities.json"
     "secureScore"             = "secure-score.json"
     "conditionalAccess"       = "conditional-access.json"
     "asrRules"                = "asr-rules.json"
+    "asrAuditEvents"          = "asr-audit-events.json"
     "identityRisk"            = "identity-risk-data.json"
     "oauthConsentGrants"      = "oauth-consent-grants.json"
     "namedLocations"          = "named-locations.json"
@@ -248,10 +256,12 @@ $bundleMap = @{
     "autopilot"               = "autopilot.json"
     "compliancePolicies"      = "compliance-policies.json"
     "configurationProfiles"   = "configuration-profiles.json"
+    "endpointSecurityStates"  = "endpoint-security-states.json"
     "windowsUpdateStatus"     = "windows-update-status.json"
     "bitlockerStatus"         = "bitlocker-status.json"
     "appDeployments"          = "app-deployments.json"
     "endpointAnalytics"       = "endpoint-analytics.json"
+    "lapsCoverage"            = "laps-coverage.json"
     # Applications & governance
     "enterpriseApps"          = "enterprise-apps.json"
     "servicePrincipalSecrets" = "service-principal-secrets.json"

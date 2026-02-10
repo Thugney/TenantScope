@@ -10,13 +10,21 @@
     "staleDeviceDays": 90,
     "inactiveTeamDays": 90,
     "inactiveSiteDays": 90,
-    "highStorageThresholdGB": 20
+    "highStorageThresholdGB": 20,
+    "patchAgeDays": 30,
+    "signatureAgeDays": 7,
+    "asrNoiseThreshold": 20,
+    "lapsRotationDays": 30,
+    "sensorStaleDays": 7
   },
   "collection": {
     "signInLogDays": 30,
     "defenderAlertDays": 30,
     "auditLogDays": 30,
-    "pimActivityDays": 30
+    "pimActivityDays": 30,
+    "asrEventDays": 30,
+    "defenderDeviceDetailLimit": 200,
+    "localAdminLogonDays": 30
   },
   "currency": {
     "code": "NOK",

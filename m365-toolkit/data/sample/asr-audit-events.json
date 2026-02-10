@@ -1,0 +1,57 @@
+{
+  "rules": [
+    {
+      "ruleId": "d4f940ab-401b-4efc-aadc-ad5f3c50688a",
+      "ruleName": "Block all Office applications from creating child processes",
+      "totalEvents": 120,
+      "auditEvents": 120,
+      "blockEvents": 0,
+      "warnEvents": 0,
+      "deviceCount": 34,
+      "lastSeen": "2026-02-09T14:22:00Z",
+      "noisy": true
+    },
+    {
+      "ruleId": "be9ba2d9-53ea-4cdc-84e5-9b1eeee46550",
+      "ruleName": "Block executable content from email and webmail",
+      "totalEvents": 18,
+      "auditEvents": 4,
+      "blockEvents": 14,
+      "warnEvents": 0,
+      "deviceCount": 8,
+      "lastSeen": "2026-02-10T07:05:00Z",
+      "noisy": false
+    },
+    {
+      "ruleId": "9e6c4e1f-7d60-472f-ba1a-a39ef669e4b2",
+      "ruleName": "Block credential stealing from Windows LSASS",
+      "totalEvents": 3,
+      "auditEvents": 3,
+      "blockEvents": 0,
+      "warnEvents": 0,
+      "deviceCount": 2,
+      "lastSeen": "2026-02-08T18:40:00Z",
+      "noisy": false
+    },
+    {
+      "ruleId": "c1db55ab-c21a-4637-bb3f-a12568109d35",
+      "ruleName": "Use advanced protection against ransomware",
+      "totalEvents": 42,
+      "auditEvents": 10,
+      "blockEvents": 32,
+      "warnEvents": 0,
+      "deviceCount": 15,
+      "lastSeen": "2026-02-10T08:10:00Z",
+      "noisy": false
+    }
+  ],
+  "summary": {
+    "totalEvents": 183,
+    "rulesWithEvents": 4,
+    "devicesAffected": 59,
+    "noisyRules": 1,
+    "daysCovered": 30
+  },
+  "noiseThreshold": 20,
+  "collectionDate": "2026-02-10T09:05:00Z"
+}

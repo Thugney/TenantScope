@@ -1,0 +1,35 @@
+{
+  "devices": [
+    {
+      "deviceId": "dev1a2b3-c4d5-6789-abcd-ef1234567890",
+      "deviceName": "MODUM-PC-001",
+      "credentialGuardStatus": "compliant",
+      "memoryIntegrityStatus": "compliant",
+      "issues": [],
+      "hasIssues": false
+    },
+    {
+      "deviceId": "dev5e6f7-a8b9-0123-ef01-567890123456",
+      "deviceName": "MODUM-PC-005",
+      "credentialGuardStatus": "noncompliant",
+      "memoryIntegrityStatus": "unknown",
+      "issues": ["Credential Guard", "Memory Integrity"],
+      "hasIssues": true
+    },
+    {
+      "deviceId": "dev1e2f3-a4b5-6789-4567-123456789012",
+      "deviceName": "MODUM-PC-011",
+      "credentialGuardStatus": "unknown",
+      "memoryIntegrityStatus": "noncompliant",
+      "issues": ["Credential Guard", "Memory Integrity"],
+      "hasIssues": true
+    }
+  ],
+  "summary": {
+    "totalDevices": 3,
+    "credentialGuardGaps": 2,
+    "memoryIntegrityGaps": 2,
+    "unknownDevices": 2
+  },
+  "collectionDate": "2026-02-10T09:20:00Z"
+}

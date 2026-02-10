@@ -21,9 +21,12 @@ The toolkit collects data via Microsoft Graph API and presents it in a local HTM
 
 The dashboard is organized into functional groups:
 
-**Identity**
+**Core**
 - **Overview** - Executive summary with security signals, risk scores, and actionable insights
 - **Problems** - Aggregated critical issues across all data types with prioritized remediation guidance
+- **Coverage Gaps** - Cross-domain gaps across Defender device health, ASR telemetry, endpoint security policies, LAPS coverage, patch currency, and device hardening
+
+**Identity**
 - **Users** - Member accounts with activity status, MFA enrollment, admin flags, and license assignments
 - **Organization** - Department-level analytics and organizational hierarchy
 - **Guests** - External users with invitation status, activity tracking, and stale guest identification
@@ -164,11 +167,19 @@ The following Microsoft Graph permissions are required (delegated or application
 | TeamMember.Read.All | Read Teams membership |
 | Sites.Read.All | Read SharePoint sites |
 | BitLockerKey.Read.All | Read BitLocker recovery keys |
+| AdvancedHunting.Read.All | Run Defender Advanced Hunting queries |
+| Machine.Read.All | Read Defender for Endpoint device health |
+| DelegatedPermissionGrant.ReadWrite.All | Read OAuth consent grants |
+| RecordsManagement.Read.All | Read retention data |
+| eDiscovery.Read.All | Read eDiscovery cases |
+| InformationProtectionPolicy.Read | Read sensitivity labels |
+| AccessReview.Read.All | Read access reviews |
 
 **Licensing Notes:**
 - Sign-in activity requires Entra ID P1+
 - Risk detections require Entra ID P2
 - Defender alerts require Microsoft Defender licensing
+- Advanced Hunting and device health require Defender for Endpoint P2
 - Endpoint Analytics requires Intune licensing
 
 ## Quick Start
@@ -242,13 +253,15 @@ Run only specific collectors to reduce collection time:
 ```
 
 **Available collector names:**
-- UserData, LicenseData, GuestData, MFAData, AdminRoleData, DeletedUsers
-- SignInData, SignInLogs, DeviceData, AutopilotData, DefenderData
-- EnterpriseAppData, AuditLogData, PIMData, TeamsData, SharePointData
-- SecureScoreData, AppSignInData, ConditionalAccessData
-- CompliancePolicies, ConfigurationProfiles, WindowsUpdateStatus
-- BitLockerStatus, AppDeployments, EndpointAnalytics
-- ServicePrincipalSecrets, ASRRules, ServiceAnnouncementData
+- UserData, LicenseData, GuestData, MFAData, AdminRoleData, DeletedUsers, GroupData
+- SignInData, SignInLogs, DeviceData, AutopilotData, DefenderData, DefenderDeviceHealth, DeviceHardening, VulnerabilityData
+- IdentityRiskData, SecureScoreData, ConditionalAccessData, NamedLocations, ASRRules, ASRAuditEvents
+- EnterpriseAppData, ServicePrincipalSecrets, OAuthConsentGrants, AppSignInData
+- CompliancePolicies, ConfigurationProfiles, EndpointSecurityStates, LapsCoverage
+- WindowsUpdateStatus, BitLockerStatus, AppDeployments, EndpointAnalytics
+- AuditLogData, PIMData, AccessReviewData
+- RetentionData, eDiscoveryData, SensitivityLabelsData
+- TeamsData, SharePointData, ServiceAnnouncementData
 
 ### App-Only Authentication (Scheduled/Unattended)
 
@@ -305,7 +318,7 @@ m365-toolkit/
 ├── Install-Prerequisites.ps1      # Setup script
 ├── Invoke-DataCollection.ps1      # Main collection orchestrator
 │
-├── collectors/                    # Data collection modules (37 scripts)
+├── collectors/                    # Data collection modules (42 scripts)
 │   ├── Get-UserData.ps1
 │   ├── Get-LicenseData.ps1
 │   ├── Get-DeviceData.ps1
@@ -416,6 +429,7 @@ Some data types require specific licensing:
 - Sign-in activity: Entra ID P1+
 - Risk detections: Entra ID P2
 - Defender alerts: Microsoft Defender license
+- Advanced Hunting and device health: Defender for Endpoint P2
 - Endpoint Analytics: Intune license
 - Vulnerability data: Microsoft Defender for Endpoint P2
 - Retention labels: Microsoft Purview / E5 Compliance

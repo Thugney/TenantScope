@@ -82,7 +82,7 @@ function Add-DeviceUpdateStates {
         }
 
         if (-not $StateMap.ContainsKey($deviceId)) {
-            $StateMap[$deviceId] = @{ pending = 0; failed = 0; succeeded = 0 }
+            $StateMap[$deviceId] = @{ pending = 0; failed = 0; succeeded = 0; lastEvent = $null }
         }
 
         $statusValue = Get-GraphPropertyValue -Object $state -PropertyNames $StatusPropertyNames
@@ -106,6 +106,48 @@ function Add-DeviceUpdateStates {
             "uptodate" { $StateMap[$deviceId].succeeded++ }
             default { }
         }
+
+        $eventTime = Get-UpdateStateTimestamp -State $state
+        if ($eventTime) {
+            $existingTime = $StateMap[$deviceId].lastEvent
+            if (-not $existingTime -or $eventTime -gt $existingTime) {
+                $StateMap[$deviceId].lastEvent = $eventTime
+            }
+        }
+    }
+}
+
+function Get-UpdateStateTimestamp {
+    <#
+    .SYNOPSIS
+        Attempts to extract a useful timestamp from a device update state entry.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        $State
+    )
+
+    $timestamp = Get-GraphPropertyValue -Object $State -PropertyNames @(
+        "lastStatusChangeDateTime",
+        "lastUpdatedDateTime",
+        "lastModifiedDateTime",
+        "lastEventDateTime",
+        "reportedDateTime",
+        "lastContactedDateTime",
+        "lastCheckInDateTime",
+        "lastSyncDateTime",
+        "statusChangeDateTime"
+    )
+
+    if ($null -eq $timestamp -or $timestamp -eq "") {
+        return $null
+    }
+
+    try {
+        return [DateTime]$timestamp
+    }
+    catch {
+        return $null
     }
 }
 
@@ -139,6 +181,9 @@ try {
             securityUpdates = 0
             pausedRings = 0
             driversNeedingReview = 0
+            devicesPatchStale = 0
+            devicesPatchCurrent = 0
+            patchAgeThresholdDays = 30
         }
     }
 
@@ -586,6 +631,13 @@ try {
         $upToDateCount = 0
         $pendingCount = 0
         $errorCount = 0
+        $stalePatchCount = 0
+        $currentPatchCount = 0
+        $patchAgeThreshold = if ($Config.thresholds -and $Config.thresholds.patchAgeDays) {
+            [int]$Config.thresholds.patchAgeDays
+        } else {
+            30
+        }
 
         foreach ($device in $allDevices) {
             $updateStatus = "Unknown"
@@ -593,6 +645,10 @@ try {
             $failedUpdates = 0
             $errorDetails = $null
             $updateStatusSource = $null
+            $qualityUpdateLastEvent = $null
+            $qualityUpdateAgeDays = $null
+            $qualityUpdateAgeSource = $null
+            $qualityUpdateAgeStatus = "unknown"
 
             $deviceState = $deviceUpdateStateMap[$device.id]
             if ($deviceState) {
@@ -612,6 +668,12 @@ try {
                     $upToDateCount++
                 }
                 $updateStatusSource = "PolicyState"
+
+                if ($deviceState.lastEvent) {
+                    $qualityUpdateLastEvent = $deviceState.lastEvent
+                    $qualityUpdateAgeDays = Get-DaysSinceDate -DateValue $qualityUpdateLastEvent
+                    $qualityUpdateAgeSource = "UpdateState"
+                }
             }
             else {
                 # Fallback to last sync when no update state data is available
@@ -635,6 +697,26 @@ try {
                     }
                 }
                 $updateStatusSource = "LastSync"
+
+                if ($device.lastSyncDateTime) {
+                    $qualityUpdateLastEvent = $device.lastSyncDateTime
+                    $qualityUpdateAgeDays = Get-DaysSinceDate -DateValue $device.lastSyncDateTime
+                    $qualityUpdateAgeSource = "LastSync"
+                }
+            }
+
+            if ($qualityUpdateAgeDays -ne $null) {
+                if ($qualityUpdateAgeDays -gt $patchAgeThreshold) {
+                    $qualityUpdateAgeStatus = "stale"
+                    $stalePatchCount++
+                }
+                else {
+                    $qualityUpdateAgeStatus = "current"
+                    $currentPatchCount++
+                }
+            }
+            if ($updateStatus -eq "error") {
+                $qualityUpdateAgeStatus = "error"
             }
 
             # Determine feature update version from OS version using shared lifecycle mapping
@@ -674,6 +756,10 @@ try {
                 updateRing          = $updateRing
                 updateRingAssignments = $updateRingAssignments
                 updateStatusSource  = $updateStatusSource
+                qualityUpdateLastEvent = if ($qualityUpdateLastEvent) { Format-IsoDate -DateValue $qualityUpdateLastEvent } else { $null }
+                qualityUpdateAgeDays = $qualityUpdateAgeDays
+                qualityUpdateAgeSource = $qualityUpdateAgeSource
+                qualityUpdateAgeStatus = $qualityUpdateAgeStatus
             }
 
             # Add errorDetails only if there's an error
@@ -691,6 +777,9 @@ try {
             $updateData.summary.devicesPendingUpdate = $pendingCount
             $updateData.summary.devicesWithErrors = $errorCount
             $updateData.summary.complianceRate = [Math]::Round(($upToDateCount / $allDevices.Count) * 100, 1)
+            $updateData.summary.devicesPatchStale = $stalePatchCount
+            $updateData.summary.devicesPatchCurrent = $currentPatchCount
+            $updateData.summary.patchAgeThresholdDays = $patchAgeThreshold
         }
 
         Write-Host "      Retrieved compliance for $($updateData.deviceCompliance.Count) devices" -ForegroundColor Gray
@@ -739,6 +828,9 @@ catch {
             securityUpdates = 0
             pausedRings = 0
             driversNeedingReview = 0
+            devicesPatchStale = 0
+            devicesPatchCurrent = 0
+            patchAgeThresholdDays = 30
         }
         collectionDate = (Get-Date).ToString("o")
     } -OutputPath $OutputPath | Out-Null

@@ -95,13 +95,21 @@ Create `config.json` from the template `config.sample.json`:
     "staleDeviceDays": 90,
     "inactiveTeamDays": 90,
     "inactiveSiteDays": 90,
-    "highStorageThresholdGB": 20
+    "highStorageThresholdGB": 20,
+    "patchAgeDays": 30,
+    "signatureAgeDays": 7,
+    "asrNoiseThreshold": 20,
+    "lapsRotationDays": 30,
+    "sensorStaleDays": 7
   },
   "collection": {
     "signInLogDays": 30,
     "defenderAlertDays": 30,
     "auditLogDays": 30,
-    "pimActivityDays": 30
+    "pimActivityDays": 30,
+    "asrEventDays": 30,
+    "defenderDeviceDetailLimit": 200,
+    "localAdminLogonDays": 30
   },
   "dashboard": {
     "title": "Contoso Tenant Dashboard",
@@ -128,6 +136,11 @@ Create `config.json` from the template `config.sample.json`:
 | `inactiveTeamDays` | 90 | Days since last activity to mark Team as inactive |
 | `inactiveSiteDays` | 90 | Days since last activity to mark SharePoint site as inactive |
 | `highStorageThresholdGB` | 20 | Storage usage threshold for highlighting sites |
+| `patchAgeDays` | 30 | Days since last quality update to flag patch currency gaps |
+| `signatureAgeDays` | 7 | Days since last AV signature update to flag stale signatures |
+| `asrNoiseThreshold` | 20 | Minimum ASR audit events to flag noisy rules or devices |
+| `lapsRotationDays` | 30 | Days since last LAPS rotation to flag stale credentials |
+| `sensorStaleDays` | 7 | Days since Defender sensor last seen to flag stale onboarding |
 
 #### Collection Settings
 | Setting | Default | Description |
@@ -136,6 +149,9 @@ Create `config.json` from the template `config.sample.json`:
 | `defenderAlertDays` | 30 | Number of days of Defender alerts to collect |
 | `auditLogDays` | 30 | Number of days of audit logs to collect |
 | `pimActivityDays` | 30 | Number of days of PIM activity to collect |
+| `asrEventDays` | 30 | Number of days of ASR audit/block telemetry to collect |
+| `defenderDeviceDetailLimit` | 200 | Max devices to pull Defender health details for (safety throttle) |
+| `localAdminLogonDays` | 30 | Number of days of local admin logon signal to collect |
 
 #### Currency Settings
 | Setting | Default | Description |
@@ -207,7 +223,7 @@ Create `config.json` from the template `config.sample.json`:
 **Interactive Process:**
 1. Script displays collection header and configuration
 2. Prompts for Microsoft 365 admin sign-in (delegated permissions)
-3. Runs all 14 collectors sequentially
+3. Runs all configured collectors sequentially
 4. Displays progress and summary
 5. Optionally opens dashboard when complete
 
@@ -221,13 +237,15 @@ Create `config.json` from the template `config.sample.json`:
 .\Invoke-DataCollection.ps1 -CollectorsToRun @("ServiceAnnouncementData")
 
 # Available collector names:
-# UserData, LicenseData, GuestData, MFAData, AdminRoleData, DeletedUsers,
-# SignInData, SignInLogs, DeviceData, AutopilotData, DefenderData,
-# EnterpriseAppData, AuditLogData, PIMData, TeamsData, SharePointData,
-# SecureScoreData, AppSignInData, ConditionalAccessData,
-# CompliancePolicies, ConfigurationProfiles, WindowsUpdateStatus,
-# BitLockerStatus, AppDeployments, EndpointAnalytics, ServicePrincipalSecrets,
-# ASRRules, ServiceAnnouncementData
+# UserData, LicenseData, GuestData, MFAData, AdminRoleData, DeletedUsers, GroupData,
+# SignInData, SignInLogs, DeviceData, AutopilotData, DefenderData, DefenderDeviceHealth, DeviceHardening, VulnerabilityData,
+# IdentityRiskData, SecureScoreData, ConditionalAccessData, NamedLocations, ASRRules, ASRAuditEvents,
+# EnterpriseAppData, ServicePrincipalSecrets, OAuthConsentGrants, AppSignInData,
+# CompliancePolicies, ConfigurationProfiles, EndpointSecurityStates, LapsCoverage,
+# WindowsUpdateStatus, BitLockerStatus, AppDeployments, EndpointAnalytics,
+# AuditLogData, PIMData, AccessReviewData,
+# RetentionData, eDiscoveryData, SensitivityLabelsData,
+# TeamsData, SharePointData, ServiceAnnouncementData
 ```
 
 ### Direct Collector Invocation (Advanced)
@@ -389,105 +407,115 @@ $dataPath = Join-Path $PSScriptRoot "data"
 - Donut charts for key indicators
 - Quick navigation to problem areas
 
-#### 2. Users
+#### 2. Problems
+- Aggregated critical issues across domains
+- Prioritized remediation queue
+- Direct links to affected users, devices, and policies
+
+#### 3. Coverage Gaps
+- Security coverage gaps across Defender device health, ASR telemetry, endpoint security policies, LAPS coverage, patch currency, and device hardening
+- Focused lists of devices or rules needing attention
+- Threshold-driven flags using `config.json`
+
+#### 4. Users
 - Complete user directory with filtering
 - **Filters**: Domain, account status, MFA, admin status
 - **Columns**: Name, department, last sign-in, licenses, flags
 - **Actions**: Export to CSV, view details
 
-#### 3. Licenses
+#### 5. Licenses
 - SKU allocation and utilization
 - Waste analysis (licenses assigned to inactive/disabled users)
 - **Columns**: Product name, available, assigned, consumed %
 - **Visualization**: Allocation bar charts
 
-#### 4. Guests
+#### 6. Guests
 - External user management
 - **Filters**: Invitation status, activity status
 - **Columns**: Name, inviting user, invite date, last sign-in
 - **Actions**: Identify stale guests for cleanup
 
-#### 5. Security
+#### 7. Security
 - Multi-section security dashboard
 - **Risky Sign-ins**: High-risk events with details
 - **Admin Roles**: Role assignments and members
 - **MFA Gaps**: Users without MFA registration
 - **Defender Alerts**: Active security alerts
 
-#### 6. Devices
+#### 8. Devices
 - Intune device compliance overview
 - **Filters**: Compliance state, ownership, OS
 - **Columns**: Device name, user, compliance, last check-in
 - **Actions**: Export device list
 
-#### 7. Enterprise Apps
+#### 9. Enterprise Apps
 - Application permissions and usage
 - **Filters**: Permission level, publisher verification
 - **Columns**: App name, publisher, permissions, user count
 - **Details**: Permission descriptions and risk assessment
 
-#### 8. Lifecycle
+#### 10. Lifecycle
 - Automated lifecycle management reports
 - **Offboarding Issues**: Licenses still assigned to disabled users
 - **Onboarding Gaps**: New users without required licenses
 - **Role Hygiene**: Overprivileged accounts
 - **Guest Cleanup**: Stale external users
 
-#### 9. Teams
+#### 11. Teams
 - Microsoft Teams inventory and activity
 - **Filters**: Activity status, visibility, owner status
 - **Columns**: Team name, visibility, member count, last activity
 - **Details**: Guest access, channel count
 
-#### 10. SharePoint
+#### 12. SharePoint
 - Site collection management
 - **Filters**: Activity status, storage usage, external sharing
 - **Columns**: Site name, storage used, last activity, sensitivity label
 - **Actions**: Identify high-storage sites
 
-#### 11. Audit Logs
+#### 13. Audit Logs
 - Administrative activity monitoring
 - **Filters**: Activity type, user, date range
 - **Columns**: Timestamp, user, activity, target, result
 - **Search**: Free-text search across all fields
 
-#### 12. PIM
+#### 14. PIM
 - Privileged Identity Management activity
 - **Filters**: Role, activation status, user
 - **Columns**: User, role, activation time, duration, status
 - **Details**: Justification and approval information
 
-#### 13. App Usage
+#### 15. App Usage
 - Application sign-in analytics and usage patterns
 - **Filters**: Application, user, date range
 - **Columns**: Application name, sign-in count, distinct users, last activity
 - **Insights**: Identify rarely used applications
 
-#### 14. Conditional Access
+#### 16. Conditional Access
 - Conditional Access policy analysis and security gap detection
 - **Filters**: Policy state, included/excluded users, conditions
 - **Columns**: Policy name, state, conditions, grant controls, coverage
 - **Security Gaps**: Identify users without MFA enforcement
 
-#### 15. Data Quality
+#### 17. Data Quality
 - Data completeness and quality metrics across all collected data
 - **Metrics**: Collection success rates, missing fields, data freshness
 - **Visualization**: Quality score charts and gap analysis
 - **Actions**: Identify areas needing improved collection
 
-#### 16. License Analysis
+#### 18. License Analysis
 - Advanced license utilization and overlap analysis
 - **Features**: License waste detection, overlap identification, cost optimization
 - **Visualization**: Allocation charts, cost breakdowns, overlap matrices
 - **Insights**: Identify duplicate license assignments and optimization opportunities
 
-#### 17. Organization
+#### 19. Organization
 - Organizational hierarchy and department-level analytics
 - **Features**: Department breakdowns, manager reporting chains, cost allocation
 - **Filters**: Department, cost center, management level
 - **Insights**: License distribution across organizational units
 
-#### 18. Report
+#### 20. Report
 - Custom report generation and export capabilities
 - **Features**: Pre-built report templates, custom filters, multi-format export
 - **Formats**: PDF, HTML, CSV, Excel
@@ -680,16 +708,32 @@ Scheduled tasks require app-only authentication since there's no user to sign in
 | `User.Read.All` | Read user profiles |
 | `Directory.Read.All` | Read directory data |
 | `AuditLog.Read.All` | Read audit logs |
+| `Reports.Read.All` | Read reports |
+| `ServiceMessage.Read.All` | Read service announcements |
+| `ServiceHealth.Read.All` | Read service health |
 | `DeviceManagementManagedDevices.Read.All` | Read Intune devices |
-| `DeviceManagementConfiguration.Read.All` | Read device configuration |
-| `SecurityEvents.Read.All` | Read security events |
+| `DeviceManagementConfiguration.Read.All` | Read device configuration and endpoint security policies |
+| `DeviceManagementApps.Read.All` | Read app deployments |
+| `SecurityEvents.Read.All` | Read Defender alerts |
 | `IdentityRiskEvent.Read.All` | Read risk events |
 | `IdentityRiskyUser.Read.All` | Read risky users |
-| `Policy.Read.All` | Read policies |
-| `Reports.Read.All` | Read reports |
+| `RoleManagement.Read.Directory` | Read directory roles |
+| `RoleAssignmentSchedule.Read.Directory` | Read PIM role assignments |
+| `RoleEligibilitySchedule.Read.Directory` | Read PIM eligible roles |
+| `Application.Read.All` | Read app registrations and service principals |
+| `Policy.Read.All` | Read conditional access policies |
 | `Team.ReadBasic.All` | Read Teams |
+| `Channel.ReadBasic.All` | Read Teams channels |
+| `TeamMember.Read.All` | Read Teams membership |
 | `Sites.Read.All` | Read SharePoint sites |
-| `Application.Read.All` | Read app registrations |
+| `BitLockerKey.Read.All` | Read BitLocker recovery keys |
+| `DelegatedPermissionGrant.ReadWrite.All` | Read OAuth consent grants |
+| `RecordsManagement.Read.All` | Read retention data |
+| `eDiscovery.Read.All` | Read eDiscovery cases |
+| `InformationProtectionPolicy.Read` | Read sensitivity labels |
+| `AccessReview.Read.All` | Read access reviews |
+| `AdvancedHunting.Read.All` | Run Defender Advanced Hunting queries |
+| `Machine.Read.All` | Read Defender for Endpoint device health |
 
 4. Click "Grant admin consent for [Your Tenant]"
 
@@ -801,6 +845,11 @@ Before scheduling, test the connection manually:
 | Risk detections | Entra ID P2 |
 | MFA registration | Entra ID P1 |
 | Defender alerts | Microsoft Defender |
+| ASR audit/block telemetry (Advanced Hunting) | Defender for Endpoint P2 |
+| Defender device health / sensor status | Defender for Endpoint P2 |
+| Vulnerability data | Defender for Endpoint P2 |
+| Endpoint Analytics | Intune |
+| Retention, eDiscovery, sensitivity labels | Microsoft Purview / E5 Compliance |
 | PIM activity | Azure AD Premium P2 |
 
 **Verification:**

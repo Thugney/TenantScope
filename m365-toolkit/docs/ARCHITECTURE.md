@@ -150,7 +150,7 @@ m365-toolkit/
 |   |-- Get-DefenderData.ps1     # Defender alerts
 |   |-- Get-TeamsData.ps1        # Teams with owners/members
 |   |-- Get-SharePointData.ps1   # SharePoint sites
-|   +-- ... (30+ collectors)
+|   +-- ... (40+ collectors)
 |
 |-- scripts/
 |   |-- Build-Dashboard.ps1      # Build dashboard data bundle
@@ -513,6 +513,8 @@ Interactive (Delegated):
 - DeviceManagementConfiguration.Read.All
 - DeviceManagementApps.Read.All
 - SecurityEvents.Read.All
+- AdvancedHunting.Read.All
+- Machine.Read.All
 - IdentityRiskyUser.Read.All
 - IdentityRiskEvent.Read.All
 - RoleManagement.Read.Directory
@@ -551,14 +553,21 @@ App-Only (Application):
   "thresholds": {
     "inactiveDays": 90,
     "staleGuestDays": 60,
-    "staleDeviceDays": 90
+    "staleDeviceDays": 90,
+    "patchAgeDays": 30,
+    "signatureAgeDays": 7,
+    "asrNoiseThreshold": 20,
+    "lapsRotationDays": 30,
+    "sensorStaleDays": 7
   },
   "collection": {
     "signInLogDays": 30,
     "defenderAlertDays": 30,
     "auditLogDays": 30,
     "pimActivityDays": 30,
-    "riskDetectionDays": 30
+    "asrEventDays": 30,
+    "defenderDeviceDetailLimit": 200,
+    "localAdminLogonDays": 30
   },
   "dashboard": {
     "title": "TenantScope",
@@ -575,7 +584,18 @@ App-Only (Application):
 | `thresholds.inactiveDays` | Days without sign-in to flag inactive |
 | `thresholds.staleGuestDays` | Days to flag stale guests |
 | `thresholds.staleDeviceDays` | Days to flag stale devices |
-| `collection.*Days` | Lookback period for time-series data |
+| `thresholds.patchAgeDays` | Days since quality update to flag patch currency gaps |
+| `thresholds.signatureAgeDays` | Days since AV signature update to flag stale signatures |
+| `thresholds.asrNoiseThreshold` | Minimum ASR events to flag noisy coverage |
+| `thresholds.lapsRotationDays` | Days since LAPS rotation to flag stale credentials |
+| `thresholds.sensorStaleDays` | Days since Defender sensor last seen |
+| `collection.signInLogDays` | Lookback days for sign-in logs |
+| `collection.defenderAlertDays` | Lookback days for Defender alerts |
+| `collection.auditLogDays` | Lookback days for audit logs |
+| `collection.pimActivityDays` | Lookback days for PIM activity |
+| `collection.asrEventDays` | Lookback days for ASR audit/block events |
+| `collection.defenderDeviceDetailLimit` | Max devices for Defender health detail pulls |
+| `collection.localAdminLogonDays` | Lookback days for local admin logon signal |
 
 ---
 

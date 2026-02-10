@@ -312,7 +312,11 @@
       "pendingUpdates": 0,
       "failedUpdates": 0,
       "updateRing": "Production Ring",
-      "featureUpdateVersion": "Windows 11, version 24H2"
+      "featureUpdateVersion": "Windows 11, version 24H2",
+      "qualityUpdateLastEvent": "2026-02-06T08:30:00Z",
+      "qualityUpdateAgeDays": 4,
+      "qualityUpdateAgeSource": "LastSync",
+      "qualityUpdateAgeStatus": "current"
     },
     {
       "deviceId": "dev-002",
@@ -324,7 +328,11 @@
       "pendingUpdates": 2,
       "failedUpdates": 0,
       "updateRing": "Production Ring",
-      "featureUpdateVersion": "Windows 11, version 23H2"
+      "featureUpdateVersion": "Windows 11, version 23H2",
+      "qualityUpdateLastEvent": "2026-02-06T09:15:00Z",
+      "qualityUpdateAgeDays": 4,
+      "qualityUpdateAgeSource": "LastSync",
+      "qualityUpdateAgeStatus": "current"
     },
     {
       "deviceId": "dev-003",
@@ -337,7 +345,11 @@
       "failedUpdates": 2,
       "updateRing": "Pilot Ring",
       "featureUpdateVersion": "Windows 10, version 22H2",
-      "errorDetails": "Feature update failed - insufficient disk space"
+      "errorDetails": "Feature update failed - insufficient disk space",
+      "qualityUpdateLastEvent": "2026-02-05T14:00:00Z",
+      "qualityUpdateAgeDays": 5,
+      "qualityUpdateAgeSource": "LastSync",
+      "qualityUpdateAgeStatus": "error"
     },
     {
       "deviceId": "dev-004",
@@ -349,7 +361,11 @@
       "pendingUpdates": 0,
       "failedUpdates": 0,
       "updateRing": "IT Test Ring",
-      "featureUpdateVersion": "Windows 11, version 24H2"
+      "featureUpdateVersion": "Windows 11, version 24H2",
+      "qualityUpdateLastEvent": "2026-02-06T07:45:00Z",
+      "qualityUpdateAgeDays": 4,
+      "qualityUpdateAgeSource": "LastSync",
+      "qualityUpdateAgeStatus": "current"
     },
     {
       "deviceId": "dev-005",
@@ -361,7 +377,11 @@
       "pendingUpdates": 5,
       "failedUpdates": 0,
       "updateRing": "Kiosk Devices",
-      "featureUpdateVersion": "Windows 11, version 22H2"
+      "featureUpdateVersion": "Windows 11, version 22H2",
+      "qualityUpdateLastEvent": "2026-02-04T12:00:00Z",
+      "qualityUpdateAgeDays": 6,
+      "qualityUpdateAgeSource": "LastSync",
+      "qualityUpdateAgeStatus": "current"
     }
   ],
   "summary": {
@@ -376,7 +396,10 @@
     "complianceRate": 85.2,
     "expeditedUpdatesActive": 2,
     "securityUpdates": 3,
-    "pausedRings": 1
+    "pausedRings": 1,
+    "devicesPatchStale": 0,
+    "devicesPatchCurrent": 5,
+    "patchAgeThresholdDays": 30
   },
   "collectionDate": "2026-02-06T12:00:00Z"
 }

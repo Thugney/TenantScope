@@ -1,0 +1,114 @@
+{
+  "policies": [
+    {
+      "id": "es-001-firewall",
+      "displayName": "Endpoint Security Firewall Baseline",
+      "description": "Firewall policy for Windows devices",
+      "category": "Firewall",
+      "createdDateTime": "2025-06-01T09:00:00Z",
+      "lastModifiedDateTime": "2026-01-15T10:30:00Z",
+      "isAssigned": true,
+      "summary": {
+        "compliant": 142,
+        "noncompliant": 5,
+        "error": 2,
+        "conflict": 1,
+        "pending": 0,
+        "notApplicable": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "id": "es-002-av",
+      "displayName": "Endpoint Security Antivirus Policy",
+      "description": "Defender AV baseline",
+      "category": "Antivirus",
+      "createdDateTime": "2025-05-15T10:00:00Z",
+      "lastModifiedDateTime": "2026-01-05T10:10:00Z",
+      "isAssigned": true,
+      "summary": {
+        "compliant": 145,
+        "noncompliant": 3,
+        "error": 1,
+        "conflict": 1,
+        "pending": 0,
+        "notApplicable": 0,
+        "unknown": 0
+      }
+    },
+    {
+      "id": "es-003-encryption",
+      "displayName": "Endpoint Security Disk Encryption",
+      "description": "BitLocker policy",
+      "category": "Disk Encryption",
+      "createdDateTime": "2025-04-01T08:00:00Z",
+      "lastModifiedDateTime": "2026-01-20T08:45:00Z",
+      "isAssigned": true,
+      "summary": {
+        "compliant": 138,
+        "noncompliant": 8,
+        "error": 2,
+        "conflict": 0,
+        "pending": 0,
+        "notApplicable": 0,
+        "unknown": 0
+      }
+    }
+  ],
+  "devices": [
+    {
+      "deviceId": "dev5e6f7-a8b9-0123-ef01-567890123456",
+      "deviceName": "MODUM-PC-005",
+      "userPrincipalName": "magnus.nilsen@modum.kommune.no",
+      "categories": {
+        "Firewall": "noncompliant",
+        "Antivirus": "compliant",
+        "Disk Encryption": "noncompliant"
+      },
+      "worstStatus": "noncompliant",
+      "hasIssues": true
+    },
+    {
+      "deviceId": "dev8b9c0-d1e2-3456-1234-890123456789",
+      "deviceName": "MODUM-PC-008",
+      "userPrincipalName": "ole.pedersen@modum.kommune.no",
+      "categories": {
+        "Firewall": "error",
+        "Antivirus": "compliant",
+        "Disk Encryption": "compliant"
+      },
+      "worstStatus": "error",
+      "hasIssues": true
+    },
+    {
+      "deviceId": "dev1a2b3-c4d5-6789-abcd-ef1234567890",
+      "deviceName": "MODUM-PC-001",
+      "userPrincipalName": "erik.hansen@modum.kommune.no",
+      "categories": {
+        "Firewall": "compliant",
+        "Antivirus": "compliant",
+        "Disk Encryption": "compliant"
+      },
+      "worstStatus": "compliant",
+      "hasIssues": false
+    },
+    {
+      "deviceId": "dev9c0d1-e2f3-4567-2345-901234567890",
+      "deviceName": "MODUM-PC-009",
+      "userPrincipalName": "marte.eriksen@modum.kommune.no",
+      "categories": {
+        "Firewall": "compliant",
+        "Antivirus": "compliant",
+        "Disk Encryption": "compliant"
+      },
+      "worstStatus": "compliant",
+      "hasIssues": false
+    }
+  ],
+  "summary": {
+    "totalPolicies": 3,
+    "totalDevices": 4,
+    "devicesWithIssues": 2
+  },
+  "collectionDate": "2026-02-10T09:10:00Z"
+}

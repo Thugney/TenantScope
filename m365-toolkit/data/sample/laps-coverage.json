@@ -1,0 +1,57 @@
+{
+  "devices": [
+    {
+      "deviceId": "dev1a2b3-c4d5-6789-abcd-ef1234567890",
+      "deviceName": "MODUM-PC-001",
+      "userPrincipalName": "erik.hansen@modum.kommune.no",
+      "lapsEnabled": true,
+      "accountName": "LocalAdmin",
+      "lastRotationDateTime": "2026-02-05T06:00:00Z",
+      "rotationAgeDays": 5,
+      "status": "healthy",
+      "hasIssues": false,
+      "localAdminObserved": true,
+      "localAdminLastSeen": "2026-02-09T14:10:00Z",
+      "localAdminLogonCount": 3
+    },
+    {
+      "deviceId": "dev5e6f7-a8b9-0123-ef01-567890123456",
+      "deviceName": "MODUM-PC-005",
+      "userPrincipalName": "magnus.nilsen@modum.kommune.no",
+      "lapsEnabled": true,
+      "accountName": "LocalAdmin",
+      "lastRotationDateTime": "2025-12-30T06:00:00Z",
+      "rotationAgeDays": 42,
+      "status": "stale",
+      "hasIssues": true,
+      "localAdminObserved": true,
+      "localAdminLastSeen": "2026-02-08T10:20:00Z",
+      "localAdminLogonCount": 5
+    },
+    {
+      "deviceId": "dev1e2f3-a4b5-6789-4567-123456789012",
+      "deviceName": "MODUM-PC-011",
+      "userPrincipalName": "fredrik.moen@modum.kommune.no",
+      "lapsEnabled": false,
+      "accountName": null,
+      "lastRotationDateTime": null,
+      "rotationAgeDays": null,
+      "status": "missing",
+      "hasIssues": true,
+      "localAdminObserved": false,
+      "localAdminLastSeen": null,
+      "localAdminLogonCount": 0
+    }
+  ],
+  "summary": {
+    "totalDevices": 3,
+    "lapsEnabled": 2,
+    "lapsMissing": 1,
+    "rotationStale": 1,
+    "rotationThresholdDays": 30,
+    "dataAvailable": true,
+    "localAdminObserved": 2,
+    "localAdminLookbackDays": 30
+  },
+  "collectionDate": "2026-02-10T09:15:00Z"
+}

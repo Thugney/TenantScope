@@ -108,7 +108,9 @@ param(
                  "WindowsUpdateStatus", "BitLockerStatus", "AppDeployments", "EndpointAnalytics",
                  "ServicePrincipalSecrets", "ASRRules", "SignInLogs", "ServiceAnnouncementData",
                  "OAuthConsentGrants", "NamedLocations", "IdentityRiskData", "VulnerabilityData",
-                 "AccessReviewData", "RetentionData", "eDiscoveryData", "SensitivityLabelsData")]
+                 "AccessReviewData", "RetentionData", "eDiscoveryData", "SensitivityLabelsData",
+                 "DefenderDeviceHealth", "ASRAuditEvents", "EndpointSecurityStates", "LapsCoverage",
+                 "DeviceHardening")]
     [string[]]$CollectorsToRun,
 
     # App-only authentication parameters (for scheduled/unattended execution)
@@ -482,7 +484,10 @@ Write-Host "[2/6] Connecting to Microsoft Graph..." -ForegroundColor Cyan
         "RecordsManagement.Read.All",
         "eDiscovery.Read.All",
         "InformationProtectionPolicy.Read",
-        "AccessReview.Read.All"
+        "AccessReview.Read.All",
+        # Defender Advanced Hunting + MDE device health
+        "AdvancedHunting.Read.All",
+        "Machine.Read.All"
 )
 
 # Determine authentication mode
@@ -617,17 +622,23 @@ $collectors = @(
     # Identity now gets UserData after DeviceData (reuses SharedData.ManagedDevices)
     @{ Name = "Get-UserData";      Script = "Get-UserData.ps1";      Output = "users.json" },
     @{ Name = "Get-GuestData";     Script = "Get-GuestData.ps1";     Output = "guests.json" },
+    # Endpoint security coverage (reuses ManagedDevices)
+    @{ Name = "Get-EndpointSecurityStates"; Script = "Get-EndpointSecurityStates.ps1"; Output = "endpoint-security-states.json" },
+    @{ Name = "Get-LapsCoverage"; Script = "Get-LapsCoverage.ps1"; Output = "laps-coverage.json" },
     # Security & risk (IdentityRiskData first - populates SharedData.RiskyUsers/RiskDetections)
     @{ Name = "Get-IdentityRiskData"; Script = "Get-IdentityRiskData.ps1"; Output = "identity-risk-data.json" },
     @{ Name = "Get-SignInData";    Script = "Get-SignInData.ps1";    Output = "risky-signins.json" },
     @{ Name = "Get-SignInLogs";    Script = "Get-SignInLogs.ps1";    Output = "signin-logs.json" },
     @{ Name = "Get-DefenderData";  Script = "Get-DefenderData.ps1";  Output = "defender-alerts.json" },
+    @{ Name = "Get-DefenderDeviceHealth"; Script = "Get-DefenderDeviceHealth.ps1"; Output = "defender-device-health.json" },
+    @{ Name = "Get-DeviceHardening"; Script = "Get-DeviceHardening.ps1"; Output = "device-hardening.json" },
     @{ Name = "Get-VulnerabilityData"; Script = "Get-VulnerabilityData.ps1"; Output = "vulnerabilities.json" },
     @{ Name = "Get-SecureScoreData"; Script = "Get-SecureScoreData.ps1"; Output = "secure-score.json" },
     # CA policies (ConditionalAccessData first - populates SharedData.CAPolicies)
     @{ Name = "Get-ConditionalAccessData"; Script = "Get-ConditionalAccessData.ps1"; Output = "conditional-access.json" },
     @{ Name = "Get-NamedLocations"; Script = "Get-NamedLocations.ps1"; Output = "named-locations.json" },
     @{ Name = "Get-ASRRules";      Script = "Get-ASRRules.ps1";      Output = "asr-rules.json" },
+    @{ Name = "Get-ASRAuditEvents"; Script = "Get-ASRAuditEvents.ps1"; Output = "asr-audit-events.json" },
     # Applications (EnterpriseAppData first - populates SharedData.AppRegistrations/ServicePrincipals)
     @{ Name = "Get-EnterpriseAppData"; Script = "Get-EnterpriseAppData.ps1"; Output = "enterprise-apps.json" },
     @{ Name = "Get-ServicePrincipalSecrets"; Script = "Get-ServicePrincipalSecrets.ps1"; Output = "service-principal-secrets.json" },
