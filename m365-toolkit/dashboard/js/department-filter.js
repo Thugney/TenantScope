@@ -75,7 +75,7 @@ var DepartmentFilter = (function() {
             var members = g && g.members ? g.members : [];
             var owners = g && g.owners ? g.owners : [];
             if (members.length === 0 && owners.length === 0) {
-                return true; // keep when membership list is not available
+                return false;
             }
             var i;
             for (i = 0; i < members.length; i++) {
