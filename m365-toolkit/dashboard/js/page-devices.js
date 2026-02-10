@@ -655,7 +655,9 @@ const PageDevices = (function() {
             // Core identity
             { key: 'deviceName', label: 'Device Name', formatter: function(v, row) {
                 if (!v) return '--';
-                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + v + '</strong></a>';
+                var id = row && row.id ? row.id : '';
+                var name = v || '';
+                return '<a href="#" class="entity-link device-link" data-device-id="' + id + '" data-device-name="' + name + '"><strong>' + v + '</strong></a>';
             }},
             { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
                 if (!v) return '--';
@@ -782,6 +784,31 @@ const PageDevices = (function() {
             pageSize: 50,
             onRowClick: showDeviceDetails
         });
+
+        var tableEl = document.getElementById('devices-table');
+        if (tableEl) {
+            tableEl.querySelectorAll('.device-link').forEach(function(link) {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    var id = this.dataset.deviceId;
+                    var name = this.dataset.deviceName;
+                    var device = null;
+
+                    if (id) {
+                        device = data.find(function(d) { return d.id === id; }) || null;
+                    }
+                    if (!device && name) {
+                        device = data.find(function(d) { return d.deviceName === name; }) || null;
+                    }
+
+                    if (device) {
+                        showDeviceDetails(device);
+                    }
+                });
+            });
+        }
     }
 
     function renderWindowsTab(container, devices) {
