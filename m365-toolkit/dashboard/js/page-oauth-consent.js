@@ -86,6 +86,13 @@ const PageOAuthConsent = (function() {
 
         currentTab = 'overview';
         renderTabContent();
+
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     function renderTabContent() {
@@ -410,7 +417,7 @@ const PageOAuthConsent = (function() {
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Principal</span>
-                    <span class="detail-value">${escapeHtml(grant.principalDisplayName || 'All Users')}</span>
+                    <span class="detail-value">${grant.principalDisplayName ? (typeof DrillDown !== 'undefined' ? DrillDown.entityLink(escapeHtml(grant.principalDisplayName), 'user', grant.principalId || grant.principalDisplayName) : escapeHtml(grant.principalDisplayName)) : 'All Users'}</span>
                 </div>
                 <div class="detail-item">
                     <span class="detail-label">Granted</span>
@@ -460,6 +467,7 @@ const PageOAuthConsent = (function() {
             });
         }
 
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
@@ -482,7 +490,7 @@ const PageOAuthConsent = (function() {
         }[m]));
     }
 
-    return { render };
+    return { render: render, showGrantDetails: showGrantDetails };
 })();
 
 window.PageOAuthConsent = PageOAuthConsent;

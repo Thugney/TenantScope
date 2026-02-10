@@ -683,8 +683,8 @@ const PageConfigurationProfiles = (function() {
             profile.deviceStatuses.slice(0, 10).forEach(function(ds) {
                 var statusBadge = ds.status === 'error' ? 'badge-critical' : ds.status === 'conflict' ? 'badge-warning' : 'badge-neutral';
                 html += '<tr>';
-                html += '<td>' + (ds.deviceName || 'Unknown') + '</td>';
-                html += '<td class="cell-truncate">' + (ds.userName || 'Unknown') + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && ds.deviceName ? DrillDown.entityLink(ds.deviceName, 'device', ds.deviceId || ds.deviceName) : (ds.deviceName || 'Unknown')) + '</td>';
+                html += '<td class="cell-truncate">' + (typeof DrillDown !== 'undefined' && ds.userName ? DrillDown.entityLink(ds.userName, 'user', ds.userName) : (ds.userName || 'Unknown')) + '</td>';
                 html += '<td><span class="badge ' + statusBadge + '">' + (ds.status || 'Unknown') + '</span></td>';
                 html += '<td>' + (SF.formatDate ? SF.formatDate(ds.lastReportedDateTime) : Tables.formatters.date(ds.lastReportedDateTime)) + '</td>';
                 html += '</tr>';
@@ -712,6 +712,7 @@ const PageConfigurationProfiles = (function() {
         }
 
         modalBody.innerHTML = html;
+        if (typeof DrillDown !== 'undefined') DrillDown.init(modalBody);
         modalOverlay.classList.add('visible');
     }
 
@@ -834,6 +835,14 @@ const PageConfigurationProfiles = (function() {
 
         html += '<div class="content-area" id="configprofiles-content"></div>';
         container.innerHTML = html;
+
+        // URL filter parameter support
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
 
         // Setup tab switching
         container.querySelectorAll('.tab-btn').forEach(function(btn) {

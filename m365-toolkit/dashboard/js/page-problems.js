@@ -756,6 +756,14 @@ const PageProblems = (function() {
     function render(container) {
         container.textContent = '';
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Page Header
         var header = el('div', 'page-header');
         header.appendChild(el('h2', 'page-title', 'Problem Summary'));

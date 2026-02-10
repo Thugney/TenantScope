@@ -511,6 +511,14 @@ const PageAuditLogs = (function() {
 
         currentTab = 'overview';
         renderContent();
+
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     /**
@@ -559,7 +567,7 @@ const PageAuditLogs = (function() {
         var fields = [
             { label: 'Activity', value: item.activityDisplayName || '--' },
             { label: 'Date', value: item.activityDateTime ? DataLoader.formatDate(item.activityDateTime) : '--' },
-            { label: 'Initiated By', value: item.initiatedBy || '--' },
+            { label: 'Initiated By', value: item.initiatedBy || '--', html: item.initiatedBy && typeof DrillDown !== 'undefined' ? DrillDown.entityLink(item.initiatedBy, 'user', item.initiatedBy) : null },
             { label: 'App Name', value: item.initiatedByApp || '--' },
             { label: 'Target', value: item.targetResource || '--' },
             { label: 'Target Type', value: item.targetResourceType || '--' },
@@ -579,18 +587,27 @@ const PageAuditLogs = (function() {
 
             var valueSpan = document.createElement('span');
             valueSpan.className = 'detail-value';
-            valueSpan.textContent = f.value;
+            if (f.html) {
+                valueSpan.innerHTML = f.html;
+            } else {
+                valueSpan.textContent = f.value;
+            }
             detailList.appendChild(valueSpan);
         });
 
         body.textContent = '';
         body.appendChild(detailList);
+
+        // DrillDown: initialize drilldown links in modal
+        if (typeof DrillDown !== 'undefined') DrillDown.init();
+
         modal.classList.add('visible');
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showAuditLogDetails: showAuditLogDetails
     };
 
 })();

@@ -85,6 +85,14 @@ const PageCompliance = (function() {
         html += '<div class="content-area" id="compliance-content"></div>';
         container.innerHTML = html;
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         const tabButtons = container.querySelectorAll('.tab-btn');
         tabButtons.forEach(btn => {
             btn.addEventListener('click', () => {

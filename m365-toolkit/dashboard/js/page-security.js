@@ -541,6 +541,13 @@ const PageSecurity = (function() {
 
         currentTab = 'overview';
         renderContent();
+
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     /**
@@ -603,7 +610,7 @@ const PageSecurity = (function() {
         body.innerHTML = `
             <div class="detail-list">
                 <span class="detail-label">User:</span>
-                <span class="detail-value">${item.userPrincipalName}</span>
+                <span class="detail-value">${typeof DrillDown !== 'undefined' ? DrillDown.entityLink(item.userPrincipalName, 'user', item.userPrincipalName) : item.userPrincipalName}</span>
 
                 <span class="detail-label">Risk Level:</span>
                 <span class="detail-value">${item.riskLevel}</span>
@@ -628,6 +635,7 @@ const PageSecurity = (function() {
             </div>
         `;
 
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
@@ -643,7 +651,7 @@ const PageSecurity = (function() {
 
         const memberHtml = role.members.map(m => `
             <tr>
-                <td>${m.displayName}</td>
+                <td>${typeof DrillDown !== 'undefined' ? DrillDown.entityLink(m.displayName, 'user', m.userPrincipalName) : m.displayName}</td>
                 <td>${m.userPrincipalName}</td>
                 <td>${m.accountEnabled ? 'Yes' : 'No'}</td>
                 <td>${m.daysSinceLastSignIn !== null ? m.daysSinceLastSignIn : '--'}</td>
@@ -678,6 +686,7 @@ const PageSecurity = (function() {
             </table>
         `;
 
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
@@ -709,10 +718,10 @@ const PageSecurity = (function() {
                 <span class="detail-value">${DataLoader.formatDate(alert.resolvedDateTime)}</span>
 
                 <span class="detail-label">Affected User:</span>
-                <span class="detail-value">${alert.affectedUser || '--'}</span>
+                <span class="detail-value">${alert.affectedUser ? (typeof DrillDown !== 'undefined' ? DrillDown.entityLink(alert.affectedUser, 'user', alert.affectedUser) : alert.affectedUser) : '--'}</span>
 
                 <span class="detail-label">Affected Device:</span>
-                <span class="detail-value">${alert.affectedDevice || '--'}</span>
+                <span class="detail-value">${alert.affectedDevice ? (typeof DrillDown !== 'undefined' ? DrillDown.entityLink(alert.affectedDevice, 'device', alert.affectedDevice) : alert.affectedDevice) : '--'}</span>
 
                 <span class="detail-label">Description:</span>
                 <span class="detail-value">${alert.description || '--'}</span>
@@ -722,12 +731,16 @@ const PageSecurity = (function() {
             </div>
         `;
 
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showRiskySigninDetails: showRiskySigninDetails,
+        showRoleDetails: showRoleDetails,
+        showAlertDetails: showAlertDetails
     };
 
 })();

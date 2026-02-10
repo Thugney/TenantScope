@@ -326,6 +326,30 @@ const PageGroups = (function() {
             '    </div>'
         ];
 
+        // Connected Services (Teams, SharePoint)
+        var hasTeam = group.teamName || (profile && profile.teamName);
+        var hasSite = group.sharepointSiteName || (profile && profile.sharepointSiteName);
+        if (hasTeam || hasSite) {
+            var teamDisplayName = group.teamName || (profile && profile.teamName) || '';
+            var siteDisplayName = group.sharepointSiteName || (profile && profile.sharepointSiteName) || '';
+            overviewHtml = overviewHtml.concat([
+                '',
+                '    <h4 class="mt-lg mb-sm">Connected Services</h4>',
+                '    <div class="detail-list">'
+            ]);
+            if (hasTeam) {
+                var teamLinkHtml = typeof DrillDown !== 'undefined' ? DrillDown.link(teamDisplayName, 'teams', 'search', teamDisplayName) : teamDisplayName;
+                overviewHtml.push('        <span class="detail-label">Teams Team:</span>');
+                overviewHtml.push('        <span class="detail-value">' + teamLinkHtml + '</span>');
+            }
+            if (hasSite) {
+                var siteLinkHtml = typeof DrillDown !== 'undefined' ? DrillDown.link(siteDisplayName, 'sharepoint', 'search', siteDisplayName) : siteDisplayName;
+                overviewHtml.push('        <span class="detail-label">SharePoint Site:</span>');
+                overviewHtml.push('        <span class="detail-value">' + siteLinkHtml + '</span>');
+            }
+            overviewHtml.push('    </div>');
+        }
+
         // On-premises sync info
         if (group.onPremSync) {
             overviewHtml = overviewHtml.concat([
@@ -372,8 +396,9 @@ const PageGroups = (function() {
             membersHtml.push('        <tbody>');
             members.slice(0, 100).forEach(function(m) {
                 var userTypeClass = m.userType === 'Guest' ? 'text-warning' : '';
+                var memberNameHtml = typeof DrillDown !== 'undefined' ? DrillDown.entityLink(m.displayName || '--', 'user', m.id) : '<a href="#users?search=' + encodeURIComponent(m.userPrincipalName || '') + '" class="text-link">' + (m.displayName || '--') + '</a>';
                 membersHtml.push('            <tr>');
-                membersHtml.push('                <td><a href="#users?search=' + encodeURIComponent(m.userPrincipalName || '') + '" class="text-link">' + (m.displayName || '--') + '</a></td>');
+                membersHtml.push('                <td>' + memberNameHtml + '</td>');
                 membersHtml.push('                <td>' + (m.mail || m.userPrincipalName || '--') + '</td>');
                 membersHtml.push('                <td class="' + userTypeClass + '">' + (m.userType || 'Member') + '</td>');
                 membersHtml.push('            </tr>');
@@ -399,8 +424,9 @@ const PageGroups = (function() {
             ownersHtml.push('        <thead><tr><th>Name</th><th>Email</th></tr></thead>');
             ownersHtml.push('        <tbody>');
             owners.forEach(function(o) {
+                var ownerNameHtml = typeof DrillDown !== 'undefined' ? DrillDown.entityLink(o.displayName || '--', 'user', o.id) : '<a href="#users?search=' + encodeURIComponent(o.userPrincipalName || '') + '" class="text-link">' + (o.displayName || '--') + '</a>';
                 ownersHtml.push('            <tr>');
-                ownersHtml.push('                <td><a href="#users?search=' + encodeURIComponent(o.userPrincipalName || '') + '" class="text-link">' + (o.displayName || '--') + '</a></td>');
+                ownersHtml.push('                <td>' + ownerNameHtml + '</td>');
                 ownersHtml.push('                <td>' + (o.userPrincipalName || '--') + '</td>');
                 ownersHtml.push('            </tr>');
             });
@@ -422,8 +448,10 @@ const PageGroups = (function() {
             licensesHtml.push('        <thead><tr><th>License</th><th>SKU Part Number</th><th>Assigned Users</th></tr></thead>');
             licensesHtml.push('        <tbody>');
             licenses.forEach(function(lic) {
+                var licName = lic.skuName || lic.skuId || '--';
+                var licNameHtml = typeof DrillDown !== 'undefined' ? DrillDown.link(licName, 'licenses', 'search', lic.skuName || lic.skuPartNumber || '') : licName;
                 licensesHtml.push('            <tr>');
-                licensesHtml.push('                <td>' + (lic.skuName || lic.skuId || '--') + '</td>');
+                licensesHtml.push('                <td>' + licNameHtml + '</td>');
                 licensesHtml.push('                <td>' + (lic.skuPartNumber || '--') + '</td>');
                 licensesHtml.push('                <td class="cell-right font-bold">' + (lic.assignedUserCount || 0) + '</td>');
                 licensesHtml.push('            </tr>');
@@ -438,6 +466,9 @@ const PageGroups = (function() {
         var modalContent = tabsHtml + overviewHtml.join('\n') + membersHtml.join('\n') + ownersHtml.join('\n') + licensesHtml.join('\n');
 
         body.innerHTML = modalContent;
+
+        // Initialize DrillDown links in modal
+        if (typeof DrillDown !== 'undefined' && DrillDown.init) DrillDown.init();
 
         // Bind tab switching
         var tabs = body.querySelectorAll('.modal-tab');
@@ -603,11 +634,20 @@ const PageGroups = (function() {
 
         // Initial render
         applyFilters();
+
+        // Apply URL drilldown filters if present
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showGroupDetails: showGroupDetails
     };
 
 })();

@@ -232,7 +232,9 @@ const PageVulnerabilities = (function() {
 
             // Make device name clickable - navigates to device page with search
             var nameCell = el('td');
-            if (name && name !== '--') {
+            if (name && name !== '--' && typeof DrillDown !== 'undefined') {
+                nameCell.innerHTML = DrillDown.entityLink(name, 'device', item.deviceId || name);
+            } else if (name && name !== '--') {
                 var nameLink = el('a', 'text-link font-bold', name);
                 nameLink.href = '#devices?search=' + encodeURIComponent(name);
                 nameCell.appendChild(nameLink);
@@ -299,6 +301,10 @@ const PageVulnerabilities = (function() {
         table.appendChild(tbody);
 
         body.appendChild(table);
+
+        // DrillDown: initialize drilldown links in modal
+        if (typeof DrillDown !== 'undefined') DrillDown.init();
+
         overlay.classList.add('visible');
     }
 
@@ -760,9 +766,20 @@ const PageVulnerabilities = (function() {
         // Initial render
         currentTab = 'overview';
         renderContent();
+
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
-    return { render: render };
+    return {
+        render: render,
+        showAffectedDevicesModal: showAffectedDevicesModal
+    };
 })();
 
 window.PageVulnerabilities = PageVulnerabilities;

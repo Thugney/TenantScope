@@ -549,6 +549,14 @@ const PageSharePoint = (function() {
 
         container.innerHTML = pageHtml;
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Render charts using inline SVG in analytics-card (matching Endpoint Analytics)
         var chartsContainer = document.getElementById('sp-charts');
         if (chartsContainer) {
@@ -670,7 +678,8 @@ const PageSharePoint = (function() {
 
     // Public API
     return {
-        render: render
+        render: render,
+        showSiteDetails: showSiteDetails
     };
 
 })();

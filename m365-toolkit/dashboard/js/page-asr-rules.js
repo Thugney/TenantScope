@@ -613,9 +613,21 @@ const PageASRRules = (function() {
 
         currentTab = 'overview';
         renderContent();
+
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
-    return { render: render };
+    return {
+        render: render,
+        showRuleDetails: showRuleDetails,
+        showPolicyDetails: showPolicyDetails
+    };
 })();
 
 window.PageASRRules = PageASRRules;

@@ -525,6 +525,11 @@ const PageUsers = (function() {
         // Set up tab switching
         setupUserModalTabs(body);
 
+        // Initialize DrillDown click handlers for entity links
+        if (typeof DrillDown !== 'undefined') {
+            DrillDown.init(body);
+        }
+
         // Set up copy button
         var cmdInput = body.querySelector('#disable-user-command');
         var copyBtn = body.querySelector('#copy-disable-user');
@@ -573,7 +578,7 @@ const PageUsers = (function() {
         '<div class="modal-tab-content">' +
             buildOverviewTab(user, mfa, risks, adminRoles, adminUrls, directReports, managerChain) +
             buildLicensesTab(licenses) +
-            buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) +
+            buildSecurityTab(user, mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) +
             buildDevicesTab(devices) +
             buildGroupsTab(groups) +
             buildActivityTab(signIns, teams, disableCommand, auditLogs) +
@@ -648,29 +653,29 @@ const PageUsers = (function() {
                 '<div class="detail-section">' +
                     '<h4>Identity</h4>' +
                     '<div class="detail-list">' +
-                        '<span class="detail-label">UPN:</span><span class="detail-value">' + user.userPrincipalName + '</span>' +
-                        '<span class="detail-label">Email:</span><span class="detail-value">' + (user.mail || '--') + '</span>' +
-                        '<span class="detail-label">Domain:</span><span class="detail-value">' + user.domain + '</span>' +
-                        '<span class="detail-label">User Type:</span><span class="detail-value">' + (user.userType || 'Member') + '</span>' +
-                        '<span class="detail-label">Account Status:</span><span class="detail-value">' + (user.accountEnabled ? '<span class="status-badge status-success">Enabled</span>' : '<span class="status-badge status-danger">Disabled</span>') + '</span>' +
+                        '<span class="detail-label">UPN:</span><span class="detail-value">' + escapeHtml(user.userPrincipalName) + '</span>' +
+                        '<span class="detail-label">Email:</span><span class="detail-value">' + escapeHtml(user.mail || '--') + '</span>' +
+                        (typeof DrillDown !== 'undefined' ? DrillDown.propLink('Domain:', user.domain, 'users', 'domain', user.domain) : '<span class="detail-label">Domain:</span><span class="detail-value">' + escapeHtml(user.domain) + '</span>') +
+                        (typeof DrillDown !== 'undefined' ? DrillDown.propLink('User Type:', user.userType || 'Member', 'users', 'userType', user.userType || 'Member') : '<span class="detail-label">User Type:</span><span class="detail-value">' + escapeHtml(user.userType || 'Member') + '</span>') +
+                        '<span class="detail-label">Account Status:</span><span class="detail-value">' + (typeof DrillDown !== 'undefined' ? DrillDown.badge(user.accountEnabled ? 'Enabled' : 'Disabled', user.accountEnabled ? 'success' : 'danger', 'users', 'accountEnabled', user.accountEnabled ? 'enabled' : 'disabled') : (user.accountEnabled ? '<span class="status-badge status-success">Enabled</span>' : '<span class="status-badge status-danger">Disabled</span>')) + '</span>' +
                     '</div>' +
                 '</div>' +
                 '<div class="detail-section">' +
                     '<h4>Organization</h4>' +
                     '<div class="detail-list">' +
-                        '<span class="detail-label">Department:</span><span class="detail-value">' + (user.department || '--') + '</span>' +
-                        '<span class="detail-label">Job Title:</span><span class="detail-value">' + (user.jobTitle || '--') + '</span>' +
-                        '<span class="detail-label">Manager:</span><span class="detail-value">' + (user.manager || '--') + '</span>' +
-                        '<span class="detail-label">Company:</span><span class="detail-value">' + (user.companyName || '--') + '</span>' +
-                        '<span class="detail-label">Office:</span><span class="detail-value">' + (user.officeLocation || '--') + '</span>' +
+                        (typeof DrillDown !== 'undefined' && user.department ? DrillDown.propLink('Department:', user.department, 'users', 'department', user.department) : '<span class="detail-label">Department:</span><span class="detail-value">' + escapeHtml(user.department || '--') + '</span>') +
+                        (typeof DrillDown !== 'undefined' && user.jobTitle ? DrillDown.propLink('Job Title:', user.jobTitle, 'users', 'jobTitle', user.jobTitle) : '<span class="detail-label">Job Title:</span><span class="detail-value">' + escapeHtml(user.jobTitle || '--') + '</span>') +
+                        (typeof DrillDown !== 'undefined' && user.manager ? DrillDown.propEntity('Manager:', user.manager, 'user', user.manager) : '<span class="detail-label">Manager:</span><span class="detail-value">' + escapeHtml(user.manager || '--') + '</span>') +
+                        (typeof DrillDown !== 'undefined' && user.companyName ? DrillDown.propLink('Company:', user.companyName, 'users', 'companyName', user.companyName) : '<span class="detail-label">Company:</span><span class="detail-value">' + escapeHtml(user.companyName || '--') + '</span>') +
+                        (typeof DrillDown !== 'undefined' && user.officeLocation ? DrillDown.propLink('Office:', user.officeLocation, 'users', 'officeLocation', user.officeLocation) : '<span class="detail-label">Office:</span><span class="detail-value">' + escapeHtml(user.officeLocation || '--') + '</span>') +
                     '</div>' +
                 '</div>' +
                 '<div class="detail-section">' +
                     '<h4>Security Summary</h4>' +
                     '<div class="detail-list">' +
-                        '<span class="detail-label">Risk Level:</span><span class="detail-value">' + riskBadge + '</span>' +
-                        '<span class="detail-label">MFA Status:</span><span class="detail-value">' + (mfa.registered ? '<span class="status-badge status-success">Registered</span>' : '<span class="status-badge status-danger">Not Registered</span>') + '</span>' +
-                        '<span class="detail-label">Admin Roles:</span><span class="detail-value">' + adminBadge + '</span>' +
+                        '<span class="detail-label">Risk Level:</span><span class="detail-value">' + (typeof DrillDown !== 'undefined' ? DrillDown.badge(risks.riskLevel || 'none', (!risks.riskLevel || risks.riskLevel === 'none' || risks.riskLevel === 'hidden') ? 'success' : risks.riskLevel === 'low' ? 'info' : risks.riskLevel === 'medium' ? 'warning' : 'danger', 'identity-risk', 'search', user.userPrincipalName) : riskBadge) + '</span>' +
+                        '<span class="detail-label">MFA Status:</span><span class="detail-value">' + (typeof DrillDown !== 'undefined' ? DrillDown.badge(mfa.registered ? 'Registered' : 'Not Registered', mfa.registered ? 'success' : 'danger', 'users', 'mfaRegistered', mfa.registered ? 'true' : 'false') : (mfa.registered ? '<span class="status-badge status-success">Registered</span>' : '<span class="status-badge status-danger">Not Registered</span>')) + '</span>' +
+                        '<span class="detail-label">Admin Roles:</span><span class="detail-value">' + (typeof DrillDown !== 'undefined' ? DrillDown.badge(adminRoles.length > 0 ? adminRoles.length + ' roles' : 'None', adminRoles.length > 0 ? 'warning' : '', 'pim', 'search', user.userPrincipalName) : adminBadge) + '</span>' +
                         '<span class="detail-label">Account Source:</span><span class="detail-value">' + (user.onPremSync ? '<span class="status-badge">On-Premises</span>' : '<span class="status-badge status-info">Cloud-Only</span>') + '</span>' +
                         '<span class="detail-label">Last Password Change:</span><span class="detail-value">' + DataLoader.formatDate(user.lastPasswordChange) + (user.passwordAge !== null && user.passwordAge !== undefined ? ' (' + user.passwordAge + ' days ago)' : '') + '</span>' +
                         '<span class="detail-label">Password Expires:</span><span class="detail-value">' + (user.passwordNeverExpires ? '<span class="status-badge status-warning">Never</span>' : '<span class="status-badge status-success">Yes</span>') + '</span>' +
@@ -691,7 +696,7 @@ const PageUsers = (function() {
                     '<h4>Activity</h4>' +
                     '<div class="detail-list">' +
                         '<span class="detail-label">Created:</span><span class="detail-value">' + DataLoader.formatDate(user.createdDateTime) + '</span>' +
-                        '<span class="detail-label">Last Sign-In:</span><span class="detail-value">' + DataLoader.formatDate(user.lastSignIn) + '</span>' +
+                        '<span class="detail-label">Last Sign-In:</span><span class="detail-value">' + (typeof DrillDown !== 'undefined' && user.lastSignIn ? DrillDown.link(DataLoader.formatDate(user.lastSignIn), 'signin-logs', 'search', user.userPrincipalName) : DataLoader.formatDate(user.lastSignIn)) + '</span>' +
                         '<span class="detail-label">Days Inactive:</span><span class="detail-value">' + (user.daysSinceLastSignIn !== null ? user.daysSinceLastSignIn : '--') + '</span>' +
                     '</div>' +
                 '</div>' +
@@ -708,7 +713,7 @@ const PageUsers = (function() {
         } else {
             content += '<table class="mini-table"><thead><tr><th>License</th><th>SKU</th><th>Assigned Via</th></tr></thead><tbody>';
             licenses.forEach(function(lic) {
-                content += '<tr><td>' + escapeHtml(lic.displayName) + '</td><td><code>' + escapeHtml(lic.skuPartNumber) + '</code></td><td>' + lic.assignedVia + '</td></tr>';
+                content += '<tr><td>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(escapeHtml(lic.displayName), 'licenses', 'search', lic.displayName) : escapeHtml(lic.displayName)) + '</td><td><code>' + escapeHtml(lic.skuPartNumber) + '</code></td><td>' + escapeHtml(lic.assignedVia) + '</td></tr>';
             });
             content += '</tbody></table>';
         }
@@ -716,7 +721,7 @@ const PageUsers = (function() {
         return content;
     }
 
-    function buildSecurityTab(mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) {
+    function buildSecurityTab(user, mfa, risks, adminRoles, alerts, caPolicies, oauthConsents, pimActivity, riskySignins) {
         alerts = alerts || [];
         caPolicies = caPolicies || [];
         oauthConsents = oauthConsents || [];
@@ -744,8 +749,8 @@ const PageUsers = (function() {
         // Risk section
         content += '<div class="detail-section"><h4>Identity Risk</h4>';
         content += '<div class="detail-list">';
-        content += '<span class="detail-label">Risk Level:</span><span class="detail-value">' + getRiskBadge(risks.riskLevel) + '</span>';
-        content += '<span class="detail-label">Risk State:</span><span class="detail-value">' + (risks.riskState || 'none') + '</span>';
+        content += '<span class="detail-label">Risk Level:</span><span class="detail-value">' + (typeof DrillDown !== 'undefined' ? DrillDown.badge(risks.riskLevel || 'none', (!risks.riskLevel || risks.riskLevel === 'none' || risks.riskLevel === 'hidden') ? 'success' : risks.riskLevel === 'low' ? 'info' : risks.riskLevel === 'medium' ? 'warning' : 'danger', 'identity-risk', 'search', user.userPrincipalName) : getRiskBadge(risks.riskLevel)) + '</span>';
+        content += '<span class="detail-label">Risk State:</span><span class="detail-value">' + escapeHtml(risks.riskState || 'none') + '</span>';
         content += '</div>';
         if (risks.detections && risks.detections.length > 0) {
             content += '<h5>Recent Risk Detections</h5><ul class="detection-list">';
@@ -806,7 +811,7 @@ const PageUsers = (function() {
                 var effect = policy.blockAccess ? '<span class="text-critical">Block</span>' : '<span class="text-success">Grant</span>';
 
                 content += '<tr>';
-                content += '<td>' + escapeHtml(policy.displayName) + '</td>';
+                content += '<td>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(escapeHtml(policy.displayName), 'conditional-access', 'search', policy.displayName) : escapeHtml(policy.displayName)) + '</td>';
                 content += '<td>' + requiresText + '</td>';
                 content += '<td>' + effect + '</td>';
                 content += '</tr>';
@@ -826,7 +831,7 @@ const PageUsers = (function() {
                 var riskClass = grant.riskLevel === 'high' ? 'text-critical' : grant.riskLevel === 'medium' ? 'text-warning' : '';
                 var verifiedBadge = grant.isVerifiedPublisher ? ' <span class="status-badge status-success" style="font-size:0.7em">Verified</span>' : '';
                 content += '<tr>';
-                content += '<td>' + escapeHtml(grant.appDisplayName || '--') + '</td>';
+                content += '<td>' + (typeof DrillDown !== 'undefined' && grant.appDisplayName ? DrillDown.link(escapeHtml(grant.appDisplayName), 'oauth-consent', 'search', grant.appDisplayName) : escapeHtml(grant.appDisplayName || '--')) + '</td>';
                 content += '<td>' + escapeHtml(grant.appPublisher || '--') + verifiedBadge + '</td>';
                 content += '<td>' + escapeHtml(grant.consentType) + '</td>';
                 content += '<td class="' + riskClass + '">' + (grant.riskLevel || 'low') + (grant.scopeCount ? ' (' + grant.scopeCount + ' scopes)' : '') + '</td>';
@@ -856,7 +861,7 @@ const PageUsers = (function() {
             pimActivity.eligibleRoles.forEach(function(role) {
                 var expiryDate = role.endDateTime ? DataLoader.formatDate(role.endDateTime) : 'Permanent';
                 content += '<tr>';
-                content += '<td>' + escapeHtml(role.roleName) + '</td>';
+                content += '<td>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(escapeHtml(role.roleName), 'pim', 'search', role.roleName) : escapeHtml(role.roleName)) + '</td>';
                 content += '<td>' + (role.status || '--') + '</td>';
                 content += '<td>' + expiryDate + '</td>';
                 content += '</tr>';
@@ -869,7 +874,7 @@ const PageUsers = (function() {
             content += '<table class="mini-table"><thead><tr><th>Role</th><th>Date</th><th>Justification</th></tr></thead><tbody>';
             pimActivity.activations.forEach(function(act) {
                 content += '<tr>';
-                content += '<td>' + escapeHtml(act.roleName) + '</td>';
+                content += '<td>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(escapeHtml(act.roleName), 'pim', 'search', act.roleName) : escapeHtml(act.roleName)) + '</td>';
                 content += '<td>' + (act.createdDateTime ? DataLoader.formatDate(act.createdDateTime) : '--') + '</td>';
                 content += '<td title="' + escapeHtml(act.justification || '') + '">' + escapeHtml((act.justification || '--').substring(0, 40)) + '</td>';
                 content += '</tr>';
@@ -919,11 +924,18 @@ const PageUsers = (function() {
         } else {
             content += '<table class="mini-table"><thead><tr><th>Device</th><th>OS</th><th>Compliance</th><th>Last Sync</th></tr></thead><tbody>';
             devices.forEach(function(dev) {
-                var complianceBadge = dev.complianceState === 'compliant' ? '<span class="status-badge status-success">Compliant</span>' :
+                var deviceDisplayName = dev.deviceName || dev.displayName || '--';
+                var complianceBadge = typeof DrillDown !== 'undefined' ?
+                    DrillDown.badge(
+                        dev.complianceState === 'compliant' ? 'Compliant' : dev.complianceState === 'noncompliant' ? 'Non-Compliant' : 'Unknown',
+                        dev.complianceState === 'compliant' ? 'success' : dev.complianceState === 'noncompliant' ? 'danger' : '',
+                        'devices', 'complianceState', dev.complianceState || 'unknown'
+                    ) :
+                    (dev.complianceState === 'compliant' ? '<span class="status-badge status-success">Compliant</span>' :
                                      dev.complianceState === 'noncompliant' ? '<span class="status-badge status-danger">Non-Compliant</span>' :
-                                     '<span class="status-badge">Unknown</span>';
+                                     '<span class="status-badge">Unknown</span>');
                 content += '<tr>' +
-                    '<td>' + escapeHtml(dev.deviceName || dev.displayName || '--') + '</td>' +
+                    '<td>' + (typeof DrillDown !== 'undefined' && dev.id ? DrillDown.entityLink(escapeHtml(deviceDisplayName), 'device', dev.id) : escapeHtml(deviceDisplayName)) + '</td>' +
                     '<td>' + escapeHtml(dev.operatingSystem || '--') + '</td>' +
                     '<td>' + complianceBadge + '</td>' +
                     '<td>' + DataLoader.formatDate(dev.lastSyncDateTime) + '</td>' +
@@ -950,7 +962,7 @@ const PageUsers = (function() {
                 var licenseCount = group.licenseAssignmentCount || 0;
                 var licenseDisplay = licenseCount > 0 ? '<span class="text-info font-bold">' + licenseCount + '</span>' : '<span class="text-muted">0</span>';
                 content += '<tr>' +
-                    '<td><a href="#groups?search=' + encodeURIComponent(group.displayName || '') + '" class="text-link">' + escapeHtml(group.displayName || '--') + '</a></td>' +
+                    '<td>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(escapeHtml(group.displayName || '--'), 'groups', 'search', group.displayName || '') : '<a href="#groups?search=' + encodeURIComponent(group.displayName || '') + '" class="text-link">' + escapeHtml(group.displayName || '--') + '</a>') + '</td>' +
                     '<td>' + typeBadge + '</td>' +
                     '<td>' + sourceBadge + '</td>' +
                     '<td>' + (group.memberCount || 0) + '</td>' +
@@ -982,7 +994,7 @@ const PageUsers = (function() {
                 var location = si.location ? (si.location.city || '') + (si.location.countryOrRegion ? ', ' + si.location.countryOrRegion : '') : '--';
                 content += '<tr>' +
                     '<td>' + DataLoader.formatDate(si.createdDateTime) + '</td>' +
-                    '<td>' + escapeHtml(si.appDisplayName || '--') + '</td>' +
+                    '<td>' + (typeof DrillDown !== 'undefined' && si.appDisplayName ? DrillDown.link(escapeHtml(si.appDisplayName), 'signin-logs', 'search', si.appDisplayName) : escapeHtml(si.appDisplayName || '--')) + '</td>' +
                     '<td>' + statusBadge + '</td>' +
                     '<td>' + escapeHtml(location) + '</td>' +
                 '</tr>';
@@ -1017,7 +1029,7 @@ const PageUsers = (function() {
         if (teams.length > 0) {
             content += '<ul class="team-list">';
             teams.forEach(function(team) {
-                content += '<li>' + escapeHtml(team.displayName) + ' <span class="status-badge">' + team.visibility + '</span></li>';
+                content += '<li>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(escapeHtml(team.displayName), 'teams', 'search', team.displayName) : escapeHtml(team.displayName)) + ' <span class="status-badge">' + escapeHtml(team.visibility) + '</span></li>';
             });
             content += '</ul>';
         } else {
@@ -1932,14 +1944,30 @@ const PageUsers = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        // Initial tab render
-        currentTab = 'overview';
-        renderContent();
+        // Handle incoming drill-down filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (drillParams.search || drillParams.department || drillParams.mfaRegistered || drillParams.accountEnabled || drillParams.domain || drillParams.userType || drillParams.jobTitle || drillParams.companyName || drillParams.officeLocation) {
+            currentTab = 'users';
+            document.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.dataset.tab === 'users');
+            });
+            renderContent();
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') {
+                    DrillDown.applyPageFilters(container, drillParams);
+                }
+            }, 200);
+        } else {
+            // Initial tab render
+            currentTab = 'overview';
+            renderContent();
+        }
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showUserDetails: showUserDetails
     };
 
 })();

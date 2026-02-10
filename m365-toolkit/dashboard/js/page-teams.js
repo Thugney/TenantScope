@@ -300,7 +300,7 @@ const PageTeams = (function() {
         // Build SharePoint link section - safe: data from trusted collector
         var spLinkHtml = '';
         if (linkedSite) {
-            spLinkHtml = '<a href="#sharepoint?search=' + encodeURIComponent(linkedSite.displayName || '') + '" class="text-link">' + (linkedSite.displayName || 'View Site') + '</a>';
+            spLinkHtml = typeof DrillDown !== 'undefined' ? DrillDown.link(linkedSite.displayName || 'View Site', 'sharepoint', 'search', linkedSite.displayName || '') : '<a href="#sharepoint?search=' + encodeURIComponent(linkedSite.displayName || '') + '" class="text-link">' + (linkedSite.displayName || 'View Site') + '</a>';
             spLinkHtml += '<br><span style="font-size:0.75em;color:var(--color-text-muted)">' + (linkedSite.url || '') + '</span>';
         } else if (team.linkedSharePointSiteId) {
             spLinkHtml = '<span class="text-muted" style="font-size:0.8em">' + team.linkedSharePointSiteId + '</span>';
@@ -312,7 +312,7 @@ const PageTeams = (function() {
         var ownerLinksHtml = '--';
         if (team.ownerUpns && team.ownerUpns.length > 0) {
             ownerLinksHtml = team.ownerUpns.map(function(upn) {
-                return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="text-link">' + upn + '</a>';
+                return typeof DrillDown !== 'undefined' ? DrillDown.entityLink(upn, 'user', upn) : '<a href="#users?search=' + encodeURIComponent(upn) + '" class="text-link">' + upn + '</a>';
             }).join('<br>');
         }
 
@@ -353,7 +353,7 @@ const PageTeams = (function() {
             '    <span class="detail-value">' + ownerLinksHtml + '</span>',
             '',
             '    <span class="detail-label">Members:</span>',
-            '    <span class="detail-value">' + (team.memberCount || 0) + '</span>',
+            '    <span class="detail-value">' + (team.memberCount > 0 && typeof DrillDown !== 'undefined' ? DrillDown.link(team.memberCount + ' members', 'groups', 'search', team.displayName) : (team.memberCount || 0)) + '</span>',
             '',
             '    <span class="detail-label">Channels:</span>',
             '    <span class="detail-value">' + (team.channelCount !== null && team.channelCount !== undefined ? team.channelCount : '--') + '</span>',
@@ -362,7 +362,7 @@ const PageTeams = (function() {
             '    <span class="detail-value">' + (team.privateChannelCount !== null && team.privateChannelCount !== undefined ? team.privateChannelCount : '--') + '</span>',
             '',
             '    <span class="detail-label">Guests:</span>',
-            '    <span class="detail-value' + (team.guestCount > 0 ? ' text-warning' : '') + '">' + team.guestCount + '</span>',
+            '    <span class="detail-value' + (team.guestCount > 0 ? ' text-warning' : '') + '">' + (team.guestCount > 0 && typeof DrillDown !== 'undefined' ? DrillDown.link(team.guestCount + ' guests', 'guests', 'search', team.displayName) : team.guestCount) + '</span>',
             '',
             '    <span class="detail-label">External Domains:</span>',
             '    <span class="detail-value">' + (team.externalDomains && team.externalDomains.length > 0 ? (Array.isArray(team.externalDomains) ? team.externalDomains.join(', ') : team.externalDomains) : '--') + '</span>',
@@ -394,6 +394,7 @@ const PageTeams = (function() {
         ].join('\n');
 
         body.innerHTML = detailHtml;
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
@@ -537,11 +538,20 @@ const PageTeams = (function() {
 
         // Initial render
         applyFilters();
+
+        // Apply URL filter parameters (drill-down support)
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showTeamDetails: showTeamDetails
     };
 
 })();

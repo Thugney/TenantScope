@@ -464,6 +464,14 @@ const PageOrganization = (function() {
 
         container.textContent = '';
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Page header
         var header = el('div', 'page-header');
         header.appendChild(el('h2', 'page-title', 'Organization Structure'));
@@ -1104,7 +1112,7 @@ const PageOrganization = (function() {
         modalOverlay.classList.add('visible');
     }
 
-    return { render: render };
+    return { render: render, showManagerDetails: showManagerDetails };
 })();
 
 

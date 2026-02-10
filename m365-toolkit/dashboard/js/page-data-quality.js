@@ -167,6 +167,14 @@ const PageDataQuality = (function() {
 
         container.appendChild(page);
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Render Focus Table (property completeness)
         renderPropertyFocusTable(stats.fieldStats);
 
@@ -757,7 +765,8 @@ const PageDataQuality = (function() {
     }
 
     return {
-        render: render
+        render: render,
+        showUserDetail: showUserDetail
     };
 
 })();

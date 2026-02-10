@@ -454,6 +454,9 @@ const PageLicenses = (function() {
         appendDetailRow(costList, 'Billed Users:', sku.billedUsers || 0);
         body.appendChild(costList);
 
+        // DrillDown: init clickable links in modal
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
+
         modal.classList.add('visible');
     }
 
@@ -602,6 +605,14 @@ const PageLicenses = (function() {
 
         container.textContent = '';
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Page header
         var pageHeader = el('div', 'page-header');
         pageHeader.appendChild(el('h2', 'page-title', 'Licenses'));
@@ -646,7 +657,8 @@ const PageLicenses = (function() {
 
     // Public API
     return {
-        render: render
+        render: render,
+        showLicenseDetails: showLicenseDetails
     };
 
 })();

@@ -289,7 +289,7 @@ const PagePIM = (function() {
 
         var fields = [
             { label: 'User', value: item.principalDisplayName || '--' },
-            { label: 'UPN', value: item.principalUpn || '--' },
+            { label: 'UPN', value: item.principalUpn || '--', drilldown: item.principalUpn ? { type: 'user', id: item.principalUpn } : null },
             { label: 'Role', value: item.roleName || '--' },
             { label: 'Action', value: item.action || '--' },
             { label: 'Status', value: item.status || '--' },
@@ -308,12 +308,17 @@ const PagePIM = (function() {
 
             var valueSpan = document.createElement('span');
             valueSpan.className = 'detail-value';
-            valueSpan.textContent = f.value;
+            if (f.drilldown && typeof DrillDown !== 'undefined') {
+                valueSpan.innerHTML = DrillDown.entityLink(f.value, f.drilldown.type, f.drilldown.id);
+            } else {
+                valueSpan.textContent = f.value;
+            }
             detailList.appendChild(valueSpan);
         });
 
         body.textContent = '';
         body.appendChild(detailList);
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
@@ -843,13 +848,27 @@ const PagePIM = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        currentTab = 'overview';
-        renderContent();
+        // Handle incoming drill-down filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            currentTab = 'requests';
+            document.querySelectorAll('.tab-btn').forEach(function(btn) {
+                btn.classList.toggle('active', btn.dataset.tab === 'requests');
+            });
+            renderContent();
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        } else {
+            currentTab = 'overview';
+            renderContent();
+        }
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showPimDetails: showPimDetails
     };
 
 })();

@@ -5330,3 +5330,208 @@ table {
     content: '🤖 ';
     font-style: normal;
 }
+
+/* ========================================================================
+   DRILL-DOWN CLICKABLE PROPERTIES
+   ======================================================================== */
+
+/* Drill-down link - clickable property value */
+.drill-link {
+    color: var(--color-accent);
+    text-decoration: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.125rem 0.25rem;
+    border-radius: var(--radius-sm);
+    transition: background-color 0.15s ease, color 0.15s ease;
+    max-width: 100%;
+}
+
+.drill-link:hover {
+    background-color: rgba(37, 99, 235, 0.08);
+    color: var(--color-accent-hover);
+    text-decoration: none;
+}
+
+.drill-link:active {
+    background-color: rgba(37, 99, 235, 0.15);
+}
+
+/* Drill-down arrow indicator */
+.drill-arrow {
+    font-size: 0.85em;
+    opacity: 0;
+    transition: opacity 0.15s ease, transform 0.15s ease;
+    flex-shrink: 0;
+    color: var(--color-accent);
+    font-weight: bold;
+}
+
+.drill-link:hover .drill-arrow {
+    opacity: 1;
+    transform: translateX(2px);
+}
+
+/* Badge drill-down link */
+.drill-badge-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0;
+}
+
+.drill-badge-link .status-badge {
+    cursor: pointer;
+    transition: filter 0.15s ease;
+}
+
+.drill-badge-link:hover .status-badge {
+    filter: brightness(0.9);
+}
+
+.drill-badge-link .drill-arrow {
+    margin-left: -0.125rem;
+}
+
+/* Entity link styling */
+.drill-entity {
+    font-weight: 500;
+}
+
+/* Inside dt/dd definition lists */
+dl.detail-list .drill-link {
+    padding: 0.0625rem 0.125rem;
+}
+
+/* Inside detail-list (grid) layouts */
+.detail-list .drill-link {
+    padding: 0.0625rem 0.125rem;
+}
+
+/* Table cell drill-down links */
+.mini-table .drill-link {
+    padding: 0.0625rem 0.125rem;
+}
+
+/* Drill-down link inside a table row */
+td .drill-link {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Summary property cards for quick-glance views */
+.drill-summary-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+}
+
+.drill-summary-card {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--radius-md);
+    padding: 0.75rem;
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    text-decoration: none;
+    color: inherit;
+    display: block;
+}
+
+.drill-summary-card:hover {
+    border-color: var(--color-accent);
+    box-shadow: 0 2px 8px rgba(37, 99, 235, 0.1);
+}
+
+.drill-summary-card-label {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.25rem;
+}
+
+.drill-summary-card-value {
+    font-size: var(--font-size-lg);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+}
+
+.drill-summary-card-value .drill-arrow {
+    font-size: 0.75em;
+    opacity: 0;
+    transition: opacity 0.15s ease;
+}
+
+.drill-summary-card:hover .drill-arrow {
+    opacity: 1;
+}
+
+.drill-summary-card--success { border-left: 3px solid var(--color-success); }
+.drill-summary-card--warning { border-left: 3px solid var(--color-warning); }
+.drill-summary-card--danger { border-left: 3px solid var(--color-critical); }
+.drill-summary-card--info { border-left: 3px solid var(--color-accent); }
+
+/* Active filter banner shown when page has incoming drill-down filter */
+.drill-filter-banner {
+    background: rgba(37, 99, 235, 0.06);
+    border: 1px solid rgba(37, 99, 235, 0.2);
+    border-radius: var(--radius-md);
+    padding: 0.5rem 0.75rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: var(--font-size-sm);
+}
+
+.drill-filter-banner-text {
+    color: var(--color-accent);
+    font-weight: 500;
+}
+
+.drill-filter-banner-clear {
+    color: var(--color-text-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-xs);
+    text-decoration: underline;
+    background: none;
+    border: none;
+    padding: 0.25rem;
+}
+
+.drill-filter-banner-clear:hover {
+    color: var(--color-text-primary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .drill-summary-cards {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 0.5rem;
+    }
+
+    .drill-summary-card {
+        padding: 0.5rem;
+    }
+
+    .drill-summary-card-value {
+        font-size: var(--font-size-base);
+    }
+
+    .drill-arrow {
+        opacity: 1;
+    }
+
+    td .drill-link {
+        max-width: 150px;
+    }
+}

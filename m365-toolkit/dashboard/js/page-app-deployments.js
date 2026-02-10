@@ -610,6 +610,9 @@ const PageAppDeployments = (function() {
             if (e.target === modal) closeModal();
         });
         document.body.appendChild(modal);
+
+        // DrillDown: initialize drilldown links in modal
+        if (typeof DrillDown !== 'undefined') DrillDown.init();
     }
 
     function closeModal() {
@@ -691,6 +694,14 @@ const PageAppDeployments = (function() {
         // Render initial tab
         currentTab = 'overview';
         renderTabContent();
+
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     return {

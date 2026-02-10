@@ -1856,6 +1856,14 @@ const PageOverview = (function() {
 
         container.textContent = '';
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Page header
         var header = el('div', 'page-header');
         header.appendChild(el('h2', 'page-title', 'Overview'));
@@ -1955,7 +1963,8 @@ const PageOverview = (function() {
     // Public API
     return {
         render: render,
-        launchAgent: launchAgent
+        launchAgent: launchAgent,
+        showAdminDetails: showAdminDetails
     };
 
 })();

@@ -660,8 +660,8 @@ const PageEnterpriseApps = (function() {
         html += '<div class="detail-section">';
         html += '<h4>Credential Summary</h4>';
         html += '<div class="detail-list">';
-        html += '<span class="detail-label">Status:</span><span class="detail-value">' + formatCredStatus(app.credentialStatus) + '</span>';
-        html += '<span class="detail-label">Nearest Expiry:</span><span class="detail-value">' + formatExpiryDays(app.nearestExpiryDays) + '</span>';
+        html += '<span class="detail-label">Status:</span><span class="detail-value">' + (app.credentialStatus && typeof DrillDown !== 'undefined' ? DrillDown.link(formatCredStatus(app.credentialStatus), 'credential-expiry', 'search', app.displayName) : formatCredStatus(app.credentialStatus)) + '</span>';
+        html += '<span class="detail-label">Nearest Expiry:</span><span class="detail-value">' + (app.nearestExpiryDays !== null && app.nearestExpiryDays !== undefined && typeof DrillDown !== 'undefined' ? DrillDown.link(formatExpiryDays(app.nearestExpiryDays), 'credential-expiry', 'search', app.displayName) : formatExpiryDays(app.nearestExpiryDays)) + '</span>';
         html += '<span class="detail-label">Total Secrets:</span><span class="detail-value">' + (app.secretCount || 0) + '</span>';
         html += '<span class="detail-label">Total Certificates:</span><span class="detail-value">' + (app.certificateCount || 0) + '</span>';
         html += '</div></div>';
@@ -729,6 +729,10 @@ const PageEnterpriseApps = (function() {
         html += '</div>';
 
         body.innerHTML = html;
+
+        // DrillDown: initialize drilldown links in modal
+        if (typeof DrillDown !== 'undefined') DrillDown.init();
+
         modal.classList.add('visible');
     }
 
@@ -760,11 +764,20 @@ const PageEnterpriseApps = (function() {
         // Initial render
         currentTab = 'overview';
         renderContent();
+
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showAppDetails: showAppDetails
     };
 
 })();

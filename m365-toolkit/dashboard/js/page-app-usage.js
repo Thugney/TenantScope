@@ -247,6 +247,14 @@ const PageAppUsage = (function() {
 
         container.appendChild(page);
 
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Build app list for filter dropdown
         var appNames = [];
         var appSet = {};

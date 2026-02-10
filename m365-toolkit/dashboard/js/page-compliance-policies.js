@@ -678,8 +678,8 @@ const PageCompliancePolicies = (function() {
                                   d.status === 'error' ? '<span class="badge badge-warning">Error</span>' :
                                   '<span class="badge badge-neutral">' + (d.status || '--') + '</span>';
                 html += '<tr>';
-                html += '<td>' + (d.deviceName || '--') + '</td>';
-                html += '<td>' + (d.userName || '--') + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && d.deviceName ? DrillDown.entityLink(d.deviceName, 'device', d.deviceId || d.deviceName) : (d.deviceName || '--')) + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && d.userName ? DrillDown.entityLink(d.userName, 'user', d.userName) : (d.userName || '--')) + '</td>';
                 html += '<td>' + statusBadge + '</td>';
                 html += '<td>' + (d.lastReportedDateTime ? (Formatters.formatDate ? Formatters.formatDate(d.lastReportedDateTime) : new Date(d.lastReportedDateTime).toLocaleDateString()) : '--') + '</td>';
                 html += '</tr>';
@@ -704,6 +704,7 @@ const PageCompliancePolicies = (function() {
         }
 
         modalBody.innerHTML = html;
+        if (typeof DrillDown !== 'undefined') DrillDown.init(modalBody);
         modalOverlay.classList.add('visible');
     }
 
@@ -741,6 +742,14 @@ const PageCompliancePolicies = (function() {
         html += '<div class="content-area" id="compliance-content"></div>';
         container.innerHTML = html;
 
+        // URL filter parameter support
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
+
         // Set up tab handlers
         document.querySelectorAll('.tab-btn').forEach(function(btn) {
             btn.addEventListener('click', function() {
@@ -753,7 +762,7 @@ const PageCompliancePolicies = (function() {
         renderTabContent();
     }
 
-    return { render: render };
+    return { render: render, showPolicyDetails: showPolicyDetails };
 })();
 
 window.PageCompliancePolicies = PageCompliancePolicies;

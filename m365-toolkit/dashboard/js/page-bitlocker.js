@@ -498,8 +498,8 @@ const PageBitLocker = (function() {
 
         // Device Information
         html += '<div class="detail-section"><h4>Device Information</h4><dl class="detail-list">';
-        html += '<dt>Device Name</dt><dd>' + (device.deviceName || '--') + '</dd>';
-        html += '<dt>User</dt><dd>' + (device.userPrincipalName || '--') + '</dd>';
+        html += '<dt>Device Name</dt><dd>' + (device.deviceName ? (typeof DrillDown !== 'undefined' ? DrillDown.link(device.deviceName, 'devices', 'search', device.deviceName) : device.deviceName) : '--') + '</dd>';
+        html += '<dt>User</dt><dd>' + (device.userPrincipalName ? (typeof DrillDown !== 'undefined' ? DrillDown.entityLink(device.userPrincipalName, 'user', device.userPrincipalName) : device.userPrincipalName) : '--') + '</dd>';
         html += '<dt>Manufacturer</dt><dd>' + (device.manufacturer || '--') + '</dd>';
         html += '<dt>Model</dt><dd>' + (device.model || '--') + '</dd>';
         html += '<dt>Serial Number</dt><dd>' + (device.serialNumber || '--') + '</dd>';
@@ -544,6 +544,10 @@ const PageBitLocker = (function() {
         html += '</div>'; // end detail-grid
 
         modalBody.innerHTML = html;
+
+        // DrillDown: initialize drilldown links in modal
+        if (typeof DrillDown !== 'undefined') DrillDown.init();
+
         modalOverlay.classList.add('visible');
     }
 
@@ -592,9 +596,20 @@ const PageBitLocker = (function() {
         // Render initial tab
         currentTab = 'overview';
         renderContent();
+
+        // DrillDown: apply URL filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
-    return { render: render };
+    return {
+        render: render,
+        showBitLockerDeviceDetails: showDeviceDetails
+    };
 })();
 
 window.PageBitLocker = PageBitLocker;

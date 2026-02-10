@@ -1127,7 +1127,7 @@ const PageDevices = (function() {
         html += '<div class="detail-section"><h4>Device Identity</h4><dl class="detail-list">';
         html += '<dt>Device Name</dt><dd>' + (device.deviceName || '--') + '</dd>';
         html += '<dt>Managed Name</dt><dd>' + (device.managedDeviceName || '--') + '</dd>';
-        html += '<dt>User</dt><dd>' + (device.userPrincipalName || '--') + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? DrillDown.dtEntity('User', device.userPrincipalName || '--', 'user', device.userId || device.userPrincipalName) : '<dt>User</dt><dd>' + (device.userPrincipalName || '--') + '</dd>');
         html += '<dt>Display Name</dt><dd>' + (device.primaryUserDisplayName || '--') + '</dd>';
         html += '<dt>Azure AD Device ID</dt><dd class="text-mono" style="font-size:0.8em">' + (device.azureAdDeviceId || '--') + '</dd>';
         html += '<dt>Intune Device ID</dt><dd class="text-mono" style="font-size:0.8em">' + (device.id || '--') + '</dd>';
@@ -1135,8 +1135,8 @@ const PageDevices = (function() {
 
         // Hardware
         html += '<div class="detail-section"><h4>Hardware</h4><dl class="detail-list">';
-        html += '<dt>Manufacturer</dt><dd>' + (device.manufacturer || '--') + '</dd>';
-        html += '<dt>Model</dt><dd>' + (device.model || '--') + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? DrillDown.dtLink('Manufacturer', device.manufacturer || '--', 'devices', 'search', device.manufacturer) : '<dt>Manufacturer</dt><dd>' + (device.manufacturer || '--') + '</dd>');
+        html += (typeof DrillDown !== 'undefined' ? DrillDown.dtLink('Model', device.model || '--', 'devices', 'search', device.model) : '<dt>Model</dt><dd>' + (device.model || '--') + '</dd>');
         html += '<dt>Serial Number</dt><dd>' + (device.serialNumber || '--') + '</dd>';
         html += '<dt>Chassis Type</dt><dd>' + (device.chassisType || '--') + '</dd>';
         html += '<dt>Category</dt><dd>' + (device.deviceCategory || '--') + '</dd>';
@@ -1145,12 +1145,12 @@ const PageDevices = (function() {
 
         // Operating System
         html += '<div class="detail-section"><h4>Operating System</h4><dl class="detail-list">';
-        html += '<dt>OS</dt><dd>' + formatOS(device.os) + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? '<dt>OS</dt><dd>' + DrillDown.link(formatOS(device.os), 'devices', 'search', device.os) + '</dd>' : '<dt>OS</dt><dd>' + formatOS(device.os) + '</dd>');
         html += '<dt>OS Version</dt><dd>' + (device.osVersion || '--') + '</dd>';
         if (device.windowsType) {
-            html += '<dt>Windows Type</dt><dd>' + device.windowsType + '</dd>';
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtLink('Windows Type', device.windowsType, 'devices', 'search', device.windowsType) : '<dt>Windows Type</dt><dd>' + device.windowsType + '</dd>');
             html += '<dt>Windows Release</dt><dd>' + (device.windowsRelease || '--') + '</dd>';
-            html += '<dt>Windows Supported</dt><dd>' + (device.windowsSupported ? '<span class="text-success">Yes</span>' : '<span class="text-critical">No</span>') + '</dd>';
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtBadge('Windows Supported', device.windowsSupported ? 'Supported' : 'Unsupported', device.windowsSupported ? 'success' : 'danger', 'devices', 'search', device.windowsSupported ? 'supported' : 'unsupported') : '<dt>Windows Supported</dt><dd>' + (device.windowsSupported ? '<span class="text-success">Yes</span>' : '<span class="text-critical">No</span>') + '</dd>');
             html += '<dt>Windows EOL</dt><dd>' + (device.windowsEOL || '--') + '</dd>';
         }
         if (device.androidSecurityPatchLevel) {
@@ -1189,7 +1189,7 @@ const PageDevices = (function() {
 
         // Enrollment & Management
         html += '<div class="detail-section"><h4>Enrollment & Management</h4><dl class="detail-list">';
-        html += '<dt>Ownership</dt><dd>' + formatOwnership(device.ownership) + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? '<dt>Ownership</dt><dd>' + DrillDown.link(formatOwnership(device.ownership), 'devices', 'search', device.ownership) + '</dd>' : '<dt>Ownership</dt><dd>' + formatOwnership(device.ownership) + '</dd>');
         html += '<dt>Enrollment Type</dt><dd>' + (device.enrollmentTypeDisplay || '--') + '</dd>';
         html += '<dt>Registration State</dt><dd>' + (device.registrationStateDisplay || '--') + '</dd>';
         html += '<dt>Enrollment Profile</dt><dd>' + (device.enrollmentProfileName || '--') + '</dd>';
@@ -1202,7 +1202,7 @@ const PageDevices = (function() {
             : device.autopilotEnrolled === false
                 ? 'No'
                 : '--';
-        html += '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? '<dt>Autopilot Enrolled</dt><dd>' + DrillDown.link(autopilotLabel, 'devices', 'search', device.autopilotEnrolled === true ? 'autopilot' : '') + '</dd>' : '<dt>Autopilot Enrolled</dt><dd>' + autopilotLabel + '</dd>');
         html += '</dl></div>';
 
         // Autopilot Details (if available)
@@ -1227,7 +1227,7 @@ const PageDevices = (function() {
                               endpointAnalytics.healthStatus === 'Good' ? 'text-success' :
                               endpointAnalytics.healthStatus === 'Fair' ? 'text-warning' :
                               endpointAnalytics.healthStatus === 'Poor' ? 'text-critical' : '';
-            html += '<dt>Health Status</dt><dd><span class="' + healthClass + '">' + (endpointAnalytics.healthStatus || '--') + '</span></dd>';
+            html += (typeof DrillDown !== 'undefined' ? '<dt>Health Status</dt><dd>' + DrillDown.link('<span class="' + healthClass + '">' + (endpointAnalytics.healthStatus || '--') + '</span>', 'endpoint-analytics', 'search', endpointAnalytics.healthStatus) + '</dd>' : '<dt>Health Status</dt><dd><span class="' + healthClass + '">' + (endpointAnalytics.healthStatus || '--') + '</span></dd>');
             html += '<dt>Overall Score</dt><dd>' + (endpointAnalytics.endpointAnalyticsScore !== null ? endpointAnalytics.endpointAnalyticsScore : '--') + '</dd>';
             html += '<dt>Startup Performance</dt><dd>' + (endpointAnalytics.startupPerformanceScore !== null ? endpointAnalytics.startupPerformanceScore : '--') + '</dd>';
             html += '<dt>App Reliability</dt><dd>' + (endpointAnalytics.appReliabilityScore !== null ? endpointAnalytics.appReliabilityScore : '--') + '</dd>';
@@ -1284,14 +1284,20 @@ const PageDevices = (function() {
                               bitlocker.encrypted === false ? '<span class="status-badge status-danger">Not Encrypted</span>' :
                               '<span class="status-badge">Unknown</span>';
         html += '<div class="detail-section"><h4>Encryption & BitLocker</h4><dl class="detail-list">';
-        html += '<dt>Status</dt><dd>' + encryptionBadge + '</dd>';
+        if (typeof DrillDown !== 'undefined') {
+            var encLabel = bitlocker.encrypted === true ? 'Encrypted' : bitlocker.encrypted === false ? 'Not Encrypted' : 'Unknown';
+            var encType = bitlocker.encrypted === true ? 'success' : bitlocker.encrypted === false ? 'danger' : 'default';
+            html += DrillDown.dtBadge('Status', encLabel, encType, 'bitlocker', 'search', device.deviceName);
+        } else {
+            html += '<dt>Status</dt><dd>' + encryptionBadge + '</dd>';
+        }
         if (bitlocker.encryptionState && bitlocker.encryptionState !== 'encrypted' && bitlocker.encryptionState !== 'notEncrypted') {
             html += '<dt>State</dt><dd>' + bitlocker.encryptionState + '</dd>';
         }
         if (bitlocker.encryptionMethod) {
             html += '<dt>Encryption Method</dt><dd>' + bitlocker.encryptionMethod + '</dd>';
         }
-        html += '<dt>Recovery Key Escrowed</dt><dd>' + (bitlocker.recoveryKeyEscrowed ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? '<dt>Recovery Key Escrowed</dt><dd>' + DrillDown.link(bitlocker.recoveryKeyEscrowed ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>', 'bitlocker', 'search', device.deviceName) + '</dd>' : '<dt>Recovery Key Escrowed</dt><dd>' + (bitlocker.recoveryKeyEscrowed ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>');
         if (bitlocker.recoveryKeyCount > 0) {
             html += '<dt>Recovery Keys</dt><dd>' + bitlocker.recoveryKeyCount + ' key(s)</dd>';
             if (bitlocker.volumeTypes && bitlocker.volumeTypes.length > 0) {
@@ -1322,8 +1328,14 @@ const PageDevices = (function() {
                                     windowsUpdate.status === 'error' ? '<span class="status-badge status-danger">Error</span>' :
                                     '<span class="status-badge">' + (windowsUpdate.status || 'Unknown') + '</span>';
             html += '<div class="detail-section"><h4>Windows Update</h4><dl class="detail-list">';
-            html += '<dt>Update Status</dt><dd>' + updateStatusBadge + '</dd>';
-            html += '<dt>Update Ring</dt><dd>' + (windowsUpdate.ring || '--') + '</dd>';
+            if (typeof DrillDown !== 'undefined') {
+                var wuLabel = windowsUpdate.status === 'upToDate' ? 'Up to Date' : windowsUpdate.status === 'pendingUpdate' ? 'Pending' : windowsUpdate.status === 'error' ? 'Error' : (windowsUpdate.status || 'Unknown');
+                var wuType = windowsUpdate.status === 'upToDate' ? 'success' : windowsUpdate.status === 'pendingUpdate' ? 'warning' : windowsUpdate.status === 'error' ? 'danger' : 'default';
+                html += DrillDown.dtBadge('Update Status', wuLabel, wuType, 'windows-update', 'search', device.deviceName);
+            } else {
+                html += '<dt>Update Status</dt><dd>' + updateStatusBadge + '</dd>';
+            }
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtLink('Update Ring', windowsUpdate.ring || '--', 'windows-update', 'search', windowsUpdate.ring) : '<dt>Update Ring</dt><dd>' + (windowsUpdate.ring || '--') + '</dd>');
             if (windowsUpdate.featureUpdateVersion) {
                 html += '<dt>Feature Version</dt><dd>' + windowsUpdate.featureUpdateVersion + '</dd>';
             }
@@ -1362,7 +1374,7 @@ const PageDevices = (function() {
             vulnerabilities.forEach(function(v) {
                 var sevClass = v.severity === 'critical' ? 'text-critical' : v.severity === 'high' ? 'text-warning' : '';
                 html += '<tr>';
-                html += '<td>' + (v.name || v.id || '--') + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && (v.name || v.id) ? DrillDown.link(v.name || v.id, 'vulnerabilities', 'search', v.name || v.id) : (v.name || v.id || '--')) + '</td>';
                 html += '<td class="' + sevClass + '">' + (v.severity || '--') + '</td>';
                 html += '<td>' + (v.cvssScore || '--') + '</td>';
                 html += '<td>' + (v.exploitedInWild ? '<span class="text-critical">Yes</span>' : 'No') + '</td>';
@@ -1383,7 +1395,7 @@ const PageDevices = (function() {
                 var sevClass = alert.severity === 'high' ? 'text-critical' : alert.severity === 'medium' ? 'text-warning' : '';
                 var statusClass = alert.status === 'new' ? 'text-critical' : alert.status === 'inProgress' ? 'text-warning' : 'text-success';
                 html += '<tr>';
-                html += '<td title="' + (alert.description || '').replace(/"/g, '&quot;') + '">' + (alert.title || '--') + '</td>';
+                html += '<td title="' + (alert.description || '').replace(/"/g, '&quot;') + '">' + (typeof DrillDown !== 'undefined' && alert.title ? DrillDown.link(alert.title, 'security', 'search', alert.title) : (alert.title || '--')) + '</td>';
                 html += '<td class="' + sevClass + '">' + (alert.severity || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + (alert.status || '--') + '</td>';
                 html += '<td>' + formatDateConsistent(alert.createdDateTime, false) + '</td>';
@@ -1407,7 +1419,7 @@ const PageDevices = (function() {
                            rule.auditCount > 0 ? '<span class="text-warning">Audit</span>' :
                            rule.warnCount > 0 ? '<span class="text-warning">Warn</span>' : 'N/A';
                 html += '<tr>';
-                html += '<td>' + (rule.ruleName || rule.ruleId) + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' ? DrillDown.link(rule.ruleName || rule.ruleId, 'asr-rules', 'search', rule.ruleName || rule.ruleId) : (rule.ruleName || rule.ruleId)) + '</td>';
                 html += '<td>' + mode + '</td>';
                 html += '</tr>';
             });
@@ -1431,7 +1443,7 @@ const PageDevices = (function() {
                 var statusClass = p.hasError ? 'text-critical' : p.hasConflict ? 'text-warning' : 'text-success';
                 var statusText = p.hasError ? 'Error' : p.hasConflict ? 'Conflict' : 'Success';
                 html += '<tr>';
-                html += '<td>' + (p.displayName || '--') + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && p.displayName ? DrillDown.link(p.displayName, 'configuration-profiles', 'search', p.displayName) : (p.displayName || '--')) + '</td>';
                 html += '<td>' + (p.profileType || '--') + '</td>';
                 html += '<td>' + (p.category || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
@@ -1455,7 +1467,7 @@ const PageDevices = (function() {
                 var statusClass = app.isFailed ? 'text-critical' : 'text-success';
                 var statusText = app.isFailed ? 'Failed' : 'Installed';
                 html += '<tr>';
-                html += '<td>' + (app.displayName || '--') + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && app.displayName ? DrillDown.link(app.displayName, 'app-deployments', 'search', app.displayName) : (app.displayName || '--')) + '</td>';
                 html += '<td>' + (app.version || '--') + '</td>';
                 html += '<td>' + (app.appType || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
@@ -1477,7 +1489,7 @@ const PageDevices = (function() {
 
         // Compliance Status
         html += '<div class="detail-section"><h4>Compliance Status</h4><dl class="detail-list">';
-        html += '<dt>Compliance State</dt><dd>' + formatCompliance(device.complianceState) + '</dd>';
+        html += (typeof DrillDown !== 'undefined' ? '<dt>Compliance State</dt><dd>' + DrillDown.link(formatCompliance(device.complianceState), 'compliance-policies', 'search', device.deviceName) + '</dd>' : '<dt>Compliance State</dt><dd>' + formatCompliance(device.complianceState) + '</dd>');
         html += '<dt>In Grace Period</dt><dd>' + (device.inGracePeriod ? '<span class="text-warning">Yes</span>' : 'No') + '</dd>';
         if (device.complianceGraceDays) {
             html += '<dt>Grace Period Ends</dt><dd>' + device.complianceGraceDays + ' days</dd>';
@@ -1499,7 +1511,7 @@ const PageDevices = (function() {
                 var failedSettings = p.settingFailures && Array.isArray(p.settingFailures) && p.settingFailures.length > 0 ?
                     p.settingFailures.map(function(s) { return s.settingName; }).join(', ') : '--';
                 html += '<tr>';
-                html += '<td>' + (p.displayName || '--') + criticalBadge + '</td>';
+                html += '<td>' + (typeof DrillDown !== 'undefined' && p.displayName ? DrillDown.link(p.displayName, 'compliance-policies', 'search', p.displayName) : (p.displayName || '--')) + criticalBadge + '</td>';
                 html += '<td>' + (p.platform || '--') + '</td>';
                 html += '<td>' + (p.category || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
@@ -1543,15 +1555,15 @@ const PageDevices = (function() {
         html += '<div class="detail-section"><h4>Primary User</h4>';
         if (primaryUser) {
             html += '<dl class="detail-list">';
-            html += '<dt>Display Name</dt><dd>' + (primaryUser.displayName || '--') + '</dd>';
-            html += '<dt>UPN</dt><dd>' + (primaryUser.userPrincipalName || '--') + '</dd>';
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtEntity('Display Name', primaryUser.displayName || '--', 'user', primaryUser.id || primaryUser.userPrincipalName) : '<dt>Display Name</dt><dd>' + (primaryUser.displayName || '--') + '</dd>');
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtEntity('UPN', primaryUser.userPrincipalName || '--', 'user', primaryUser.id || primaryUser.userPrincipalName) : '<dt>UPN</dt><dd>' + (primaryUser.userPrincipalName || '--') + '</dd>');
             html += '<dt>Job Title</dt><dd>' + (primaryUser.jobTitle || '--') + '</dd>';
-            html += '<dt>Department</dt><dd>' + (primaryUser.department || '--') + '</dd>';
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtLink('Department', primaryUser.department || '--', 'users', 'department', primaryUser.department) : '<dt>Department</dt><dd>' + (primaryUser.department || '--') + '</dd>');
             html += '<dt>Office</dt><dd>' + (primaryUser.officeLocation || '--') + '</dd>';
-            html += '<dt>Manager</dt><dd>' + (primaryUser.manager || '--') + '</dd>';
+            html += (typeof DrillDown !== 'undefined' ? DrillDown.dtEntity('Manager', primaryUser.manager || '--', 'user', primaryUser.managerId || primaryUser.manager) : '<dt>Manager</dt><dd>' + (primaryUser.manager || '--') + '</dd>');
             html += '<dt>Account Enabled</dt><dd>' + (primaryUser.accountEnabled ? '<span class="text-success">Yes</span>' : '<span class="text-critical">No</span>') + '</dd>';
             html += '</dl>';
-            html += '<p style="margin-top:1rem"><a href="#users?search=' + encodeURIComponent(primaryUser.userPrincipalName) + '" class="text-link">View Full User Profile</a></p>';
+            html += '<p style="margin-top:1rem">' + (typeof DrillDown !== 'undefined' ? DrillDown.entityLink('View Full User Profile', 'user', primaryUser.id || primaryUser.userPrincipalName) : '<a href="#users?search=' + encodeURIComponent(primaryUser.userPrincipalName) + '" class="text-link">View Full User Profile</a>') + '</p>';
         } else {
             html += '<p class="empty-state-small">No primary user assigned or user data not available</p>';
             if (device.userPrincipalName) {
@@ -1577,8 +1589,8 @@ const PageDevices = (function() {
                 var statusText = s.status && s.status.errorCode === 0 ? 'Success' : (s.status ? s.status.failureReason || 'Failed' : 'Unknown');
                 html += '<tr>';
                 html += '<td>' + formatDateConsistent(s.createdDateTime, true) + '</td>';
-                html += '<td class="cell-truncate">' + (s.userPrincipalName || '--') + '</td>';
-                html += '<td class="cell-truncate">' + (s.appDisplayName || '--') + '</td>';
+                html += '<td class="cell-truncate">' + (typeof DrillDown !== 'undefined' && s.userPrincipalName ? DrillDown.entityLink(s.userPrincipalName, 'user', s.userId || s.userPrincipalName) : (s.userPrincipalName || '--')) + '</td>';
+                html += '<td class="cell-truncate">' + (typeof DrillDown !== 'undefined' && s.appDisplayName ? DrillDown.link(s.appDisplayName, 'signin-logs', 'search', s.appDisplayName) : (s.appDisplayName || '--')) + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
                 html += '<td>' + (s.location ? (s.location.city || '') + ', ' + (s.location.countryOrRegion || '') : '--') + '</td>';
                 html += '</tr>';
@@ -1601,6 +1613,12 @@ const PageDevices = (function() {
 
         // Safe: data is from trusted collector scripts, no user input
         modalBody.innerHTML = html;
+
+        // Initialize drill-down click handlers
+        if (typeof DrillDown !== 'undefined') {
+            DrillDown.init(modalBody);
+        }
+
         modalOverlay.classList.add('visible');
 
         // Tab switching for device modal
@@ -1915,7 +1933,8 @@ const PageDevices = (function() {
         });
 
         var hashParams = getHashParams();
-        var initialTab = hashParams.tab || 'overview';
+        // Support drill-down navigation: if search param is present, default to devices tab
+        var initialTab = hashParams.tab || (hashParams.search ? 'devices' : 'overview');
         var allowed = { overview: true, devices: true, windows: true, certificates: true, autopilot: true, risk: true };
         currentTab = allowed[initialTab] ? initialTab : 'overview';
         switchTab(currentTab);

@@ -808,6 +808,7 @@ const PageWindowsUpdate = (function() {
         html += '</div>'; // end detail-grid
 
         modalBody.innerHTML = html;
+        if (typeof DrillDown !== 'undefined') DrillDown.init(modalBody);
         modalOverlay.classList.add('visible');
     }
 
@@ -868,6 +869,7 @@ const PageWindowsUpdate = (function() {
         html += '</div>'; // end detail-grid
 
         modalBody.innerHTML = html;
+        if (typeof DrillDown !== 'undefined') DrillDown.init(modalBody);
         modalOverlay.classList.add('visible');
     }
 
@@ -1006,11 +1008,20 @@ const PageWindowsUpdate = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        currentTab = 'overview';
-        renderContent();
+        // Handle incoming drill-down filter parameters
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            renderContent();
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        } else {
+            currentTab = 'overview';
+            renderContent();
+        }
     }
 
-    return { render: render };
+    return { render: render, showRingDetails: showRingDetails };
 })();
 
 window.PageWindowsUpdate = PageWindowsUpdate;

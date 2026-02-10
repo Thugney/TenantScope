@@ -277,6 +277,7 @@ const PageConditionalAccess = (function() {
         });
 
         body.appendChild(detailList);
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
         modal.classList.add('visible');
     }
 
@@ -967,10 +968,18 @@ const PageConditionalAccess = (function() {
 
         currentTab = 'overview';
         renderContent();
+
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     return {
-        render: render
+        render: render,
+        showPolicyDetails: showPolicyDetails
     };
 
 })();

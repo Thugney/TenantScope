@@ -327,6 +327,63 @@ const PageGuests = (function() {
 
         title.textContent = guest.displayName;
 
+        // Fetch related groups and teams via DataRelationships
+        var groups = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserGroups(guest.id) : [];
+        var teams = typeof DataRelationships !== 'undefined' ? DataRelationships.getUserTeams(guest.userPrincipalName) : [];
+        var guestUpn = guest.userPrincipalName || guest.mail || '';
+
+        // Build groups list with drill-down links
+        var groupsHtml = '';
+        if (groups && groups.length > 0) {
+            groupsHtml = '<ul class="team-list">';
+            groups.forEach(function(group) {
+                var groupName = group.displayName || '--';
+                if (typeof DrillDown !== 'undefined') {
+                    groupsHtml += '<li>' + DrillDown.link(groupName, 'groups', 'search', groupName) + '</li>';
+                } else {
+                    groupsHtml += '<li>' + groupName + '</li>';
+                }
+            });
+            groupsHtml += '</ul>';
+        } else {
+            groupsHtml = '<span class="text-muted">No group memberships</span>';
+        }
+
+        // Build teams list with drill-down links
+        var teamsHtml = '';
+        if (teams && teams.length > 0) {
+            teamsHtml = '<ul class="team-list">';
+            teams.forEach(function(team) {
+                var teamName = team.displayName || '--';
+                if (typeof DrillDown !== 'undefined') {
+                    teamsHtml += '<li>' + DrillDown.link(teamName, 'teams', 'search', teamName) + '</li>';
+                } else {
+                    teamsHtml += '<li>' + teamName + '</li>';
+                }
+            });
+            teamsHtml += '</ul>';
+        } else {
+            teamsHtml = '<span class="text-muted">No teams</span>';
+        }
+
+        // Build sign-in activity link
+        var signInHtml = DataLoader.formatDate(guest.lastSignIn);
+        if (typeof DrillDown !== 'undefined' && guestUpn) {
+            signInHtml += ' ' + DrillDown.link('View Sign-Ins', 'signin-logs', 'search', guestUpn);
+        }
+
+        // Build invited by link (if available)
+        var invitedByHtml = '<span class="text-muted">--</span>';
+        if (guest.invitedBy || guest.inviterDisplayName) {
+            var inviterName = guest.inviterDisplayName || guest.invitedBy || '--';
+            var inviterId = guest.inviterUserId || guest.invitedById || '';
+            if (typeof DrillDown !== 'undefined' && inviterId) {
+                invitedByHtml = DrillDown.entityLink(inviterName, 'user', inviterId);
+            } else {
+                invitedByHtml = inviterName;
+            }
+        }
+
         body.innerHTML = `
             <div class="detail-list">
                 <span class="detail-label">Email:</span>
@@ -341,8 +398,11 @@ const PageGuests = (function() {
                 <span class="detail-label">Invited:</span>
                 <span class="detail-value">${DataLoader.formatDate(guest.createdDateTime)}</span>
 
+                <span class="detail-label">Invited By:</span>
+                <span class="detail-value">${invitedByHtml}</span>
+
                 <span class="detail-label">Last Sign-In:</span>
-                <span class="detail-value">${DataLoader.formatDate(guest.lastSignIn)}</span>
+                <span class="detail-value">${signInHtml}</span>
 
                 <span class="detail-label">Days Since Sign-In:</span>
                 <span class="detail-value">${guest.daysSinceLastSignIn !== null ? guest.daysSinceLastSignIn : '--'}</span>
@@ -353,10 +413,18 @@ const PageGuests = (function() {
                 <span class="detail-label">Never Signed In:</span>
                 <span class="detail-value">${guest.neverSignedIn ? 'Yes' : 'No'}</span>
 
+                <span class="detail-label">Groups (${groups.length}):</span>
+                <span class="detail-value">${groupsHtml}</span>
+
+                <span class="detail-label">Teams (${teams.length}):</span>
+                <span class="detail-value">${teamsHtml}</span>
+
                 <span class="detail-label">Guest ID:</span>
                 <span class="detail-value" style="font-size: 0.8em;">${guest.id}</span>
             </div>
         `;
+
+        if (typeof DrillDown !== 'undefined') DrillDown.init(body);
 
         modal.classList.add('visible');
     }
@@ -943,11 +1011,19 @@ const PageGuests = (function() {
 
         currentTab = 'overview';
         renderContent();
+
+        var drillParams = typeof DrillDown !== 'undefined' ? DrillDown.getHashParams() : {};
+        if (Object.keys(drillParams).length > 0) {
+            setTimeout(function() {
+                if (typeof DrillDown !== 'undefined') DrillDown.applyPageFilters(container, drillParams);
+            }, 200);
+        }
     }
 
     // Public API
     return {
-        render: render
+        render: render,
+        showGuestDetails: showGuestDetails
     };
 
 })();
