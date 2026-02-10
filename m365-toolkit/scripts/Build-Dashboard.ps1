@@ -115,6 +115,7 @@ if (-not (Test-Path $dashboardDataPath)) {
 $dataFiles = @(
     # Core identity & licensing
     "users.json",
+    "groups.json",
     "license-skus.json",
     "guests.json",
     "mfa-status.json",
@@ -225,6 +226,7 @@ $bundleLines += "window.__M365_VERSION = `"$appVersion`";"
 $bundleMap = @{
     # Core identity & licensing
     "users"                   = "users.json"
+    "groups"                  = "groups.json"
     "licenseSkus"             = "license-skus.json"
     "guests"                  = "guests.json"
     "mfaStatus"               = "mfa-status.json"
