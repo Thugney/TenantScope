@@ -648,6 +648,8 @@ const PageDevices = (function() {
 
     function renderDevicesTable(data) {
         var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'managementSource', 'threatStateDisplay'];
+        var sourceFilter = Filters.getValue('devices-source');
+        var hideEmptyColumns = sourceFilter === 'Entra' && Array.isArray(data) && data.length > 0;
 
         var allDefs = [
             // Core identity
@@ -736,10 +738,47 @@ const PageDevices = (function() {
             }}
         ];
 
+        var defs = allDefs;
+        if (hideEmptyColumns) {
+            var alwaysKeep = {
+                deviceName: true,
+                userPrincipalName: true,
+                primaryUserDisplayName: true,
+                os: true,
+                managementSource: true,
+                _adminLinks: true
+            };
+            var availableKeys = {};
+            for (var i = 0; i < allDefs.length; i++) {
+                var key = allDefs[i].key;
+                availableKeys[key] = !!alwaysKeep[key];
+            }
+
+            function hasValue(v) {
+                if (v === null || v === undefined || v === '') return false;
+                if (Array.isArray(v)) return v.length > 0;
+                return true;
+            }
+
+            for (var r = 0; r < data.length; r++) {
+                var row = data[r];
+                for (var c = 0; c < allDefs.length; c++) {
+                    var colKey = allDefs[c].key;
+                    if (availableKeys[colKey]) continue;
+                    if (hasValue(row[colKey])) {
+                        availableKeys[colKey] = true;
+                    }
+                }
+            }
+
+            defs = allDefs.filter(function(col) { return availableKeys[col.key]; });
+            visible = visible.filter(function(key) { return availableKeys[key]; });
+        }
+
         Tables.render({
             containerId: 'devices-table',
             data: data,
-            columns: allDefs.filter(function(col) { return visible.indexOf(col.key) !== -1; }),
+            columns: defs.filter(function(col) { return visible.indexOf(col.key) !== -1; }),
             pageSize: 50,
             onRowClick: showDeviceDetails
         });
