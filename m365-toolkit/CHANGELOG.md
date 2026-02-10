@@ -5,6 +5,24 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.3.1] - 2026-02-10
+
+### Changed
+- **Eliminated duplicate Graph API calls across all 37 collectors** via a new `SharedData` pattern:
+  - Orchestrator now passes a shared hashtable between collectors so data fetched once is reused everywhere
+  - **Managed Devices** (was fetched 4 times): `Get-DeviceData` now shares with `Get-UserData`, `Get-BitLockerStatus`, `Get-WindowsUpdateStatus`
+  - **Risky Users & Risk Detections** (exact duplicate): `Get-IdentityRiskData` now shares with `Get-SignInData`
+  - **Conditional Access Policies** (full re-fetch): `Get-ConditionalAccessData` now shares with `Get-NamedLocations`
+  - **App Registrations** (near-identical query): `Get-EnterpriseAppData` now shares with `Get-ServicePrincipalSecrets`
+  - **Service Principals** (duplicate lookup): `Get-EnterpriseAppData` now shares with `Get-OAuthConsentGrants`
+  - **Sign-In Logs** (same data source): `Get-SignInLogs` now shares with `Get-AppSignInData`
+  - **Groups** (superset/subset): `Get-GroupData` now shares with `Get-TeamsData`
+- **Dependency-ordered collector execution**: Orchestrator now runs primary collectors before downstream consumers
+- All collectors retain API fallbacks for standalone execution (backward compatible)
+- Updated `ValidateSet` in orchestrator to include all 37 collectors
+
+---
+
 ## [2.3.0] - 2026-02-09
 
 ### Added
