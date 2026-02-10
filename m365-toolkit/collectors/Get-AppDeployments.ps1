@@ -247,41 +247,55 @@ function Get-AppInstallReportMap {
         Retrieves app install summary report and returns map keyed by appId.
     #>
     $map = @{}
-    $body = @{
-        select = @(
+    $selectSets = @(
+        @(
             "appId","appName","installedDeviceCount","failedDeviceCount",
             "pendingInstallDeviceCount","notInstalledDeviceCount","notApplicableDeviceCount",
             "deviceCount"
+        ),
+        @(
+            "applicationId","applicationName","installedDeviceCount","failedDeviceCount",
+            "pendingInstallDeviceCount","notInstalledDeviceCount","notApplicableDeviceCount",
+            "deviceCount"
         )
-        skip = 0
-        top = 2000
-    } | ConvertTo-Json -Depth 6
+    )
+
+    $endpoints = @(
+        "https://graph.microsoft.com/beta/deviceManagement/reports/getAppInstallSummaryReport",
+        "https://graph.microsoft.com/beta/deviceManagement/reports/getAppInstallStatusReport"
+    )
 
     $report = $null
-    try {
-        $report = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method POST `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getAppInstallSummaryReport" `
-                -Body $body -OutputType PSObject
-        } -OperationName "App install summary report"
-    }
-    catch {
-        # Fallback to alternate report endpoint name (if supported)
-        try {
-            $report = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method POST `
-                    -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getAppInstallStatusReport" `
-                    -Body $body -OutputType PSObject
-            } -OperationName "App install status report"
+    foreach ($endpoint in $endpoints) {
+        foreach ($select in $selectSets) {
+            $body = @{
+                select = $select
+                skip = 0
+                top = 2000
+            } | ConvertTo-Json -Depth 6
+
+            try {
+                $report = Invoke-GraphWithRetry -ScriptBlock {
+                    Invoke-MgGraphRequest -Method POST `
+                        -Uri $endpoint `
+                        -Body $body -OutputType PSObject
+                } -OperationName "App install report"
+
+                if ($report) { break }
+            }
+            catch {
+                $report = $null
+            }
         }
-        catch {
-            return $map
-        }
+
+        if ($report) { break }
     }
+
+    if (-not $report) { return $map }
 
     $rows = Convert-ReportRows -Report $report
     foreach ($row in $rows) {
-        $id = Get-ReportValue -Row $row -Names @("appId", "id")
+        $id = Get-ReportValue -Row $row -Names @("appId", "applicationId", "ApplicationId", "id")
         if (-not $id) { continue }
         $map[$id] = $row
     }

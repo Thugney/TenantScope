@@ -33,20 +33,62 @@ const PageAppDeployments = (function() {
         return null;
     }
 
+    function toNumber(value) {
+        if (value === null || value === undefined || value === '') return null;
+        var num = Number(value);
+        return isNaN(num) ? null : num;
+    }
+
+    function pickCount(values) {
+        var nums = values.map(toNumber).filter(function(v) { return v !== null; });
+        if (nums.length === 0) return 0;
+        return Math.max.apply(null, nums);
+    }
+
+    function getAppCounts(a) {
+        var dso = a.deviceStatusOverview || a.deviceStatusSummary || {};
+        var installSummary = a.installSummary || a.installSummaryData || a.installSummaryReport || {};
+
+        return {
+            installed: pickCount([
+                a.installedDeviceCount, a.installedDevices, a.installedCount,
+                dso.installedDeviceCount, dso.installedDevices, dso.installedCount,
+                installSummary.installedDeviceCount, installSummary.installedDevices, installSummary.installedCount
+            ]),
+            failed: pickCount([
+                a.failedDeviceCount, a.failedDevices, a.failedCount,
+                dso.failedDeviceCount, dso.failedDevices, dso.failedCount,
+                installSummary.failedDeviceCount, installSummary.failedDevices, installSummary.failedCount
+            ]),
+            pending: pickCount([
+                a.pendingInstallDeviceCount, a.pendingDeviceCount, a.pendingDevices, a.pendingCount,
+                dso.pendingInstallDeviceCount, dso.pendingDeviceCount, dso.pendingDevices, dso.pendingCount,
+                installSummary.pendingInstallDeviceCount, installSummary.pendingDeviceCount, installSummary.pendingDevices, installSummary.pendingCount
+            ]),
+            notInstalled: pickCount([
+                a.notInstalledDeviceCount, a.notInstalledDevices, a.notInstalledCount,
+                dso.notInstalledDeviceCount, dso.notInstalledDevices, dso.notInstalledCount,
+                installSummary.notInstalledDeviceCount, installSummary.notInstalledDevices, installSummary.notInstalledCount
+            ]),
+            notApplicable: pickCount([
+                a.notApplicableDeviceCount, a.notApplicableDevices, a.notApplicableCount,
+                dso.notApplicableDeviceCount, dso.notApplicableDevices, dso.notApplicableCount,
+                installSummary.notApplicableDeviceCount, installSummary.notApplicableDevices, installSummary.notApplicableCount
+            ])
+        };
+    }
+
     // Map collector field names to display field names
     // Supports multiple field name variations from Graph API and collector
     function mapApp(a) {
         var version = a.version || a.displayVersion || a.appVersion || a.committedContentVersion || null;
 
-        // Get device status counts - check multiple possible field names
-        // Graph API uses: installedDeviceCount, failedDeviceCount, etc.
-        // Collector may use: installedDevices, failedDevices, etc.
-        var dso = a.deviceStatusOverview || {};
-        var installedCount = a.installedDeviceCount || a.installedDevices || a.installedCount || dso.installedDeviceCount || 0;
-        var failedCount = a.failedDeviceCount || a.failedDevices || a.failedCount || dso.failedDeviceCount || 0;
-        var pendingCount = a.pendingInstallDeviceCount || a.pendingDevices || a.pendingCount || dso.pendingInstallDeviceCount || 0;
-        var notInstalledCount = a.notInstalledDeviceCount || a.notInstalledDevices || a.notInstalledCount || dso.notInstalledDeviceCount || 0;
-        var notApplicableCount = a.notApplicableDeviceCount || a.notApplicableDevices || a.notApplicableCount || dso.notApplicableDeviceCount || 0;
+        var counts = getAppCounts(a);
+        var installedCount = counts.installed;
+        var failedCount = counts.failed;
+        var pendingCount = counts.pending;
+        var notInstalledCount = counts.notInstalled;
+        var notApplicableCount = counts.notApplicable;
 
         // Calculate total if not provided
         var totalDevices = a.totalDevices || a.totalDeviceCount ||
@@ -109,10 +151,10 @@ const PageAppDeployments = (function() {
         var appsWithFailures = 0;
 
         apps.forEach(function(a) {
-            // Support multiple field name variations
-            var installed = a.installedCount || a.installedDevices || a.installedDeviceCount || 0;
-            var failed = a.failedCount || a.failedDevices || a.failedDeviceCount || 0;
-            var pending = a.pendingCount || a.pendingDevices || a.pendingInstallDeviceCount || 0;
+            var counts = getAppCounts(a);
+            var installed = counts.installed;
+            var failed = counts.failed;
+            var pending = counts.pending;
 
             totalInstalled += installed;
             totalFailed += failed;
@@ -178,9 +220,19 @@ const PageAppDeployments = (function() {
 
     function renderOverviewTab(container) {
         var apps = (rawData.apps || []).map(mapApp);
+        var computedSummary = buildSummaryFromArray(apps);
         var summary = (rawData.summary && rawData.summary.totalApps !== undefined)
             ? rawData.summary
-            : buildSummaryFromArray(apps);
+            : computedSummary;
+
+        if (summary && computedSummary) {
+            var summaryTotals = (summary.totalInstalled || 0) + (summary.totalFailed || 0) + (summary.totalPending || 0);
+            var computedTotals = (computedSummary.totalInstalled || 0) + (computedSummary.totalFailed || 0) + (computedSummary.totalPending || 0);
+            var missingBreakdowns = !summary.platformBreakdown || !summary.typeBreakdown;
+            if ((summaryTotals === 0 && computedTotals > 0) || missingBreakdowns) {
+                summary = computedSummary;
+            }
+        }
         var insights = rawData.insights || [];
 
         var totalInstalled = summary.totalInstalled || 0;
