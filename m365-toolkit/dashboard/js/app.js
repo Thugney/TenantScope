@@ -93,6 +93,47 @@
         return result;
     }
 
+    function isLikelyUpn(value) {
+        if (!value) return false;
+        const str = String(value).trim();
+        return str.indexOf('@') > 0 && !/\s/.test(str);
+    }
+
+    function isGuid(value) {
+        if (!value) return false;
+        return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value).trim());
+    }
+
+    function resolveUserSearchTarget(value) {
+        if (!value) return null;
+        const cleaned = String(value).trim();
+        if (!cleaned) return null;
+        if (isLikelyUpn(cleaned)) {
+            return { param: 'upn', value: cleaned };
+        }
+        if (isGuid(cleaned) && typeof EntityIndex !== 'undefined' && EntityIndex.getUser) {
+            const match = EntityIndex.getUser(cleaned);
+            if (match) {
+                return { param: 'id', value: cleaned };
+            }
+        }
+        return null;
+    }
+
+    function shouldRedirectUserSearch(pageName) {
+        if (pageName !== 'users') return false;
+        const params = getHashParams();
+        if (!params || Object.keys(params).length === 0) return false;
+        if (params.no360 === '1' || params.view === 'list') return false;
+        const searchValue = params.search || params.user || params.upn || '';
+        const target = resolveUserSearchTarget(searchValue);
+        if (!target) return false;
+        const dest = '#user-360?' + target.param + '=' + encodeURIComponent(target.value);
+        if (window.location.hash === dest) return false;
+        window.location.hash = dest;
+        return true;
+    }
+
     function inferTabForSearch(pageName) {
         const buttons = Array.from(document.querySelectorAll('.tab-btn'));
         if (buttons.length === 0) return null;
@@ -165,6 +206,10 @@
     function renderCurrentPage() {
         const pageName = getCurrentPage();
         const page = pages[pageName];
+
+        if (shouldRedirectUserSearch(pageName)) {
+            return;
+        }
 
         if (!page) {
             console.warn('App: Page not found:', pageName);
