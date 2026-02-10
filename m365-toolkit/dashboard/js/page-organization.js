@@ -324,6 +324,14 @@ const PageOrganization = (function() {
     function renderAnalysisTab(container) {
         container.textContent = '';
 
+        var hierarchySection = el('div', 'analytics-section');
+        hierarchySection.appendChild(el('h3', null, 'Management Hierarchy'));
+        hierarchySection.appendChild(el('p', 'text-muted', 'Manager reporting chain (managers only). Use All Managers for full lists.'));
+        var hierarchyTree = el('div');
+        hierarchyTree.id = 'org-hierarchy-tree';
+        hierarchySection.appendChild(hierarchyTree);
+        container.appendChild(hierarchySection);
+
         var fbRow = el('div', 'focus-breakdown-row single');
 
         var breakdownPanel = el('div', 'breakdown-panel');
@@ -334,7 +342,107 @@ const PageOrganization = (function() {
         fbRow.appendChild(breakdownPanel);
         container.appendChild(fbRow);
 
+        renderManagerHierarchy(orgState.hierarchy, hierarchyTree);
         renderDeptBreakdown(orgState.hierarchy.departments);
+    }
+
+    function renderManagerHierarchy(hierarchy, container) {
+        container.textContent = '';
+        if (!hierarchy || !hierarchy.managers || hierarchy.managers.length === 0) {
+            container.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hierarchy data</div><div class="empty-state-description">No manager relationships found in user data.</div></div>';
+            return;
+        }
+
+        function getUserKeys(user) {
+            var keys = [];
+            if (!user) return keys;
+            if (user.id) keys.push(String(user.id));
+            if (user.userPrincipalName && typeof user.userPrincipalName === 'string') keys.push('upn:' + user.userPrincipalName.toLowerCase());
+            if (user.displayName && typeof user.displayName === 'string') keys.push('name:' + user.displayName.toLowerCase());
+            return keys;
+        }
+
+        var managerIndex = {};
+        hierarchy.managers.forEach(function(m) {
+            if (!m || !m.userData) return;
+            var keys = getUserKeys(m.userData);
+            keys.forEach(function(k) {
+                if (!managerIndex[k]) managerIndex[k] = m;
+            });
+        });
+
+        function resolveManagerFromUser(user) {
+            var keys = getUserKeys(user);
+            for (var i = 0; i < keys.length; i++) {
+                var hit = managerIndex[keys[i]];
+                if (hit) return hit;
+            }
+            return null;
+        }
+
+        var childMap = {};
+        hierarchy.managers.forEach(function(m) {
+            var children = [];
+            (m.directReports || []).forEach(function(r) {
+                var childMgr = resolveManagerFromUser(r);
+                if (childMgr && childMgr !== m) {
+                    children.push(childMgr);
+                }
+            });
+            if (children.length > 0) {
+                var uniq = {};
+                children.forEach(function(c) { uniq[c.key] = c; });
+                childMap[m.key] = Object.values(uniq);
+            }
+        });
+
+        var roots = (hierarchy.rootManagers && hierarchy.rootManagers.length > 0)
+            ? hierarchy.rootManagers.slice()
+            : hierarchy.managers.filter(function(m) { return !m || !m.userData || !m.userData.managerId; });
+
+        roots.sort(function(a, b) { return (b.directReports || []).length - (a.directReports || []).length; });
+
+        var maxRoots = 10;
+        var maxDepth = 3;
+        var maxChildren = 12;
+        var shownRoots = roots.slice(0, maxRoots);
+        var visited = new Set();
+
+        function renderNode(manager, depth) {
+            if (!manager || visited.has(manager.key) || depth > maxDepth) return '';
+            visited.add(manager.key);
+
+            var name = manager.name || (manager.userData && manager.userData.displayName) || 'Unknown';
+            var upn = manager.userPrincipalName || (manager.userData && manager.userData.userPrincipalName) || '';
+            var link = upn ? '<a href="#users?tab=users&search=' + encodeURIComponent(upn) + '" class="text-link">' + name + '</a>' : name;
+            var reports = (manager.directReports || []).length;
+            var html = '<div style="margin-left:' + (depth * 16) + 'px;margin-bottom:6px;">';
+            html += '<div><strong>' + link + '</strong> <span class="text-muted">(' + reports + ')</span></div>';
+
+            var children = childMap[manager.key] || [];
+            if (children.length > 0 && depth < maxDepth) {
+                var limited = children.slice(0, maxChildren);
+                limited.forEach(function(child) {
+                    html += renderNode(child, depth + 1);
+                });
+                if (children.length > maxChildren) {
+                    html += '<div style="margin-left:' + ((depth + 1) * 16) + 'px" class="text-muted">+ ' + (children.length - maxChildren) + ' more managers</div>';
+                }
+            }
+            html += '</div>';
+            return html;
+        }
+
+        var html = '';
+        shownRoots.forEach(function(r) {
+            html += renderNode(r, 0);
+        });
+
+        if (roots.length > maxRoots) {
+            html += '<div class="text-muted">Showing top ' + maxRoots + ' root managers. Use All Managers for full list.</div>';
+        }
+
+        container.innerHTML = html || '<div class="empty-state"><div class="empty-state-title">No hierarchy nodes</div><div class="empty-state-description">Manager relationships could not be resolved.</div></div>';
     }
 
     /**
