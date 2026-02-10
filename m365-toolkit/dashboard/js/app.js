@@ -75,6 +75,76 @@
     }
 
     /**
+     * Gets hash query parameters (e.g., #users?tab=users&search=alice).
+     *
+     * @returns {object} Key/value map of hash params
+     */
+    function getHashParams() {
+        const hash = window.location.hash || '';
+        const idx = hash.indexOf('?');
+        if (idx === -1) return {};
+        const query = hash.substring(idx + 1);
+        const params = new URLSearchParams(query);
+        const result = {};
+        params.forEach((value, key) => {
+            result[key] = value;
+        });
+        return result;
+    }
+
+    function inferTabForSearch(pageName) {
+        const buttons = Array.from(document.querySelectorAll('.tab-btn'));
+        if (buttons.length === 0) return null;
+
+        const allBtn = buttons.find(btn => /\ball\b/i.test((btn.textContent || '').trim()));
+        if (allBtn && allBtn.dataset.tab) return allBtn.dataset.tab;
+
+        const pageBtn = buttons.find(btn => btn.dataset.tab === pageName);
+        if (pageBtn) return pageBtn.dataset.tab;
+
+        const nonOverview = buttons.find(btn => btn.dataset.tab && btn.dataset.tab !== 'overview');
+        if (nonOverview) return nonOverview.dataset.tab;
+
+        return buttons[0].dataset.tab || null;
+    }
+
+    function applyHashParamsToPage(pageName) {
+        const params = getHashParams();
+        if (!params || Object.keys(params).length === 0) return;
+
+        const searchValue = params.search || params.user || params.upn || params.device || params.group || '';
+        let tabToSelect = params.tab;
+        if (!tabToSelect && searchValue) {
+            tabToSelect = inferTabForSearch(pageName);
+        }
+
+        if (tabToSelect) {
+            const tabBtn = document.querySelector('.tab-btn[data-tab="' + tabToSelect + '"]');
+            if (tabBtn && !tabBtn.classList.contains('active')) {
+                tabBtn.click();
+            }
+        }
+
+        if (searchValue) {
+            setTimeout(() => {
+                const content = document.querySelector('.content-area') || document;
+                let input = content.querySelector('input.filter-input[id$="-search"]');
+                if (!input) {
+                    input = content.querySelector('input[type="text"][id$="-search"]');
+                }
+                if (!input && pageName) {
+                    input = document.getElementById(pageName + '-search');
+                }
+                if (input) {
+                    input.value = searchValue;
+                    input.dispatchEvent(new Event('input', { bubbles: true }));
+                    input.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            }, 50);
+        }
+    }
+
+    /**
      * Navigates to a specific page.
      *
      * @param {string} pageName - The page to navigate to
@@ -125,6 +195,7 @@
         // Render the page
         try {
             page.render(container);
+            applyHashParamsToPage(pageName);
         } catch (error) {
             console.error('App: Error rendering page:', error);
             container.innerHTML = `

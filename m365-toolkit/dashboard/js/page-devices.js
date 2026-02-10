@@ -557,7 +557,18 @@ const PageDevices = (function() {
 
         var filterConfig = {
             search: Filters.getValue('devices-search'),
-            searchFields: ['deviceName', 'userPrincipalName', 'primaryUserDisplayName', 'model', 'manufacturer', 'serialNumber'],
+            searchFields: [
+                'deviceName',
+                'userPrincipalName',
+                'primaryUserDisplayName',
+                'model',
+                'manufacturer',
+                'serialNumber',
+                'os',
+                'osVersion',
+                'windowsType',
+                'windowsRelease'
+            ],
             exact: {}
         };
 
