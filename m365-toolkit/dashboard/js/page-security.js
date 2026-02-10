@@ -111,183 +111,15 @@ const PageSecurity = (function() {
     }
 
     function renderOverview(container, data) {
-        // Calculate key metrics
-        var mfaRegistered = data.users.filter(function(u) { return u.mfaRegistered && u.accountEnabled; }).length;
-        var enabledUsers = data.users.filter(function(u) { return u.accountEnabled; }).length;
-        var mfaPct = enabledUsers > 0 ? Math.round((mfaRegistered / enabledUsers) * 100) : 0;
-        var mfaClass = mfaPct >= 90 ? 'text-success' : mfaPct >= 70 ? 'text-warning' : 'text-critical';
-
-        var lowRiskCount = data.riskySignins.filter(function(r) { return r.riskLevel === 'low'; }).length;
-        var totalRiskySignins = data.riskySignins.length;
-
-        var newAlerts = data.defenderAlerts.filter(function(a) { return a.status === 'new'; }).length;
-        var inProgressAlerts = data.defenderAlerts.filter(function(a) { return a.status === 'inProgress'; }).length;
-        var resolvedAlerts = data.defenderAlerts.filter(function(a) { return a.status === 'resolved'; }).length;
-        var totalAlerts = data.defenderAlerts.length;
-
         var html = '';
-
-        // Security Posture Overview Section
-        html += '<div class="analytics-section">';
-        html += '<h3>Security Posture Overview</h3>';
-        html += '<div class="compliance-overview">';
-
-        // Donut chart for MFA coverage
-        var radius = 40;
-        var circumference = 2 * Math.PI * radius;
-        var totalForChart = mfaRegistered + data.noMfaUsers.length;
-        var mfaDash = totalForChart > 0 ? (mfaRegistered / totalForChart) * circumference : 0;
-        var noMfaDash = totalForChart > 0 ? (data.noMfaUsers.length / totalForChart) * circumference : 0;
-
-        html += '<div class="compliance-chart">';
-        html += '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-        var offset = 0;
-        if (mfaRegistered > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-success)" stroke-width="10" stroke-dasharray="' + mfaDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-            offset += mfaDash;
-        }
-        if (data.noMfaUsers.length > 0) {
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-critical)" stroke-width="10" stroke-dasharray="' + noMfaDash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round"/>';
-        }
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value ' + mfaClass + '">' + mfaPct + '%</span><span class="donut-label">MFA Coverage</span></div>';
-        html += '</div></div>';
-
-        // Legend
-        html += '<div class="compliance-legend">';
-        html += '<div class="legend-item"><span class="legend-dot bg-success"></span> MFA Enrolled: <strong>' + mfaRegistered + '</strong></div>';
-        html += '<div class="legend-item"><span class="legend-dot bg-critical"></span> No MFA: <strong>' + data.noMfaUsers.length + '</strong></div>';
-        html += '</div></div></div>';
-
-        // Analytics Grid with platform-list pattern
-        html += '<div class="analytics-grid">';
-
-        // Operational signals card
-        html += '<div class="analytics-card"><h4>Risk & Alerts Signals</h4>';
-        html += '<div class="compliance-legend">';
-        var activeAlertCount = newAlerts + inProgressAlerts;
-        var signalItems = [
-            { cls: data.highRiskCount > 0 ? 'bg-critical' : 'bg-success', label: 'High Risk Sign-ins', value: data.highRiskCount },
-            { cls: data.mediumRiskCount > 0 ? 'bg-warning' : 'bg-success', label: 'Medium Risk Sign-ins', value: data.mediumRiskCount },
-            { cls: activeAlertCount > 0 ? 'bg-critical' : 'bg-success', label: 'Active Alerts', value: activeAlertCount },
-            { cls: data.highAlerts.length > 0 ? 'bg-critical' : 'bg-success', label: 'High Severity Alerts', value: data.highAlerts.length }
-        ];
-        signalItems.forEach(function(item) {
-            html += '<div class="legend-item"><span class="legend-dot ' + item.cls + '"></span> ' + item.label + ': <strong>' + item.value + '</strong></div>';
-        });
-        html += '</div></div>';
-
-        // Risk Level Distribution
-        html += '<div class="analytics-card"><h4>Risky Sign-ins by Level</h4>';
-        html += '<div class="platform-list">';
-        var riskLevels = [
-            { label: 'High Risk', count: data.highRiskCount, color: 'bg-critical' },
-            { label: 'Medium Risk', count: data.mediumRiskCount, color: 'bg-warning' },
-            { label: 'Low Risk', count: lowRiskCount, color: 'bg-info' }
-        ];
-        riskLevels.forEach(function(r) {
-            var pct = totalRiskySignins > 0 ? Math.round((r.count / totalRiskySignins) * 100) : 0;
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + r.label + '</span>';
-            html += '<span class="platform-policies">' + r.count + '</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill ' + r.color + '" style="width:' + pct + '%"></div></div>';
-            html += '<span class="platform-rate">' + pct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        // MFA Enrollment Status
-        html += '<div class="analytics-card"><h4>MFA Enrollment</h4>';
-        html += '<div class="platform-list">';
-        var enrolledPct = enabledUsers > 0 ? Math.round((mfaRegistered / enabledUsers) * 100) : 0;
-        var notEnrolledPct = enabledUsers > 0 ? Math.round((data.noMfaUsers.length / enabledUsers) * 100) : 0;
-        html += '<div class="platform-row"><span class="platform-name">Enrolled</span><span class="platform-policies">' + mfaRegistered + ' users</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill bg-success" style="width:' + enrolledPct + '%"></div></div><span class="platform-rate">' + enrolledPct + '%</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">Not Enrolled</span><span class="platform-policies">' + data.noMfaUsers.length + ' users</span>';
-        html += '<div class="mini-bar"><div class="mini-bar-fill bg-critical" style="width:' + notEnrolledPct + '%"></div></div><span class="platform-rate">' + notEnrolledPct + '%</span></div>';
-        html += '</div></div>';
-
-        // Defender Alerts Status
-        html += '<div class="analytics-card"><h4>Defender Alert Status</h4>';
-        html += '<div class="platform-list">';
-        var alertStatuses = [
-            { label: 'New', count: newAlerts, color: 'bg-critical' },
-            { label: 'In Progress', count: inProgressAlerts, color: 'bg-warning' },
-            { label: 'Resolved', count: resolvedAlerts, color: 'bg-success' }
-        ];
-        alertStatuses.forEach(function(a) {
-            var pct = totalAlerts > 0 ? Math.round((a.count / totalAlerts) * 100) : 0;
-            html += '<div class="platform-row">';
-            html += '<span class="platform-name">' + a.label + '</span>';
-            html += '<span class="platform-policies">' + a.count + '</span>';
-            html += '<div class="mini-bar"><div class="mini-bar-fill ' + a.color + '" style="width:' + pct + '%"></div></div>';
-            html += '<span class="platform-rate">' + pct + '%</span>';
-            html += '</div>';
-        });
-        html += '</div></div>';
-
-        // Admin Roles Summary
-        var highPrivRoles = data.adminRoles.filter(function(r) { return r.isHighPrivilege; });
-        var highPrivMembers = 0;
-        highPrivRoles.forEach(function(r) { highPrivMembers += r.memberCount || 0; });
-        html += '<div class="analytics-card"><h4>Admin Role Summary</h4>';
-        html += '<div class="platform-list">';
-        html += '<div class="platform-row"><span class="platform-name">Total Admin Roles</span><span class="platform-policies">' + data.adminRoles.length + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">High Privilege Roles</span><span class="platform-policies text-warning">' + highPrivRoles.length + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">High Priv Members</span><span class="platform-policies text-warning">' + highPrivMembers + '</span></div>';
-        html += '<div class="platform-row"><span class="platform-name">Total Admin Accounts</span><span class="platform-policies">' + data.adminCount + '</span></div>';
-        html += '</div></div>';
-
-        html += '</div>'; // end analytics-grid
-
-        // Insight Cards for issues needing attention
-        var hasIssues = data.highRiskCount > 0 || data.noMfaUsers.length > 0 || newAlerts > 0 || data.highAlerts.length > 0;
-        if (hasIssues) {
-            html += '<div class="analytics-section"><h3>Issues Needing Attention</h3>';
-            html += '<div class="insights-list">';
-
-            if (data.highAlerts.length > 0) {
-                html += '<div class="insight-card insight-critical">';
-                html += '<div class="insight-header"><span class="badge badge-critical">HIGH</span><span class="insight-category">Security Alerts</span></div>';
-                html += '<p class="insight-description">' + data.highAlerts.length + ' high severity Defender alert' + (data.highAlerts.length > 1 ? 's' : '') + ' require immediate attention.</p>';
-                html += '<p class="insight-action"><strong>Action:</strong> Review alerts in Microsoft Defender portal and take remediation steps.</p>';
-                html += '</div>';
-            }
-
-            if (data.highRiskCount > 0) {
-                html += '<div class="insight-card insight-critical">';
-                html += '<div class="insight-header"><span class="badge badge-critical">HIGH</span><span class="insight-category">Risky Sign-ins</span></div>';
-                html += '<p class="insight-description">' + data.highRiskCount + ' high risk sign-in' + (data.highRiskCount > 1 ? 's' : '') + ' detected. Potential account compromise.</p>';
-                html += '<p class="insight-action"><strong>Action:</strong> Investigate users, require password reset, and enable MFA if not already.</p>';
-                html += '</div>';
-            }
-
-            if (data.noMfaUsers.length > 0 && mfaPct < 90) {
-                html += '<div class="insight-card insight-warning">';
-                html += '<div class="insight-header"><span class="badge badge-warning">MEDIUM</span><span class="insight-category">MFA Coverage Gap</span></div>';
-                html += '<p class="insight-description">' + data.noMfaUsers.length + ' enabled user' + (data.noMfaUsers.length > 1 ? 's' : '') + ' without MFA registration. Current coverage: ' + mfaPct + '%.</p>';
-                html += '<p class="insight-action"><strong>Action:</strong> Enable MFA for all users. Consider Conditional Access policies requiring MFA.</p>';
-                html += '</div>';
-            }
-
-            if (newAlerts > 3) {
-                html += '<div class="insight-card insight-info">';
-                html += '<div class="insight-header"><span class="badge badge-info">INFO</span><span class="insight-category">Alert Backlog</span></div>';
-                html += '<p class="insight-description">' + newAlerts + ' new alerts pending review. Recommend establishing regular alert triage process.</p>';
-                html += '<p class="insight-action"><strong>Action:</strong> Set up alert automation rules or dedicate time for daily alert review.</p>';
-                html += '</div>';
-            }
-
-            html += '</div></div>';
-        }
 
         // Summary Tables
         var highRiskSignins = data.riskySignins.filter(function(r) { return r.riskLevel === 'high' || r.riskLevel === 'medium'; });
         if (highRiskSignins.length > 0) {
             html += '<div class="analytics-section"><h3>Risky Sign-ins (' + highRiskSignins.length + ')</h3>';
             html += '<div id="risky-signins-overview-table"></div></div>';
+        } else {
+            html += '<div class="empty-state"><div class="empty-state-title">No risky sign-ins</div><div class="empty-state-description">No high or medium risk sign-ins detected.</div></div>';
         }
 
         if (data.noMfaUsers.length > 0) {
@@ -352,8 +184,6 @@ const PageSecurity = (function() {
                 pageSize: 10
             });
         }
-
-        renderSecurityCharts(data);
     }
 
     function renderSecurityCharts(data) {
