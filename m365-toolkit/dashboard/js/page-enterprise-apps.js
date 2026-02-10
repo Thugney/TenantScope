@@ -55,11 +55,28 @@ const PageEnterpriseApps = (function() {
     function normalizeApps(rawData) {
         if (Array.isArray(rawData)) return rawData;
         if (!rawData || typeof rawData !== 'object') return [];
+
         if (Array.isArray(rawData.apps)) return rawData.apps;
         if (Array.isArray(rawData.servicePrincipals)) return rawData.servicePrincipals;
         if (Array.isArray(rawData.items)) return rawData.items;
         if (Array.isArray(rawData.value)) return rawData.value;
+
+        // Handle nested legacy shapes
         if (rawData.apps && Array.isArray(rawData.apps.apps)) return rawData.apps.apps;
+        if (rawData.apps && Array.isArray(rawData.apps.value)) return rawData.apps.value;
+        if (rawData.apps && Array.isArray(rawData.apps.items)) return rawData.apps.items;
+
+        // Handle objects keyed by id
+        if (rawData.apps && typeof rawData.apps === 'object') {
+            return Object.values(rawData.apps);
+        }
+        if (rawData.servicePrincipals && typeof rawData.servicePrincipals === 'object') {
+            return Object.values(rawData.servicePrincipals);
+        }
+        if (rawData.items && typeof rawData.items === 'object') {
+            return Object.values(rawData.items);
+        }
+
         return [];
     }
     /**
@@ -384,6 +401,7 @@ const PageEnterpriseApps = (function() {
     // ========================================================================
 
     function renderAppsTab(container, apps) {
+        apps = Array.isArray(apps) ? apps : normalizeApps(apps || {});
         container.innerHTML = '<div id="apps-filter"></div><div class="table-toolbar"><div id="apps-col-selector"></div></div><div id="apps-table"></div>';
 
         // Create filter bar
