@@ -267,7 +267,7 @@ try {
                 "isEncrypted", "managementAgent",
                 "userDisplayName", "deviceCategoryDisplayName",
                 "totalStorageSpaceInBytes", "freeStorageSpaceInBytes", "wiFiMacAddress",
-                "joinType", "azureADDeviceId", "deviceEnrollmentType", "deviceRegistrationState",
+                "azureADDeviceId", "deviceEnrollmentType", "deviceRegistrationState",
                 "jailBroken", "isSupervised", "partnerReportedThreatState",
                 "exchangeAccessState", "exchangeAccessStateReason", "exchangeLastSuccessfulSyncDateTime",
                 "physicalMemoryInBytes", "ethernetMacAddress", "phoneNumber", "subscriberCarrier",
@@ -477,7 +477,18 @@ try {
             # ===== MANAGEMENT =====
             managementAgent        = $managementAgent
             managementSource       = "Intune"
-            joinType               = $device.JoinType
+            joinType               = if ($null -ne $device.JoinType) {
+                $device.JoinType
+            }
+            elseif (-not [string]::IsNullOrWhiteSpace($device.DeviceRegistrationState)) {
+                $device.DeviceRegistrationState
+            }
+            elseif ($device.AzureADRegistered -eq $true) {
+                "azureADRegistered"
+            }
+            else {
+                $null
+            }
             autopilotEnrolled      = [bool]$device.AutopilotEnrolled
 
             # ===== CERTIFICATES =====
