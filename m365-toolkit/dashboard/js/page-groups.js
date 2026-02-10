@@ -173,7 +173,7 @@ const PageGroups = (function() {
                 { key: 'memberCount', label: 'Members', className: 'cell-right', formatter: function(v, row) {
                     var count = v || 0;
                     if (!row || !row.id || count === 0) return String(count);
-                    return buildGroupUserFilterLink(row, 'members', String(count));
+                    return buildGroupDetailsTabLink(row, 'group-members', String(count));
                 }},
                 { key: 'ownerCount', label: 'Owners', className: 'cell-right', formatter: formatOwnerCount },
                 { key: 'mail', label: 'Email', formatter: function(v, row) {
@@ -233,18 +233,16 @@ const PageGroups = (function() {
         return '<span class="badge badge-neutral">' + value + '</span>';
     }
 
-    function buildGroupUserFilterLink(group, role, label) {
+    function escapeJsString(value) {
+        return String(value || '').replace(/\\/g, '\\\\').replace(/'/g, '\\\'');
+    }
+
+    function buildGroupDetailsTabLink(group, tabId, label) {
         if (!group || !group.id) return label;
-        var params = [
-            'tab=users',
-            'groupId=' + encodeURIComponent(group.id),
-            'groupRole=' + encodeURIComponent(role || 'members')
-        ];
-        if (group.displayName) {
-            params.push('groupName=' + encodeURIComponent(group.displayName));
-        }
-        var title = role === 'owners' ? 'View group owners in Users' : 'View group members in Users';
-        return '<a href="#users?' + params.join('&') + '" class="entity-link" onclick="event.stopPropagation();" title="' + title + '">' + label + '</a>';
+        var safeId = escapeJsString(group.id);
+        var safeTab = escapeJsString(tabId);
+        var title = tabId === 'group-owners' ? 'View group owners' : 'View group members';
+        return '<a href="#groups" class="entity-link" onclick="return PageGroups.openGroupDetails(event, \'' + safeId + '\', \'' + safeTab + '\');" title="' + title + '">' + label + '</a>';
     }
 
     /**
@@ -262,7 +260,7 @@ const PageGroups = (function() {
         if (!value || value === 0) {
             return '<span class="text-critical font-bold">0</span>';
         }
-        return buildGroupUserFilterLink(row, 'owners', String(value));
+        return buildGroupDetailsTabLink(row, 'group-owners', String(value));
     }
 
     /**
@@ -290,7 +288,7 @@ const PageGroups = (function() {
      *
      * @param {object} group - Group data object
      */
-    function showGroupDetails(group) {
+    function showGroupDetails(group, initialTab) {
         var modal = document.getElementById('modal-overlay');
         var title = document.getElementById('modal-title');
         var body = document.getElementById('modal-body');
@@ -299,29 +297,33 @@ const PageGroups = (function() {
 
         title.textContent = group.displayName;
 
-        // Get group profile via DataRelationships if available
-        var profile = typeof DataRelationships !== 'undefined' && DataRelationships.getGroupProfile
-            ? DataRelationships.getGroupProfile(group.id)
-            : null;
+        var groupId = group.id || '';
+        var adminUrls = {
+            entra: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) : null,
+            entraMembers: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) + '/Members' : null,
+            entraOwners: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) + '/Owners' : null,
+            entraLicenses: groupId ?
+                'https://entra.microsoft.com/#view/Microsoft_AAD_IAM/GroupDetailsMenuBlade/groupId/' + encodeURIComponent(groupId) + '/Licenses' : null
+        };
 
-        // Get admin URLs
-        var adminUrls = typeof DataRelationships !== 'undefined' && DataRelationships.getGroupAdminUrls
-            ? DataRelationships.getGroupAdminUrls(group)
-            : {};
+        var activeTab = initialTab || 'group-overview';
 
         // Build tabs
         var tabsHtml = [
             '<div class="modal-tabs">',
-            '    <button class="modal-tab active" data-tab="group-overview">Overview</button>',
-            '    <button class="modal-tab" data-tab="group-members">Members (' + (group.memberCount || 0) + ')</button>',
-            '    <button class="modal-tab" data-tab="group-owners">Owners (' + (group.ownerCount || 0) + ')</button>',
-            '    <button class="modal-tab" data-tab="group-licenses">Licenses (' + (group.licenseAssignmentCount || 0) + ')</button>',
+            '    <button class="modal-tab' + (activeTab === 'group-overview' ? ' active' : '') + '" data-tab="group-overview">Overview</button>',
+            '    <button class="modal-tab' + (activeTab === 'group-members' ? ' active' : '') + '" data-tab="group-members">Members (' + (group.memberCount || 0) + ')</button>',
+            '    <button class="modal-tab' + (activeTab === 'group-owners' ? ' active' : '') + '" data-tab="group-owners">Owners (' + (group.ownerCount || 0) + ')</button>',
+            '    <button class="modal-tab' + (activeTab === 'group-licenses' ? ' active' : '') + '" data-tab="group-licenses">Licenses (' + (group.licenseAssignmentCount || 0) + ')</button>',
             '</div>'
         ].join('\n');
 
         // Build Overview tab content
         var overviewHtml = [
-            '<div id="group-overview" class="modal-tab-content active">',
+            '<div id="group-overview" class="modal-tab-content' + (activeTab === 'group-overview' ? ' active' : '') + '">',
             '    <h4 class="mt-0 mb-sm">Identity</h4>',
             '    <div class="detail-list">',
             '        <span class="detail-label">Display Name:</span>',
@@ -392,11 +394,18 @@ const PageGroups = (function() {
         // Build Members tab content
         var members = group.members || [];
         var membersHtml = [
-            '<div id="group-members" class="modal-tab-content">',
+            '<div id="group-members" class="modal-tab-content' + (activeTab === 'group-members' ? ' active' : '') + '">',
             '    <h4 class="mt-0 mb-sm">Group Members (' + (group.memberCount || 0) + ')</h4>'
         ];
         if (members.length === 0) {
-            membersHtml.push('    <p class="text-muted">No members data available or membership list is empty.</p>');
+            if (group.memberCount && group.memberCount > 0) {
+                membersHtml.push('    <p class="text-muted">Membership list not collected. Group has ' + group.memberCount + ' members.</p>');
+            } else {
+                membersHtml.push('    <p class="text-muted">No members data available or membership list is empty.</p>');
+            }
+            if (adminUrls.entraMembers) {
+                membersHtml.push('    <a href="' + adminUrls.entraMembers + '" target="_blank" rel="noopener" class="admin-link">Open Entra Members</a>');
+            }
         } else {
             membersHtml.push('    <table class="modal-table">');
             membersHtml.push('        <thead><tr><th>Name</th><th>Email</th><th>Type</th></tr></thead>');
@@ -420,11 +429,18 @@ const PageGroups = (function() {
         // Build Owners tab content
         var owners = group.owners || [];
         var ownersHtml = [
-            '<div id="group-owners" class="modal-tab-content">',
+            '<div id="group-owners" class="modal-tab-content' + (activeTab === 'group-owners' ? ' active' : '') + '">',
             '    <h4 class="mt-0 mb-sm">Group Owners (' + (group.ownerCount || 0) + ')</h4>'
         ];
         if (owners.length === 0) {
-            ownersHtml.push('    <div class="warning-box"><strong>Warning:</strong> This group has no owners assigned.</div>');
+            if (group.ownerCount && group.ownerCount > 0) {
+                ownersHtml.push('    <p class="text-muted">Owner list not collected. Group has ' + group.ownerCount + ' owners.</p>');
+            } else {
+                ownersHtml.push('    <div class="warning-box"><strong>Warning:</strong> This group has no owners assigned.</div>');
+            }
+            if (adminUrls.entraOwners) {
+                ownersHtml.push('    <a href="' + adminUrls.entraOwners + '" target="_blank" rel="noopener" class="admin-link">Open Entra Owners</a>');
+            }
         } else {
             ownersHtml.push('    <table class="modal-table">');
             ownersHtml.push('        <thead><tr><th>Name</th><th>Email</th></tr></thead>');
@@ -443,7 +459,7 @@ const PageGroups = (function() {
         // Build Licenses tab content
         var licenses = group.assignedLicenses || [];
         var licensesHtml = [
-            '<div id="group-licenses" class="modal-tab-content">',
+            '<div id="group-licenses" class="modal-tab-content' + (activeTab === 'group-licenses' ? ' active' : '') + '">',
             '    <h4 class="mt-0 mb-sm">License Assignments via Group</h4>'
         ];
         if (licenses.length === 0) {
@@ -485,6 +501,23 @@ const PageGroups = (function() {
         });
 
         modal.classList.add('visible');
+    }
+
+    function openGroupDetails(event, groupId, tabId) {
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+        }
+        var groups = getGroupsData();
+        var id = groupId ? decodeURIComponent(groupId) : '';
+        var group = groups.find(function(g) { return g && g.id === id; }) || null;
+        if (!group && groups.length > 0) {
+            group = groups.find(function(g) { return g && g.displayName === id; }) || null;
+        }
+        if (group) {
+            showGroupDetails(group, tabId);
+        }
+        return false;
     }
 
     /**
@@ -666,7 +699,8 @@ const PageGroups = (function() {
 
     // Public API
     return {
-        render: render
+        render: render,
+        openGroupDetails: openGroupDetails
     };
 
 })();
