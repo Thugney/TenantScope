@@ -35,6 +35,19 @@ const PageUsers = (function() {
     /** Cached user -> device index */
     var deviceIndex = null;
 
+    function getHashParams() {
+        var hash = window.location.hash || '';
+        var idx = hash.indexOf('?');
+        if (idx === -1) return {};
+        var query = hash.substring(idx + 1);
+        var params = new URLSearchParams(query);
+        var result = {};
+        params.forEach(function(value, key) {
+            result[key] = value;
+        });
+        return result;
+    }
+
     function getDeviceIndex() {
         if (deviceIndex) return deviceIndex;
 
@@ -1844,6 +1857,12 @@ const PageUsers = (function() {
             });
         }
 
+        var hashParams = getHashParams();
+        var searchSeed = hashParams.user || hashParams.upn || hashParams.search;
+        if (searchSeed) {
+            Filters.setValue('users-search', searchSeed);
+        }
+
         // Bind export button
         Export.bindExportButton('users-table', 'users');
 
@@ -1947,9 +1966,16 @@ const PageUsers = (function() {
             btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
         });
 
-        // Initial tab render
-        currentTab = 'overview';
-        renderContent();
+        var hashParams = getHashParams();
+        var allowed = { overview: true, quality: true, users: true };
+        var initialTab = 'overview';
+        if (hashParams.tab && allowed[hashParams.tab]) {
+            initialTab = hashParams.tab;
+        } else if (hashParams.search || hashParams.user || hashParams.upn) {
+            initialTab = 'users';
+        }
+        currentTab = initialTab;
+        switchTab(currentTab);
     }
 
     // Public API
