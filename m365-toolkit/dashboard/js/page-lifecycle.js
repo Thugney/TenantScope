@@ -21,7 +21,7 @@ const PageLifecycle = (function() {
     'use strict';
 
     /** Current tab */
-    var currentTab = 'overview';
+    var currentTab = 'issues';
 
     /** Cached page state */
     var lifecycleState = null;
@@ -280,40 +280,9 @@ const PageLifecycle = (function() {
         container.appendChild(insightsList);
     }
 
-    /**
-     * Switches to a different tab.
-     */
     function switchTab(tab) {
         currentTab = tab;
-        document.querySelectorAll('.tab-btn').forEach(function(btn) {
-            btn.classList.toggle('active', btn.dataset.tab === tab);
-        });
-        renderContent();
-    }
-
-    /**
-     * Renders the content for the current tab.
-     */
-    function renderContent() {
-        var container = document.getElementById('lifecycle-content');
-        if (!container || !lifecycleState) return;
-
-        switch (currentTab) {
-            case 'overview':
-                renderOverviewTab(container);
-                break;
-            case 'issues':
-                renderIssuesTab(container);
-                break;
-        }
-    }
-
-    /**
-     * Renders the Overview tab.
-     */
-    function renderOverviewTab(container) {
-        container.textContent = '';
-        renderLifecycleOverview(container, lifecycleState.stats);
+        renderIssuesTab(document.getElementById('lifecycle-content'));
     }
 
     /**
@@ -1152,32 +1121,12 @@ const PageLifecycle = (function() {
             sitesWithoutLabels: sitesWithoutLabels
         };
 
-        // Tab bar
-        var tabBar = el('div', 'tab-bar');
-        var tabs = [
-            { id: 'overview', label: 'Overview' },
-            { id: 'issues', label: 'All Issues (' + totalIssues + ')' }
-        ];
-        tabs.forEach(function(t) {
-            var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
-            btn.dataset.tab = t.id;
-            btn.textContent = t.label;
-            tabBar.appendChild(btn);
-        });
-        container.appendChild(tabBar);
-
         // Content area
         var contentArea = el('div', 'content-area');
         contentArea.id = 'lifecycle-content';
         container.appendChild(contentArea);
-
-        // Tab handlers
-        document.querySelectorAll('.tab-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
-        });
-
-        currentTab = 'overview';
-        renderContent();
+        currentTab = 'issues';
+        renderIssuesTab(contentArea);
     }
 
     // Public API

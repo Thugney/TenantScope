@@ -16,7 +16,7 @@ const PageGuests = (function() {
     'use strict';
 
     /** Current tab */
-    var currentTab = 'overview';
+    var currentTab = 'guests';
 
     /** Column selector instance */
     var colSelector = null;
@@ -700,35 +700,7 @@ const PageGuests = (function() {
      */
     function switchTab(tab) {
         currentTab = tab;
-        document.querySelectorAll('.tab-btn').forEach(function(btn) {
-            btn.classList.toggle('active', btn.dataset.tab === tab);
-        });
-        renderContent();
-    }
-
-    /**
-     * Renders the content for the current tab.
-     */
-    function renderContent() {
-        var container = document.getElementById('guests-content');
-        if (!container || !guestsState) return;
-
-        switch (currentTab) {
-            case 'overview':
-                renderOverviewTab(container);
-                break;
-            case 'guests':
-                renderGuestsTab(container);
-                break;
-        }
-    }
-
-    /**
-     * Renders the Overview tab.
-     */
-    function renderOverviewTab(container) {
-        container.textContent = '';
-        renderGuestsOverview(container, guestsState.stats);
+        renderGuestsTab(document.getElementById('guests-content'));
     }
 
     /**
@@ -921,35 +893,13 @@ const PageGuests = (function() {
         cardsGrid.appendChild(createSummaryCard('Pending', pendingCount, pendingCount > 0 ? 'warning' : '', 'Awaiting acceptance', 'guests-sum-pending'));
         container.appendChild(cardsGrid);
 
-        // Tab bar
-        var tabBar = document.createElement('div');
-        tabBar.className = 'tab-bar';
-        var tabs = [
-            { id: 'overview', label: 'Overview' },
-            { id: 'guests', label: 'All Guests (' + total + ')' }
-        ];
-        tabs.forEach(function(t) {
-            var btn = document.createElement('button');
-            btn.className = 'tab-btn' + (t.id === 'overview' ? ' active' : '');
-            btn.dataset.tab = t.id;
-            btn.textContent = t.label;
-            tabBar.appendChild(btn);
-        });
-        container.appendChild(tabBar);
-
         // Content area
         var contentArea = document.createElement('div');
         contentArea.className = 'content-area';
         contentArea.id = 'guests-content';
         container.appendChild(contentArea);
-
-        // Tab handlers
-        document.querySelectorAll('.tab-btn').forEach(function(btn) {
-            btn.addEventListener('click', function() { switchTab(btn.dataset.tab); });
-        });
-
-        currentTab = 'overview';
-        renderContent();
+        currentTab = 'guests';
+        renderGuestsTab(contentArea);
     }
 
     // Public API
