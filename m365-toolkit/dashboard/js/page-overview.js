@@ -130,9 +130,6 @@ const PageOverview = (function() {
             case 'cockpit':
                 renderCockpitTab(container);
                 break;
-            case 'stats':
-                renderStatsTab(container);
-                break;
         }
     }
 
@@ -1872,8 +1869,7 @@ const PageOverview = (function() {
         var tabBar = el('div', 'tab-bar');
         var tabs = [
             { id: 'overview', label: 'Overview' },
-            { id: 'cockpit', label: 'Security Cockpit' },
-            { id: 'stats', label: 'Quick Stats' }
+            { id: 'cockpit', label: 'Security Cockpit' }
         ];
         tabs.forEach(function(t) {
             var btn = el('button', 'tab-btn' + (t.id === 'overview' ? ' active' : ''));
