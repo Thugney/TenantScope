@@ -139,13 +139,13 @@ $autopilotCount = 0
 try {
     Write-Host "    Collecting Windows Autopilot devices..." -ForegroundColor Gray
 
-    # Use direct REST API for consistent property names (camelCase)
-    # The SDK cmdlet returns .NET objects with inconsistent property handling
+    # Use beta API for full property set including deploymentProfileAssignmentStatus
+    # v1.0 API doesn't include profile assignment properties
     $autopilotDevices = @()
 
     $response = Invoke-GraphWithRetry -ScriptBlock {
         Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/v1.0/deviceManagement/windowsAutopilotDeviceIdentities" `
+            -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities" `
             -OutputType PSObject
     } -OperationName "Autopilot device retrieval"
 
@@ -164,6 +164,16 @@ try {
     }
 
     Write-Host "      Retrieved $($autopilotDevices.Count) Autopilot devices" -ForegroundColor Gray
+
+    # Debug: Show sample of available properties from first device
+    if ($autopilotDevices.Count -gt 0) {
+        $sampleDevice = $autopilotDevices[0]
+        $propNames = @($sampleDevice.PSObject.Properties.Name) -join ", "
+        Write-Host "      Properties available: $($propNames.Substring(0, [Math]::Min(120, $propNames.Length)))..." -ForegroundColor Gray
+
+        # Show key values for debugging
+        Write-Host "      Sample - enrollmentState: $($sampleDevice.enrollmentState), profileStatus: $($sampleDevice.deploymentProfileAssignmentStatus)" -ForegroundColor Gray
+    }
 
     # Process each Autopilot device
     $processedDevices = @()
@@ -193,6 +203,9 @@ try {
             }
         }
 
+        # Get deployment profile detailed status (beta property)
+        $profileDetailedStatus = $device.deploymentProfileAssignmentDetailedStatus
+
         $processedDevice = [PSCustomObject]@{
             id                           = $device.id
             serialNumber                 = $device.serialNumber
@@ -203,11 +216,13 @@ try {
             lastContacted                = ConvertTo-SafeDateTime -DateValue $device.lastContactedDateTime
             profileAssigned              = $profileAssigned
             profileAssignmentStatus      = $profileAssignmentStatus
+            profileDetailedStatus        = $profileDetailedStatus
             purchaseOrder                = $device.purchaseOrderIdentifier
             # Additional properties
             displayName                  = $device.displayName
             userPrincipalName            = $device.userPrincipalName
             azureActiveDirectoryDeviceId = $device.azureActiveDirectoryDeviceId
+            azureAdDeviceId              = $device.azureAdDeviceId
             managedDeviceId              = $device.managedDeviceId
             productKey                   = $device.productKey
             skuNumber                    = $device.skuNumber
@@ -215,6 +230,9 @@ try {
             addressableUserName          = $device.addressableUserName
             resourceName                 = $device.resourceName
             profileAssignedDateTime      = ConvertTo-SafeDateTime -DateValue $device.deploymentProfileAssignedDateTime
+            # Beta properties
+            remediationState             = $device.remediationState
+            userlessEnrollmentStatus     = $device.userlessEnrollmentStatus
         }
 
         $processedDevices += $processedDevice
