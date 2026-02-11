@@ -114,9 +114,11 @@ try {
     Write-Host "      Loaded $($roleLookup.Count) role definitions" -ForegroundColor Gray
 
     # Collect role assignment schedule requests (activations/assignments)
+    # Note: This requires RoleAssignmentSchedule.ReadWrite.Directory which many tenants don't grant
     Write-Host "      Retrieving role assignment schedule requests..." -ForegroundColor Gray
 
     $processedEntries = @()
+    $assignmentRequests = @()
 
     try {
         $assignmentRequests = Invoke-GraphWithRetry -ScriptBlock {
@@ -126,77 +128,81 @@ try {
         } -OperationName "PIM assignment requests"
 
         Write-Host "      Retrieved $($assignmentRequests.Count) assignment requests" -ForegroundColor Gray
-
-        foreach ($request in $assignmentRequests) {
-            # Extract principal info
-            $principalIdentity = Resolve-PrincipalIdentity -Principal $request.Principal
-            $principalName = $principalIdentity.displayName
-            $principalUpn = $principalIdentity.userPrincipalName
-
-            # Lookup role name
-            $roleName = $roleLookup[$request.RoleDefinitionId]
-            if (-not $roleName) { $roleName = "Unknown Role" }
-
-            # Calculate duration if schedule info exists
-            $startDateTime = $null
-            $endDateTime = $null
-            if ($request.ScheduleInfo) {
-                if ($request.ScheduleInfo.StartDateTime) {
-                    $startDateTime = $request.ScheduleInfo.StartDateTime.ToString("o")
-                }
-                if ($request.ScheduleInfo.Expiration -and $request.ScheduleInfo.Expiration.EndDateTime) {
-                    $endDateTime = $request.ScheduleInfo.Expiration.EndDateTime.ToString("o")
-                }
-            }
-
-            # Get ticket info if available
-            $ticketNumber = $null
-            $ticketSystem = $null
-            if ($request.TicketInfo) {
-                $ticketNumber = $request.TicketInfo.TicketNumber
-                $ticketSystem = $request.TicketInfo.TicketSystem
-            }
-
-            # Get approval ID if available
-            $approvalId = $request.ApprovalId
-
-            # Check if this is a validation-only request
-            $isValidationOnly = $request.IsValidationOnly
-
-            # Get completed datetime if available
-            $completedDateTime = $null
-            if ($request.CompletedDateTime) {
-                $completedDateTime = $request.CompletedDateTime.ToString("o")
-            }
-
-            $processedEntry = [PSCustomObject]@{
-                id                     = $request.Id
-                action                 = $request.Action
-                principalDisplayName   = $principalName
-                principalUpn           = $principalUpn
-                roleName               = $roleName
-                roleDefinitionId       = $request.RoleDefinitionId
-                status                 = $request.Status
-                createdDateTime        = if ($request.CreatedDateTime) { $request.CreatedDateTime.ToString("o") } else { $null }
-                completedDateTime      = $completedDateTime
-                justification          = $request.Justification
-                scheduleStartDateTime  = $startDateTime
-                scheduleEndDateTime    = $endDateTime
-                ticketNumber           = $ticketNumber
-                ticketSystem           = $ticketSystem
-                approvalId             = $approvalId
-                isValidationOnly       = $isValidationOnly
-                isEligible             = $false
-                entryType              = "request"
-            }
-
-            $processedEntries += $processedEntry
-            $entryCount++
-        }
     }
     catch {
-        Write-Host "      Could not retrieve assignment requests: $($_.Exception.Message)" -ForegroundColor Yellow
-        $errors += "Assignment requests: $($_.Exception.Message)"
+        $errMsg = $_.Exception.Message
+        if ($errMsg -match "PermissionScopeNotGranted|403|Forbidden|Authorization") {
+            Write-Host "      [!] Assignment requests require RoleAssignmentSchedule.ReadWrite.Directory (skipping)" -ForegroundColor Yellow
+        } else {
+            Write-Host "      [!] Assignment requests failed: $errMsg" -ForegroundColor Yellow
+        }
+    }
+
+    foreach ($request in $assignmentRequests) {
+        # Extract principal info
+        $principalIdentity = Resolve-PrincipalIdentity -Principal $request.Principal
+        $principalName = $principalIdentity.displayName
+        $principalUpn = $principalIdentity.userPrincipalName
+
+        # Lookup role name
+        $roleName = $roleLookup[$request.RoleDefinitionId]
+        if (-not $roleName) { $roleName = "Unknown Role" }
+
+        # Calculate duration if schedule info exists
+        $startDateTime = $null
+        $endDateTime = $null
+        if ($request.ScheduleInfo) {
+            if ($request.ScheduleInfo.StartDateTime) {
+                $startDateTime = $request.ScheduleInfo.StartDateTime.ToString("o")
+            }
+            if ($request.ScheduleInfo.Expiration -and $request.ScheduleInfo.Expiration.EndDateTime) {
+                $endDateTime = $request.ScheduleInfo.Expiration.EndDateTime.ToString("o")
+            }
+        }
+
+        # Get ticket info if available
+        $ticketNumber = $null
+        $ticketSystem = $null
+        if ($request.TicketInfo) {
+            $ticketNumber = $request.TicketInfo.TicketNumber
+            $ticketSystem = $request.TicketInfo.TicketSystem
+        }
+
+        # Get approval ID if available
+        $approvalId = $request.ApprovalId
+
+        # Check if this is a validation-only request
+        $isValidationOnly = $request.IsValidationOnly
+
+        # Get completed datetime if available
+        $completedDateTime = $null
+        if ($request.CompletedDateTime) {
+            $completedDateTime = $request.CompletedDateTime.ToString("o")
+        }
+
+        $processedEntry = [PSCustomObject]@{
+            id                     = $request.Id
+            action                 = $request.Action
+            principalDisplayName   = $principalName
+            principalUpn           = $principalUpn
+            roleName               = $roleName
+            roleDefinitionId       = $request.RoleDefinitionId
+            status                 = $request.Status
+            createdDateTime        = if ($request.CreatedDateTime) { $request.CreatedDateTime.ToString("o") } else { $null }
+            completedDateTime      = $completedDateTime
+            justification          = $request.Justification
+            scheduleStartDateTime  = $startDateTime
+            scheduleEndDateTime    = $endDateTime
+            ticketNumber           = $ticketNumber
+            ticketSystem           = $ticketSystem
+            approvalId             = $approvalId
+            isValidationOnly       = $isValidationOnly
+            isEligible             = $false
+            entryType              = "request"
+        }
+
+        $processedEntries += $processedEntry
+        $entryCount++
     }
 
     # Collect eligible role assignments

@@ -104,6 +104,41 @@ try {
         $lapsMap[$deviceId] = $record
     }
 
+    # Local admin logon data via Graph Security API Advanced Hunting
+    $localAdminMap = @{}
+    $localAdminQueryFailed = $false
+    try {
+        $query = @"
+DeviceLogonEvents
+| where Timestamp >= ago(${localAdminDays}d)
+| where IsLocalAdmin == true
+| summarize localAdminLogons=count(), lastSeen=max(Timestamp) by DeviceId, DeviceName
+"@
+        $response = Invoke-AdvancedHuntingQuery -Query $query -Timespan "P${localAdminDays}D"
+
+        $rows = @()
+        if ($response.Results) { $rows = $response.Results }
+        elseif ($response.results) { $rows = $response.results }
+
+        foreach ($row in $rows) {
+            if (-not $row.DeviceId) { continue }
+            $localAdminMap[$row.DeviceId] = @{
+                logonCount = [int]$row.localAdminLogons
+                lastSeen = $row.lastSeen
+            }
+        }
+        Write-Host "      Found local admin logons for $($localAdminMap.Count) devices" -ForegroundColor Gray
+    }
+    catch {
+        $errMsg = $_.Exception.Message
+        if ($errMsg -match "BadRequest|Forbidden|not found|not supported|license") {
+            Write-Host "      [!] Local admin logons: Advanced Hunting not available (M365 Defender required)" -ForegroundColor Yellow
+        } else {
+            $errors += "Local admin logons: $errMsg"
+        }
+        $localAdminQueryFailed = $true
+    }
+
     $devices = @()
     $summary = @{
         totalDevices = 0
@@ -211,37 +246,3 @@ catch {
     Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
     return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }
-    $localAdminMap = @{}
-    $localAdminQueryFailed = $false
-
-    # Local admin logon data via Graph Security API Advanced Hunting
-    try {
-        $query = @"
-DeviceLogonEvents
-| where Timestamp >= ago(${localAdminDays}d)
-| where IsLocalAdmin == true
-| summarize localAdminLogons=count(), lastSeen=max(Timestamp) by DeviceId, DeviceName
-"@
-        $response = Invoke-AdvancedHuntingQuery -Query $query -Timespan "P${localAdminDays}D"
-
-        $rows = @()
-        if ($response.Results) { $rows = $response.Results }
-        elseif ($response.results) { $rows = $response.results }
-
-        foreach ($row in $rows) {
-            if (-not $row.DeviceId) { continue }
-            $localAdminMap[$row.DeviceId] = @{
-                logonCount = [int]$row.localAdminLogons
-                lastSeen = $row.lastSeen
-            }
-        }
-    }
-    catch {
-        $errMsg = $_.Exception.Message
-        if ($errMsg -match "BadRequest|Forbidden|not found|not supported|license") {
-            Write-Host "      [!] Local admin logons: Advanced Hunting not available (M365 Defender required)" -ForegroundColor Yellow
-        } else {
-            $errors += "Local admin logons: $errMsg"
-        }
-        $localAdminQueryFailed = $true
-    }
