@@ -237,6 +237,11 @@ DeviceLogonEvents
         }
     }
     catch {
-        $errors += "Local admin logons: $($_.Exception.Message)"
+        $errMsg = $_.Exception.Message
+        if ($errMsg -match "BadRequest|Forbidden|not found|not supported|license") {
+            Write-Host "      [!] Local admin logons: Advanced Hunting not available (M365 Defender required)" -ForegroundColor Yellow
+        } else {
+            $errors += "Local admin logons: $errMsg"
+        }
         $localAdminQueryFailed = $true
     }

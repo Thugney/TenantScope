@@ -90,8 +90,34 @@ DeviceTvmSecureConfigurationAssessment
 | project DeviceId, DeviceName, ConfigurationName, ConfigurationSubcategory, IsCompliant, IsApplicable
 "@
 
-    # Use Graph Security API for Advanced Hunting (requires ThreatHunting.Read.All)
-    $response = Invoke-AdvancedHuntingQuery -Query $query
+    # Use Graph Security API for Advanced Hunting (requires ThreatHunting.Read.All + M365 Defender license)
+    $response = $null
+    try {
+        $response = Invoke-AdvancedHuntingQuery -Query $query
+    }
+    catch {
+        $errMsg = $_.Exception.Message
+        if ($errMsg -match "BadRequest|Forbidden|not found|not supported|license") {
+            Write-Host "    [!] Advanced Hunting not available - requires Microsoft 365 Defender license" -ForegroundColor Yellow
+            Write-Host "    [!] DeviceTvmSecureConfigurationAssessment table requires Defender for Endpoint P2" -ForegroundColor Yellow
+
+            $emptyOutput = @{
+                devices = @()
+                summary = @{
+                    totalDevices = 0
+                    credentialGuardGaps = 0
+                    memoryIntegrityGaps = 0
+                    unknownDevices = 0
+                }
+                collectionDate = (Get-Date).ToString("o")
+                dataSource = "unavailable"
+                reason = "Advanced Hunting requires Microsoft 365 Defender license with ThreatHunting.Read.All permission"
+            }
+            Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+            return New-CollectorResult -Success $true -Count 0 -Errors @("Advanced Hunting not available")
+        }
+        throw
+    }
 
     $rows = @()
     if ($response.Results) { $rows = $response.Results }

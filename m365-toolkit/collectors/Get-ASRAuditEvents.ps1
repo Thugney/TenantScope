@@ -70,8 +70,35 @@ DeviceEvents
 | order by totalEvents desc
 "@
 
-    # Use Graph Security API for Advanced Hunting (requires ThreatHunting.Read.All)
-    $response = Invoke-AdvancedHuntingQuery -Query $query -Timespan "P${daysBack}D"
+    # Use Graph Security API for Advanced Hunting (requires ThreatHunting.Read.All + M365 Defender license)
+    $response = $null
+    try {
+        $response = Invoke-AdvancedHuntingQuery -Query $query -Timespan "P${daysBack}D"
+    }
+    catch {
+        $errMsg = $_.Exception.Message
+        if ($errMsg -match "BadRequest|Forbidden|not found|not supported|license") {
+            Write-Host "    [!] Advanced Hunting not available - requires Microsoft 365 Defender license" -ForegroundColor Yellow
+
+            $emptyOutput = @{
+                rules = @()
+                summary = @{
+                    totalEvents = 0
+                    rulesWithEvents = 0
+                    devicesAffected = 0
+                    noisyRules = 0
+                    daysCovered = $daysBack
+                }
+                noiseThreshold = 20
+                collectionDate = (Get-Date).ToString("o")
+                dataSource = "unavailable"
+                reason = "Advanced Hunting requires Microsoft 365 Defender license with ThreatHunting.Read.All permission"
+            }
+            Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+            return New-CollectorResult -Success $true -Count 0 -Errors @("Advanced Hunting not available")
+        }
+        throw
+    }
 
     $rows = @()
     if ($response.Results) {
