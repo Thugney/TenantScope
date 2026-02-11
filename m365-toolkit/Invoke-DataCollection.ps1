@@ -125,7 +125,11 @@ param(
 
     # Use device code authentication (more stable for long-running scripts)
     [Parameter()]
-    [switch]$UseDeviceCode
+    [switch]$UseDeviceCode,
+
+    # Skip Defender API authentication (for tenants without Defender for Endpoint)
+    [Parameter()]
+    [switch]$SkipDefenderApi
 )
 
 # ============================================================================
@@ -582,34 +586,50 @@ catch {
 # ============================================================================
 
 Write-Host ""
-Write-Host "[2b/6] Connecting to Defender API (for Advanced Hunting)..." -ForegroundColor Cyan
+Write-Host "[2b/6] Defender API (optional - for Advanced Hunting)..." -ForegroundColor Cyan
 
 # Load Defender API library
 . "$PSScriptRoot\lib\DefenderApi.ps1"
 
 $script:DefenderConnected = $false
-try {
-    if ($authMode -eq "Interactive") {
-        Write-Host "  Defender API requires separate authentication for Advanced Hunting." -ForegroundColor Gray
-        Write-Host "  This enables: ASR audit events, device hardening telemetry, LAPS usage data." -ForegroundColor Gray
-        Write-Host ""
 
-        $defenderConnected = Connect-DefenderApi -TenantId $configContent.tenantId
-        if ($defenderConnected) {
-            $script:DefenderConnected = $true
+if ($SkipDefenderApi) {
+    Write-Host "  [!] Skipping Defender API (--SkipDefenderApi specified)" -ForegroundColor Yellow
+    Write-Host "  Advanced Hunting collectors will use empty data." -ForegroundColor Gray
+}
+elseif ($authMode -ne "Interactive") {
+    # For app-only auth, Defender API would need separate app registration
+    Write-Host "  [!] Defender API requires interactive auth. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+}
+else {
+    Write-Host "  Defender API enables: ASR audit events, MDE device health, device hardening, LAPS data." -ForegroundColor Gray
+    Write-Host ""
+    Write-Host "  Do you want to authenticate to Defender API?" -ForegroundColor Yellow
+    Write-Host "    [Y] Yes - Connect to Defender API (requires additional login)" -ForegroundColor White
+    Write-Host "    [N] No  - Skip Defender API (collectors will output empty data)" -ForegroundColor White
+    Write-Host ""
+
+    $choice = Read-Host "  Enter choice (Y/N)"
+
+    if ($choice -match "^[Yy]") {
+        try {
+            $defenderConnected = Connect-DefenderApi -TenantId $configContent.tenantId
+            if ($defenderConnected) {
+                $script:DefenderConnected = $true
+            }
+            else {
+                Write-Host "  [!] Defender API not connected. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+            }
         }
-        else {
-            Write-Host "  [!] Defender API not connected. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+        catch {
+            Write-Host "  [!] Defender API connection failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            Write-Host "  Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
         }
     }
     else {
-        # For app-only auth, Defender API would need separate app registration
-        Write-Host "  [!] Defender API requires interactive auth. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+        Write-Host "  [OK] Skipping Defender API authentication." -ForegroundColor Green
+        Write-Host "  TIP: Use -SkipDefenderApi to skip this prompt in the future." -ForegroundColor Gray
     }
-}
-catch {
-    Write-Host "  [!] Defender API connection failed: $($_.Exception.Message)" -ForegroundColor Yellow
-    Write-Host "  Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
 }
 
 # ============================================================================
