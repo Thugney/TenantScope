@@ -5733,6 +5733,218 @@ table {
     background: linear-gradient(135deg, #f59e0b, #d97706);
 }
 
+/* ========================================================================
+   DATA QUALITY PAGE
+   ======================================================================== */
+
+/* Panel styles */
+.dq-property-panel,
+.dq-breakdown-panel {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--border-radius);
+    padding: var(--spacing-md);
+}
+
+.dq-panel-header {
+    margin-bottom: var(--spacing-md);
+}
+
+.dq-panel-title {
+    font-size: var(--font-size-base);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 4px 0;
+}
+
+.dq-panel-subtitle {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    margin: 0;
+}
+
+/* Field cards grid */
+.dq-field-cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: var(--spacing-sm);
+}
+
+.dq-field-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background: var(--color-bg-primary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-bg-tertiary);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.dq-field-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.dq-field-card--critical {
+    border-color: var(--color-critical);
+    border-width: 2px;
+}
+
+.dq-field-card--warning {
+    border-color: var(--color-warning);
+}
+
+.dq-field-card--success {
+    border-color: var(--color-success);
+}
+
+/* Progress ring */
+.dq-field-ring {
+    position: relative;
+    width: 50px;
+    height: 50px;
+    margin-bottom: 6px;
+}
+
+.dq-ring-svg {
+    width: 100%;
+    height: 100%;
+}
+
+.dq-ring-pct {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+/* Field info */
+.dq-field-info {
+    text-align: center;
+}
+
+.dq-field-name {
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-bottom: 2px;
+}
+
+.dq-field-count {
+    font-size: 10px;
+    color: var(--color-text-secondary);
+}
+
+/* Groups list (breakdown) */
+.dq-groups-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.dq-group-row {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 8px 12px;
+    background: var(--color-bg-primary);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--color-bg-tertiary);
+}
+
+.dq-group-row:hover {
+    background: var(--color-bg-secondary);
+}
+
+.dq-group-info {
+    flex: 0 0 140px;
+    min-width: 0;
+}
+
+.dq-group-name {
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.dq-group-count {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.dq-group-bar-wrap {
+    flex: 1;
+    min-width: 0;
+}
+
+.dq-group-bar-track {
+    height: 8px;
+    background: var(--color-bg-tertiary);
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.dq-group-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width var(--transition-normal);
+}
+
+.dq-bar--success {
+    background: linear-gradient(90deg, #10b981, #059669);
+}
+
+.dq-bar--warning {
+    background: linear-gradient(90deg, #f59e0b, #d97706);
+}
+
+.dq-bar--critical {
+    background: linear-gradient(90deg, #ef4444, #dc2626);
+}
+
+.dq-group-pct {
+    flex: 0 0 50px;
+    text-align: right;
+    font-size: var(--font-size-sm);
+    font-weight: 600;
+}
+
+.dq-pct--success {
+    color: var(--color-success);
+}
+
+.dq-pct--warning {
+    color: var(--color-warning);
+}
+
+.dq-pct--critical {
+    color: var(--color-critical);
+}
+
+.dq-empty-state {
+    padding: var(--spacing-lg);
+    text-align: center;
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-sm);
+}
+
+@media (max-width: 768px) {
+    .dq-field-cards {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .dq-group-info {
+        flex: 0 0 100px;
+    }
+}
+
 @media (max-width: 1024px) {
     .cockpit-actions-row {
         grid-template-columns: 1fr;

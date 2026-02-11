@@ -421,90 +421,87 @@ const PageDataQuality = (function() {
     }
 
     /**
-     * Renders the Focus Table showing property completeness.
+     * Renders the Focus Table showing property completeness with visual cards.
      */
     function renderPropertyFocusTable(fieldStats) {
         var container = document.getElementById('dq-focus-table');
         if (!container) return;
         container.textContent = '';
 
-        var wrapper = document.createElement('div');
-        wrapper.className = 'focus-table-wrapper';
+        var wrapper = el('div', 'dq-property-panel');
 
-        var title = document.createElement('div');
-        title.className = 'focus-table-title';
-        title.textContent = 'Property Completeness';
-        wrapper.appendChild(title);
+        // Header with title
+        var header = el('div', 'dq-panel-header');
+        header.appendChild(el('h4', 'dq-panel-title', 'Field Coverage'));
+        header.appendChild(el('p', 'dq-panel-subtitle', 'Profile property completeness'));
+        wrapper.appendChild(header);
 
-        var subtitle = document.createElement('div');
-        subtitle.className = 'focus-table-subtitle';
-        subtitle.textContent = 'Coverage of profile fields across all users';
-        wrapper.appendChild(subtitle);
+        // Sort fields by completeness (lowest first for attention)
+        var sortedStats = fieldStats.slice().sort(function(a, b) { return a.pct - b.pct; });
 
-        var table = document.createElement('table');
-        table.className = 'focus-table';
+        // Property cards grid
+        var cardsGrid = el('div', 'dq-field-cards');
 
-        var thead = document.createElement('thead');
-        var headRow = document.createElement('tr');
-        var th1 = document.createElement('th');
-        th1.textContent = 'Property';
-        var th2 = document.createElement('th');
-        th2.textContent = 'Users with Data';
-        th2.className = 'cell-right';
-        var th3 = document.createElement('th');
-        th3.textContent = '% Complete';
-        th3.className = 'cell-right';
-        headRow.appendChild(th1);
-        headRow.appendChild(th2);
-        headRow.appendChild(th3);
-        thead.appendChild(headRow);
-        table.appendChild(thead);
+        for (var i = 0; i < sortedStats.length; i++) {
+            var fs = sortedStats[i];
+            var statusClass = fs.pct >= 90 ? 'success' : (fs.pct >= 70 ? 'warning' : 'critical');
 
-        var tbody = document.createElement('tbody');
-        for (var i = 0; i < fieldStats.length; i++) {
-            var fs = fieldStats[i];
-            var tr = document.createElement('tr');
+            var card = el('div', 'dq-field-card dq-field-card--' + statusClass);
 
-            var td1 = document.createElement('td');
-            td1.textContent = fs.label;
-            var td2 = document.createElement('td');
-            td2.className = 'cell-right';
-            td2.textContent = fs.filled + ' / ' + fs.total;
-            var td3 = document.createElement('td');
-            td3.className = 'cell-right';
+            // Progress ring
+            var ringWrap = el('div', 'dq-field-ring');
+            var svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+            svg.setAttribute('viewBox', '0 0 36 36');
+            svg.setAttribute('class', 'dq-ring-svg');
 
-            // Create progress bar with percentage
-            var barWrapper = document.createElement('div');
-            barWrapper.className = 'completeness-bar';
+            // Background circle
+            var bgCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            bgCircle.setAttribute('cx', '18');
+            bgCircle.setAttribute('cy', '18');
+            bgCircle.setAttribute('r', '15.9');
+            bgCircle.setAttribute('fill', 'none');
+            bgCircle.setAttribute('stroke', 'var(--color-bg-tertiary)');
+            bgCircle.setAttribute('stroke-width', '3');
+            svg.appendChild(bgCircle);
 
-            var barTrack = document.createElement('div');
-            barTrack.className = 'completeness-bar-track';
-            var barFill = document.createElement('div');
-            var pctClass = fs.pct >= 90 ? 'pct-high' : (fs.pct >= 70 ? 'pct-medium' : 'pct-low');
-            barFill.className = 'completeness-bar-fill ' + pctClass;
-            barFill.style.width = fs.pct + '%';
-            barTrack.appendChild(barFill);
+            // Progress circle
+            var progressCircle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            progressCircle.setAttribute('cx', '18');
+            progressCircle.setAttribute('cy', '18');
+            progressCircle.setAttribute('r', '15.9');
+            progressCircle.setAttribute('fill', 'none');
+            progressCircle.setAttribute('stroke', 'var(--color-' + statusClass + ')');
+            progressCircle.setAttribute('stroke-width', '3');
+            progressCircle.setAttribute('stroke-linecap', 'round');
+            var circumference = 2 * Math.PI * 15.9;
+            var dashOffset = circumference - (fs.pct / 100) * circumference;
+            progressCircle.setAttribute('stroke-dasharray', circumference);
+            progressCircle.setAttribute('stroke-dashoffset', dashOffset);
+            progressCircle.setAttribute('transform', 'rotate(-90 18 18)');
+            svg.appendChild(progressCircle);
 
-            var badge = document.createElement('span');
-            badge.className = pctColorClass(fs.pct);
-            badge.textContent = fs.pct + '%';
+            ringWrap.appendChild(svg);
 
-            barWrapper.appendChild(barTrack);
-            barWrapper.appendChild(badge);
-            td3.appendChild(barWrapper);
+            // Percentage in center
+            var pctLabel = el('span', 'dq-ring-pct', fs.pct + '%');
+            ringWrap.appendChild(pctLabel);
+            card.appendChild(ringWrap);
 
-            tr.appendChild(td1);
-            tr.appendChild(td2);
-            tr.appendChild(td3);
-            tbody.appendChild(tr);
+            // Field info
+            var infoWrap = el('div', 'dq-field-info');
+            infoWrap.appendChild(el('div', 'dq-field-name', fs.label));
+            infoWrap.appendChild(el('div', 'dq-field-count', fs.filled.toLocaleString() + ' of ' + fs.total.toLocaleString()));
+            card.appendChild(infoWrap);
+
+            cardsGrid.appendChild(card);
         }
-        table.appendChild(tbody);
-        wrapper.appendChild(table);
+
+        wrapper.appendChild(cardsGrid);
         container.appendChild(wrapper);
     }
 
     /**
-     * Renders the Breakdown Table: property completeness by a breakdown dimension.
+     * Renders the Breakdown section: completeness by department/company/etc.
      */
     function renderPropertyBreakdown(users) {
         var dimensions = [
@@ -516,6 +513,19 @@ const PageDataQuality = (function() {
         ];
 
         var currentDim = 'department';
+
+        function computeGroupStats(groupUsers) {
+            var sumPct = 0;
+            for (var f = 0; f < PROFILE_FIELDS.length; f++) {
+                var filled = 0;
+                for (var u = 0; u < groupUsers.length; u++) {
+                    if (hasValue(groupUsers[u][PROFILE_FIELDS[f].key])) filled++;
+                }
+                var pct = groupUsers.length > 0 ? (filled / groupUsers.length) * 100 : 0;
+                sumPct += pct;
+            }
+            return Math.round(sumPct / PROFILE_FIELDS.length);
+        }
 
         function renderBreakdown(dimKey) {
             var bContainer = document.getElementById('dq-breakdown-table');
@@ -531,112 +541,64 @@ const PageDataQuality = (function() {
                 groups[label].push(users[i]);
             }
 
-            // Sort groups by size descending, limit to top 8
+            // Sort groups by size descending, limit to top 10
             var groupKeys = Object.keys(groups).sort(function(a, b) {
                 return groups[b].length - groups[a].length;
             });
-            if (groupKeys.length > 8) groupKeys = groupKeys.slice(0, 8);
+            if (groupKeys.length > 10) groupKeys = groupKeys.slice(0, 10);
 
             var dimLabel = '';
             for (var d = 0; d < dimensions.length; d++) {
                 if (dimensions[d].key === dimKey) { dimLabel = dimensions[d].label; break; }
             }
 
-            var wrapper = document.createElement('div');
-            wrapper.className = 'breakdown-table-wrapper';
+            var wrapper = el('div', 'dq-breakdown-panel');
 
-            var title = document.createElement('div');
-            title.className = 'breakdown-table-title';
-            title.textContent = 'Completeness by ' + dimLabel;
-            wrapper.appendChild(title);
+            var header = el('div', 'dq-panel-header');
+            header.appendChild(el('h4', 'dq-panel-title', 'By ' + dimLabel));
+            header.appendChild(el('p', 'dq-panel-subtitle', 'Average completeness per ' + dimLabel.toLowerCase()));
+            wrapper.appendChild(header);
 
-            var subtitle = document.createElement('div');
-            subtitle.className = 'breakdown-table-subtitle';
-            subtitle.textContent = 'Average property completeness per ' + dimLabel.toLowerCase();
-            wrapper.appendChild(subtitle);
+            // Group cards list
+            var groupsList = el('div', 'dq-groups-list');
 
-            var tableWrap = document.createElement('div');
-            tableWrap.className = 'breakdown-table-scroll';
-
-            var table = document.createElement('table');
-            table.className = 'breakdown-table';
-
-            // Header: Property | Group1 | Group2 | ... | Average
-            var thead = document.createElement('thead');
-            var headRow = document.createElement('tr');
-            var thProp = document.createElement('th');
-            thProp.textContent = 'Property';
-            headRow.appendChild(thProp);
             for (var g = 0; g < groupKeys.length; g++) {
-                var th = document.createElement('th');
-                th.className = 'cell-right';
-                th.textContent = groupKeys[g];
-                headRow.appendChild(th);
+                var groupName = groupKeys[g];
+                var groupUsers = groups[groupName];
+                var avgPct = computeGroupStats(groupUsers);
+                var statusClass = avgPct >= 90 ? 'success' : (avgPct >= 70 ? 'warning' : 'critical');
+
+                var groupCard = el('div', 'dq-group-row');
+
+                // Group info
+                var groupInfo = el('div', 'dq-group-info');
+                var nameEl = el('div', 'dq-group-name', groupName);
+                nameEl.title = groupName;
+                groupInfo.appendChild(nameEl);
+                groupInfo.appendChild(el('div', 'dq-group-count', groupUsers.length.toLocaleString() + ' users'));
+                groupCard.appendChild(groupInfo);
+
+                // Progress bar
+                var barWrap = el('div', 'dq-group-bar-wrap');
+                var barTrack = el('div', 'dq-group-bar-track');
+                var barFill = el('div', 'dq-group-bar-fill dq-bar--' + statusClass);
+                barFill.style.width = avgPct + '%';
+                barTrack.appendChild(barFill);
+                barWrap.appendChild(barTrack);
+                groupCard.appendChild(barWrap);
+
+                // Percentage badge
+                var pctBadge = el('div', 'dq-group-pct dq-pct--' + statusClass, avgPct + '%');
+                groupCard.appendChild(pctBadge);
+
+                groupsList.appendChild(groupCard);
             }
-            var thAvg = document.createElement('th');
-            thAvg.className = 'cell-right';
-            thAvg.textContent = 'Average';
-            headRow.appendChild(thAvg);
-            thead.appendChild(headRow);
-            table.appendChild(thead);
 
-            // Data rows: one per PROFILE_FIELD
-            var tbody = document.createElement('tbody');
-            for (var p = 0; p < PROFILE_FIELDS.length; p++) {
-                var field = PROFILE_FIELDS[p];
-                var tr = document.createElement('tr');
-                var tdName = document.createElement('td');
-                tdName.textContent = field.label;
-                tr.appendChild(tdName);
-
-                var sumPct = 0;
-                for (var gc = 0; gc < groupKeys.length; gc++) {
-                    var gUsers = groups[groupKeys[gc]];
-                    var filled = 0;
-                    for (var gu = 0; gu < gUsers.length; gu++) {
-                        if (hasValue(gUsers[gu][field.key])) filled++;
-                    }
-                    var pct = gUsers.length > 0 ? Math.round((filled / gUsers.length) * 100) : 0;
-                    sumPct += pct;
-                    var td = document.createElement('td');
-                    td.className = 'cell-right';
-
-                    // Create mini progress bar with percentage badge
-                    var barWrapper = document.createElement('div');
-                    barWrapper.className = 'completeness-bar';
-                    barWrapper.style.justifyContent = 'flex-end';
-
-                    var barTrack = document.createElement('div');
-                    barTrack.className = 'completeness-bar-track';
-                    barTrack.style.maxWidth = '50px';
-                    var barFill = document.createElement('div');
-                    var pctClass = pct >= 90 ? 'pct-high' : (pct >= 70 ? 'pct-medium' : 'pct-low');
-                    barFill.className = 'completeness-bar-fill ' + pctClass;
-                    barFill.style.width = pct + '%';
-                    barTrack.appendChild(barFill);
-
-                    var badge = document.createElement('span');
-                    badge.className = pctColorClass(pct);
-                    badge.textContent = pct + '%';
-                    badge.style.minWidth = '42px';
-                    badge.style.textAlign = 'center';
-
-                    barWrapper.appendChild(barTrack);
-                    barWrapper.appendChild(badge);
-                    td.appendChild(barWrapper);
-                    tr.appendChild(td);
-                }
-
-                var avgPct = groupKeys.length > 0 ? Math.round(sumPct / groupKeys.length) : 0;
-                var tdAvg = document.createElement('td');
-                tdAvg.className = 'cell-right font-bold';
-                tdAvg.textContent = avgPct + '%';
-                tr.appendChild(tdAvg);
-                tbody.appendChild(tr);
+            if (groupKeys.length === 0) {
+                groupsList.appendChild(el('div', 'dq-empty-state', 'No data available'));
             }
-            table.appendChild(tbody);
-            tableWrap.appendChild(table);
-            wrapper.appendChild(tableWrap);
+
+            wrapper.appendChild(groupsList);
             bContainer.appendChild(wrapper);
         }
 
