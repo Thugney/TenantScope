@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Advanced Hunting collectors: Graceful handling when M365 Defender license is not available.
 - Groups page: Column selector now works - toggling columns updates the table correctly.
 - Users page: Tab label "All Users (X)" now updates to reflect filtered count.
+- Users page: Summary cards (Employees, Students, Without MFA) now update correctly when filtering.
 
 ## [2.4.0] - 2026-02-10
 
