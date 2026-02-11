@@ -104,7 +104,8 @@ const PageGaps = (function() {
 
         var endpointIssues = endpointDevices.filter(function(d) { return d.hasIssues; });
         var lapsIssues = lapsDevices.filter(function(d) {
-            var hasLapsGap = d.status && d.status !== 'healthy' && d.status !== 'unknown';
+            // Include unknown status as a gap (can't verify LAPS coverage)
+            var hasLapsGap = d.status && d.status !== 'healthy';
             var localAdminSeen = d.localAdminObserved === true;
             return hasLapsGap || localAdminSeen;
         });
