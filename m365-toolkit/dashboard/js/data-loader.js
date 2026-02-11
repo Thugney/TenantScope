@@ -285,11 +285,31 @@ const DataLoader = (function() {
                 }
 
                 // Post-process nested data structures
-                // Teams data may come in nested format with metadata wrapper
-                if (dataStore.teams && !Array.isArray(dataStore.teams) && dataStore.teams.teams) {
-                    console.log('DataLoader: Extracting teams from nested structure');
-                    dataStore.teams = dataStore.teams.teams;
-                }
+                // Data may come in nested format with metadata wrapper (e.g., { metadata: {...}, teams: [...] })
+                const normalizeDataArray = (key, nestedKey) => {
+                    const data = dataStore[key];
+                    if (data && !Array.isArray(data)) {
+                        // Check for nested array with the same name or common names
+                        const arrayKey = data[nestedKey || key] ? (nestedKey || key) :
+                                        (data.items ? 'items' :
+                                        (data.value ? 'value' :
+                                        (data.data ? 'data' : null)));
+                        if (arrayKey && Array.isArray(data[arrayKey])) {
+                            console.log(`DataLoader: Extracting ${key} from nested structure (${arrayKey})`);
+                            dataStore[key] = data[arrayKey];
+                        } else {
+                            console.warn(`DataLoader: ${key} is not an array and has no extractable array property`);
+                            dataStore[key] = [];
+                        }
+                    }
+                };
+
+                // Normalize all expected array data stores
+                normalizeDataArray('teams', 'teams');
+                normalizeDataArray('users', 'users');
+                normalizeDataArray('devices', 'devices');
+                normalizeDataArray('groups', 'groups');
+                normalizeDataArray('guests', 'guests');
 
                 // Log what was loaded
                 Object.entries(dataStore).forEach(([key, data]) => {
