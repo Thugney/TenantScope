@@ -124,7 +124,9 @@ function Convert-ReportRows {
         foreach ($row in $Report.values) {
             $obj = [ordered]@{}
             for ($i = 0; $i -lt $cols.Count; $i++) {
-                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+                $colName = $cols[$i]
+                if (-not $colName) { continue }
+                $obj[$colName] = if ($i -lt $row.Count) { $row[$i] } else { $null }
             }
             $rows += [PSCustomObject]$obj
         }
@@ -138,7 +140,9 @@ function Convert-ReportRows {
             if (-not ($row -is [System.Array])) { continue }
             $obj = [ordered]@{}
             for ($i = 0; $i -lt $cols.Count; $i++) {
-                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+                $colName = $cols[$i]
+                if (-not $colName) { continue }
+                $obj[$colName] = if ($i -lt $row.Count) { $row[$i] } else { $null }
             }
             $rows += [PSCustomObject]$obj
         }
@@ -159,8 +163,13 @@ function Get-ReportValue {
     )
 
     foreach ($name in $Names) {
-        $prop = $Row.PSObject.Properties[$name]
-        if ($prop) { return $prop.Value }
+        if (-not $name) { continue }
+        if ($Row -is [hashtable]) {
+            if ($Row.ContainsKey($name)) { return $Row[$name] }
+        } else {
+            $prop = $Row.PSObject.Properties[$name]
+            if ($prop) { return $prop.Value }
+        }
     }
     return $null
 }
@@ -348,7 +357,7 @@ try {
         }
     }
 
-    $allProfiles = @()
+    $allProfiles = New-Object System.Collections.ArrayList
     $allFailedDevices = @{}
 
     # ========================================
@@ -359,20 +368,27 @@ try {
             Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations" -OutputType PSObject
         } -OperationName "Device configuration retrieval"
 
-        $legacyConfigs = @($configs.value)
+        $legacyConfigs = New-Object System.Collections.ArrayList
+        if ($configs.value) {
+            foreach ($cfg in @($configs.value)) { [void]$legacyConfigs.Add($cfg) }
+        } elseif ($configs) {
+            [void]$legacyConfigs.Add($configs)
+        }
 
         while ($configs.'@odata.nextLink') {
             $configs = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $configs.'@odata.nextLink' -OutputType PSObject
             } -OperationName "Device configuration pagination"
-            $legacyConfigs += $configs.value
+            if ($configs.value) {
+                foreach ($cfg in @($configs.value)) { [void]$legacyConfigs.Add($cfg) }
+            }
         }
 
         foreach ($config in $legacyConfigs) {
-            $allProfiles += [PSCustomObject]@{
+            [void]$allProfiles.Add([PSCustomObject]@{
                 source = "deviceConfigurations"
                 data = $config
-            }
+            })
         }
 
         Write-Host "      Retrieved $($legacyConfigs.Count) device configurations" -ForegroundColor Gray
@@ -399,10 +415,10 @@ try {
         }
 
         foreach ($policy in $catalogPolicies) {
-            $allProfiles += [PSCustomObject]@{
+            [void]$allProfiles.Add([PSCustomObject]@{
                 source = "configurationPolicies"
                 data = $policy
-            }
+            })
         }
 
         Write-Host "      Retrieved $($catalogPolicies.Count) settings catalog policies" -ForegroundColor Gray
