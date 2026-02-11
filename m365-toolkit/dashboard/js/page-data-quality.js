@@ -433,7 +433,7 @@ const PageDataQuality = (function() {
         // Header with title
         var header = el('div', 'dq-panel-header');
         header.appendChild(el('h4', 'dq-panel-title', 'Profile Fields'));
-        header.appendChild(el('p', 'dq-panel-subtitle', 'What % of users have each field filled in'));
+        header.appendChild(el('p', 'dq-panel-subtitle', 'Checking: department, job title, company, office, city, country, mobile, manager, email, usage location'));
         wrapper.appendChild(header);
 
         // Sort fields by completeness (lowest first for attention)
@@ -487,10 +487,13 @@ const PageDataQuality = (function() {
             ringWrap.appendChild(pctLabel);
             card.appendChild(ringWrap);
 
-            // Field info
+            // Field info - descriptive label
             var infoWrap = el('div', 'dq-field-info');
-            infoWrap.appendChild(el('div', 'dq-field-name', fs.label));
-            infoWrap.appendChild(el('div', 'dq-field-count', fs.filled.toLocaleString() + ' of ' + fs.total.toLocaleString()));
+            var fieldDesc = fs.pct + '% have ' + fs.label.toLowerCase();
+            infoWrap.appendChild(el('div', 'dq-field-name', fieldDesc));
+            var missingCount = fs.total - fs.filled;
+            var missingText = missingCount > 0 ? missingCount.toLocaleString() + ' missing' : 'All filled';
+            infoWrap.appendChild(el('div', 'dq-field-count', missingText));
             card.appendChild(infoWrap);
 
             cardsGrid.appendChild(card);
@@ -555,8 +558,8 @@ const PageDataQuality = (function() {
             var wrapper = el('div', 'dq-breakdown-panel');
 
             var header = el('div', 'dq-panel-header');
-            header.appendChild(el('h4', 'dq-panel-title', 'By ' + dimLabel));
-            header.appendChild(el('p', 'dq-panel-subtitle', 'How complete are profiles in each ' + dimLabel.toLowerCase() + '?'));
+            header.appendChild(el('h4', 'dq-panel-title', 'Compare by ' + dimLabel));
+            header.appendChild(el('p', 'dq-panel-subtitle', 'Average profile completeness (all 10 fields) per ' + dimLabel.toLowerCase()));
             wrapper.appendChild(header);
 
             // Group cards list
