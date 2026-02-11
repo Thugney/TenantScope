@@ -178,18 +178,21 @@ function Get-ConfigurationPolicyReportMap {
 
     $report = $null
     try {
+        # Use only 1 retry - 500 errors are server-side and unlikely to resolve quickly
         $report = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method POST `
                 -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getConfigurationPolicyDeviceSummaryReport" `
                 -Body $body -OutputType PSObject
-        } -OperationName "Configuration policy device summary report" -MaxRetries 3
+        } -OperationName "Configuration policy device summary report" -MaxRetries 1
     }
     catch {
         $errMsg = $_.Exception.Message
         if ($errMsg -match "429|throttl|TooManyRequests") {
-            Write-Host "      Report API throttled - will use individual status endpoints" -ForegroundColor Yellow
+            Write-Host "      Report API throttled - using individual status endpoints" -ForegroundColor Yellow
+        } elseif ($errMsg -match "500|InternalServerError|Internal Server Error") {
+            Write-Host "      Report API unavailable (server error) - using individual status endpoints" -ForegroundColor Yellow
         } else {
-            Write-Host "      Report API failed: $errMsg" -ForegroundColor Yellow
+            Write-Host "      Report API failed - using individual status endpoints" -ForegroundColor Yellow
         }
         return $map
     }

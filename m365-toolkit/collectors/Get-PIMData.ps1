@@ -120,22 +120,25 @@ try {
     $processedEntries = @()
     $assignmentRequests = @()
 
-    try {
-        $assignmentRequests = Invoke-GraphWithRetry -ScriptBlock {
-            Get-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -All `
-                -ExpandProperty "principal" `
-                -Top 999
-        } -OperationName "PIM assignment requests"
+    # Try to get assignment requests - requires RoleAssignmentSchedule.ReadWrite.Directory
+    # which many tenants don't grant. Use SilentlyContinue to suppress verbose error output.
+    $assignmentError = $null
+    $assignmentRequests = Get-MgRoleManagementDirectoryRoleAssignmentScheduleRequest -All `
+        -ExpandProperty "principal" `
+        -Top 999 `
+        -ErrorAction SilentlyContinue `
+        -ErrorVariable assignmentError
 
-        Write-Host "      Retrieved $($assignmentRequests.Count) assignment requests" -ForegroundColor Gray
-    }
-    catch {
-        $errMsg = $_.Exception.Message
+    if ($assignmentError) {
+        $errMsg = $assignmentError[0].Exception.Message
         if ($errMsg -match "PermissionScopeNotGranted|403|Forbidden|Authorization") {
             Write-Host "      [!] Assignment requests require RoleAssignmentSchedule.ReadWrite.Directory (skipping)" -ForegroundColor Yellow
         } else {
-            Write-Host "      [!] Assignment requests failed: $errMsg" -ForegroundColor Yellow
+            Write-Host "      [!] Assignment requests: $($errMsg.Substring(0, [Math]::Min(80, $errMsg.Length)))..." -ForegroundColor Yellow
         }
+        $assignmentRequests = @()
+    } else {
+        Write-Host "      Retrieved $($assignmentRequests.Count) assignment requests" -ForegroundColor Gray
     }
 
     foreach ($request in $assignmentRequests) {
