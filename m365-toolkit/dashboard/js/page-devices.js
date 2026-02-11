@@ -1063,9 +1063,15 @@ const PageDevices = (function() {
     function formatProfileAssigned(v, row) {
         if (v === true) {
             var status = row && row.profileAssignmentStatus;
-            if (status === 'assignedInSync') return '<span class="badge badge-success">Assigned (Sync)</span>';
-            if (status === 'assignedOutOfSync') return '<span class="badge badge-warning">Assigned (Out)</span>';
+            if (status === 'assignedInSync') return '<span class="badge badge-success">In Sync</span>';
+            if (status === 'assignedOutOfSync') return '<span class="badge badge-warning">Out of Sync</span>';
+            if (status === 'assignedUnkownSyncState') return '<span class="badge badge-info">Unknown Sync</span>';
+            if (status === 'pending') return '<span class="badge badge-warning">Pending</span>';
+            if (status === 'failed') return '<span class="badge badge-critical">Failed</span>';
             return '<span class="badge badge-success">Assigned</span>';
+        }
+        if (row && row.profileAssignmentStatus === 'notAssigned') {
+            return '<span class="badge badge-neutral">Not Assigned</span>';
         }
         return '<span class="badge badge-warning">No</span>';
     }
