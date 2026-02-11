@@ -5535,6 +5535,198 @@ table {
     margin-top: var(--spacing-xs);
 }
 
+/* ========================================================================
+   COLLAPSIBLE ORG TREE
+   ======================================================================== */
+.org-tree-controls {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-md);
+    padding-bottom: var(--spacing-sm);
+    border-bottom: 1px solid var(--color-bg-tertiary);
+}
+
+.org-tree-controls .btn-sm {
+    padding: 4px 12px;
+    font-size: var(--font-size-xs);
+}
+
+.org-tree-stats {
+    margin-left: auto;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+}
+
+.org-tree-collapsible {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.org-tree-node {
+    position: relative;
+}
+
+.org-tree-node .org-tree-node {
+    margin-left: 24px;
+}
+
+.org-tree-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    padding: 8px 12px;
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-bg-tertiary);
+    border-radius: var(--border-radius);
+    transition: background-color var(--transition-fast), box-shadow var(--transition-fast);
+}
+
+.org-tree-header:hover {
+    background: var(--color-bg-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.org-tree-toggle {
+    width: 20px;
+    height: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 10px;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-tertiary);
+    border: none;
+    border-radius: var(--border-radius-sm);
+    cursor: pointer;
+    transition: background-color var(--transition-fast), color var(--transition-fast);
+    flex-shrink: 0;
+}
+
+.org-tree-toggle:hover {
+    background: var(--color-accent);
+    color: white;
+}
+
+.org-tree-toggle-spacer {
+    width: 20px;
+    flex-shrink: 0;
+}
+
+.org-tree-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--color-accent), #1d4ed8);
+    color: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: var(--font-size-xs);
+    font-weight: 600;
+    flex-shrink: 0;
+    text-transform: uppercase;
+}
+
+.org-tree-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.org-tree-name {
+    font-weight: 600;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.org-tree-name a {
+    color: inherit;
+    text-decoration: none;
+}
+
+.org-tree-name a:hover {
+    color: var(--color-accent);
+    text-decoration: underline;
+}
+
+.org-tree-meta {
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+}
+
+.org-tree-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.org-tree-badge {
+    font-size: 10px;
+    padding: 2px 6px;
+}
+
+.badge-outline {
+    background: transparent;
+    border: 1px solid var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+}
+
+.org-tree-children {
+    margin-top: 2px;
+    position: relative;
+}
+
+.org-tree-children::before {
+    content: '';
+    position: absolute;
+    left: 34px;
+    top: 0;
+    bottom: 12px;
+    width: 1px;
+    background: var(--color-bg-tertiary);
+}
+
+.org-tree-children .org-tree-header::before {
+    content: '';
+    position: absolute;
+    left: -12px;
+    top: 50%;
+    width: 10px;
+    height: 1px;
+    background: var(--color-bg-tertiary);
+}
+
+.org-tree-children .org-tree-node {
+    position: relative;
+}
+
+/* Root level nodes have accent border */
+.org-tree-collapsible > .org-tree-node > .org-tree-header {
+    border-left: 3px solid var(--color-accent);
+}
+
+/* Alternate avatar colors for visual distinction at depth */
+.org-tree-children .org-tree-children .org-tree-avatar {
+    background: linear-gradient(135deg, #10b981, #059669);
+}
+
+.org-tree-children .org-tree-children .org-tree-children .org-tree-avatar {
+    background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+}
+
+.org-tree-children .org-tree-children .org-tree-children .org-tree-children .org-tree-avatar {
+    background: linear-gradient(135deg, #f59e0b, #d97706);
+}
+
 @media (max-width: 1024px) {
     .cockpit-actions-row {
         grid-template-columns: 1fr;
