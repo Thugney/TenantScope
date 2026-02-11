@@ -485,9 +485,10 @@ Write-Host "[2/6] Connecting to Microsoft Graph..." -ForegroundColor Cyan
         "eDiscovery.Read.All",
         "InformationProtectionPolicy.Read",
         "AccessReview.Read.All",
-        # Defender Advanced Hunting + MDE device health
-        "AdvancedHunting.Read.All",
-        "Machine.Read.All"
+        # Note: Defender Advanced Hunting (AdvancedHunting.Read.All, Machine.Read.All) requires
+        # separate auth to api.securitycenter.microsoft.com - not available via Graph SDK.
+        # Collectors using Defender API will use sample data when live data is unavailable.
+        "Group.Read.All"
 )
 
 # Determine authentication mode
