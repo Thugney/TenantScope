@@ -465,9 +465,9 @@ try {
     $groupNameCache = @{}
 
     # Throttle control: limit detailed API calls to avoid 429s
-    $detailedStatusLimit = 30  # Only fetch detailed status for first N profiles
+    $detailedStatusLimit = 100  # Fetch detailed status for first N profiles (increased for Settings Catalog)
     $apiCallCount = 0
-    $throttleDelay = 100  # ms between API-heavy operations
+    $throttleDelay = 200  # ms between API-heavy operations (increased to prevent throttling)
 
     foreach ($item in $allProfiles) {
         try {
@@ -544,29 +544,55 @@ try {
                                              else { 0 }
                     }
                     elseif ($source -eq "configurationPolicies") {
+                        # Settings Catalog: use per-policy report endpoint
                         try {
-                            $statusOverview = Invoke-MgGraphRequest -Method GET `
-                                -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
-                                -OutputType PSObject
+                            $reportBody = @{
+                                name = "DeviceAssignment"
+                                filter = "(PolicyId eq '$($profile.id)')"
+                                select = @("PolicyStatus")
+                            } | ConvertTo-Json -Depth 4
 
-                            $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
-                                           elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
-                                           else { 0 }
-                            $errorCount = if ($null -ne $statusOverview.errorCount) { [int]$statusOverview.errorCount }
-                                         elseif ($null -ne $statusOverview.errorDeviceCount) { [int]$statusOverview.errorDeviceCount }
-                                         else { 0 }
-                            $conflictCount = if ($null -ne $statusOverview.conflictCount) { [int]$statusOverview.conflictCount }
-                                            elseif ($null -ne $statusOverview.conflictDeviceCount) { [int]$statusOverview.conflictDeviceCount }
-                                            else { 0 }
-                            $pendingCount = if ($null -ne $statusOverview.pendingCount) { [int]$statusOverview.pendingCount }
-                                           elseif ($null -ne $statusOverview.pendingDeviceCount) { [int]$statusOverview.pendingDeviceCount }
-                                           else { 0 }
-                            $notApplicableCount = if ($null -ne $statusOverview.notApplicableCount) { [int]$statusOverview.notApplicableCount }
-                                                 elseif ($null -ne $statusOverview.notApplicableDeviceCount) { [int]$statusOverview.notApplicableDeviceCount }
-                                                 else { 0 }
+                            $policyReport = Invoke-MgGraphRequest -Method POST `
+                                -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getConfigurationPolicyDevicesReport" `
+                                -Body $reportBody -ContentType "application/json" -OutputType PSObject
+
+                            # Count statuses from report values
+                            if ($policyReport.Values) {
+                                foreach ($row in $policyReport.Values) {
+                                    # PolicyStatus is typically at index based on schema
+                                    $statusVal = if ($row -is [System.Array] -and $row.Count -gt 0) { $row[0] } else { $row }
+                                    switch -Regex ($statusVal) {
+                                        "Success|Compliant" { $successCount++ }
+                                        "Error|Failed" { $errorCount++ }
+                                        "Conflict" { $conflictCount++ }
+                                        "Pending|InProgress" { $pendingCount++ }
+                                        "NotApplicable" { $notApplicableCount++ }
+                                    }
+                                }
+                            }
                         }
                         catch {
-                            # Settings Catalog deviceStatusOverview not available
+                            # Fallback: try deviceStatuses endpoint
+                            try {
+                                $statuses = Invoke-MgGraphRequest -Method GET `
+                                    -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$top=999" `
+                                    -OutputType PSObject
+
+                                if ($statuses.value) {
+                                    foreach ($s in $statuses.value) {
+                                        switch ($s.status) {
+                                            "succeeded" { $successCount++ }
+                                            "error" { $errorCount++ }
+                                            "conflict" { $conflictCount++ }
+                                            "pending" { $pendingCount++ }
+                                            "notApplicable" { $notApplicableCount++ }
+                                        }
+                                    }
+                                }
+                            }
+                            catch {
+                                # Neither endpoint available for this policy
+                            }
                         }
                     }
                 }
