@@ -26,6 +26,46 @@ TenantScope is a PowerShell-based solution that collects data from your Microsof
 
 All data stays local. No cloud services. No external dependencies.
 
+---
+
+## Problems Solved
+
+### For IT Administrators
+
+| Problem | How TenantScope Helps |
+|---------|----------------------|
+| **"I need to check 5 different admin portals to get the full picture"** | Single dashboard aggregates data from Entra, Intune, Defender, and M365 admin centers |
+| **"Which users still don't have MFA enabled?"** | MFA status page shows all users without strong authentication, sorted by risk |
+| **"Our license costs are out of control"** | License analysis detects unused licenses, duplicate assignments, and overlap waste |
+| **"I can't tell which devices are actually compliant"** | Device compliance view shows real-time status with drill-down to specific policy failures |
+| **"Stale guest accounts are a security risk"** | Guest management identifies inactive external users who should be removed |
+| **"Configuration profiles keep failing but I don't know why"** | Configuration Profiles page shows deployment errors, conflicts, and affected devices |
+| **"I need to report on our security posture"** | Export any view to CSV/Excel for management reporting |
+
+### For Security Specialists
+
+| Problem | How TenantScope Helps |
+|---------|----------------------|
+| **"I need to find users without MFA before attackers do"** | Prioritized list of unprotected accounts with admin role highlighting |
+| **"Which Conditional Access policies have gaps?"** | CA policy analysis shows coverage gaps, excluded users, and legacy auth exposure |
+| **"Are there overprivileged apps in our tenant?"** | OAuth consent grants page reveals high-risk application permissions |
+| **"Which devices have known vulnerabilities?"** | Vulnerability dashboard shows CVEs by severity with affected device counts |
+| **"I need to investigate a risky sign-in"** | Sign-in logs with risk levels, locations, and device details for forensic analysis |
+| **"Who activated privileged roles recently?"** | PIM activity tracking shows all role elevations with justifications |
+| **"Are attack surface reduction rules actually working?"** | ASR rules page shows audit/block events and rule effectiveness |
+| **"BitLocker encryption status across the fleet"** | BitLocker coverage report identifies unencrypted devices |
+
+### Operational Benefits
+
+- **Offline Analysis** - Data collected once, analyze without internet dependency
+- **No Agent Required** - Uses existing Graph API, no software deployment needed
+- **Privacy First** - All data stays on your local machine, never transmitted externally
+- **Fast Answers** - Search across all entities instantly, no waiting for portal loads
+- **Cross-Reference Everything** - Click a user to see their devices, sign-ins, groups, and roles
+- **Direct Action Links** - Jump straight to Entra/Intune/Defender portals to fix issues
+
+---
+
 ## Key Features
 
 - **42 Data Collectors** - Comprehensive Graph API coverage across M365 workloads
