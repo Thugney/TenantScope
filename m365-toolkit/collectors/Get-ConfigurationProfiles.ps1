@@ -465,7 +465,11 @@ try {
     $groupNameCache = @{}
 
     # Throttle control: limit detailed API calls to avoid 429s
-    $detailedStatusLimit = 100  # Fetch detailed status for first N profiles (increased for Settings Catalog)
+    $overviewFetchLimit = 150
+    $detailedStatusLimit = 30  # Fetch detailed status for first N profiles with errors/conflicts
+    $detailedStatusCount = 0
+    $assignmentFetchLimit = 60
+    $assignmentFetchCount = 0
     $apiCallCount = 0
     $throttleDelay = 200  # ms between API-heavy operations (increased to prevent throttling)
 
@@ -502,7 +506,7 @@ try {
             $notApplicableCount = 0
             $usedStatusFallback = $false
             $deviceStatusList = @()
-            $skipDetailedStatus = ($profileCount -ge $detailedStatusLimit)
+            $hasIssues = $false
 
             # For Settings Catalog, prefer report data to avoid extra API calls
             if ($policyReportMap.ContainsKey($profile.id)) {
@@ -514,7 +518,7 @@ try {
                 $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("NumberOfNotApplicableDevices","notApplicableDeviceCount","notApplicableCount"))
                 $usedStatusFallback = $true
             }
-            elseif (-not $skipDetailedStatus) {
+            elseif ($profileCount -lt $overviewFetchLimit) {
                 # Only fetch status overview if we don't have report data and haven't hit limit
                 try {
                     $apiCallCount++
@@ -601,12 +605,17 @@ try {
                 }
             }
 
+            $hasIssues = ($errorCount -gt 0 -or $conflictCount -gt 0)
+            $canFetchAssignments = ($assignmentFetchCount -lt $assignmentFetchLimit)
+            $canFetchDetails = ($detailedStatusCount -lt $detailedStatusLimit)
+            $didFetchDetails = $false
+
             # Status source tracking
             $statusSource = if ($usedStatusFallback) { "report" } else { "overview" }
 
             # Get assignments for this profile (only for first N profiles to reduce API calls)
             $assignments = @()
-            if (-not $skipDetailedStatus) {
+            if ($canFetchAssignments) {
                 try {
                     $apiCallCount++
                     if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
@@ -623,6 +632,7 @@ try {
                         $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
                         $assignments += $target
                     }
+                    $assignmentFetchCount++
                 }
                 catch {
                     # Silently continue
@@ -633,7 +643,7 @@ try {
             $deviceStatuses = @()
             $profileNameForTracking = if ($profile.displayName) { $profile.displayName } elseif ($profile.name) { $profile.name } else { "Unknown Profile" }
 
-            if (($errorCount -gt 0 -or $conflictCount -gt 0) -and -not $skipDetailedStatus) {
+            if ($hasIssues -and $canFetchDetails) {
                 try {
                     $apiCallCount++
                     if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
@@ -672,6 +682,7 @@ try {
                             if ($status.status -eq "conflict") { $allFailedDevices[$deviceKey].conflictCount++ }
                         }
                     }
+                    $didFetchDetails = $true
                 }
                 catch {
                     # Silently continue
@@ -682,7 +693,7 @@ try {
             $settingStatuses = @()
             $profileDisplayName = if ($profile.displayName) { $profile.displayName } elseif ($profile.name) { $profile.name } else { "Unknown" }
 
-            if ($source -eq "deviceConfigurations" -and -not $skipDetailedStatus -and ($errorCount -gt 0 -or $conflictCount -gt 0)) {
+            if ($source -eq "deviceConfigurations" -and $hasIssues -and $canFetchDetails) {
                 try {
                     $apiCallCount++
                     if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
@@ -709,10 +720,15 @@ try {
                             }
                         }
                     }
+                    $didFetchDetails = $true
                 }
                 catch {
                     # Silently continue
                 }
+            }
+
+            if ($didFetchDetails) {
+                $detailedStatusCount++
             }
 
             $totalDevices = $successCount + $errorCount + $conflictCount + $pendingCount
@@ -808,6 +824,40 @@ try {
     # Finalize data structure
     $profileData.profiles = $processedProfiles
     $profileData.summary.totalProfiles = $processedProfiles.Count
+
+    # If we have errors/conflicts but no failed device details, use assignment status report export
+    if (($profileData.summary.errorDevices -gt 0 -or $profileData.summary.conflictDevices -gt 0) -and $allFailedDevices.Count -eq 0) {
+        Write-Host "      No failed device details collected - using assignment status report export..." -ForegroundColor Yellow
+        $assignmentFailures = Get-ConfigurationPolicyAssignmentFailures
+        foreach ($row in $assignmentFailures) {
+            $deviceName = Get-ReportValue -Row $row -Names @("DeviceName","deviceName")
+            $upn = Get-ReportValue -Row $row -Names @("UPN","UserPrincipalName","userPrincipalName","UserName","userName")
+            $policyName = Get-ReportValue -Row $row -Names @("PolicyName","policyName")
+            $status = Get-ReportValue -Row $row -Names @("AssignmentStatus","PolicyStatus","Status","status")
+            $deviceId = Get-ReportValue -Row $row -Names @("IntuneDeviceId","DeviceId","deviceId")
+
+            $statusText = if ($status) { $status.ToString().ToLowerInvariant() } else { "" }
+            if ($statusText -notmatch "error|conflict") { continue }
+
+            $deviceKey = if ($deviceName) { $deviceName } elseif ($deviceId) { $deviceId } else { continue }
+
+            if (-not $allFailedDevices.ContainsKey($deviceKey)) {
+                $allFailedDevices[$deviceKey] = @{
+                    deviceName = $deviceName
+                    userName = $upn
+                    failedProfiles = @()
+                    errorCount = 0
+                    conflictCount = 0
+                }
+            }
+
+            if ($policyName -and ($allFailedDevices[$deviceKey].failedProfiles -notcontains $policyName)) {
+                $allFailedDevices[$deviceKey].failedProfiles += $policyName
+            }
+            if ($statusText -match "error") { $allFailedDevices[$deviceKey].errorCount++ }
+            if ($statusText -match "conflict") { $allFailedDevices[$deviceKey].conflictCount++ }
+        }
+    }
 
     # Convert failed devices hashtable to array
     foreach ($device in $allFailedDevices.Values) {
