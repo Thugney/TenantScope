@@ -559,8 +559,8 @@ const PageOrganization = (function() {
                 statsWrap.appendChild(mgrBadge);
             }
             if (icCount > 0 && mgrCount > 0) {
-                var icBadge = el('span', 'badge badge-outline org-tree-badge', icCount + ' ICs');
-                icBadge.title = icCount + ' individual contributors';
+                var icBadge = el('span', 'badge badge-outline org-tree-badge', icCount + ' staff');
+                icBadge.title = icCount + ' staff (non-managers)';
                 statsWrap.appendChild(icBadge);
             }
 
@@ -603,7 +603,7 @@ const PageOrganization = (function() {
             });
         });
 
-        statsSpan.textContent = totalMgrs + ' managers \u2022 ' + totalICs + ' ICs shown';
+        statsSpan.textContent = totalMgrs + ' managers \u2022 ' + totalICs + ' staff';
 
         if (roots.length > maxRoots) {
             var note = el('div', 'org-hierarchy-note', 'Showing top ' + maxRoots + ' root managers. See All Managers tab for complete list.');

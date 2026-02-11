@@ -96,6 +96,16 @@ const PageDataQuality = (function() {
     }
 
     /**
+     * Helper to create elements.
+     */
+    function el(tag, className, textContent) {
+        var elem = document.createElement(tag);
+        if (className) elem.className = className;
+        if (textContent !== undefined) elem.textContent = textContent;
+        return elem;
+    }
+
+    /**
      * Renders the Data Quality page.
      */
     function render(container) {
@@ -103,69 +113,79 @@ const PageDataQuality = (function() {
         var allUsers = DataLoader.getData('users');
         var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
 
-        // Page wrapper
-        var page = document.createElement('div');
-        page.className = 'page-section';
+        container.textContent = '';
 
-        // Page title
-        var titleEl = document.createElement('h2');
-        titleEl.className = 'section-title';
-        titleEl.textContent = 'Data Quality';
-        page.appendChild(titleEl);
-
-        var descEl = document.createElement('p');
-        descEl.className = 'section-description';
-        descEl.textContent = 'Profile property completeness analysis across all user accounts.';
-        page.appendChild(descEl);
+        // Page header
+        var header = el('div', 'page-header');
+        header.appendChild(el('h2', 'page-title', 'Data Quality'));
+        header.appendChild(el('p', 'page-description', 'Profile property completeness analysis across all user accounts'));
+        container.appendChild(header);
 
         // Summary cards
         var stats = computeStats(users);
+        var fullyCompletePct = users.length > 0 ? Math.round((stats.fullyComplete / users.length) * 100) : 0;
 
-        var cardsGrid = document.createElement('div');
-        cardsGrid.className = 'cards-grid';
-        cardsGrid.appendChild(makeCard('Total Users', users.length.toLocaleString(), ''));
-        cardsGrid.appendChild(makeCard('Avg Completeness', stats.avgPct + '%', stats.avgPct >= 80 ? 'positive' : 'negative'));
-        cardsGrid.appendChild(makeCard('Fields < 80%', stats.belowThreshold.toString(), stats.belowThreshold === 0 ? 'positive' : 'negative'));
-        cardsGrid.appendChild(makeCard('Fully Complete', stats.fullyComplete.toLocaleString(), ''));
-        page.appendChild(cardsGrid);
+        var cards = el('div', 'summary-cards');
+        cards.appendChild(createCard('Total Users', users.length.toLocaleString(), 'primary'));
+        cards.appendChild(createCard('Avg Completeness', stats.avgPct + '%', stats.avgPct >= 80 ? 'success' : (stats.avgPct >= 60 ? 'warning' : 'critical')));
+        cards.appendChild(createCard('Fully Complete', stats.fullyComplete.toLocaleString() + ' (' + fullyCompletePct + '%)', fullyCompletePct >= 50 ? 'success' : 'warning'));
+        cards.appendChild(createCard('Fields Below 80%', stats.belowThreshold.toString(), stats.belowThreshold === 0 ? 'success' : 'warning'));
+        container.appendChild(cards);
 
-        // Focus/Breakdown row
-        var fbRow = document.createElement('div');
-        fbRow.className = 'focus-breakdown-row';
+        // Insights section
+        var insightsSection = el('div', 'insights-list');
+        renderInsights(insightsSection, stats, users);
+        container.appendChild(insightsSection);
 
-        var focusDiv = document.createElement('div');
-        focusDiv.id = 'dq-focus-table';
-        fbRow.appendChild(focusDiv);
+        // Analytics section with focus and breakdown tables
+        var analyticsSection = el('div', 'analytics-section');
+        analyticsSection.appendChild(el('h3', null, 'Property Analysis'));
 
-        var breakdownCol = document.createElement('div');
-        var breakdownFilterDiv = document.createElement('div');
+        var fbRow = el('div', 'focus-breakdown-row');
+
+        var focusPanel = el('div', 'focus-panel');
+        focusPanel.id = 'dq-focus-table';
+        fbRow.appendChild(focusPanel);
+
+        var breakdownPanel = el('div', 'breakdown-panel');
+        var breakdownFilterDiv = el('div');
         breakdownFilterDiv.id = 'dq-breakdown-filter';
-        breakdownCol.appendChild(breakdownFilterDiv);
-        var breakdownDiv = document.createElement('div');
+        breakdownPanel.appendChild(breakdownFilterDiv);
+        var breakdownDiv = el('div');
         breakdownDiv.id = 'dq-breakdown-table';
-        breakdownCol.appendChild(breakdownDiv);
-        fbRow.appendChild(breakdownCol);
+        breakdownPanel.appendChild(breakdownDiv);
+        fbRow.appendChild(breakdownPanel);
 
-        page.appendChild(fbRow);
+        analyticsSection.appendChild(fbRow);
+        container.appendChild(analyticsSection);
+
+        // User Details section
+        var tableSection = el('div', 'table-section');
+        var tableHeader = el('div', 'table-header');
+        tableHeader.appendChild(el('h3', 'table-title', 'User Profile Details'));
+        var tableActions = el('div', 'table-actions');
+        var exportBtn = el('button', 'btn btn-secondary', 'Export CSV');
+        exportBtn.id = 'dq-export-btn';
+        tableActions.appendChild(exportBtn);
+        tableHeader.appendChild(tableActions);
+        tableSection.appendChild(tableHeader);
 
         // Filter bar container
-        var filterDiv = document.createElement('div');
+        var filterDiv = el('div');
         filterDiv.id = 'dq-filters';
-        page.appendChild(filterDiv);
+        tableSection.appendChild(filterDiv);
 
         // Column selector container
-        var colSelDiv = document.createElement('div');
+        var colSelDiv = el('div', 'column-selector-wrap');
         colSelDiv.id = 'dq-column-selector';
-        colSelDiv.style.marginBottom = '8px';
-        colSelDiv.style.textAlign = 'right';
-        page.appendChild(colSelDiv);
+        tableSection.appendChild(colSelDiv);
 
         // Detail table
-        var tableDiv = document.createElement('div');
+        var tableDiv = el('div');
         tableDiv.id = 'dq-table';
-        page.appendChild(tableDiv);
+        tableSection.appendChild(tableDiv);
 
-        container.appendChild(page);
+        container.appendChild(tableSection);
 
         // Render Focus Table (property completeness)
         renderPropertyFocusTable(stats.fieldStats);
@@ -237,33 +257,128 @@ const PageDataQuality = (function() {
         });
 
         // Wire export
-        var exportBtn = document.getElementById('dq-filters-export');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', function() {
-                var data = getFilteredUsers();
-                var columns = [
-                    { key: 'displayName', label: 'Name' },
-                    { key: 'userPrincipalName', label: 'UPN' },
-                    { key: 'domain', label: 'Domain' },
-                    { key: 'department', label: 'Department' },
-                    { key: 'jobTitle', label: 'Job Title' },
-                    { key: 'companyName', label: 'Company' },
-                    { key: 'officeLocation', label: 'Office' },
-                    { key: 'city', label: 'City' },
-                    { key: 'country', label: 'Country' },
-                    { key: 'mobilePhone', label: 'Mobile Phone' },
-                    { key: 'manager', label: 'Manager' },
-                    { key: 'mail', label: 'Email' },
-                    { key: 'usageLocation', label: 'Usage Location' },
-                    { key: 'userSource', label: 'User Source' },
-                    { key: '_completeness', label: 'Completeness %' }
-                ];
-                Export.toCSV(data, columns, 'data-quality.csv');
+        document.getElementById('dq-export-btn').addEventListener('click', function() {
+            var data = getFilteredUsers();
+            var exportData = data.map(function(user) {
+                var filled = 0;
+                for (var f = 0; f < PROFILE_FIELDS.length; f++) {
+                    if (hasValue(user[PROFILE_FIELDS[f].key])) filled++;
+                }
+                var pct = PROFILE_FIELDS.length > 0 ? Math.round((filled / PROFILE_FIELDS.length) * 100) : 0;
+                return {
+                    displayName: user.displayName,
+                    userPrincipalName: user.userPrincipalName,
+                    domain: user.domain,
+                    department: user.department,
+                    jobTitle: user.jobTitle,
+                    companyName: user.companyName,
+                    officeLocation: user.officeLocation,
+                    city: user.city,
+                    country: user.country,
+                    mobilePhone: user.mobilePhone,
+                    manager: user.manager,
+                    mail: user.mail,
+                    usageLocation: user.usageLocation,
+                    userSource: user.userSource,
+                    completeness: pct + '%'
+                };
             });
-        }
+            var columns = [
+                { key: 'displayName', label: 'Name' },
+                { key: 'userPrincipalName', label: 'UPN' },
+                { key: 'domain', label: 'Domain' },
+                { key: 'department', label: 'Department' },
+                { key: 'jobTitle', label: 'Job Title' },
+                { key: 'companyName', label: 'Company' },
+                { key: 'officeLocation', label: 'Office' },
+                { key: 'city', label: 'City' },
+                { key: 'country', label: 'Country' },
+                { key: 'mobilePhone', label: 'Mobile Phone' },
+                { key: 'manager', label: 'Manager' },
+                { key: 'mail', label: 'Email' },
+                { key: 'usageLocation', label: 'Usage Location' },
+                { key: 'userSource', label: 'User Source' },
+                { key: 'completeness', label: 'Completeness %' }
+            ];
+            Export.toCSV(exportData, columns, 'tenantscope-data-quality.csv');
+        });
 
         // Initial render
         applyFilters();
+    }
+
+    /**
+     * Creates a summary card.
+     */
+    function createCard(label, value, variant) {
+        var card = el('div', 'summary-card card-' + variant);
+        card.appendChild(el('div', 'card-value', value));
+        card.appendChild(el('div', 'card-label', label));
+        return card;
+    }
+
+    /**
+     * Renders insights based on data quality stats.
+     */
+    function renderInsights(container, stats, users) {
+        container.textContent = '';
+
+        // Find fields with lowest completeness
+        var lowFields = stats.fieldStats.filter(function(f) { return f.pct < 80; })
+            .sort(function(a, b) { return a.pct - b.pct; });
+
+        var criticalFields = stats.fieldStats.filter(function(f) { return f.pct < 50; });
+
+        // Critical fields insight
+        if (criticalFields.length > 0) {
+            var fieldNames = criticalFields.slice(0, 3).map(function(f) { return f.label + ' (' + f.pct + '%)'; }).join(', ');
+            container.appendChild(createInsightCard('critical', 'CRITICAL', 'Low Data Coverage',
+                criticalFields.length + ' field' + (criticalFields.length !== 1 ? 's have' : ' has') + ' less than 50% completion: ' + fieldNames,
+                'Prioritize populating these fields for accurate reporting and governance.'));
+        }
+
+        // Warning fields insight
+        var warningFields = stats.fieldStats.filter(function(f) { return f.pct >= 50 && f.pct < 80; });
+        if (warningFields.length > 0) {
+            var warnNames = warningFields.slice(0, 3).map(function(f) { return f.label + ' (' + f.pct + '%)'; }).join(', ');
+            container.appendChild(createInsightCard('warning', 'ATTENTION', 'Incomplete Fields',
+                warningFields.length + ' field' + (warningFields.length !== 1 ? 's are' : ' is') + ' between 50-80% complete: ' + warnNames,
+                'Review and update user profiles to improve data quality.'));
+        }
+
+        // Fully complete insight
+        var fullyCompletePct = users.length > 0 ? Math.round((stats.fullyComplete / users.length) * 100) : 0;
+        if (fullyCompletePct < 50) {
+            container.appendChild(createInsightCard('warning', 'GOVERNANCE', 'Profile Completion',
+                'Only ' + fullyCompletePct + '% of users have fully complete profiles (' + stats.fullyComplete + ' of ' + users.length + ').',
+                'Consider implementing profile completion requirements or automated data sync.'));
+        }
+
+        // Good state
+        if (stats.avgPct >= 90 && stats.belowThreshold === 0) {
+            container.appendChild(createInsightCard('success', 'HEALTHY', 'Data Quality',
+                'Excellent data quality! Average completeness is ' + stats.avgPct + '% with all fields above 80%.',
+                null));
+        }
+    }
+
+    /**
+     * Creates an insight card.
+     */
+    function createInsightCard(type, badge, category, description, action) {
+        var card = el('div', 'insight-card insight-' + type);
+        var header = el('div', 'insight-header');
+        header.appendChild(el('span', 'badge badge-' + type, badge));
+        header.appendChild(el('span', 'insight-category', category));
+        card.appendChild(header);
+        card.appendChild(el('p', 'insight-description', description));
+        if (action) {
+            var actionP = el('p', 'insight-action');
+            actionP.appendChild(el('strong', null, 'Action: '));
+            actionP.appendChild(document.createTextNode(action));
+            card.appendChild(actionP);
+        }
+        return card;
     }
 
     /**
@@ -741,32 +856,6 @@ const PageDataQuality = (function() {
         table.appendChild(tbody);
         body.appendChild(table);
         overlay.classList.add('visible');
-    }
-
-    /**
-     * Creates a summary card element.
-     */
-    function makeCard(title, value, trend) {
-        var card = document.createElement('div');
-        card.className = 'card';
-
-        var label = document.createElement('div');
-        label.className = 'card-label';
-        label.textContent = title;
-        card.appendChild(label);
-
-        var val = document.createElement('div');
-        val.className = 'card-value';
-        val.textContent = value;
-        card.appendChild(val);
-
-        if (trend === 'positive') {
-            val.style.color = 'var(--color-success)';
-        } else if (trend === 'negative') {
-            val.style.color = 'var(--color-critical)';
-        }
-
-        return card;
     }
 
     return {

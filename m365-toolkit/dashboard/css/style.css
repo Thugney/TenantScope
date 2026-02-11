@@ -2408,6 +2408,12 @@ table {
     accent-color: var(--color-accent);
 }
 
+.column-selector-wrap {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: var(--spacing-sm);
+}
+
 /* ========================================================================
    DATE RANGE FILTER
    ======================================================================== */
