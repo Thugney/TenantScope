@@ -33,6 +33,7 @@ const PageOrganization = (function() {
         var allManagerKeys = new Set();
         var userById = {};
         var userByUpn = {};
+        var userByMail = {};
         var userByName = {};
         var managerByUser = new Map();
         var missingManagerRefs = [];
@@ -42,6 +43,12 @@ const PageOrganization = (function() {
         users.forEach(function(u) {
             if (u.id) userById[u.id] = u;
             if (u.userPrincipalName && typeof u.userPrincipalName === 'string') userByUpn[u.userPrincipalName.toLowerCase()] = u;
+            if (u.mail && typeof u.mail === 'string') userByMail[u.mail.toLowerCase()] = u;
+            if (u.otherMails && Array.isArray(u.otherMails)) {
+                u.otherMails.forEach(function(m) {
+                    if (m && typeof m === 'string') userByMail[m.toLowerCase()] = u;
+                });
+            }
             if (u.displayName && typeof u.displayName === 'string' && !userByName[u.displayName.toLowerCase()]) {
                 userByName[u.displayName.toLowerCase()] = u;
             }
@@ -51,16 +58,19 @@ const PageOrganization = (function() {
             var managerId = user.managerId || null;
             var managerUpn = user.managerUpn || null;
             var managerName = user.manager || null;
+            var managerMail = user.managerMail || null;
             var key = null;
             if (managerId) key = String(managerId);
             else if (managerUpn && typeof managerUpn === 'string') key = 'upn:' + managerUpn.toLowerCase();
+            else if (managerMail && typeof managerMail === 'string') key = 'mail:' + managerMail.toLowerCase();
             else if (managerName && typeof managerName === 'string') key = 'name:' + managerName.toLowerCase();
             if (!key) return null;
             return {
                 key: key,
                 id: managerId || null,
                 upn: managerUpn || null,
-                name: managerName || managerUpn || managerId || 'Unknown'
+                mail: managerMail || null,
+                name: managerName || managerUpn || managerMail || managerId || 'Unknown'
             };
         }
 
@@ -68,6 +78,12 @@ const PageOrganization = (function() {
             var keys = [];
             if (user.id) keys.push(String(user.id));
             if (user.userPrincipalName && typeof user.userPrincipalName === 'string') keys.push('upn:' + user.userPrincipalName.toLowerCase());
+            if (user.mail && typeof user.mail === 'string') keys.push('mail:' + user.mail.toLowerCase());
+            if (user.otherMails && Array.isArray(user.otherMails)) {
+                user.otherMails.forEach(function(m) {
+                    if (m && typeof m === 'string') keys.push('mail:' + m.toLowerCase());
+                });
+            }
             if (user.displayName && typeof user.displayName === 'string') keys.push('name:' + user.displayName.toLowerCase());
             return keys;
         }
@@ -76,6 +92,7 @@ const PageOrganization = (function() {
             if (!ref) return null;
             if (ref.id && userById[ref.id]) return userById[ref.id];
             if (ref.upn && typeof ref.upn === 'string' && userByUpn[ref.upn.toLowerCase()]) return userByUpn[ref.upn.toLowerCase()];
+            if (ref.mail && typeof ref.mail === 'string' && userByMail[ref.mail.toLowerCase()]) return userByMail[ref.mail.toLowerCase()];
             if (ref.name && typeof ref.name === 'string' && userByName[ref.name.toLowerCase()]) return userByName[ref.name.toLowerCase()];
             return null;
         }
@@ -151,6 +168,7 @@ const PageOrganization = (function() {
                 manager.country = managerUser.country;
                 manager.userPrincipalName = managerUser.userPrincipalName;
                 manager.jobTitle = managerUser.jobTitle;
+                manager.userType = managerUser.userType;
             }
         });
 
@@ -363,6 +381,12 @@ const PageOrganization = (function() {
             if (!user) return keys;
             if (user.id) keys.push(String(user.id));
             if (user.userPrincipalName && typeof user.userPrincipalName === 'string') keys.push('upn:' + user.userPrincipalName.toLowerCase());
+            if (user.mail && typeof user.mail === 'string') keys.push('mail:' + user.mail.toLowerCase());
+            if (user.otherMails && Array.isArray(user.otherMails)) {
+                user.otherMails.forEach(function(m) {
+                    if (m && typeof m === 'string') keys.push('mail:' + m.toLowerCase());
+                });
+            }
             if (user.displayName && typeof user.displayName === 'string') keys.push('name:' + user.displayName.toLowerCase());
             return keys;
         }
@@ -750,6 +774,7 @@ const PageOrganization = (function() {
         // Export buttons
         document.getElementById('export-managers-btn').addEventListener('click', function() {
             var exportData = orgState.hierarchy.managers.map(function(m) {
+                var inTenant = m.isUser ? (m.userType && String(m.userType).toLowerCase() === 'guest' ? 'Guest' : 'Member') : 'External';
                 return {
                     Manager: m.name,
                     Email: m.userPrincipalName || m.managerUpn || '',
@@ -758,7 +783,7 @@ const PageOrganization = (function() {
                     Office: m.officeLocation || '',
                     Company: m.companyName || '',
                     DirectReports: m.directReports.length,
-                    InTenant: m.isUser ? 'Yes' : 'No'
+                    InTenant: inTenant
                 };
             });
             var columns = [
@@ -1330,8 +1355,12 @@ const PageOrganization = (function() {
             { key: 'officeLocation', label: 'Office', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'companyName', label: 'Company', sortable: true, formatter: function(v) { return v || '-'; } },
             { key: 'directReportsCount', label: 'Direct Reports', sortable: true },
-            { key: 'isUser', label: 'In Tenant', sortable: true, formatter: function(v) {
-                return v ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-warning">External</span>';
+            { key: 'isUser', label: 'In Tenant', sortable: true, formatter: function(v, row) {
+                if (!v) return '<span class="badge badge-warning">External</span>';
+                if (row && row.userType && String(row.userType).toLowerCase() === 'guest') {
+                    return '<span class="badge badge-outline">Guest</span>';
+                }
+                return '<span class="badge badge-success">Member</span>';
             }},
             { key: 'topReports', label: 'Sample Reports', sortable: false },
             { key: '_adminLinks', label: 'Admin', sortable: false, formatter: function(v, row) {
@@ -1356,6 +1385,7 @@ const PageOrganization = (function() {
                 companyName: m.companyName || '',
                 directReportsCount: reports.length,
                 isUser: m.isUser,
+                userType: m.userType,
                 topReports: topReports || '-',
                 _raw: m
             };
@@ -1441,7 +1471,7 @@ const PageOrganization = (function() {
             ['Company', manager.companyName || 'N/A'],
             ['Location', locationDisplay],
             ['Direct Reports', manager.directReports.length],
-            ['In Tenant', manager.isUser ? 'Yes' : 'No (External)']
+            ['In Tenant', manager.isUser ? (manager.userType && String(manager.userType).toLowerCase() === 'guest' ? 'Guest' : 'Member') : 'External']
         ];
         items.forEach(function(item) {
             var div = el('div', 'detail-item');
