@@ -182,35 +182,27 @@ function Get-ConfigurationPolicyReportMap {
             Invoke-MgGraphRequest -Method POST `
                 -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getConfigurationPolicyDeviceSummaryReport" `
                 -Body $body -OutputType PSObject
-        } -OperationName "Configuration policy device summary report"
-
-        # Debug: show report structure
-        if ($report) {
-            $hasValues = $null -ne $report.values
-            $hasColumns = $null -ne $report.columns
-            $hasValue = $null -ne $report.value
-            $hasSchema = $null -ne $report.schema
-            Write-Host "      Report API response: values=$hasValues columns=$hasColumns value=$hasValue schema=$hasSchema" -ForegroundColor Gray
-            if ($report.values) {
-                Write-Host "      Report contains $($report.values.Count) rows" -ForegroundColor Gray
-            }
-        }
+        } -OperationName "Configuration policy device summary report" -MaxRetries 3
     }
     catch {
-        Write-Host "      Report API failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        $errMsg = $_.Exception.Message
+        if ($errMsg -match "429|throttl|TooManyRequests") {
+            Write-Host "      Report API throttled - will use individual status endpoints" -ForegroundColor Yellow
+        } else {
+            Write-Host "      Report API failed: $errMsg" -ForegroundColor Yellow
+        }
         return $map
     }
 
-    $rows = Convert-ReportRows -Report $report
-    Write-Host "      Parsed $($rows.Count) report rows" -ForegroundColor Gray
-
-    foreach ($row in $rows) {
-        $id = Get-ReportValue -Row $row -Names @("policyId","id","PolicyId")
-        if (-not $id) { continue }
-        $map[$id] = $row
+    if ($report) {
+        $rows = Convert-ReportRows -Report $report
+        foreach ($row in $rows) {
+            $id = Get-ReportValue -Row $row -Names @("policyId","id","PolicyId")
+            if (-not $id) { continue }
+            $map[$id] = $row
+        }
+        Write-Host "      Report map contains $($map.Count) policies" -ForegroundColor Gray
     }
-
-    Write-Host "      Report map contains $($map.Count) policies" -ForegroundColor Gray
 
     return $map
 }
@@ -319,6 +311,11 @@ try {
     # Build a cache for group names
     $groupNameCache = @{}
 
+    # Throttle control: limit detailed API calls to avoid 429s
+    $detailedStatusLimit = 30  # Only fetch detailed status for first N profiles
+    $apiCallCount = 0
+    $throttleDelay = 100  # ms between API-heavy operations
+
     foreach ($item in $allProfiles) {
         try {
             $profile = $item.data
@@ -352,53 +349,31 @@ try {
             $notApplicableCount = 0
             $usedStatusFallback = $false
             $deviceStatusList = @()
+            $skipDetailedStatus = ($profileCount -ge $detailedStatusLimit)
 
-            try {
-                if ($source -eq "deviceConfigurations") {
-                    # Legacy device configurations have deviceStatusOverview endpoint
-                    $statusOverview = Invoke-MgGraphRequest -Method GET `
-                        -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
-                        -OutputType PSObject
-
-                    # Debug: show first profile's status overview properties
-                    if ($profileCount -eq 0) {
-                        $props = $statusOverview.PSObject.Properties | ForEach-Object { "$($_.Name)=$($_.Value)" }
-                        Write-Host "      [DEBUG] First deviceConfig statusOverview: $($props -join ', ')" -ForegroundColor Cyan
+            # For Settings Catalog, prefer report data to avoid extra API calls
+            if ($source -eq "configurationPolicies" -and $policyReportMap.ContainsKey($profile.id)) {
+                $row = $policyReportMap[$profile.id]
+                $successCount = [int](Get-ReportValue -Row $row -Names @("successDeviceCount","successCount"))
+                $errorCount = [int](Get-ReportValue -Row $row -Names @("errorDeviceCount","errorCount"))
+                $conflictCount = [int](Get-ReportValue -Row $row -Names @("conflictDeviceCount","conflictCount"))
+                $pendingCount = [int](Get-ReportValue -Row $row -Names @("pendingDeviceCount","pendingCount"))
+                $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+                $usedStatusFallback = $true
+            }
+            elseif (-not $skipDetailedStatus) {
+                # Only fetch status overview if we don't have report data and haven't hit limit
+                try {
+                    $apiCallCount++
+                    if ($apiCallCount % 10 -eq 0) {
+                        Start-Sleep -Milliseconds $throttleDelay
                     }
 
-                    # Graph API returns successCount/errorCount/etc (not compliantDeviceCount)
-                    # Try both naming conventions for compatibility
-                    $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
-                                   elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
-                                   else { 0 }
-                    $errorCount = if ($null -ne $statusOverview.errorCount) { [int]$statusOverview.errorCount }
-                                 elseif ($null -ne $statusOverview.errorDeviceCount) { [int]$statusOverview.errorDeviceCount }
-                                 else { 0 }
-                    $conflictCount = if ($null -ne $statusOverview.conflictCount) { [int]$statusOverview.conflictCount }
-                                    elseif ($null -ne $statusOverview.conflictDeviceCount) { [int]$statusOverview.conflictDeviceCount }
-                                    else { 0 }
-                    $pendingCount = if ($null -ne $statusOverview.pendingCount) { [int]$statusOverview.pendingCount }
-                                   elseif ($null -ne $statusOverview.pendingDeviceCount) { [int]$statusOverview.pendingDeviceCount }
-                                   else { 0 }
-                    $notApplicableCount = if ($null -ne $statusOverview.notApplicableCount) { [int]$statusOverview.notApplicableCount }
-                                         elseif ($null -ne $statusOverview.notApplicableDeviceCount) { [int]$statusOverview.notApplicableDeviceCount }
-                                         else { 0 }
-                }
-                elseif ($source -eq "configurationPolicies") {
-                    # Try deviceStatusOverview for Settings Catalog policies (beta endpoint)
-                    try {
+                    if ($source -eq "deviceConfigurations") {
                         $statusOverview = Invoke-MgGraphRequest -Method GET `
-                            -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
+                            -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
                             -OutputType PSObject
 
-                        # Debug: show first Settings Catalog policy's status overview properties
-                        if ($profileCount -lt 5 -and $source -eq "configurationPolicies") {
-                            $props = $statusOverview.PSObject.Properties | ForEach-Object { "$($_.Name)=$($_.Value)" }
-                            Write-Host "      [DEBUG] configPolicy statusOverview: $($props -join ', ')" -ForegroundColor Cyan
-                        }
-
-                        # Graph API returns successCount/errorCount/etc (not compliantDeviceCount)
-                        # Try both naming conventions for compatibility
                         $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
                                        elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
                                        else { 0 }
@@ -415,129 +390,83 @@ try {
                                              elseif ($null -ne $statusOverview.notApplicableDeviceCount) { [int]$statusOverview.notApplicableDeviceCount }
                                              else { 0 }
                     }
-                    catch {
-                        # Settings Catalog deviceStatusOverview not available, will use fallbacks
-                        $successCount = 0
-                        $errorCount = 0
-                        $conflictCount = 0
-                        $pendingCount = 0
-                    }
-                }
-            }
-            catch {
-                # Only log warning for legacy profiles that should support status overview
-                if ($source -eq "deviceConfigurations") {
-                    Write-Warning "      Failed to get status overview for profile $($profile.displayName): $($_.Exception.Message)"
-                }
-            }
+                    elseif ($source -eq "configurationPolicies") {
+                        try {
+                            $statusOverview = Invoke-MgGraphRequest -Method GET `
+                                -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatusOverview" `
+                                -OutputType PSObject
 
-            # Fallback to report API or deviceStatuses when overview is unavailable or zeroed
-            $totalFromOverview = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
-            $statusSource = "overview"
-            if ($source -eq "configurationPolicies" -or $totalFromOverview -eq 0) {
-                # Try report API for Settings Catalog policies
-                if ($source -eq "configurationPolicies" -and $policyReportMap.ContainsKey($profile.id)) {
-                    $row = $policyReportMap[$profile.id]
-                    $reportSuccess = [int](Get-ReportValue -Row $row -Names @("successDeviceCount","successCount"))
-                    $reportError = [int](Get-ReportValue -Row $row -Names @("errorDeviceCount","errorCount"))
-                    $reportConflict = [int](Get-ReportValue -Row $row -Names @("conflictDeviceCount","conflictCount"))
-                    $reportPending = [int](Get-ReportValue -Row $row -Names @("pendingDeviceCount","pendingCount"))
-                    $reportNotApplicable = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
-
-                    # Only use report data if we got at least some counts
-                    if (($reportSuccess + $reportError + $reportConflict + $reportPending + $reportNotApplicable) -gt 0) {
-                        $successCount = $reportSuccess
-                        $errorCount = $reportError
-                        $conflictCount = $reportConflict
-                        $pendingCount = $reportPending
-                        $notApplicableCount = $reportNotApplicable
-                        $usedStatusFallback = $true
-                        $statusSource = "report"
-                    }
-                }
-            }
-
-            # Final fallback: enumerate deviceStatuses if still no data
-            $totalSoFar = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
-            if ($totalSoFar -eq 0) {
-                try {
-                    $statusUri = if ($source -eq "deviceConfigurations") {
-                        "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$top=100"
-                    } else {
-                        "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$top=100"
-                    }
-
-                    $deviceStatusList = Get-GraphAllPages -Uri $statusUri -OperationName "Profile device statuses"
-
-                    foreach ($status in $deviceStatusList) {
-                        $state = if ($status.status) { $status.status.ToString().ToLowerInvariant() } else { "" }
-                        switch ($state) {
-                            "success"     { $successCount++ }
-                            "compliant"   { $successCount++ }
-                            "error"       { $errorCount++ }
-                            "conflict"    { $conflictCount++ }
-                            "pending"     { $pendingCount++ }
-                            "notapplicable" { $notApplicableCount++ }
-                            default       { }
+                            $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
+                                           elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
+                                           else { 0 }
+                            $errorCount = if ($null -ne $statusOverview.errorCount) { [int]$statusOverview.errorCount }
+                                         elseif ($null -ne $statusOverview.errorDeviceCount) { [int]$statusOverview.errorDeviceCount }
+                                         else { 0 }
+                            $conflictCount = if ($null -ne $statusOverview.conflictCount) { [int]$statusOverview.conflictCount }
+                                            elseif ($null -ne $statusOverview.conflictDeviceCount) { [int]$statusOverview.conflictDeviceCount }
+                                            else { 0 }
+                            $pendingCount = if ($null -ne $statusOverview.pendingCount) { [int]$statusOverview.pendingCount }
+                                           elseif ($null -ne $statusOverview.pendingDeviceCount) { [int]$statusOverview.pendingDeviceCount }
+                                           else { 0 }
+                            $notApplicableCount = if ($null -ne $statusOverview.notApplicableCount) { [int]$statusOverview.notApplicableCount }
+                                                 elseif ($null -ne $statusOverview.notApplicableDeviceCount) { [int]$statusOverview.notApplicableDeviceCount }
+                                                 else { 0 }
                         }
-                    }
-
-                    if ($deviceStatusList.Count -gt 0) {
-                        $usedStatusFallback = $true
-                        $statusSource = "deviceStatuses"
+                        catch {
+                            # Settings Catalog deviceStatusOverview not available
+                        }
                     }
                 }
                 catch {
-                    Write-Warning "      Failed to get device statuses for profile $($profile.displayName): $($_.Exception.Message)"
+                    # Silently continue - we'll try fallbacks
                 }
             }
 
-            # Debug: show first few profiles' final status counts
-            if ($profileCount -lt 3) {
-                $finalTotal = $successCount + $errorCount + $conflictCount + $pendingCount + $notApplicableCount
-                Write-Host "      [DEBUG] Profile '$($profile.displayName)' [$source]: success=$successCount err=$errorCount conflict=$conflictCount pending=$pendingCount na=$notApplicableCount (source: $statusSource)" -ForegroundColor Cyan
-            }
+            # Status source tracking
+            $statusSource = if ($usedStatusFallback) { "report" } else { "overview" }
 
-            # Get assignments for this profile
+            # Get assignments for this profile (only for first N profiles to reduce API calls)
             $assignments = @()
-            try {
-                $assignmentUri = if ($source -eq "deviceConfigurations") {
-                    "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/assignments"
-                } else {
-                    "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/assignments"
+            if (-not $skipDetailedStatus) {
+                try {
+                    $apiCallCount++
+                    if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
+
+                    $assignmentUri = if ($source -eq "deviceConfigurations") {
+                        "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/assignments"
+                    } else {
+                        "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/assignments"
+                    }
+
+                    $assignmentResponse = Invoke-MgGraphRequest -Method GET -Uri $assignmentUri -OutputType PSObject
+
+                    foreach ($assignment in $assignmentResponse.value) {
+                        $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
+                        $assignments += $target
+                    }
                 }
-
-                $assignmentResponse = Invoke-MgGraphRequest -Method GET -Uri $assignmentUri -OutputType PSObject
-
-                foreach ($assignment in $assignmentResponse.value) {
-                    $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
-                    $assignments += $target
+                catch {
+                    # Silently continue
                 }
             }
-            catch {
-                Write-Warning "      Failed to get assignments for profile $($profile.displayName): $($_.Exception.Message)"
-            }
 
-            # Get failed device details
+            # Get failed device details (only for profiles with errors and within limit)
             $deviceStatuses = @()
             $profileNameForTracking = if ($profile.displayName) { $profile.displayName } elseif ($profile.name) { $profile.name } else { "Unknown Profile" }
 
-            if ($errorCount -gt 0 -or $conflictCount -gt 0) {
+            if (($errorCount -gt 0 -or $conflictCount -gt 0) -and -not $skipDetailedStatus) {
                 try {
-                    $sourceStatuses = @()
-                    if ($usedStatusFallback -and $deviceStatusList.Count -gt 0) {
-                        $sourceStatuses = $deviceStatusList | Where-Object { $_.status -in @("error", "conflict") }
-                    }
-                    else {
-                        $statusUri = if ($source -eq "deviceConfigurations") {
-                            "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=50"
-                        } else {
-                            "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=50"
-                        }
+                    $apiCallCount++
+                    if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
 
-                        $deviceStatusResponse = Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
-                        $sourceStatuses = @($deviceStatusResponse.value)
+                    $statusUri = if ($source -eq "deviceConfigurations") {
+                        "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=20"
+                    } else {
+                        "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($profile.id)/deviceStatuses?`$filter=status eq 'error' or status eq 'conflict'&`$top=20"
                     }
+
+                    $deviceStatusResponse = Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
+                    $sourceStatuses = @($deviceStatusResponse.value)
 
                     foreach ($status in $sourceStatuses) {
                         $deviceStatuses += [PSCustomObject]@{
@@ -566,18 +495,19 @@ try {
                     }
                 }
                 catch {
-                    Write-Warning "      Failed to get device statuses for profile $($profileNameForTracking): $($_.Exception.Message)"
+                    # Silently continue
                 }
             }
 
-            # Get setting-level failures for this profile
-            # Note: Setting-level failures are available for deviceConfigurations via deviceSettingStateSummaries
-            # For Settings Catalog (configurationPolicies), detailed setting failures require different approach
+            # Get setting-level failures for this profile (only for deviceConfigurations within limit)
             $settingStatuses = @()
             $profileDisplayName = if ($profile.displayName) { $profile.displayName } elseif ($profile.name) { $profile.name } else { "Unknown" }
 
-            if ($source -eq "deviceConfigurations") {
+            if ($source -eq "deviceConfigurations" -and -not $skipDetailedStatus -and ($errorCount -gt 0 -or $conflictCount -gt 0)) {
                 try {
+                    $apiCallCount++
+                    if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
+
                     $settingUri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceSettingStateSummaries"
                     $settingResponse = Invoke-MgGraphRequest -Method GET -Uri $settingUri -OutputType PSObject
 
@@ -602,7 +532,7 @@ try {
                     }
                 }
                 catch {
-                    Write-Warning "      Failed to get setting state summaries for profile $($profileDisplayName): $($_.Exception.Message)"
+                    # Silently continue
                 }
             }
 
@@ -722,10 +652,6 @@ try {
             ($profileData.summary.successDevices / $profileData.summary.totalDevices) * 100, 1
         )
     }
-
-    # Debug: Show summary totals
-    Write-Host "      [DEBUG] Summary totals: devices=$($profileData.summary.totalDevices) success=$($profileData.summary.successDevices) errors=$($profileData.summary.errorDevices) conflicts=$($profileData.summary.conflictDevices) pending=$($profileData.summary.pendingDevices)" -ForegroundColor Cyan
-    Write-Host "      [DEBUG] Profiles with errors: $($profileData.summary.profilesWithErrors), with conflicts: $($profileData.summary.profilesWithConflicts)" -ForegroundColor Cyan
 
     # Sort setting failures
     $profileData.settingFailures = $profileData.settingFailures |
