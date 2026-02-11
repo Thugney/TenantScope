@@ -21,7 +21,9 @@
 
     Required permissions (MDE API):
     - Machine.Read.All
-    - AdvancedHunting.Read.All (if using hunting elsewhere)
+
+    Note: This collector requires Defender API authentication, which is separate
+    from Microsoft Graph authentication.
 
 .PARAMETER Config
     The configuration hashtable loaded from config.json.
@@ -51,10 +53,61 @@ param(
 # ============================================================================
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
+. "$PSScriptRoot\..\lib\DefenderApi.ps1"
 
 # ============================================================================
 # LOCAL HELPERS
 # ============================================================================
+
+function Invoke-DefenderApiRequest {
+    <#
+    .SYNOPSIS
+        Makes a REST request to the Defender API with proper authentication.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri,
+
+        [Parameter()]
+        [string]$Method = "GET",
+
+        [Parameter()]
+        [int]$MaxRetries = 3
+    )
+
+    $token = Get-DefenderApiToken
+    if (-not $token) {
+        throw "Not connected to Defender API"
+    }
+
+    $headers = @{
+        "Authorization" = "Bearer $token"
+        "Content-Type"  = "application/json"
+    }
+
+    $attempt = 0
+    while ($attempt -le $MaxRetries) {
+        try {
+            return Invoke-RestMethod -Method $Method -Uri $Uri -Headers $headers
+        }
+        catch {
+            $statusCode = $_.Exception.Response.StatusCode.value__
+
+            if ($statusCode -in @(429, 500, 502, 503, 504)) {
+                $attempt++
+                if ($attempt -gt $MaxRetries) {
+                    throw "Max retries exceeded"
+                }
+                $waitSeconds = [Math]::Pow(2, $attempt) * 10
+                Write-Host "      Defender API error ($statusCode). Waiting ${waitSeconds}s..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $waitSeconds
+            }
+            else {
+                throw
+            }
+        }
+    }
+}
 
 function Get-MdeAllPages {
     param(
@@ -66,18 +119,14 @@ function Get-MdeAllPages {
     )
 
     $results = @()
-    $response = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
-    } -OperationName $OperationName
+    $response = Invoke-DefenderApiRequest -Uri $Uri
 
     if ($response.value) {
         $results += $response.value
     }
 
     while ($response.'@odata.nextLink') {
-        $response = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
-        } -OperationName "$OperationName pagination"
+        $response = Invoke-DefenderApiRequest -Uri $response.'@odata.nextLink'
 
         if ($response.value) {
             $results += $response.value
@@ -146,6 +195,32 @@ $detailLimit = if ($Config.collection -and $Config.collection.defenderDeviceDeta
 
 try {
     Write-Host "    Collecting Defender for Endpoint device health..." -ForegroundColor Gray
+
+    # Check if Defender API is connected
+    if (-not (Test-DefenderApiConnection)) {
+        Write-Host "    [!] Defender API not connected - skipping MDE device health collection" -ForegroundColor Yellow
+        $emptyOutput = @{
+            devices = @()
+            summary = @{
+                totalDevices = 0
+                notOnboarded = 0
+                sensorUnhealthy = 0
+                healthUnhealthy = 0
+                tamperDisabled = 0
+                avNotActive = 0
+                signatureStale = 0
+                edrBlockModeDisabled = 0
+                sensorStale = 0
+                signatureAgeThresholdDays = $signatureAgeThreshold
+                sensorStaleThresholdDays = $sensorStaleThreshold
+            }
+            collectionDate = (Get-Date).ToString("o")
+            dataSource = "unavailable"
+            reason = "Defender API authentication required"
+        }
+        Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+        return New-CollectorResult -Success $true -Count 0 -Errors @("Defender API not connected")
+    }
 
     $machines = @()
     try {

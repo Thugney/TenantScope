@@ -578,6 +578,41 @@ catch {
 }
 
 # ============================================================================
+# STEP 2b: Connect to Defender API (optional - for Advanced Hunting)
+# ============================================================================
+
+Write-Host ""
+Write-Host "[2b/6] Connecting to Defender API (for Advanced Hunting)..." -ForegroundColor Cyan
+
+# Load Defender API library
+. "$PSScriptRoot\lib\DefenderApi.ps1"
+
+$script:DefenderConnected = $false
+try {
+    if ($authMode -eq "Interactive") {
+        Write-Host "  Defender API requires separate authentication for Advanced Hunting." -ForegroundColor Gray
+        Write-Host "  This enables: ASR audit events, device hardening telemetry, LAPS usage data." -ForegroundColor Gray
+        Write-Host ""
+
+        $defenderConnected = Connect-DefenderApi -TenantId $configContent.tenantId
+        if ($defenderConnected) {
+            $script:DefenderConnected = $true
+        }
+        else {
+            Write-Host "  [!] Defender API not connected. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+        }
+    }
+    else {
+        # For app-only auth, Defender API would need separate app registration
+        Write-Host "  [!] Defender API requires interactive auth. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+    }
+}
+catch {
+    Write-Host "  [!] Defender API connection failed: $($_.Exception.Message)" -ForegroundColor Yellow
+    Write-Host "  Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
+}
+
+# ============================================================================
 # STEP 3: Create data directory if needed
 # ============================================================================
 

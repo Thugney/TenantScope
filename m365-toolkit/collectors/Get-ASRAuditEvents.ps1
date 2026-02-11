@@ -15,10 +15,14 @@
     with real-world audit/block signal.
 
     API endpoint:
-    - POST https://api.securitycenter.microsoft.com/api/advancedhunting/run
+    - POST https://api.securitycenter.microsoft.com/api/advancedqueries/run
 
     Required permissions:
-    - AdvancedHunting.Read.All
+    - AdvancedQuery.Read (delegated) or AdvancedQuery.Read.All (application)
+
+    Note: This collector requires Defender API authentication, which is separate
+    from Microsoft Graph authentication. The main script handles this via
+    Connect-DefenderApi in lib/DefenderApi.ps1.
 
 .PARAMETER Config
     The configuration hashtable loaded from config.json.
@@ -41,13 +45,34 @@ param(
 )
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
+. "$PSScriptRoot\..\lib\DefenderApi.ps1"
 
 $errors = @()
-$apiBase = "https://api.securitycenter.microsoft.com"
 $daysBack = if ($Config.collection -and $Config.collection.asrEventDays) { [int]$Config.collection.asrEventDays } else { 30 }
 
 try {
     Write-Host "    Collecting ASR audit events (last $daysBack days)..." -ForegroundColor Gray
+
+    # Check if Defender API is connected
+    if (-not (Test-DefenderApiConnection)) {
+        Write-Host "    [!] Defender API not connected - skipping ASR telemetry collection" -ForegroundColor Yellow
+        $emptyOutput = @{
+            rules = @()
+            summary = @{
+                totalEvents = 0
+                rulesWithEvents = 0
+                devicesAffected = 0
+                noisyRules = 0
+                daysCovered = $daysBack
+            }
+            noiseThreshold = if ($Config.thresholds -and $Config.thresholds.asrNoiseThreshold) { [int]$Config.thresholds.asrNoiseThreshold } else { 20 }
+            collectionDate = (Get-Date).ToString("o")
+            dataSource = "unavailable"
+            reason = "Defender API authentication required"
+        }
+        Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+        return New-CollectorResult -Success $true -Count 0 -Errors @("Defender API not connected")
+    }
 
     $query = @"
 DeviceEvents
@@ -67,11 +92,7 @@ DeviceEvents
 | order by totalEvents desc
 "@
 
-    $body = @{ Query = $query } | ConvertTo-Json -Depth 4
-
-    $response = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method POST -Uri "$apiBase/api/advancedhunting/run" -Body $body -OutputType PSObject
-    } -OperationName "ASR audit telemetry query"
+    $response = Invoke-DefenderAdvancedHunting -Query $query -TenantId $Config.tenantId
 
     $rows = @()
     if ($response.Results) {

@@ -15,10 +15,13 @@
     device-level coverage to identify gaps.
 
     API endpoint:
-    - POST https://api.securitycenter.microsoft.com/api/advancedhunting/run
+    - POST https://api.securitycenter.microsoft.com/api/advancedqueries/run
 
     Required permissions:
-    - AdvancedHunting.Read.All
+    - AdvancedQuery.Read (delegated) or AdvancedQuery.Read.All (application)
+
+    Note: This collector requires Defender API authentication, which is separate
+    from Microsoft Graph authentication.
 #>
 
 #Requires -Version 7.0
@@ -35,6 +38,7 @@ param(
 )
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
+. "$PSScriptRoot\..\lib\DefenderApi.ps1"
 
 function Get-ControlName {
     param(
@@ -77,21 +81,36 @@ function Get-WorstControlStatus {
 }
 
 $errors = @()
-$apiBase = "https://api.securitycenter.microsoft.com"
 
 try {
     Write-Host "    Collecting device hardening coverage..." -ForegroundColor Gray
+
+    # Check if Defender API is connected
+    if (-not (Test-DefenderApiConnection)) {
+        Write-Host "    [!] Defender API not connected - skipping device hardening collection" -ForegroundColor Yellow
+        $emptyOutput = @{
+            devices = @()
+            summary = @{
+                totalDevices = 0
+                credentialGuardGaps = 0
+                memoryIntegrityGaps = 0
+                unknownDevices = 0
+            }
+            collectionDate = (Get-Date).ToString("o")
+            dataSource = "unavailable"
+            reason = "Defender API authentication required"
+        }
+        Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+        return New-CollectorResult -Success $true -Count 0 -Errors @("Defender API not connected")
+    }
 
     $query = @"
 DeviceTvmSecureConfigurationAssessment
 | where ConfigurationSubcategory has "Credential Guard" or ConfigurationSubcategory has "Memory integrity"
 | project DeviceId, DeviceName, ConfigurationName, ConfigurationSubcategory, IsCompliant, IsApplicable
 "@
-    $body = @{ Query = $query } | ConvertTo-Json -Depth 4
 
-    $response = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method POST -Uri "$apiBase/api/advancedhunting/run" -Body $body -OutputType PSObject
-    } -OperationName "Device hardening coverage"
+    $response = Invoke-DefenderAdvancedHunting -Query $query -TenantId $Config.tenantId
 
     $rows = @()
     if ($response.Results) { $rows = $response.Results }
