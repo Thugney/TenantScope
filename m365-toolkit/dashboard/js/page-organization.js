@@ -323,8 +323,8 @@ const PageOrganization = (function() {
 
         var hierarchySection = el('div', 'analytics-section');
         hierarchySection.appendChild(el('h3', null, 'Management Hierarchy'));
-        hierarchySection.appendChild(el('p', 'text-muted', 'Manager reporting chain (managers only). Use All Managers for full lists.'));
-        var hierarchyTree = el('div');
+        hierarchySection.appendChild(el('p', 'text-muted', 'Compact manager tree (overlapping cards). Use All Managers for full lists.'));
+        var hierarchyTree = el('div', 'org-hierarchy-canvas');
         hierarchyTree.id = 'org-hierarchy-tree';
         hierarchySection.appendChild(hierarchyTree);
         container.appendChild(hierarchySection);
@@ -349,6 +349,8 @@ const PageOrganization = (function() {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-title">No hierarchy data</div><div class="empty-state-description">No manager relationships found in user data.</div></div>';
             return;
         }
+
+        var compactMode = true;
 
         function getUserKeys(user) {
             var keys = [];
@@ -395,12 +397,12 @@ const PageOrganization = (function() {
 
         var maxRoots = 8;
         var maxDepth = 3;
-        var maxManagerChildren = 6;
-        var maxLeafChips = 12;
+        var maxManagerChildren = compactMode ? 8 : 6;
+        var maxLeafChips = compactMode ? 6 : 12;
         var shownRoots = roots.slice(0, maxRoots);
         var visited = new Set();
 
-        var tree = el('div', 'org-tree');
+        var tree = el('div', compactMode ? 'org-tree org-tree--compact' : 'org-tree');
 
         function renderNode(manager, depth, isRoot) {
             if (!manager || visited.has(manager.key) || depth > maxDepth) return null;

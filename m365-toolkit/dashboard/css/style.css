@@ -5377,6 +5377,60 @@ table {
     gap: var(--spacing-sm);
 }
 
+.org-hierarchy-canvas {
+    overflow-x: auto;
+    padding-bottom: var(--spacing-xs);
+}
+
+.org-tree--compact {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: var(--spacing-md);
+    align-items: start;
+}
+
+.org-tree--compact .org-node::before {
+    display: none;
+}
+
+.org-tree--compact .org-node-card {
+    padding: var(--spacing-xs) var(--spacing-sm);
+}
+
+.org-tree--compact .org-node-title {
+    font-size: var(--font-size-sm);
+}
+
+.org-tree--compact .org-node-meta {
+    display: none;
+}
+
+.org-tree--compact .org-node--root .org-node-meta {
+    display: block;
+}
+
+.org-tree--compact .org-node-children {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: var(--spacing-xs);
+    margin-left: 0;
+    padding-left: 0;
+    border-left: none;
+}
+
+.org-tree--compact .org-node-children .org-node {
+    margin-top: -6px;
+}
+
+.org-tree--compact .org-node-chips {
+    margin-top: 4px;
+}
+
+.org-tree--compact .org-chip {
+    font-size: 10px;
+    padding: 1px 6px;
+}
+
 .org-node {
     position: relative;
 }
