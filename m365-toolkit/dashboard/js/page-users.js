@@ -451,6 +451,12 @@ const PageUsers = (function() {
         // Update summary cards with filtered data
         updateUsersSummaryCards(filteredData);
 
+        // Update tab label with filtered count
+        var usersTabBtn = document.querySelector('.tab-btn[data-tab="users"]');
+        if (usersTabBtn) {
+            usersTabBtn.textContent = 'All Users (' + filteredData.length + ')';
+        }
+
         // Render Focus/Breakdown tables
         renderFocusBreakdown(filteredData);
 
