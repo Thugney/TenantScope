@@ -83,9 +83,10 @@ function Connect-DefenderApi {
         $tokenUrl = "https://login.microsoftonline.com/$TenantId/oauth2/v2.0/token"
 
         # Request device code
+        # Use .default scope to request all delegated permissions the user has for Defender API
         $deviceCodeBody = @{
             client_id = $script:PublicClientId
-            scope     = "$script:DefenderResource/AdvancedQuery.Read offline_access"
+            scope     = "$script:DefenderResource/.default offline_access"
         }
 
         $deviceCodeResponse = Invoke-RestMethod -Method POST -Uri $deviceCodeUrl -Body $deviceCodeBody -ContentType "application/x-www-form-urlencoded"

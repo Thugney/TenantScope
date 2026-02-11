@@ -45,34 +45,12 @@ param(
 )
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
-. "$PSScriptRoot\..\lib\DefenderApi.ps1"
 
 $errors = @()
 $daysBack = if ($Config.collection -and $Config.collection.asrEventDays) { [int]$Config.collection.asrEventDays } else { 30 }
 
 try {
     Write-Host "    Collecting ASR audit events (last $daysBack days)..." -ForegroundColor Gray
-
-    # Check if Defender API is connected
-    if (-not (Test-DefenderApiConnection)) {
-        Write-Host "    [!] Defender API not connected - skipping ASR telemetry collection" -ForegroundColor Yellow
-        $emptyOutput = @{
-            rules = @()
-            summary = @{
-                totalEvents = 0
-                rulesWithEvents = 0
-                devicesAffected = 0
-                noisyRules = 0
-                daysCovered = $daysBack
-            }
-            noiseThreshold = if ($Config.thresholds -and $Config.thresholds.asrNoiseThreshold) { [int]$Config.thresholds.asrNoiseThreshold } else { 20 }
-            collectionDate = (Get-Date).ToString("o")
-            dataSource = "unavailable"
-            reason = "Defender API authentication required"
-        }
-        Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
-        return New-CollectorResult -Success $true -Count 0 -Errors @("Defender API not connected")
-    }
 
     $query = @"
 DeviceEvents
@@ -92,7 +70,8 @@ DeviceEvents
 | order by totalEvents desc
 "@
 
-    $response = Invoke-DefenderAdvancedHunting -Query $query -TenantId $Config.tenantId
+    # Use Graph Security API for Advanced Hunting (requires ThreatHunting.Read.All)
+    $response = Invoke-AdvancedHuntingQuery -Query $query -Timespan "P${daysBack}D"
 
     $rows = @()
     if ($response.Results) {

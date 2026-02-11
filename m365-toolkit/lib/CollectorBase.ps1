@@ -209,6 +209,51 @@ function Get-GraphAllPages {
     return $results
 }
 
+function Invoke-AdvancedHuntingQuery {
+    <#
+    .SYNOPSIS
+        Executes an Advanced Hunting query via Graph Security API.
+
+    .DESCRIPTION
+        Runs a KQL query using the Graph Security API endpoint:
+        POST https://graph.microsoft.com/v1.0/security/runHuntingQuery
+
+        This works with existing Graph authentication - no separate Defender API auth needed.
+        Requires ThreatHunting.Read.All permission.
+
+    .PARAMETER Query
+        The KQL query to execute.
+
+    .PARAMETER Timespan
+        Optional ISO 8601 duration (e.g., "P30D" for 30 days). Default is 30 days.
+
+    .OUTPUTS
+        The query results object with Schema and Results arrays.
+
+    .EXAMPLE
+        $results = Invoke-AdvancedHuntingQuery -Query "DeviceEvents | take 10"
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Query,
+
+        [Parameter()]
+        [string]$Timespan = "P30D"
+    )
+
+    $body = @{
+        Query = $Query
+        Timespan = $Timespan
+    } | ConvertTo-Json -Depth 4
+
+    $response = Invoke-GraphWithRetry -ScriptBlock {
+        Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/security/runHuntingQuery" -Body $body -ContentType "application/json" -OutputType PSObject
+    } -OperationName "Advanced Hunting query"
+
+    return $response
+}
+
 function Get-GroupDisplayName {
     <#
     .SYNOPSIS

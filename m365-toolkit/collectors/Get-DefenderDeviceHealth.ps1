@@ -53,7 +53,10 @@ param(
 # ============================================================================
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
-. "$PSScriptRoot\..\lib\DefenderApi.ps1"
+
+# Note: This collector requires direct access to the Defender for Endpoint API
+# (api.securitycenter.microsoft.com/api/machines) which is not available via Graph.
+# For now, it will attempt to use Graph Security API where possible.
 
 # ============================================================================
 # LOCAL HELPERS
@@ -196,32 +199,35 @@ $detailLimit = if ($Config.collection -and $Config.collection.defenderDeviceDeta
 try {
     Write-Host "    Collecting Defender for Endpoint device health..." -ForegroundColor Gray
 
-    # Check if Defender API is connected
-    if (-not (Test-DefenderApiConnection)) {
-        Write-Host "    [!] Defender API not connected - skipping MDE device health collection" -ForegroundColor Yellow
-        $emptyOutput = @{
-            devices = @()
-            summary = @{
-                totalDevices = 0
-                notOnboarded = 0
-                sensorUnhealthy = 0
-                healthUnhealthy = 0
-                tamperDisabled = 0
-                avNotActive = 0
-                signatureStale = 0
-                edrBlockModeDisabled = 0
-                sensorStale = 0
-                signatureAgeThresholdDays = $signatureAgeThreshold
-                sensorStaleThresholdDays = $sensorStaleThreshold
-            }
-            collectionDate = (Get-Date).ToString("o")
-            dataSource = "unavailable"
-            reason = "Defender API authentication required"
-        }
-        Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
-        return New-CollectorResult -Success $true -Count 0 -Errors @("Defender API not connected")
-    }
+    # The MDE machines API (api.securitycenter.microsoft.com/api/machines) requires
+    # direct Defender for Endpoint API access which isn't available via Microsoft Graph.
+    # This collector requires a registered app with MDE API permissions.
+    Write-Host "    [!] MDE device health requires Defender API (not available via Graph)" -ForegroundColor Yellow
+    Write-Host "    [!] To enable: Register an app with Machine.Read.All permission in Defender" -ForegroundColor Yellow
 
+    $emptyOutput = @{
+        devices = @()
+        summary = @{
+            totalDevices = 0
+            notOnboarded = 0
+            sensorUnhealthy = 0
+            healthUnhealthy = 0
+            tamperDisabled = 0
+            avNotActive = 0
+            signatureStale = 0
+            edrBlockModeDisabled = 0
+            sensorStale = 0
+            signatureAgeThresholdDays = $signatureAgeThreshold
+            sensorStaleThresholdDays = $sensorStaleThreshold
+        }
+        collectionDate = (Get-Date).ToString("o")
+        dataSource = "unavailable"
+        reason = "Requires Defender for Endpoint API (api.securitycenter.microsoft.com) - not available via Graph SDK"
+    }
+    Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
+    return New-CollectorResult -Success $true -Count 0 -Errors @("MDE API not available via Graph")
+
+    # NOTE: The code below is preserved for when Defender API auth is implemented
     $machines = @()
     try {
         $machines = Get-MdeAllPages -Uri "$apiBase/api/machines" -OperationName "MDE machines retrieval"

@@ -125,11 +125,7 @@ param(
 
     # Use device code authentication (more stable for long-running scripts)
     [Parameter()]
-    [switch]$UseDeviceCode,
-
-    # Skip Defender API authentication (for tenants without Defender for Endpoint)
-    [Parameter()]
-    [switch]$SkipDefenderApi
+    [switch]$UseDeviceCode
 )
 
 # ============================================================================
@@ -489,9 +485,8 @@ Write-Host "[2/6] Connecting to Microsoft Graph..." -ForegroundColor Cyan
         "eDiscovery.Read.All",
         "InformationProtectionPolicy.Read",
         "AccessReview.Read.All",
-        # Note: Defender Advanced Hunting (AdvancedHunting.Read.All, Machine.Read.All) requires
-        # separate auth to api.securitycenter.microsoft.com - not available via Graph SDK.
-        # Collectors using Defender API will use sample data when live data is unavailable.
+        # Advanced Hunting via Graph Security API (works with Graph auth, no separate Defender auth needed)
+        "ThreatHunting.Read.All",
         "Group.Read.All"
 )
 
@@ -581,56 +576,8 @@ catch {
     exit 1
 }
 
-# ============================================================================
-# STEP 2b: Connect to Defender API (optional - for Advanced Hunting)
-# ============================================================================
-
-Write-Host ""
-Write-Host "[2b/6] Defender API (optional - for Advanced Hunting)..." -ForegroundColor Cyan
-
-# Load Defender API library
-. "$PSScriptRoot\lib\DefenderApi.ps1"
-
-$script:DefenderConnected = $false
-
-if ($SkipDefenderApi) {
-    Write-Host "  [!] Skipping Defender API (--SkipDefenderApi specified)" -ForegroundColor Yellow
-    Write-Host "  Advanced Hunting collectors will use empty data." -ForegroundColor Gray
-}
-elseif ($authMode -ne "Interactive") {
-    # For app-only auth, Defender API would need separate app registration
-    Write-Host "  [!] Defender API requires interactive auth. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
-}
-else {
-    Write-Host "  Defender API enables: ASR audit events, MDE device health, device hardening, LAPS data." -ForegroundColor Gray
-    Write-Host ""
-    Write-Host "  Do you want to authenticate to Defender API?" -ForegroundColor Yellow
-    Write-Host "    [Y] Yes - Connect to Defender API (requires additional login)" -ForegroundColor White
-    Write-Host "    [N] No  - Skip Defender API (collectors will output empty data)" -ForegroundColor White
-    Write-Host ""
-
-    $choice = Read-Host "  Enter choice (Y/N)"
-
-    if ($choice -match "^[Yy]") {
-        try {
-            $defenderConnected = Connect-DefenderApi -TenantId $configContent.tenantId
-            if ($defenderConnected) {
-                $script:DefenderConnected = $true
-            }
-            else {
-                Write-Host "  [!] Defender API not connected. Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
-            }
-        }
-        catch {
-            Write-Host "  [!] Defender API connection failed: $($_.Exception.Message)" -ForegroundColor Yellow
-            Write-Host "  Advanced Hunting collectors will be skipped." -ForegroundColor Yellow
-        }
-    }
-    else {
-        Write-Host "  [OK] Skipping Defender API authentication." -ForegroundColor Green
-        Write-Host "  TIP: Use -SkipDefenderApi to skip this prompt in the future." -ForegroundColor Gray
-    }
-}
+# Note: Advanced Hunting now uses Graph Security API (ThreatHunting.Read.All scope)
+# No separate Defender API authentication required!
 
 # ============================================================================
 # STEP 3: Create data directory if needed

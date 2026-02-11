@@ -34,7 +34,6 @@ param(
 )
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
-. "$PSScriptRoot\..\lib\DefenderApi.ps1"
 
 $errors = @()
 $rotationThreshold = if ($Config.thresholds -and $Config.thresholds.lapsRotationDays) {
@@ -215,35 +214,29 @@ catch {
     $localAdminMap = @{}
     $localAdminQueryFailed = $false
 
-    # Local admin logon data requires Defender API
-    if (Test-DefenderApiConnection) {
-        try {
-            $query = @"
+    # Local admin logon data via Graph Security API Advanced Hunting
+    try {
+        $query = @"
 DeviceLogonEvents
 | where Timestamp >= ago(${localAdminDays}d)
 | where IsLocalAdmin == true
 | summarize localAdminLogons=count(), lastSeen=max(Timestamp) by DeviceId, DeviceName
 "@
-            $response = Invoke-DefenderAdvancedHunting -Query $query -TenantId $Config.tenantId
+        $response = Invoke-AdvancedHuntingQuery -Query $query -Timespan "P${localAdminDays}D"
 
-            $rows = @()
-            if ($response.Results) { $rows = $response.Results }
-            elseif ($response.results) { $rows = $response.results }
+        $rows = @()
+        if ($response.Results) { $rows = $response.Results }
+        elseif ($response.results) { $rows = $response.results }
 
-            foreach ($row in $rows) {
-                if (-not $row.DeviceId) { continue }
-                $localAdminMap[$row.DeviceId] = @{
-                    logonCount = [int]$row.localAdminLogons
-                    lastSeen = $row.lastSeen
-                }
+        foreach ($row in $rows) {
+            if (-not $row.DeviceId) { continue }
+            $localAdminMap[$row.DeviceId] = @{
+                logonCount = [int]$row.localAdminLogons
+                lastSeen = $row.lastSeen
             }
         }
-        catch {
-            $errors += "Local admin logons: $($_.Exception.Message)"
-            $localAdminQueryFailed = $true
-        }
     }
-    else {
-        Write-Host "      [!] Defender API not connected - skipping local admin logon data" -ForegroundColor Yellow
+    catch {
+        $errors += "Local admin logons: $($_.Exception.Message)"
         $localAdminQueryFailed = $true
     }

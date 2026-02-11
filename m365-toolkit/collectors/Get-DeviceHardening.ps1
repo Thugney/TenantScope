@@ -38,7 +38,6 @@ param(
 )
 
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
-. "$PSScriptRoot\..\lib\DefenderApi.ps1"
 
 function Get-ControlName {
     param(
@@ -85,32 +84,14 @@ $errors = @()
 try {
     Write-Host "    Collecting device hardening coverage..." -ForegroundColor Gray
 
-    # Check if Defender API is connected
-    if (-not (Test-DefenderApiConnection)) {
-        Write-Host "    [!] Defender API not connected - skipping device hardening collection" -ForegroundColor Yellow
-        $emptyOutput = @{
-            devices = @()
-            summary = @{
-                totalDevices = 0
-                credentialGuardGaps = 0
-                memoryIntegrityGaps = 0
-                unknownDevices = 0
-            }
-            collectionDate = (Get-Date).ToString("o")
-            dataSource = "unavailable"
-            reason = "Defender API authentication required"
-        }
-        Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
-        return New-CollectorResult -Success $true -Count 0 -Errors @("Defender API not connected")
-    }
-
     $query = @"
 DeviceTvmSecureConfigurationAssessment
 | where ConfigurationSubcategory has "Credential Guard" or ConfigurationSubcategory has "Memory integrity"
 | project DeviceId, DeviceName, ConfigurationName, ConfigurationSubcategory, IsCompliant, IsApplicable
 "@
 
-    $response = Invoke-DefenderAdvancedHunting -Query $query -TenantId $Config.tenantId
+    # Use Graph Security API for Advanced Hunting (requires ThreatHunting.Read.All)
+    $response = Invoke-AdvancedHuntingQuery -Query $query
 
     $rows = @()
     if ($response.Results) { $rows = $response.Results }
