@@ -167,47 +167,154 @@ function Get-ReportValue {
 
 function Get-ConfigurationPolicyReportMap {
     $map = @{}
-    $body = @{
-        select = @(
-            "policyId","policyName","platform",
-            "deviceCount","successDeviceCount","errorDeviceCount","conflictDeviceCount","pendingDeviceCount","notApplicableDeviceCount"
-        )
-        skip = 0
-        top = 2000
-    } | ConvertTo-Json -Depth 6
+    $reportNames = @(
+        "ConfigurationPolicyDeviceAggregatesWithPFV3",
+        "ConfigurationPolicyDeviceAggregatesWithPF",
+        "ConfigurationPolicyDeviceAggregatesV3",
+        "ConfigurationPolicyDeviceAggregates"
+    )
 
-    $report = $null
-    try {
-        # Use only 1 retry - 500 errors are server-side and unlikely to resolve quickly
-        $report = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method POST `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getConfigurationPolicyDeviceSummaryReport" `
-                -Body $body -OutputType PSObject
-        } -OperationName "Configuration policy device summary report" -MaxRetries 1
-    }
-    catch {
-        $errMsg = $_.Exception.Message
-        if ($errMsg -match "429|throttl|TooManyRequests") {
-            Write-Host "      Report API throttled - using individual status endpoints" -ForegroundColor Yellow
-        } elseif ($errMsg -match "500|InternalServerError|Internal Server Error") {
-            Write-Host "      Report API unavailable (server error) - using individual status endpoints" -ForegroundColor Yellow
-        } else {
-            Write-Host "      Report API failed - using individual status endpoints" -ForegroundColor Yellow
+    $select = @(
+        "PolicyId","PolicyName","ProfileSource","PolicyPlatformType","UnifiedPolicyPlatformType",
+        "NumberOfCompliantDevices","NumberOfErrorDevices","NumberOfConflictDevices","NumberOfInProgressDevices","NumberOfNotApplicableDevices"
+    )
+
+    foreach ($reportName in $reportNames) {
+        $rows = Invoke-IntuneExportReport -ReportName $reportName -Select $select
+        if ($rows -and $rows.Count -gt 0) {
+            foreach ($row in $rows) {
+                $id = Get-ReportValue -Row $row -Names @("PolicyId","policyId","Id","id")
+                if (-not $id) { continue }
+                if (-not $map.ContainsKey($id)) {
+                    $map[$id] = $row
+                }
+            }
+            Write-Host "      Report map contains $($map.Count) policies (source: $reportName)" -ForegroundColor Gray
+            break
         }
-        return $map
     }
 
-    if ($report) {
-        $rows = Convert-ReportRows -Report $report
-        foreach ($row in $rows) {
-            $id = Get-ReportValue -Row $row -Names @("policyId","id","PolicyId")
-            if (-not $id) { continue }
-            $map[$id] = $row
-        }
-        Write-Host "      Report map contains $($map.Count) policies" -ForegroundColor Gray
+    if ($map.Count -eq 0) {
+        Write-Host "      Report export returned no rows - using individual status endpoints" -ForegroundColor Yellow
     }
 
     return $map
+}
+
+function Invoke-IntuneExportReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ReportName,
+
+        [Parameter()]
+        [string[]]$Select = @(),
+
+        [Parameter()]
+        [string]$Filter
+    )
+
+    $body = @{
+        reportName = $ReportName
+        format = "json"
+    }
+    if ($Select -and $Select.Count -gt 0) { $body.select = $Select }
+    if ($Filter) { $body.filter = $Filter }
+
+    $bodyJson = $body | ConvertTo-Json -Depth 6
+    $job = $null
+    $baseUri = $null
+
+    $jobEndpoints = @(
+        "https://graph.microsoft.com/v1.0/deviceManagement/reports/exportJobs",
+        "https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs"
+    )
+
+    foreach ($endpoint in $jobEndpoints) {
+        try {
+            $job = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST -Uri $endpoint -Body $bodyJson -ContentType "application/json" -OutputType PSObject
+            } -OperationName "Export report job ($ReportName)" -MaxRetries 2
+
+            if ($job -and $job.id) {
+                $baseUri = if ($endpoint -match "/v1.0/") { "https://graph.microsoft.com/v1.0" } else { "https://graph.microsoft.com/beta" }
+                break
+            }
+        }
+        catch {
+            continue
+        }
+    }
+
+    if (-not $job -or -not $job.id) {
+        return @()
+    }
+
+    $statusUri = "$baseUri/deviceManagement/reports/exportJobs('$($job.id)')"
+    $downloadUrl = $null
+    $status = $null
+    $maxAttempts = 30
+    $delaySeconds = 4
+
+    for ($i = 0; $i -lt $maxAttempts; $i++) {
+        try {
+            $statusResp = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 2
+
+            $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status","Status")
+            $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
+
+            if ($status -match "completed" -and $downloadUrl) { break }
+            if ($status -match "failed") { return @() }
+        }
+        catch {
+            # keep polling
+        }
+
+        Start-Sleep -Seconds $delaySeconds
+    }
+
+    if (-not $downloadUrl) { return @() }
+
+    $tempRoot = Join-Path $env:TEMP ("tenantscope-report-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+    $zipPath = Join-Path $tempRoot "report.zip"
+
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath | Out-Null
+        Expand-Archive -Path $zipPath -DestinationPath $tempRoot -Force
+
+        $jsonFile = Get-ChildItem -Path $tempRoot -Filter *.json -Recurse | Select-Object -First 1
+        if ($jsonFile) {
+            $raw = Get-Content $jsonFile.FullName -Raw
+            $parsed = $null
+            try {
+                $parsed = $raw | ConvertFrom-Json
+            }
+            catch {
+                return @()
+            }
+
+            if ($parsed -is [System.Collections.IEnumerable] -and $parsed.Count -gt 0 -and $parsed[0].PSObject) {
+                return @($parsed)
+            }
+
+            return (Convert-ReportRows -Report $parsed)
+        }
+
+        $csvFile = Get-ChildItem -Path $tempRoot -Filter *.csv -Recurse | Select-Object -First 1
+        if ($csvFile) {
+            return @(Import-Csv -Path $csvFile.FullName)
+        }
+
+        return @()
+    }
+    finally {
+        if (Test-Path $tempRoot) {
+            Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
 }
 
 # ============================================================================
@@ -355,13 +462,13 @@ try {
             $skipDetailedStatus = ($profileCount -ge $detailedStatusLimit)
 
             # For Settings Catalog, prefer report data to avoid extra API calls
-            if ($source -eq "configurationPolicies" -and $policyReportMap.ContainsKey($profile.id)) {
+            if ($policyReportMap.ContainsKey($profile.id)) {
                 $row = $policyReportMap[$profile.id]
-                $successCount = [int](Get-ReportValue -Row $row -Names @("successDeviceCount","successCount"))
-                $errorCount = [int](Get-ReportValue -Row $row -Names @("errorDeviceCount","errorCount"))
-                $conflictCount = [int](Get-ReportValue -Row $row -Names @("conflictDeviceCount","conflictCount"))
-                $pendingCount = [int](Get-ReportValue -Row $row -Names @("pendingDeviceCount","pendingCount"))
-                $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+                $successCount = [int](Get-ReportValue -Row $row -Names @("NumberOfCompliantDevices","successDeviceCount","successCount"))
+                $errorCount = [int](Get-ReportValue -Row $row -Names @("NumberOfErrorDevices","errorDeviceCount","errorCount"))
+                $conflictCount = [int](Get-ReportValue -Row $row -Names @("NumberOfConflictDevices","conflictDeviceCount","conflictCount"))
+                $pendingCount = [int](Get-ReportValue -Row $row -Names @("NumberOfInProgressDevices","pendingDeviceCount","pendingCount"))
+                $notApplicableCount = [int](Get-ReportValue -Row $row -Names @("NumberOfNotApplicableDevices","notApplicableDeviceCount","notApplicableCount"))
                 $usedStatusFallback = $true
             }
             elseif (-not $skipDetailedStatus) {
