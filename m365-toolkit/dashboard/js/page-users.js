@@ -476,18 +476,12 @@ const PageUsers = (function() {
         var studentCount = 0;
         var noMfaCount = 0;
 
-        // Get domain config for employee/student classification
-        var metadata = DataLoader.getMetadata ? DataLoader.getMetadata() : {};
-        var domains = metadata.domains || {};
-        var employeeDomain = (domains.employees || '').toLowerCase();
-        var studentDomain = (domains.students || '').toLowerCase();
-
+        // Count based on pre-classified domain field
         filteredUsers.forEach(function(u) {
-            var upn = (u.userPrincipalName || '').toLowerCase();
-            if (studentDomain && upn.endsWith(studentDomain)) {
-                studentCount++;
-            } else if (employeeDomain && upn.endsWith(employeeDomain)) {
+            if (u.domain === 'employee') {
                 employeeCount++;
+            } else if (u.domain === 'student') {
+                studentCount++;
             }
             if (!u.mfaRegistered) {
                 noMfaCount++;
