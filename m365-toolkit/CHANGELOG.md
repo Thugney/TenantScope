@@ -5,6 +5,21 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-02-11
+
+### Changed
+- **Organization page**: Modern collapsible org chart tree with expand/collapse functionality, avatar initials, and stats badges showing manager/staff counts.
+- **Data Quality page**: Visual redesign with circular progress rings, descriptive labels (e.g., "28% have mobile phone" with "X missing" counts), and clearer field explanations.
+- Changed "ICs" label to "staff" for better clarity on Organization page.
+
+### Fixed
+- **Get-PIMData.ps1**: Handle missing `RoleAssignmentSchedule.ReadWrite.Directory` permission gracefully with try-catch instead of failing the entire collection.
+- **Get-LapsCoverage.ps1**: Fixed structural bug where local admin hunting code was placed after return statements (unreachable code). Variables `$localAdminMap` and `$localAdminQueryFailed` now defined before use.
+- **Get-ConfigurationProfiles.ps1**: Optimized to reduce API calls and avoid HTTP 429 throttling errors. Uses report API data for Settings Catalog policies, limits detailed calls to first 30 profiles.
+- **Advanced Hunting collectors** (ASR, Device Hardening, LAPS): Graceful handling when M365 Defender license is not available - returns empty data with informative message instead of failing.
+
+---
+
 ## [2.4.0] - 2026-02-10
 
 ### Added
@@ -718,6 +733,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Collectors | Major Features |
 |---------|------|------------|----------------|
+| 2.4.1 | 2026-02-11 | 42 | Org chart tree, Data Quality redesign, collector permission handling fixes |
 | 2.4.0 | 2026-02-10 | 42 | Coverage Gaps page, endpoint security coverage collectors, patch currency gaps |
 | 2.3.1 | 2026-02-10 | 37 | SharedData collection deduplication and dependency-ordered collectors |
 | 2.3.0 | 2026-02-09 | 27 | Groups Management: full Entra ID group inventory with membership, licenses |

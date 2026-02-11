@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.1] - 2026-02-11
+
+### Changed
+- Organization page: Modern collapsible org chart tree with expand/collapse, avatar initials, and stats badges.
+- Data Quality page: Visual redesign with circular progress rings, descriptive labels ("28% have mobile phone"), and clearer field explanations.
+- Changed "ICs" label to "staff" for better clarity on Organization page.
+
+### Fixed
+- Get-PIMData collector: Handle missing `RoleAssignmentSchedule.ReadWrite.Directory` permission gracefully with try-catch instead of failing.
+- Get-LapsCoverage collector: Fixed structural bug where local admin hunting code was placed after return statements (unreachable code).
+- Get-LapsCoverage collector: Variables `$localAdminMap` and `$localAdminQueryFailed` now defined before use.
+- Teams collector: Graph queries now cast owners/members to user objects to avoid `BadRequest`.
+- SharePoint collector: Falls back to v1.0 usage report when beta endpoint fails.
+- Get-ConfigurationProfiles collector: Optimized to reduce API calls and avoid throttling (429 errors).
+- Advanced Hunting collectors: Graceful handling when M365 Defender license is not available.
+
 ## [2.4.0] - 2026-02-10
 
 ### Added
