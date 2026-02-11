@@ -370,25 +370,35 @@ try {
 
         $legacyConfigs = New-Object System.Collections.ArrayList
         if ($configs.value) {
-            foreach ($cfg in @($configs.value)) { [void]$legacyConfigs.Add($cfg) }
-        } elseif ($configs) {
-            [void]$legacyConfigs.Add($configs)
+            foreach ($cfg in @($configs.value)) {
+                if ($cfg) { [void]$legacyConfigs.Add($cfg) }
+            }
         }
 
+        # Handle pagination - capture nextLink before ScriptBlock to avoid closure issues
         while ($configs.'@odata.nextLink') {
+            $nextLink = $configs.'@odata.nextLink'
             $configs = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri $configs.'@odata.nextLink' -OutputType PSObject
+                Invoke-MgGraphRequest -Method GET -Uri $nextLink -OutputType PSObject
             } -OperationName "Device configuration pagination"
             if ($configs.value) {
-                foreach ($cfg in @($configs.value)) { [void]$legacyConfigs.Add($cfg) }
+                foreach ($cfg in @($configs.value)) {
+                    if ($cfg) { [void]$legacyConfigs.Add($cfg) }
+                }
             }
         }
 
         foreach ($config in $legacyConfigs) {
-            [void]$allProfiles.Add([PSCustomObject]@{
-                source = "deviceConfigurations"
-                data = $config
-            })
+            try {
+                $wrapper = [PSCustomObject]@{
+                    source = "deviceConfigurations"
+                    data = $config
+                }
+                [void]$allProfiles.Add($wrapper)
+            }
+            catch {
+                Write-Host "      [!] Skipped invalid device configuration" -ForegroundColor Yellow
+            }
         }
 
         Write-Host "      Retrieved $($legacyConfigs.Count) device configurations" -ForegroundColor Gray
@@ -405,20 +415,37 @@ try {
             Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies" -OutputType PSObject
         } -OperationName "Settings catalog retrieval"
 
-        $catalogPolicies = @($settingsCatalog.value)
+        $catalogPolicies = New-Object System.Collections.ArrayList
+        if ($settingsCatalog.value) {
+            foreach ($pol in @($settingsCatalog.value)) {
+                if ($pol) { [void]$catalogPolicies.Add($pol) }
+            }
+        }
 
+        # Handle pagination - capture nextLink before ScriptBlock to avoid closure issues
         while ($settingsCatalog.'@odata.nextLink') {
+            $nextLink = $settingsCatalog.'@odata.nextLink'
             $settingsCatalog = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri $settingsCatalog.'@odata.nextLink' -OutputType PSObject
+                Invoke-MgGraphRequest -Method GET -Uri $nextLink -OutputType PSObject
             } -OperationName "Settings catalog pagination"
-            $catalogPolicies += $settingsCatalog.value
+            if ($settingsCatalog.value) {
+                foreach ($pol in @($settingsCatalog.value)) {
+                    if ($pol) { [void]$catalogPolicies.Add($pol) }
+                }
+            }
         }
 
         foreach ($policy in $catalogPolicies) {
-            [void]$allProfiles.Add([PSCustomObject]@{
-                source = "configurationPolicies"
-                data = $policy
-            })
+            try {
+                $wrapper = [PSCustomObject]@{
+                    source = "configurationPolicies"
+                    data = $policy
+                }
+                [void]$allProfiles.Add($wrapper)
+            }
+            catch {
+                Write-Host "      [!] Skipped invalid settings catalog policy" -ForegroundColor Yellow
+            }
         }
 
         Write-Host "      Retrieved $($catalogPolicies.Count) settings catalog policies" -ForegroundColor Gray
