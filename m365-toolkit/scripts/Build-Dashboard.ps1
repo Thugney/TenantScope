@@ -211,8 +211,8 @@ Write-Host "Generating data bundle for local file access..." -ForegroundColor Cy
 
 $bundlePath = Join-Path $dashboardPath "js" "data-bundle.js"
 
-# Read version from VERSION file
-$versionFile = Join-Path (Split-Path $scriptRoot -Parent) "VERSION"
+# Read version from VERSION file (in repo root, two levels up from scripts/)
+$versionFile = Join-Path (Split-Path (Split-Path $scriptRoot -Parent) -Parent) "VERSION"
 $appVersion = "0.0.0"
 if (Test-Path $versionFile) {
     $appVersion = (Get-Content $versionFile -Raw).Trim()

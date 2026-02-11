@@ -6,7 +6,7 @@
 
 **Author:** Robel ([GitHub](https://github.com/Thugney), [X](https://x.com/eriteach))
 **Repository:** https://github.com/Thugney/TenantScope
-**Version:** 2.4.0
+**Version:** 2.4.1
 **License:** MIT
 
 ## Overview
