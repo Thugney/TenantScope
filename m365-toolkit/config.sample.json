@@ -1,5 +1,14 @@
 {
+  "_comment_auth": "=== AUTHENTICATION OPTIONS ===",
+  "_comment_auth_interactive": "Option 1: Interactive auth (default) - just set tenantId, uses browser sign-in",
+  "_comment_auth_app": "Option 2: App registration - set clientId + clientSecret for unattended/scheduled runs",
+  "_comment_auth_cert": "Option 3: Certificate auth - set clientId + certificateThumbprint for highest security",
+
   "tenantId": "your-tenant-id",
+  "clientId": "",
+  "clientSecret": "",
+  "certificateThumbprint": "",
+
   "domains": {
     "employees": "@modum.kommune.no",
     "students": "@skole.modum.kommune.no"

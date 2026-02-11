@@ -98,9 +98,22 @@ cd TenantScope/m365-toolkit
 | Document | Description |
 |----------|-------------|
 | [Full README](m365-toolkit/README.md) | Complete usage guide with all options |
+| [Authentication Guide](m365-toolkit/docs/AUTHENTICATION-GUIDE.md) | How to set up app registration in Entra ID |
 | [Architecture](m365-toolkit/docs/ARCHITECTURE.md) | Technical architecture and data flow |
+| [Security Considerations](SECURITY-CONSIDERATIONS.md) | Data sensitivity and countermeasures |
 | [Changelog](CHANGELOG.md) | Version history and release notes |
-| [Remediation Roadmap](m365-toolkit/docs/MVP-REMEDIATION-ROADMAP.md) | Future roadmap for write/remediation capabilities |
+
+## Authentication Options
+
+| Method | Use Case | LAPS Support |
+|--------|----------|--------------|
+| **Interactive** (default) | Testing, ad-hoc runs | No* |
+| **Client Secret** | Scheduled automation | Yes |
+| **Certificate** | Production, high security | Yes |
+
+*LAPS requires `DeviceLocalCredential.Read.All` which is Application-only.
+
+See the [Authentication Guide](m365-toolkit/docs/AUTHENTICATION-GUIDE.md) for setup instructions.
 
 ## Requirements
 
