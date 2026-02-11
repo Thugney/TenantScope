@@ -118,7 +118,7 @@ const PageDataQuality = (function() {
         // Page header
         var header = el('div', 'page-header');
         header.appendChild(el('h2', 'page-title', 'Data Quality'));
-        header.appendChild(el('p', 'page-description', 'Profile property completeness analysis across all user accounts'));
+        header.appendChild(el('p', 'page-description', 'Identify gaps in user profile data - which fields are missing and where'));
         container.appendChild(header);
 
         // Summary cards
@@ -432,8 +432,8 @@ const PageDataQuality = (function() {
 
         // Header with title
         var header = el('div', 'dq-panel-header');
-        header.appendChild(el('h4', 'dq-panel-title', 'Field Coverage'));
-        header.appendChild(el('p', 'dq-panel-subtitle', 'Profile property completeness'));
+        header.appendChild(el('h4', 'dq-panel-title', 'Profile Fields'));
+        header.appendChild(el('p', 'dq-panel-subtitle', 'What % of users have each field filled in'));
         wrapper.appendChild(header);
 
         // Sort fields by completeness (lowest first for attention)
@@ -556,7 +556,7 @@ const PageDataQuality = (function() {
 
             var header = el('div', 'dq-panel-header');
             header.appendChild(el('h4', 'dq-panel-title', 'By ' + dimLabel));
-            header.appendChild(el('p', 'dq-panel-subtitle', 'Average completeness per ' + dimLabel.toLowerCase()));
+            header.appendChild(el('p', 'dq-panel-subtitle', 'How complete are profiles in each ' + dimLabel.toLowerCase() + '?'));
             wrapper.appendChild(header);
 
             // Group cards list
