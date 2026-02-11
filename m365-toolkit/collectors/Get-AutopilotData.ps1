@@ -101,6 +101,34 @@ function Get-EnrollmentStateName {
     }
 }
 
+function ConvertTo-SafeDateTime {
+    <#
+    .SYNOPSIS
+        Safely converts a value to ISO 8601 date string, handling nulls and DateTime.MinValue.
+    #>
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $DateValue
+    )
+
+    if ($null -eq $DateValue) {
+        return $null
+    }
+
+    try {
+        $dt = [DateTime]$DateValue
+        # Check for DateTime.MinValue (0001-01-01) which means "not set"
+        if ($dt -eq [DateTime]::MinValue -or $dt.Year -lt 1900) {
+            return $null
+        }
+        return $dt.ToString("o")
+    }
+    catch {
+        return $null
+    }
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -152,61 +180,72 @@ try {
     $processedDevices = @()
 
     foreach ($device in $autopilotDevices) {
-        # Map enrollment state (handle both PascalCase and camelCase property names)
-        $enrollmentStateValue = Get-GraphPropertyValue -Object $device -PropertyNames @("enrollmentState", "EnrollmentState")
+        # For SDK objects, try direct property access first, then fall back to Get-GraphPropertyValue
+        # SDK returns strongly-typed objects with PascalCase properties
+
+        # Get enrollment state - SDK returns enum, direct API returns string/number
+        $enrollmentStateValue = $null
+        if ($null -ne $device.EnrollmentState) {
+            $enrollmentStateValue = $device.EnrollmentState
+        } elseif ($null -ne $device.enrollmentState) {
+            $enrollmentStateValue = $device.enrollmentState
+        }
         $enrollmentState = Get-EnrollmentStateName -State $enrollmentStateValue
 
         # Determine if profile is assigned
-        # Handle both PascalCase (cmdlet) and camelCase (direct API) property names
         # Graph API deploymentProfileAssignmentStatus values:
         #   - unknown, assignedInSync, assignedOutOfSync, assignedUnkownSyncState, notAssigned, pending, failed
-        # Profile IS assigned when status is: assignedInSync, assignedOutOfSync, assignedUnkownSyncState, pending
-        # Profile is NOT assigned when status is: unknown, notAssigned, failed
         $profileAssigned = $false
         $profileAssignmentStatus = "unknown"
 
-        # Check deployment profile assignment status (handles both property name cases)
-        $assignmentStatus = Get-GraphPropertyValue -Object $device -PropertyNames @("deploymentProfileAssignmentStatus", "DeploymentProfileAssignmentStatus")
-        if ($assignmentStatus) {
-            $profileAssignmentStatus = $assignmentStatus.ToString()
+        # Get deployment profile assignment status - try direct access first
+        $assignmentStatus = $null
+        if ($null -ne $device.DeploymentProfileAssignmentStatus) {
+            $assignmentStatus = $device.DeploymentProfileAssignmentStatus
+        } elseif ($null -ne $device.deploymentProfileAssignmentStatus) {
+            $assignmentStatus = $device.deploymentProfileAssignmentStatus
         }
 
-        # Check if profile is assigned based on status
-        # "assigned" prefix catches: assignedInSync, assignedOutOfSync, assignedUnkownSyncState
-        # "pending" means assignment is in progress
-        if ($profileAssignmentStatus -match "^assigned|^pending") {
-            $profileAssigned = $true
+        if ($assignmentStatus) {
+            $profileAssignmentStatus = $assignmentStatus.ToString()
+            # "assigned" prefix catches: assignedInSync, assignedOutOfSync, assignedUnkownSyncState
+            # "pending" means assignment is in progress
+            if ($profileAssignmentStatus -match "(?i)^assigned|^pending") {
+                $profileAssigned = $true
+            }
         }
 
         # Also check if deploymentProfileAssignedDateTime is set as additional confirmation
-        # (handles both property name cases)
-        $assignedDateTime = Get-GraphPropertyValue -Object $device -PropertyNames @("deploymentProfileAssignedDateTime", "DeploymentProfileAssignedDateTime")
+        $assignedDateTime = $device.DeploymentProfileAssignedDateTime
+        if ($null -eq $assignedDateTime) { $assignedDateTime = $device.deploymentProfileAssignedDateTime }
+
         if ($assignedDateTime -and -not $profileAssigned) {
-            # If we have an assigned date but status didn't show assigned, still mark as assigned
-            $profileAssigned = $true
+            $assignedDtSafe = ConvertTo-SafeDateTime -DateValue $assignedDateTime
+            if ($assignedDtSafe) {
+                $profileAssigned = $true
+            }
         }
 
-        # Build output object matching our schema
-        # Handle both PascalCase (cmdlet) and camelCase (direct API) property names
-        $deviceId = Get-GraphPropertyValue -Object $device -PropertyNames @("id", "Id")
-        $serial = Get-GraphPropertyValue -Object $device -PropertyNames @("serialNumber", "SerialNumber")
-        $model = Get-GraphPropertyValue -Object $device -PropertyNames @("model", "Model")
-        $manufacturer = Get-GraphPropertyValue -Object $device -PropertyNames @("manufacturer", "Manufacturer")
-        $groupTag = Get-GraphPropertyValue -Object $device -PropertyNames @("groupTag", "GroupTag")
-        $lastContactedDt = Get-GraphPropertyValue -Object $device -PropertyNames @("lastContactedDateTime", "LastContactedDateTime")
-        $purchaseOrderId = Get-GraphPropertyValue -Object $device -PropertyNames @("purchaseOrderIdentifier", "PurchaseOrderIdentifier")
+        # Extract properties - try direct SDK access first, then camelCase
+        $deviceId = if ($device.Id) { $device.Id } else { $device.id }
+        $serial = if ($device.SerialNumber) { $device.SerialNumber } else { $device.serialNumber }
+        $model = if ($device.Model) { $device.Model } else { $device.model }
+        $manufacturer = if ($device.Manufacturer) { $device.Manufacturer } else { $device.manufacturer }
+        $groupTag = if ($device.GroupTag) { $device.GroupTag } else { $device.groupTag }
+        $lastContactedDt = if ($null -ne $device.LastContactedDateTime) { $device.LastContactedDateTime } else { $device.lastContactedDateTime }
+        $purchaseOrderId = if ($device.PurchaseOrderIdentifier) { $device.PurchaseOrderIdentifier } else { $device.purchaseOrderIdentifier }
 
-        # Additional properties from Graph API
-        $displayName = Get-GraphPropertyValue -Object $device -PropertyNames @("displayName", "DisplayName")
-        $userPrincipalName = Get-GraphPropertyValue -Object $device -PropertyNames @("userPrincipalName", "UserPrincipalName")
-        $azureAdDeviceId = Get-GraphPropertyValue -Object $device -PropertyNames @("azureActiveDirectoryDeviceId", "AzureActiveDirectoryDeviceId")
-        $managedDeviceId = Get-GraphPropertyValue -Object $device -PropertyNames @("managedDeviceId", "ManagedDeviceId")
-        $productKey = Get-GraphPropertyValue -Object $device -PropertyNames @("productKey", "ProductKey")
-        $skuNumber = Get-GraphPropertyValue -Object $device -PropertyNames @("skuNumber", "SkuNumber")
-        $systemFamily = Get-GraphPropertyValue -Object $device -PropertyNames @("systemFamily", "SystemFamily")
-        $addressableUserName = Get-GraphPropertyValue -Object $device -PropertyNames @("addressableUserName", "AddressableUserName")
-        $resourceName = Get-GraphPropertyValue -Object $device -PropertyNames @("resourceName", "ResourceName")
-        $deploymentProfileAssignedDt = Get-GraphPropertyValue -Object $device -PropertyNames @("deploymentProfileAssignedDateTime", "DeploymentProfileAssignedDateTime")
+        # Additional properties
+        $displayName = if ($device.DisplayName) { $device.DisplayName } else { $device.displayName }
+        $userPrincipalName = if ($device.UserPrincipalName) { $device.UserPrincipalName } else { $device.userPrincipalName }
+        $azureAdDeviceId = if ($device.AzureActiveDirectoryDeviceId) { $device.AzureActiveDirectoryDeviceId } else { $device.azureActiveDirectoryDeviceId }
+        $managedDeviceId = if ($device.ManagedDeviceId) { $device.ManagedDeviceId } else { $device.managedDeviceId }
+        $productKey = if ($device.ProductKey) { $device.ProductKey } else { $device.productKey }
+        $skuNumber = if ($device.SkuNumber) { $device.SkuNumber } else { $device.skuNumber }
+        $systemFamily = if ($device.SystemFamily) { $device.SystemFamily } else { $device.systemFamily }
+        $addressableUserName = if ($device.AddressableUserName) { $device.AddressableUserName } else { $device.addressableUserName }
+        $resourceName = if ($device.ResourceName) { $device.ResourceName } else { $device.resourceName }
+        $deploymentProfileAssignedDt = if ($null -ne $device.DeploymentProfileAssignedDateTime) { $device.DeploymentProfileAssignedDateTime } else { $device.deploymentProfileAssignedDateTime }
 
         $processedDevice = [PSCustomObject]@{
             id                          = $deviceId
@@ -215,7 +254,7 @@ try {
             manufacturer                = $manufacturer
             groupTag                    = $groupTag
             enrollmentState             = $enrollmentState
-            lastContacted               = if ($lastContactedDt) { ([DateTime]$lastContactedDt).ToString("o") } else { $null }
+            lastContacted               = ConvertTo-SafeDateTime -DateValue $lastContactedDt
             profileAssigned             = $profileAssigned
             profileAssignmentStatus     = $profileAssignmentStatus
             purchaseOrder               = $purchaseOrderId
@@ -229,7 +268,7 @@ try {
             systemFamily                = $systemFamily
             addressableUserName         = $addressableUserName
             resourceName                = $resourceName
-            profileAssignedDateTime     = if ($deploymentProfileAssignedDt) { ([DateTime]$deploymentProfileAssignedDt).ToString("o") } else { $null }
+            profileAssignedDateTime     = ConvertTo-SafeDateTime -DateValue $deploymentProfileAssignedDt
         }
 
         $processedDevices += $processedDevice
