@@ -4,7 +4,14 @@
 
 ## Executive Summary
 
-TenantScope collects comprehensive M365 data (30+ collectors) but fails to **connect** it into a true single-pane-of-glass experience. Data is siloed by page with minimal cross-referencing.
+TenantScope collects comprehensive M365 data (30+ collectors) but fails to **connect** it into 
+
+1. Entity layer (index + normalization only) ## working on this##
+     No UI changes. Just a shared EntityIndex that maps Users/Devices/Groups/Teams/Sites with stable IDs and cross‑refs.
+  2. User 360 page (first real “single‑pane”)
+     New page that aggregates user details, devices, groups, sign‑ins, risks, roles, licenses.
+  3. Consistent cross‑page navigation
+     Standardize links so counts always open entity modals or the new 360 view.
 
 | Aspect | Score | Status |
 |--------|-------|--------|

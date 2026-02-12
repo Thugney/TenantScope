@@ -11,6 +11,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Devices page**: "Unmanaged" filter option to show Entra-only devices not enrolled in MDM (smartphones for MFA authenticator, etc.)
 - **Devices page**: "Unmanaged" summary card showing count of unmanaged devices
 - **Devices page**: "Grace Period" compliance filter option (when `gracePeriodAsNoncompliant` is false)
+- **Autopilot tab**: Full filter system with dropdowns for Enrollment State, Profile Status, Manufacturer, and Group Tag
+- **Autopilot tab**: Summary cards now update dynamically based on filtered results
 - **Config option**: `gracePeriodAsNoncompliant` in thresholds section - set to `false` to show grace period devices separately from non-compliant
 
 ### Changed

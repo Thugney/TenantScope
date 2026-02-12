@@ -876,36 +876,133 @@ const PageDevices = (function() {
             return;
         }
 
-        var enrolled = autopilot.filter(function(d) { return d.enrollmentState === 'enrolled'; }).length;
-        var notContacted = autopilot.filter(function(d) { return d.enrollmentState === 'notContacted'; }).length;
-        var failed = autopilot.filter(function(d) { return d.enrollmentState === 'failed'; }).length;
-        var noProfile = autopilot.filter(function(d) { return !d.profileAssigned; }).length;
+        // Build unique manufacturer and group tag lists for filter dropdowns
+        var manufacturers = [];
+        var groupTags = [];
+        autopilot.forEach(function(d) {
+            if (d.manufacturer && manufacturers.indexOf(d.manufacturer) === -1) manufacturers.push(d.manufacturer);
+            if (d.groupTag && groupTags.indexOf(d.groupTag) === -1) groupTags.push(d.groupTag);
+        });
+        manufacturers.sort();
+        groupTags.sort();
 
-        var html = '<div class="summary-cards">';
-        html += '<div class="summary-card"><div class="summary-value">' + autopilot.length + '</div><div class="summary-label">Total Autopilot</div></div>';
-        html += '<div class="summary-card card-success"><div class="summary-value">' + enrolled + '</div><div class="summary-label">Enrolled</div></div>';
-        html += '<div class="summary-card' + (notContacted > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + notContacted + '</div><div class="summary-label">Not Contacted</div></div>';
-        html += '<div class="summary-card' + (failed > 0 ? ' card-danger' : '') + '"><div class="summary-value">' + failed + '</div><div class="summary-label">Failed</div></div>';
-        html += '<div class="summary-card' + (noProfile > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + noProfile + '</div><div class="summary-label">No Profile</div></div>';
+        // Build HTML - data values are from local collector JSON, not user input
+        var html = '<div class="summary-cards" id="autopilot-summary-cards">';
+        html += '<div class="summary-card" id="ap-card-total"><div class="summary-value" id="ap-sum-total">' + autopilot.length + '</div><div class="summary-label">Total Autopilot</div></div>';
+        html += '<div class="summary-card card-success" id="ap-card-enrolled"><div class="summary-value" id="ap-sum-enrolled">0</div><div class="summary-label">Enrolled</div></div>';
+        html += '<div class="summary-card" id="ap-card-notcontacted"><div class="summary-value" id="ap-sum-notcontacted">0</div><div class="summary-label">Not Contacted</div></div>';
+        html += '<div class="summary-card" id="ap-card-failed"><div class="summary-value" id="ap-sum-failed">0</div><div class="summary-label">Failed</div></div>';
+        html += '<div class="summary-card" id="ap-card-noprofile"><div class="summary-value" id="ap-sum-noprofile">0</div><div class="summary-label">No Profile</div></div>';
         html += '</div>';
 
         html += '<div class="filter-bar">';
-        html += '<input type="text" class="filter-input" id="autopilot-search" placeholder="Search autopilot devices...">';
+        html += '<input type="text" class="filter-input" id="autopilot-search" placeholder="Search serial, model, manufacturer...">';
+        html += '<select class="filter-select" id="autopilot-enrollment"><option value="all">All Enrollment</option>';
+        html += '<option value="enrolled">Enrolled</option>';
+        html += '<option value="notContacted">Not Contacted</option>';
+        html += '<option value="failed">Failed</option>';
+        html += '<option value="pending">Pending</option>';
+        html += '<option value="notEnrolled">Not Enrolled</option>';
+        html += '</select>';
+        html += '<select class="filter-select" id="autopilot-profile"><option value="all">All Profile Status</option>';
+        html += '<option value="assigned">Profile Assigned</option>';
+        html += '<option value="notAssigned">No Profile</option>';
+        html += '</select>';
+        html += '<select class="filter-select" id="autopilot-manufacturer"><option value="all">All Manufacturers</option>';
+        manufacturers.forEach(function(m) { html += '<option value="' + m + '">' + m + '</option>'; });
+        html += '</select>';
+        if (groupTags.length > 0) {
+            html += '<select class="filter-select" id="autopilot-grouptag"><option value="all">All Group Tags</option>';
+            groupTags.forEach(function(g) { html += '<option value="' + g + '">' + g + '</option>'; });
+            html += '</select>';
+        }
         html += '</div>';
         html += '<div class="table-container" id="autopilot-table"></div>';
         container.innerHTML = html;
 
-        renderAutopilotTable(autopilot);
-        Filters.setup('autopilot-search', function() {
+        function applyAutopilotFilters() {
             var search = (Filters.getValue('autopilot-search') || '').toLowerCase();
+            var enrollmentFilter = Filters.getValue('autopilot-enrollment');
+            var profileFilter = Filters.getValue('autopilot-profile');
+            var manufacturerFilter = Filters.getValue('autopilot-manufacturer');
+            var groupTagFilter = Filters.getValue('autopilot-grouptag');
+
             var filtered = autopilot.filter(function(d) {
-                return (d.serialNumber || '').toLowerCase().indexOf(search) !== -1 ||
-                       (d.model || '').toLowerCase().indexOf(search) !== -1 ||
-                       (d.manufacturer || '').toLowerCase().indexOf(search) !== -1 ||
-                       (d.groupTag || '').toLowerCase().indexOf(search) !== -1;
+                // Search filter
+                if (search) {
+                    var matchSearch = (d.serialNumber || '').toLowerCase().indexOf(search) !== -1 ||
+                        (d.model || '').toLowerCase().indexOf(search) !== -1 ||
+                        (d.manufacturer || '').toLowerCase().indexOf(search) !== -1 ||
+                        (d.groupTag || '').toLowerCase().indexOf(search) !== -1 ||
+                        (d.displayName || '').toLowerCase().indexOf(search) !== -1;
+                    if (!matchSearch) return false;
+                }
+
+                // Enrollment state filter
+                if (enrollmentFilter && enrollmentFilter !== 'all') {
+                    if (d.enrollmentState !== enrollmentFilter) return false;
+                }
+
+                // Profile assigned filter
+                if (profileFilter && profileFilter !== 'all') {
+                    if (profileFilter === 'assigned' && !d.profileAssigned) return false;
+                    if (profileFilter === 'notAssigned' && d.profileAssigned) return false;
+                }
+
+                // Manufacturer filter
+                if (manufacturerFilter && manufacturerFilter !== 'all') {
+                    if (d.manufacturer !== manufacturerFilter) return false;
+                }
+
+                // Group tag filter
+                if (groupTagFilter && groupTagFilter !== 'all') {
+                    if (d.groupTag !== groupTagFilter) return false;
+                }
+
+                return true;
             });
+
+            // Update summary cards with filtered counts
+            var enrolled = filtered.filter(function(d) { return d.enrollmentState === 'enrolled'; }).length;
+            var notContacted = filtered.filter(function(d) { return d.enrollmentState === 'notContacted'; }).length;
+            var failed = filtered.filter(function(d) { return d.enrollmentState === 'failed'; }).length;
+            var noProfile = filtered.filter(function(d) { return !d.profileAssigned; }).length;
+
+            var totalEl = document.getElementById('ap-sum-total');
+            var enrolledEl = document.getElementById('ap-sum-enrolled');
+            var notContactedEl = document.getElementById('ap-sum-notcontacted');
+            var failedEl = document.getElementById('ap-sum-failed');
+            var noProfileEl = document.getElementById('ap-sum-noprofile');
+
+            if (totalEl) totalEl.textContent = filtered.length;
+            if (enrolledEl) enrolledEl.textContent = enrolled;
+            if (notContactedEl) notContactedEl.textContent = notContacted;
+            if (failedEl) failedEl.textContent = failed;
+            if (noProfileEl) noProfileEl.textContent = noProfile;
+
+            // Update card styling
+            var notContactedCard = document.getElementById('ap-card-notcontacted');
+            var failedCard = document.getElementById('ap-card-failed');
+            var noProfileCard = document.getElementById('ap-card-noprofile');
+
+            if (notContactedCard) notContactedCard.className = 'summary-card' + (notContacted > 0 ? ' card-warning' : '');
+            if (failedCard) failedCard.className = 'summary-card' + (failed > 0 ? ' card-danger' : '');
+            if (noProfileCard) noProfileCard.className = 'summary-card' + (noProfile > 0 ? ' card-warning' : '');
+
             renderAutopilotTable(filtered);
-        });
+        }
+
+        // Initial render
+        applyAutopilotFilters();
+
+        // Setup filter listeners
+        Filters.setup('autopilot-search', applyAutopilotFilters);
+        Filters.setup('autopilot-enrollment', applyAutopilotFilters);
+        Filters.setup('autopilot-profile', applyAutopilotFilters);
+        Filters.setup('autopilot-manufacturer', applyAutopilotFilters);
+        if (groupTags.length > 0) {
+            Filters.setup('autopilot-grouptag', applyAutopilotFilters);
+        }
     }
 
     function renderAutopilotTable(data) {
