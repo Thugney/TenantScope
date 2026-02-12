@@ -331,6 +331,8 @@ const PageDevices = (function() {
                 { key: 'enrollmentProfileName', label: 'Enrollment Profile' },
                 { key: 'enrolledDateTime', label: 'Enrolled' },
                 { key: 'autopilotEnrolled', label: 'Autopilot' },
+                { key: 'autopilotGroupTag', label: 'AP Group Tag' },
+                { key: 'autopilotProfileStatus', label: 'AP Profile Status' },
                 // Hardware
                 { key: 'manufacturer', label: 'Manufacturer' },
                 { key: 'model', label: 'Model' },
