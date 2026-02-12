@@ -447,45 +447,26 @@ const PageDevices = (function() {
         if (ownerFilter && ownerFilter !== 'all') filterConfig.exact.ownership = ownerFilter;
 
         var filtered = Filters.apply(devices, filterConfig);
-        console.log('[DEBUG] After Filters.apply:', filtered.length, 'devices. First device:', filtered[0] ? { agent: filtered[0].managementAgent, source: filtered[0].managementSource } : 'none');
 
-        // Management source filter (Intune vs Entra vs Unmanaged) - with fallback for older data
+        // Management source filter (Intune vs Entra vs Unmanaged)
         var sourceFilter = Filters.getValue('devices-source');
-        console.log('[DEBUG] Source filter value:', sourceFilter, 'Devices before filter:', filtered.length);
         if (sourceFilter && sourceFilter !== 'all') {
-            var beforeCount = filtered.length;
-            var debugFirst = true;
             filtered = filtered.filter(function(d) {
                 var agent = (d.managementAgent || '').toLowerCase();
-                var source = (d.managementSource || '').toLowerCase();
-                var filterLower = sourceFilter.toLowerCase();
 
-                // Derive source from managementAgent if not explicitly set
-                if (!source) {
-                    if (agent === 'mdm' || agent === 'easmdm' || agent === 'configurationmanagerclient' || agent === 'configmanager') {
-                        source = 'intune';
-                    } else if (agent === 'entra' || agent === 'eas' || agent === '') {
-                        // Empty agent with no MDM = Entra-only
-                        source = d.azureADDeviceId && !d.managedDeviceId ? 'entra' : 'intune';
-                    } else {
-                        source = 'intune'; // Default managed devices to Intune
-                    }
+                // Simple logic: if device has MDM agent, it's Intune-managed
+                var isIntune = agent === 'mdm' || agent === 'easmdm' || agent === 'configurationmanagerclient' || agent === 'configmanager' || agent === 'intune';
+                var isEntra = !isIntune && (agent === '' || agent === 'eas' || agent === 'entra');
+
+                if (sourceFilter === 'Intune') {
+                    return isIntune;
+                } else if (sourceFilter === 'Entra') {
+                    return isEntra;
+                } else if (sourceFilter === 'Unmanaged') {
+                    return isEntra;
                 }
-
-                // Debug first device
-                if (debugFirst) {
-                    console.log('[DEBUG] First device - agent:', JSON.stringify(agent), 'derived source:', JSON.stringify(source), 'filter:', JSON.stringify(filterLower), 'match:', source === filterLower);
-                    debugFirst = false;
-                }
-
-                // "Unmanaged" = Entra-only devices (not MDM managed)
-                if (filterLower === 'unmanaged') {
-                    return source === 'entra' || (agent === '' && !d.managedDeviceId);
-                }
-
-                return source === filterLower;
+                return true;
             });
-            console.log('[DEBUG] After source filter:', filtered.length, '(was', beforeCount, ')');
         }
 
         // Stale filter - handle both boolean and string values
