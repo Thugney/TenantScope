@@ -455,26 +455,28 @@ const PageDevices = (function() {
         if (sourceFilter && sourceFilter !== 'all') {
             var beforeCount = filtered.length;
             filtered = filtered.filter(function(d) {
-                var agent = d.managementAgent || '';
-                var source = d.managementSource || '';
+                var agent = (d.managementAgent || '').toLowerCase();
+                var source = (d.managementSource || '').toLowerCase();
+                var filterLower = sourceFilter.toLowerCase();
 
                 // Derive source from managementAgent if not explicitly set
                 if (!source) {
-                    if (agent === 'mdm' || agent === 'easMdm' || agent === 'configManager') {
-                        source = 'Intune';
-                    } else if (agent === 'entra') {
-                        source = 'Entra';
-                    } else if (agent) {
-                        source = 'Intune'; // Default managed devices to Intune
+                    if (agent === 'mdm' || agent === 'easmdm' || agent === 'configurationmanagerclient' || agent === 'configmanager') {
+                        source = 'intune';
+                    } else if (agent === 'entra' || agent === 'eas' || agent === '') {
+                        // Empty agent with no MDM = Entra-only
+                        source = d.azureADDeviceId && !d.managedDeviceId ? 'entra' : 'intune';
+                    } else {
+                        source = 'intune'; // Default managed devices to Intune
                     }
                 }
 
                 // "Unmanaged" = Entra-only devices (not MDM managed)
-                if (sourceFilter === 'Unmanaged') {
-                    return source === 'Entra' || agent === 'entra';
+                if (filterLower === 'unmanaged') {
+                    return source === 'entra' || (agent === '' && !d.managedDeviceId);
                 }
 
-                return source === sourceFilter;
+                return source === filterLower;
             });
             console.log('[DEBUG] After source filter:', filtered.length, '(was', beforeCount, ')');
         }

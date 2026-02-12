@@ -8,7 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.4.2] - 2026-02-12
 
 ### Fixed
-- **Devices page**: Fixed "Intune Managed" filter showing no results - moved source derivation logic before filter checks
+- **Devices page**: Fixed "Intune Managed" filter - made case-insensitive, added more managementAgent values (configurationmanagerclient), improved Entra-only detection
 - **Get-DeviceData.ps1**: Added debug output showing Autopilot profile status breakdown during collection to diagnose "Unknown Sync" display issues
 
 ### Added
