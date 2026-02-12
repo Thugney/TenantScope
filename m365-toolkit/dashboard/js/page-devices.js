@@ -447,10 +447,13 @@ const PageDevices = (function() {
         if (ownerFilter && ownerFilter !== 'all') filterConfig.exact.ownership = ownerFilter;
 
         var filtered = Filters.apply(devices, filterConfig);
+        console.log('[DEBUG] After Filters.apply:', filtered.length, 'devices. First device:', filtered[0] ? { agent: filtered[0].managementAgent, source: filtered[0].managementSource } : 'none');
 
         // Management source filter (Intune vs Entra vs Unmanaged) - with fallback for older data
         var sourceFilter = Filters.getValue('devices-source');
+        console.log('[DEBUG] Source filter value:', sourceFilter, 'Devices before filter:', filtered.length);
         if (sourceFilter && sourceFilter !== 'all') {
+            var beforeCount = filtered.length;
             filtered = filtered.filter(function(d) {
                 var agent = d.managementAgent || '';
                 var source = d.managementSource || '';
@@ -473,6 +476,7 @@ const PageDevices = (function() {
 
                 return source === sourceFilter;
             });
+            console.log('[DEBUG] After source filter:', filtered.length, '(was', beforeCount, ')');
         }
 
         // Stale filter - handle both boolean and string values
