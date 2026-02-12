@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [2.4.2] - 2026-02-12
 
 ### Fixed
+- **App Deployments page**: Fixed status columns (Installed, Pending, Failed, Not Installed) not showing data - raw API data was returned without field mapping (`installedDevices` → `installedCount`, etc.)
 - **Devices page**: Fixed "Intune Managed" filter - simplified to direct managementAgent detection (mdm, easmdm, configurationmanagerclient = Intune; empty/eas/entra = Entra-only)
 - **Get-DeviceData.ps1**: Added debug output showing Autopilot profile status breakdown during collection to diagnose "Unknown Sync" display issues
 

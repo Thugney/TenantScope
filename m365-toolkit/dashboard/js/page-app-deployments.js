@@ -15,9 +15,14 @@ const PageAppDeployments = (function() {
         var data = DataLoader.getData('appDeployments');
         if (!data) return null;
 
-        // Handle nested structure from collector
+        // Handle nested structure from collector - still need to map apps for consistent field names
         if (data.apps) {
-            return data;
+            return {
+                apps: data.apps.map(mapApp),
+                failedDevices: data.failedDevices || [],
+                insights: data.insights || [],
+                summary: data.summary || buildSummaryFromArray(data.apps)
+            };
         }
 
         // Handle legacy flat array
