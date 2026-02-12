@@ -405,17 +405,6 @@ const PageDevices = (function() {
         var data = extractData(DataLoader.getData('devices') || []);
         var devices = data.devices;
 
-        // Debug: log initial device count and sample
-        console.log('[DevicesFilter] Total devices:', devices.length);
-        if (devices.length > 0) {
-            console.log('[DevicesFilter] Sample device:', {
-                os: devices[0].os,
-                managementSource: devices[0].managementSource,
-                managementAgent: devices[0].managementAgent,
-                complianceState: devices[0].complianceState
-            });
-        }
-
         // Apply department filter if available
         if (typeof DepartmentFilter !== 'undefined') {
             devices = DepartmentFilter.filterByUPN(devices, 'userPrincipalName');
@@ -447,19 +436,10 @@ const PageDevices = (function() {
         var ownerFilter = Filters.getValue('devices-ownership');
         if (ownerFilter && ownerFilter !== 'all') filterConfig.exact.ownership = ownerFilter;
 
-        // Debug: log filter config
-        console.log('[DevicesFilter] Filter config:', {
-            os: osFilter,
-            compliance: compFilter,
-            ownership: ownerFilter
-        });
-
         var filtered = Filters.apply(devices, filterConfig);
-        console.log('[DevicesFilter] After Filters.apply:', filtered.length);
 
         // Management source filter (Intune vs Entra vs Unmanaged) - with fallback for older data
         var sourceFilter = Filters.getValue('devices-source');
-        console.log('[DevicesFilter] Source filter:', sourceFilter);
         if (sourceFilter && sourceFilter !== 'all') {
             filtered = filtered.filter(function(d) {
                 var agent = d.managementAgent || '';
@@ -483,7 +463,6 @@ const PageDevices = (function() {
                 }
                 return source === sourceFilter;
             });
-            console.log('[DevicesFilter] After source filter:', filtered.length);
         }
 
         // Stale filter - handle both boolean and string values
@@ -493,8 +472,6 @@ const PageDevices = (function() {
                 return d.isStale === true || d.isStale === 'true' || d.isStale === 'True';
             });
         }
-
-        console.log('[DevicesFilter] Final filtered count:', filtered.length);
 
         // Update summary cards with filtered data
         updateDevicesSummaryCards(filtered);
