@@ -454,6 +454,7 @@ const PageDevices = (function() {
         console.log('[DEBUG] Source filter value:', sourceFilter, 'Devices before filter:', filtered.length);
         if (sourceFilter && sourceFilter !== 'all') {
             var beforeCount = filtered.length;
+            var debugFirst = true;
             filtered = filtered.filter(function(d) {
                 var agent = (d.managementAgent || '').toLowerCase();
                 var source = (d.managementSource || '').toLowerCase();
@@ -469,6 +470,12 @@ const PageDevices = (function() {
                     } else {
                         source = 'intune'; // Default managed devices to Intune
                     }
+                }
+
+                // Debug first device
+                if (debugFirst) {
+                    console.log('[DEBUG] First device - agent:', JSON.stringify(agent), 'derived source:', JSON.stringify(source), 'filter:', JSON.stringify(filterLower), 'match:', source === filterLower);
+                    debugFirst = false;
                 }
 
                 // "Unmanaged" = Entra-only devices (not MDM managed)
