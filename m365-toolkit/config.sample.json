@@ -19,7 +19,8 @@
     "signatureAgeDays": 7,
     "asrNoiseThreshold": 20,
     "lapsRotationDays": 30,
-    "sensorStaleDays": 7
+    "sensorStaleDays": 7,
+    "gracePeriodAsNoncompliant": true
   },
   "collection": {
     "signInLogDays": 30,

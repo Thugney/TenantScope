@@ -823,8 +823,10 @@ function Get-ActivityStatus {
     )
 
     if ($null -eq $DaysSinceActivity) {
+        # Devices with no activity date should be treated as potentially stale
+        # since we have no evidence of recent activity
         return @{
-            isInactive = $false
+            isInactive = $true
             status     = "unknown"
         }
     }

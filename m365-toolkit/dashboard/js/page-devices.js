@@ -44,7 +44,7 @@ const PageDevices = (function() {
     function computeSummary(devices) {
         var compliant = 0, noncompliant = 0, unknown = 0;
         var encrypted = 0, notEncrypted = 0, unknownEncrypted = 0;
-        var stale = 0;
+        var stale = 0, unmanaged = 0;
         var certExpired = 0, certCritical = 0, certWarning = 0, certHealthy = 0, certUnknown = 0;
         var win10 = 0, win11 = 0, winSupported = 0, winUnsupported = 0;
         var corporate = 0, personal = 0;
@@ -52,9 +52,10 @@ const PageDevices = (function() {
         var manufacturerBreakdown = {};
 
         devices.forEach(function(d) {
-            // Compliance
+            // Compliance (inGracePeriod state is tracked separately, not counted in noncompliant)
             if (d.complianceState === 'compliant') compliant++;
             else if (d.complianceState === 'noncompliant') noncompliant++;
+            else if (d.complianceState === 'inGracePeriod') { /* tracked separately via inGracePeriod boolean */ }
             else unknown++;
 
             // Encryption (treat null/undefined as unknown)
@@ -64,6 +65,11 @@ const PageDevices = (function() {
 
             // Stale
             if (d.isStale) stale++;
+
+            // Unmanaged (Entra devices not enrolled in MDM)
+            var agent = d.managementAgent || '';
+            var source = d.managementSource || '';
+            if (agent === 'entra' || (source === 'Entra' && agent !== 'mdm')) unmanaged++;
 
             // Certificate
             switch (d.certStatus) {
@@ -106,6 +112,7 @@ const PageDevices = (function() {
             notEncryptedDevices: notEncrypted,
             unknownEncryptedDevices: unknownEncrypted,
             staleDevices: stale,
+            unmanagedDevices: unmanaged,
             certExpired: certExpired,
             certCritical: certCritical,
             certWarning: certWarning,
@@ -143,6 +150,7 @@ const PageDevices = (function() {
 
         // Activity
         if (normalized.staleDevices === undefined) normalized.staleDevices = normalized.stale || 0;
+        if (normalized.unmanagedDevices === undefined) normalized.unmanagedDevices = normalized.unmanaged || 0;
 
         // Windows
         if (normalized.win10Count === undefined) normalized.win10Count = normalized.windows10 || 0;
@@ -276,11 +284,11 @@ const PageDevices = (function() {
         osList.sort().forEach(function(os) { html += '<option value="' + os + '">' + os + '</option>'; });
         html += '</select>';
         html += '<select class="filter-select" id="devices-compliance"><option value="all">All Compliance</option>';
-        html += '<option value="compliant">Compliant</option><option value="noncompliant">Non-Compliant</option><option value="unknown">Unknown</option></select>';
+        html += '<option value="compliant">Compliant</option><option value="noncompliant">Non-Compliant</option><option value="inGracePeriod">Grace Period</option><option value="unknown">Unknown</option></select>';
         html += '<select class="filter-select" id="devices-ownership"><option value="all">All Ownership</option>';
         html += '<option value="corporate">Corporate</option><option value="personal">Personal</option></select>';
         html += '<select class="filter-select" id="devices-source"><option value="all">All Sources</option>';
-        html += '<option value="Intune">Intune MDM</option><option value="Entra">Entra ID Only</option></select>';
+        html += '<option value="Intune">Intune Managed</option><option value="Unmanaged">Unmanaged</option><option value="Entra">Entra ID Only</option></select>';
         html += '<label class="filter-checkbox"><input type="checkbox" id="devices-stale"> Stale only</label>';
         html += '<div id="devices-colselector"></div>';
         html += '</div>';
@@ -430,15 +438,21 @@ const PageDevices = (function() {
 
         var filtered = Filters.apply(devices, filterConfig);
 
-        // Management source filter (Intune vs Entra) - with fallback for older data
+        // Management source filter (Intune vs Entra vs Unmanaged) - with fallback for older data
         var sourceFilter = Filters.getValue('devices-source');
         if (sourceFilter && sourceFilter !== 'all') {
             filtered = filtered.filter(function(d) {
+                var agent = d.managementAgent || '';
+                var source = d.managementSource || '';
+
+                // "Unmanaged" = Entra devices that are not MDM managed (managementAgent === 'entra')
+                if (sourceFilter === 'Unmanaged') {
+                    return agent === 'entra' || (source === 'Entra' && agent !== 'mdm');
+                }
+
                 // Use managementSource if available, otherwise derive from managementAgent
-                var source = d.managementSource;
                 if (!source) {
                     // Fallback: if managementAgent is 'mdm' or 'easMdm', it's Intune; 'entra' means Entra-only
-                    var agent = d.managementAgent || '';
                     if (agent === 'mdm' || agent === 'easMdm' || agent === 'configManager') {
                         source = 'Intune';
                     } else if (agent === 'entra') {
@@ -476,12 +490,14 @@ const PageDevices = (function() {
         var compliantEl = document.getElementById('devices-sum-compliant');
         var noncompliantEl = document.getElementById('devices-sum-noncompliant');
         var staleEl = document.getElementById('devices-sum-stale');
+        var unmanagedEl = document.getElementById('devices-sum-unmanaged');
         var rateEl = document.getElementById('devices-sum-rate');
 
         if (totalEl) totalEl.textContent = summary.totalDevices;
         if (compliantEl) compliantEl.textContent = summary.compliantDevices;
         if (noncompliantEl) noncompliantEl.textContent = summary.noncompliantDevices;
         if (staleEl) staleEl.textContent = summary.staleDevices;
+        if (unmanagedEl) unmanagedEl.textContent = summary.unmanagedDevices;
         if (rateEl) {
             var rate = Math.round(summary.complianceRate);
             rateEl.textContent = rate + '%';
@@ -495,12 +511,16 @@ const PageDevices = (function() {
         // Update card styling based on values
         var noncompliantCard = document.getElementById('devices-card-noncompliant');
         var staleCard = document.getElementById('devices-card-stale');
+        var unmanagedCard = document.getElementById('devices-card-unmanaged');
 
         if (noncompliantCard) {
             noncompliantCard.className = 'summary-card' + (summary.noncompliantDevices > 0 ? ' card-danger' : '');
         }
         if (staleCard) {
             staleCard.className = 'summary-card' + (summary.staleDevices > 0 ? ' card-warning' : '');
+        }
+        if (unmanagedCard) {
+            unmanagedCard.className = 'summary-card' + (summary.unmanagedDevices > 0 ? ' card-info' : '');
         }
     }
 
@@ -550,7 +570,19 @@ const PageDevices = (function() {
             { key: 'registrationStateDisplay', label: 'Registration' },
             { key: 'enrollmentProfileName', label: 'Enrollment Profile' },
             { key: 'enrolledDateTime', label: 'Enrolled', formatter: formatDate },
-            { key: 'autopilotEnrolled', label: 'Autopilot', formatter: formatBoolean },
+            { key: 'autopilotEnrolled', label: 'Autopilot', formatter: function(v, row) {
+                // Cross-reference with actual Autopilot registry for accurate status
+                if (typeof DataRelationships !== 'undefined' && DataRelationships.getDeviceAutopilot && row && row.serialNumber) {
+                    var apRecord = DataRelationships.getDeviceAutopilot(row);
+                    if (apRecord) {
+                        return '<span class="badge badge-success">Yes</span>';
+                    }
+                }
+                // Fall back to device's autopilotEnrolled property
+                if (v === true) return '<span class="badge badge-success">Yes</span>';
+                if (v === false) return '<span class="badge badge-neutral">No</span>';
+                return '<span class="badge badge-neutral">--</span>';
+            }},
             // Hardware
             { key: 'manufacturer', label: 'Manufacturer' },
             { key: 'model', label: 'Model' },
@@ -925,8 +957,8 @@ const PageDevices = (function() {
     }
 
     function formatCompliance(v) {
-        var map = { 'compliant': 'badge-success', 'noncompliant': 'badge-critical', 'unknown': 'badge-neutral' };
-        var labels = { 'compliant': 'Compliant', 'noncompliant': 'Non-Compliant', 'unknown': 'Unknown' };
+        var map = { 'compliant': 'badge-success', 'noncompliant': 'badge-critical', 'inGracePeriod': 'badge-warning', 'unknown': 'badge-neutral' };
+        var labels = { 'compliant': 'Compliant', 'noncompliant': 'Non-Compliant', 'inGracePeriod': 'Grace Period', 'unknown': 'Unknown' };
         return '<span class="badge ' + (map[v] || 'badge-neutral') + '">' + (labels[v] || v || 'Unknown') + '</span>';
     }
 
@@ -1776,6 +1808,7 @@ const PageDevices = (function() {
         html += '<div class="summary-card card-success" id="devices-card-compliant"><div class="summary-value" id="devices-sum-compliant">' + summary.compliantDevices + '</div><div class="summary-label">Compliant</div></div>';
         html += '<div class="summary-card' + (summary.noncompliantDevices > 0 ? ' card-danger' : '') + '" id="devices-card-noncompliant"><div class="summary-value" id="devices-sum-noncompliant">' + summary.noncompliantDevices + '</div><div class="summary-label">Non-Compliant</div></div>';
         html += '<div class="summary-card' + (summary.staleDevices > 0 ? ' card-warning' : '') + '" id="devices-card-stale"><div class="summary-value" id="devices-sum-stale">' + summary.staleDevices + '</div><div class="summary-label">Stale</div></div>';
+        html += '<div class="summary-card' + (summary.unmanagedDevices > 0 ? ' card-info' : '') + '" id="devices-card-unmanaged"><div class="summary-value" id="devices-sum-unmanaged">' + summary.unmanagedDevices + '</div><div class="summary-label">Unmanaged</div></div>';
         html += '<div class="summary-card" id="devices-card-rate"><div class="summary-value ' + rateClass + '" id="devices-sum-rate">' + Math.round(summary.complianceRate) + '%</div><div class="summary-label">Compliance Rate</div></div>';
         html += '</div>';
 

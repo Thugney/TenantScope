@@ -62,15 +62,26 @@ function Get-ComplianceState {
     <#
     .SYNOPSIS
         Maps Intune compliance state to our schema values.
+    .PARAMETER IntuneState
+        The compliance state from Intune.
+    .PARAMETER GracePeriodAsNoncompliant
+        If true, devices in grace period are counted as noncompliant.
+        If false, they are counted as a separate "inGracePeriod" state.
     #>
-    param([string]$IntuneState)
+    param(
+        [string]$IntuneState,
+        [bool]$GracePeriodAsNoncompliant = $true
+    )
 
     switch ($IntuneState) {
         "compliant"     { return "compliant" }
         "noncompliant"  { return "noncompliant" }
         "conflict"      { return "noncompliant" }
         "error"         { return "unknown" }
-        "inGracePeriod" { return "noncompliant" }
+        "inGracePeriod" {
+            if ($GracePeriodAsNoncompliant) { return "noncompliant" }
+            else { return "inGracePeriod" }
+        }
         "configManager" { return "unknown" }
         default         { return "unknown" }
     }
@@ -253,6 +264,12 @@ try {
         $staleThreshold = 90
     }
 
+    # Get grace period handling from config (default: count as noncompliant for backward compatibility)
+    $gracePeriodAsNoncompliant = $Config.thresholds.gracePeriodAsNoncompliant
+    if ($null -eq $gracePeriodAsNoncompliant) {
+        $gracePeriodAsNoncompliant = $true
+    }
+
     # Retrieve all managed devices from Intune with extended properties
     # Using direct API call to get all properties including those requiring $select
     $managedDevices = $null
@@ -342,7 +359,7 @@ try {
         $isEncryptedValue = if ($null -eq $encValue) { $null } else { [bool]$encValue }
 
         # Map compliance state
-        $complianceState = Get-ComplianceState -IntuneState $device.ComplianceState
+        $complianceState = Get-ComplianceState -IntuneState $device.ComplianceState -GracePeriodAsNoncompliant $gracePeriodAsNoncompliant
 
         # Map ownership
         $ownership = Get-DeviceOwnership -OwnerType $device.ManagedDeviceOwnerType
