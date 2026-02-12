@@ -559,6 +559,20 @@ try {
                 $null
             }
             autopilotEnrolled      = $isInAutopilot
+            # Additional Autopilot data from cross-reference (only available if device is in Autopilot registry)
+            autopilotGroupTag               = if ($autopilotRecord) { $autopilotRecord.groupTag } else { $null }
+            autopilotProfileAssigned        = if ($autopilotRecord) {
+                                                  # Check if profile is assigned based on status
+                                                  $apStatus = $autopilotRecord.deploymentProfileAssignmentStatus
+                                                  if ($apStatus -match "(?i)^assigned|^pending") { $true } else { $false }
+                                              } else { $null }
+            autopilotProfileStatus          = if ($autopilotRecord) {
+                                                  if ($autopilotRecord.deploymentProfileAssignmentStatus) {
+                                                      $autopilotRecord.deploymentProfileAssignmentStatus.ToString()
+                                                  } else { "unknown" }
+                                              } else { $null }
+            autopilotEnrollmentState        = if ($autopilotRecord) { $autopilotRecord.enrollmentState } else { $null }
+            autopilotLastContacted          = if ($autopilotRecord) { Format-IsoDate -DateValue $autopilotRecord.lastContactedDateTime } else { $null }
 
             # ===== CERTIFICATES =====
             certExpiryDate         = Format-IsoDate -DateValue $device.ManagedDeviceCertificateExpirationDate

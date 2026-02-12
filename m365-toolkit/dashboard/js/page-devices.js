@@ -588,6 +588,21 @@ const PageDevices = (function() {
                 if (v === false) return '<span class="badge badge-neutral">No</span>';
                 return '<span class="badge badge-neutral">--</span>';
             }},
+            { key: 'autopilotGroupTag', label: 'AP Group Tag' },
+            { key: 'autopilotProfileStatus', label: 'AP Profile Status', formatter: function(v) {
+                if (!v) return '--';
+                var map = {
+                    'assignedInSync': { badge: 'badge-success', label: 'In Sync' },
+                    'assignedOutOfSync': { badge: 'badge-warning', label: 'Out of Sync' },
+                    'assignedUnkownSyncState': { badge: 'badge-info', label: 'Unknown Sync' },
+                    'notAssigned': { badge: 'badge-neutral', label: 'Not Assigned' },
+                    'pending': { badge: 'badge-warning', label: 'Pending' },
+                    'failed': { badge: 'badge-critical', label: 'Failed' },
+                    'unknown': { badge: 'badge-neutral', label: 'Unknown' }
+                };
+                var info = map[v] || { badge: 'badge-neutral', label: v };
+                return '<span class="badge ' + info.badge + '">' + info.label + '</span>';
+            }},
             // Hardware
             { key: 'manufacturer', label: 'Manufacturer' },
             { key: 'model', label: 'Model' },

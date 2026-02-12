@@ -18,7 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - **Get-DeviceData.ps1**: Merged Autopilot device identity collection into device collector for accurate detection
 - **Get-DeviceData.ps1**: Autopilot status now determined by cross-referencing device serial numbers with actual Autopilot registry
+- **Get-DeviceData.ps1**: Device records now enriched with Autopilot data (Group Tag, Profile Status, Enrollment State, Last Contacted)
+- **Get-AutopilotData.ps1**: Uses explicit `$select` to ensure all fields (deploymentProfileAssignmentStatus, groupTag, etc.) are returned from Graph API
+- **Get-AutopilotData.ps1**: Added detailed debug logging showing profile status breakdown during collection
 - **CollectorBase.ps1**: Devices with no activity date are now treated as stale (previously counted as active)
+- **Devices page (All Devices tab)**: Added "AP Group Tag" and "AP Profile Status" columns for devices enrolled via Autopilot
 
 ### Fixed
 - **Autopilot column**: Fixed devices showing "NO" when they are actually registered in Autopilot

@@ -141,12 +141,38 @@ try {
 
     # Use beta API for full property set including deploymentProfileAssignmentStatus
     # v1.0 API doesn't include profile assignment properties
+    # Explicitly select all needed properties to ensure they're returned
+    $selectFields = @(
+        'id',
+        'serialNumber',
+        'model',
+        'manufacturer',
+        'groupTag',
+        'enrollmentState',
+        'lastContactedDateTime',
+        'deploymentProfileAssignmentStatus',
+        'deploymentProfileAssignmentDetailedStatus',
+        'deploymentProfileAssignedDateTime',
+        'purchaseOrderIdentifier',
+        'displayName',
+        'userPrincipalName',
+        'azureActiveDirectoryDeviceId',
+        'azureAdDeviceId',
+        'managedDeviceId',
+        'productKey',
+        'skuNumber',
+        'systemFamily',
+        'addressableUserName',
+        'resourceName',
+        'remediationState',
+        'userlessEnrollmentStatus'
+    ) -join ','
+
     $autopilotDevices = @()
+    $apiUri = "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities?`$select=$selectFields"
 
     $response = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET `
-            -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities" `
-            -OutputType PSObject
+        Invoke-MgGraphRequest -Method GET -Uri $apiUri -OutputType PSObject
     } -OperationName "Autopilot device retrieval"
 
     if ($response.value) {
@@ -165,14 +191,17 @@ try {
 
     Write-Host "      Retrieved $($autopilotDevices.Count) Autopilot devices" -ForegroundColor Gray
 
-    # Debug: Show sample of available properties from first device
+    # Debug: Show sample of available properties and values from first device
     if ($autopilotDevices.Count -gt 0) {
         $sampleDevice = $autopilotDevices[0]
         $propNames = @($sampleDevice.PSObject.Properties.Name) -join ", "
-        Write-Host "      Properties available: $($propNames.Substring(0, [Math]::Min(120, $propNames.Length)))..." -ForegroundColor Gray
+        Write-Host "      Properties returned: $($propNames.Substring(0, [Math]::Min(150, $propNames.Length)))..." -ForegroundColor Gray
 
-        # Show key values for debugging
-        Write-Host "      Sample - enrollmentState: $($sampleDevice.enrollmentState), profileStatus: $($sampleDevice.deploymentProfileAssignmentStatus)" -ForegroundColor Gray
+        # Show key values for debugging profile status
+        $sampleProfileStatus = if ($sampleDevice.deploymentProfileAssignmentStatus) { $sampleDevice.deploymentProfileAssignmentStatus } else { "(null)" }
+        $sampleEnrollment = if ($sampleDevice.enrollmentState) { $sampleDevice.enrollmentState } else { "(null)" }
+        $sampleGroupTag = if ($sampleDevice.groupTag) { $sampleDevice.groupTag } else { "(null)" }
+        Write-Host "      Sample device - enrollmentState: $sampleEnrollment, profileStatus: $sampleProfileStatus, groupTag: $sampleGroupTag" -ForegroundColor Gray
     }
 
     # Process each Autopilot device
@@ -250,10 +279,28 @@ try {
         }
     }}, @{Expression = "lastContacted"; Descending = $false}
 
+    # Summary statistics for debugging
+    $enrolledCount = ($processedDevices | Where-Object { $_.enrollmentState -eq 'enrolled' }).Count
+    $notContactedCount = ($processedDevices | Where-Object { $_.enrollmentState -eq 'notContacted' }).Count
+    $failedCount = ($processedDevices | Where-Object { $_.enrollmentState -eq 'failed' }).Count
+    $profileAssignedCount = ($processedDevices | Where-Object { $_.profileAssigned -eq $true }).Count
+    $profileNotAssignedCount = ($processedDevices | Where-Object { $_.profileAssigned -eq $false }).Count
+
+    # Count profile status values to verify API is returning data
+    $statusCounts = @{}
+    foreach ($d in $processedDevices) {
+        $status = $d.profileAssignmentStatus
+        if (-not $statusCounts.ContainsKey($status)) { $statusCounts[$status] = 0 }
+        $statusCounts[$status]++
+    }
+    $statusSummary = ($statusCounts.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" }) -join ", "
+    Write-Host "      Profile status breakdown: $statusSummary" -ForegroundColor Gray
+
     # Save data using shared utility
     Save-CollectorData -Data $processedDevices -OutputPath $OutputPath | Out-Null
 
-    Write-Host "    [OK] Collected $autopilotCount Autopilot devices" -ForegroundColor Green
+    Write-Host "    [OK] Collected $autopilotCount Autopilot devices (Enrolled: $enrolledCount, Not Contacted: $notContactedCount, Failed: $failedCount)" -ForegroundColor Green
+    Write-Host "      Profile assigned: $profileAssignedCount, No profile: $profileNotAssignedCount" -ForegroundColor Gray
 
     return New-CollectorResult -Success $true -Count $autopilotCount -Errors $errors
 }
