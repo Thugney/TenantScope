@@ -597,6 +597,7 @@ const PageDevices = (function() {
                     'assignedInSync': { badge: 'badge-success', label: 'In Sync' },
                     'assignedOutOfSync': { badge: 'badge-warning', label: 'Out of Sync' },
                     'assignedUnkownSyncState': { badge: 'badge-info', label: 'Unknown Sync' },
+                    'assignedUnknownSyncState': { badge: 'badge-info', label: 'Unknown Sync' },
                     'notAssigned': { badge: 'badge-neutral', label: 'Not Assigned' },
                     'pending': { badge: 'badge-warning', label: 'Pending' },
                     'failed': { badge: 'badge-critical', label: 'Failed' },
@@ -1065,7 +1066,8 @@ const PageDevices = (function() {
         var map = {
             'assignedInSync': { badge: 'badge-success', label: 'Assigned (In Sync)' },
             'assignedOutOfSync': { badge: 'badge-warning', label: 'Assigned (Out of Sync)' },
-            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned (Unknown Sync)' },
+            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },
+            'assignedUnknownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },
             'notAssigned': { badge: 'badge-neutral', label: 'Not Assigned' },
             'pending': { badge: 'badge-warning', label: 'Pending' },
             'failed': { badge: 'badge-critical', label: 'Failed' },
@@ -1260,7 +1262,7 @@ const PageDevices = (function() {
             var status = row && row.profileAssignmentStatus;
             if (status === 'assignedInSync') return '<span class="badge badge-success">In Sync</span>';
             if (status === 'assignedOutOfSync') return '<span class="badge badge-warning">Out of Sync</span>';
-            if (status === 'assignedUnkownSyncState') return '<span class="badge badge-info">Unknown Sync</span>';
+            if (status === 'assignedUnkownSyncState' || status === 'assignedUnknownSyncState') return '<span class="badge badge-info">Unknown Sync</span>';
             if (status === 'pending') return '<span class="badge badge-warning">Pending</span>';
             if (status === 'failed') return '<span class="badge badge-critical">Failed</span>';
             return '<span class="badge badge-success">Assigned</span>';
