@@ -525,7 +525,12 @@ const PageDevices = (function() {
     }
 
     function renderDevicesTable(data) {
-        var visible = colSelector ? colSelector.getVisible() : ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'managementSource', 'threatStateDisplay'];
+        var defaultCols = ['deviceName', 'userPrincipalName', 'os', 'windowsType', 'complianceState', 'lastSync', 'isEncrypted', 'certStatus', 'ownership', 'managementSource', 'threatStateDisplay'];
+        var visible = colSelector ? colSelector.getVisible() : defaultCols;
+        // Safety: ensure visible is never empty
+        if (!visible || visible.length === 0) {
+            visible = defaultCols;
+        }
         var sourceFilter = Filters.getValue('devices-source');
         var hideEmptyColumns = sourceFilter === 'Entra' && Array.isArray(data) && data.length > 0;
 
@@ -667,10 +672,20 @@ const PageDevices = (function() {
             visible = visible.filter(function(key) { return availableKeys[key]; });
         }
 
+        // Get columns to render
+        var columnsToRender = defs.filter(function(col) { return visible.indexOf(col.key) !== -1; });
+
+        // Safety: if no columns match, use all visible defs (fallback for corrupted state)
+        if (columnsToRender.length === 0) {
+            columnsToRender = allDefs.filter(function(col) {
+                return ['deviceName', 'userPrincipalName', 'os', 'complianceState', 'managementSource'].indexOf(col.key) !== -1;
+            });
+        }
+
         Tables.render({
             containerId: 'devices-table',
             data: data,
-            columns: defs.filter(function(col) { return visible.indexOf(col.key) !== -1; }),
+            columns: columnsToRender,
             pageSize: 50,
             onRowClick: showDeviceDetails
         });
