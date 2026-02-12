@@ -221,7 +221,8 @@ const PageAppDeployments = (function() {
     }
 
     function renderOverviewTab(container) {
-        var apps = (rawData.apps || []).map(mapApp);
+        // rawData.apps is already mapped by getData(), don't map again
+        var apps = rawData.apps || [];
         var computedSummary = buildSummaryFromArray(apps);
         var summary = (rawData.summary && rawData.summary.totalApps !== undefined)
             ? rawData.summary
@@ -401,7 +402,8 @@ const PageAppDeployments = (function() {
     }
 
     function renderAppsTab(container) {
-        var apps = (rawData.apps || []).map(mapApp);
+        // rawData.apps is already mapped by getData(), don't map again
+        var apps = rawData.apps || [];
 
         var types = {}, platforms = {};
         apps.forEach(function(a) {
@@ -460,7 +462,8 @@ const PageAppDeployments = (function() {
 
     function applyAppsFilters() {
         if (!rawData) return;
-        var apps = (rawData.apps || []).map(mapApp);
+        // rawData.apps is already mapped by getData(), don't map again
+        var apps = rawData.apps || [];
         var totalApps = apps.length;
 
         var filterConfig = {
@@ -628,8 +631,7 @@ const PageAppDeployments = (function() {
         var apps = rawData.apps || [];
         var app = apps.find(function(a) { return a.id === appId; });
         if (!app) return;
-
-        app = mapApp(app);
+        // rawData.apps is already mapped by getData(), don't map again
 
         var html = '<div class="modal-header">';
         html += '<h3>' + (app.displayName || 'App Details') + '</h3>';

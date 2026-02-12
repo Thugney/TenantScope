@@ -131,7 +131,8 @@
         if (!target) return false;
         const dest = '#user-360?' + target.param + '=' + encodeURIComponent(target.value);
         if (window.location.hash === dest) return false;
-        window.location.hash = dest;
+        // Use replace so the intermediate users search page doesn't trap browser back.
+        window.location.replace(dest);
         return true;
     }
 

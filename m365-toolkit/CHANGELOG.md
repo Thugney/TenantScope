@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **App Deployments page**: Fixed status columns (Installed, Pending, Failed, Not Installed) not showing data - raw API data was returned without field mapping (`installedDevices` → `installedCount`, etc.)
+- **App Deployments page**: Fixed double-mapping bug where `mapApp()` was called multiple times, causing counts to reset to 0 (data already mapped in `getData()` was re-mapped in filter/render functions)
 - **Devices page**: Fixed "Intune Managed" filter - simplified to direct managementAgent detection (mdm, easmdm, configurationmanagerclient = Intune; empty/eas/entra = Entra-only)
 - **Get-DeviceData.ps1**: Added debug output showing Autopilot profile status breakdown during collection to diagnose "Unknown Sync" display issues
 
