@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 - **Devices page**: Fixed "Intune Managed" filter showing no results - moved source derivation logic before filter checks
+- **Get-DeviceData.ps1**: Added debug output showing Autopilot profile status breakdown during collection to diagnose "Unknown Sync" display issues
 
 ### Added
 - **Devices page**: "Unmanaged" filter option to show Entra-only devices not enrolled in MDM (smartphones for MFA authenticator, etc.)
