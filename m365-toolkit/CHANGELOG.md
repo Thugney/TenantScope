@@ -7,6 +7,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [2.4.2] - 2026-02-12
 
+### Fixed
+- **Devices page**: Fixed "Intune Managed" filter showing no results - moved source derivation logic before filter checks
+
 ### Added
 - **Devices page**: "Unmanaged" filter option to show Entra-only devices not enrolled in MDM (smartphones for MFA authenticator, etc.)
 - **Devices page**: "Unmanaged" summary card showing count of unmanaged devices

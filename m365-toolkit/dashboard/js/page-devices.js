@@ -455,22 +455,22 @@ const PageDevices = (function() {
                 var agent = d.managementAgent || '';
                 var source = d.managementSource || '';
 
-                // "Unmanaged" = Entra devices that are not MDM managed (managementAgent === 'entra')
-                if (sourceFilter === 'Unmanaged') {
-                    return agent === 'entra' || (source === 'Entra' && agent !== 'mdm');
-                }
-
-                // Use managementSource if available, otherwise derive from managementAgent
+                // Derive source from managementAgent if not explicitly set
                 if (!source) {
-                    // Fallback: if managementAgent is 'mdm' or 'easMdm', it's Intune; 'entra' means Entra-only
                     if (agent === 'mdm' || agent === 'easMdm' || agent === 'configManager') {
                         source = 'Intune';
                     } else if (agent === 'entra') {
                         source = 'Entra';
-                    } else {
-                        source = 'Intune'; // Default to Intune for managed devices
+                    } else if (agent) {
+                        source = 'Intune'; // Default managed devices to Intune
                     }
                 }
+
+                // "Unmanaged" = Entra-only devices (not MDM managed)
+                if (sourceFilter === 'Unmanaged') {
+                    return source === 'Entra' || agent === 'entra';
+                }
+
                 return source === sourceFilter;
             });
         }
