@@ -141,35 +141,9 @@ try {
 
     # Use beta API for full property set including deploymentProfileAssignmentStatus
     # v1.0 API doesn't include profile assignment properties
-    # Explicitly select all needed properties to ensure they're returned
-    $selectFields = @(
-        'id',
-        'serialNumber',
-        'model',
-        'manufacturer',
-        'groupTag',
-        'enrollmentState',
-        'lastContactedDateTime',
-        'deploymentProfileAssignmentStatus',
-        'deploymentProfileAssignmentDetailedStatus',
-        'deploymentProfileAssignedDateTime',
-        'purchaseOrderIdentifier',
-        'displayName',
-        'userPrincipalName',
-        'azureActiveDirectoryDeviceId',
-        'azureAdDeviceId',
-        'managedDeviceId',
-        'productKey',
-        'skuNumber',
-        'systemFamily',
-        'addressableUserName',
-        'resourceName',
-        'remediationState',
-        'userlessEnrollmentStatus'
-    ) -join ','
-
+    # Note: Don't use $select - the beta API returns all properties by default and $select can cause errors
     $autopilotDevices = @()
-    $apiUri = "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities?`$select=$selectFields"
+    $apiUri = "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities"
 
     $response = Invoke-GraphWithRetry -ScriptBlock {
         Invoke-MgGraphRequest -Method GET -Uri $apiUri -OutputType PSObject
