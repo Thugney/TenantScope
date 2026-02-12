@@ -879,9 +879,17 @@ const PageDevices = (function() {
         // Build unique manufacturer and group tag lists for filter dropdowns
         var manufacturers = [];
         var groupTags = [];
+        var hasVMs = false;
+        var vmPatterns = ['virtual', 'vmware', 'hyper-v', 'virtualbox', 'qemu', 'xen', 'kvm', 'parallels'];
         autopilot.forEach(function(d) {
             if (d.manufacturer && manufacturers.indexOf(d.manufacturer) === -1) manufacturers.push(d.manufacturer);
             if (d.groupTag && groupTags.indexOf(d.groupTag) === -1) groupTags.push(d.groupTag);
+            // Check if this is a VM (by manufacturer or model)
+            var mfr = (d.manufacturer || '').toLowerCase();
+            var model = (d.model || '').toLowerCase();
+            if (vmPatterns.some(function(p) { return mfr.indexOf(p) !== -1 || model.indexOf(p) !== -1; })) {
+                hasVMs = true;
+            }
         });
         manufacturers.sort();
         groupTags.sort();
@@ -909,6 +917,9 @@ const PageDevices = (function() {
         html += '<option value="notAssigned">No Profile</option>';
         html += '</select>';
         html += '<select class="filter-select" id="autopilot-manufacturer"><option value="all">All Manufacturers</option>';
+        if (hasVMs) {
+            html += '<option value="__VM__">Virtual Machines</option>';
+        }
         manufacturers.forEach(function(m) { html += '<option value="' + m + '">' + m + '</option>'; });
         html += '</select>';
         if (groupTags.length > 0) {
@@ -949,9 +960,17 @@ const PageDevices = (function() {
                     if (profileFilter === 'notAssigned' && d.profileAssigned) return false;
                 }
 
-                // Manufacturer filter
+                // Manufacturer filter (with special VM handling)
                 if (manufacturerFilter && manufacturerFilter !== 'all') {
-                    if (d.manufacturer !== manufacturerFilter) return false;
+                    if (manufacturerFilter === '__VM__') {
+                        // Match any VM by manufacturer or model
+                        var mfr = (d.manufacturer || '').toLowerCase();
+                        var model = (d.model || '').toLowerCase();
+                        var isVM = vmPatterns.some(function(p) { return mfr.indexOf(p) !== -1 || model.indexOf(p) !== -1; });
+                        if (!isVM) return false;
+                    } else {
+                        if (d.manufacturer !== manufacturerFilter) return false;
+                    }
                 }
 
                 // Group tag filter
@@ -1017,11 +1036,26 @@ const PageDevices = (function() {
                 { key: 'enrollmentState', label: 'Enrollment', formatter: formatEnrollmentState },
                 { key: 'lastContacted', label: 'Last Contacted', formatter: formatDate },
                 { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
+                { key: 'profileAssignmentStatus', label: 'Profile Status', formatter: formatProfileStatus },
                 { key: 'purchaseOrder', label: 'PO' }
             ],
             pageSize: 25,
             onRowClick: showAutopilotDetails
         });
+    }
+
+    function formatProfileStatus(v) {
+        var map = {
+            'assignedInSync': { badge: 'badge-success', label: 'Assigned (In Sync)' },
+            'assignedOutOfSync': { badge: 'badge-warning', label: 'Assigned (Out of Sync)' },
+            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned (Unknown Sync)' },
+            'notAssigned': { badge: 'badge-neutral', label: 'Not Assigned' },
+            'pending': { badge: 'badge-warning', label: 'Pending' },
+            'failed': { badge: 'badge-critical', label: 'Failed' },
+            'unknown': { badge: 'badge-neutral', label: 'Unknown' }
+        };
+        var info = map[v] || { badge: 'badge-neutral', label: v || 'Unknown' };
+        return '<span class="badge ' + info.badge + '">' + info.label + '</span>';
     }
 
     function renderDevicesPerPerson(devices) {
