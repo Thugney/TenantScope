@@ -10,6 +10,94 @@ const PageDevices = (function() {
     var currentTab = 'overview';
     var colSelector = null;
 
+    var devicesFilterState = {
+        search: '',
+        os: 'all',
+        compliance: 'all',
+        ownership: 'all',
+        source: 'all',
+        stale: false
+    };
+
+    var autopilotFilterState = {
+        search: '',
+        enrollment: 'all',
+        profile: 'all',
+        manufacturer: 'all',
+        groupTag: 'all'
+    };
+
+    function normalizeString(value) {
+        if (value === null || value === undefined) return '';
+        return String(value).trim().toLowerCase();
+    }
+
+    function normalizeComplianceFilterValue(value) {
+        var v = normalizeString(value);
+        if (!v || v === 'all') return 'all';
+        if (v === 'grace' || v === 'graceperiod' || v === 'ingraceperiod') return 'inGracePeriod';
+        if (v === 'non-compliant' || v === 'noncompliant') return 'noncompliant';
+        if (v === 'compliant') return 'compliant';
+        if (v === 'unknown') return 'unknown';
+        return 'unknown';
+    }
+
+    function coerceBoolean(value) {
+        if (value === true || value === false) return value;
+        var v = normalizeString(value);
+        if (v === 'true' || v === '1' || v === 'yes' || v === 'y') return true;
+        if (v === 'false' || v === '0' || v === 'no' || v === 'n') return false;
+        return null;
+    }
+
+    function setSelectValueIfExists(controlId, value) {
+        var element = document.getElementById(controlId);
+        if (!element || value === null || value === undefined) return false;
+        var strValue = String(value);
+        var matched = null;
+        for (var i = 0; i < element.options.length; i++) {
+            if (element.options[i].value === strValue) {
+                matched = element.options[i].value;
+                break;
+            }
+        }
+        if (!matched) {
+            var normalized = normalizeString(strValue);
+            for (var j = 0; j < element.options.length; j++) {
+                if (normalizeString(element.options[j].value) === normalized) {
+                    matched = element.options[j].value;
+                    break;
+                }
+            }
+        }
+        if (matched) {
+            element.value = matched;
+            return true;
+        }
+        return false;
+    }
+
+    function classifyManagement(device) {
+        var agent = normalizeString(device && device.managementAgent);
+        var sourceRaw = normalizeString(device && device.managementSource);
+        var source = sourceRaw;
+
+        if (source.indexOf('intune') !== -1) source = 'intune';
+        if (source.indexOf('entra') !== -1 || source.indexOf('azure') !== -1 || source === 'aad') source = 'entra';
+
+        var isMdm = agent === 'mdm' || agent === 'easmdm' || agent === 'configmanager' || agent === 'comanaged';
+        var isEntra = source === 'entra' || agent === 'entra' || agent === 'azuread' || agent === 'aad';
+
+        var resolvedSource = 'unknown';
+        if (isEntra) resolvedSource = 'entra';
+        else if (source === 'intune' || isMdm) resolvedSource = 'intune';
+
+        return {
+            source: resolvedSource,
+            unmanaged: isEntra && !isMdm
+        };
+    }
+
     function getHashParams() {
         var hash = window.location.hash || '';
         var idx = hash.indexOf('?');
@@ -331,6 +419,8 @@ const PageDevices = (function() {
                 { key: 'enrollmentProfileName', label: 'Enrollment Profile' },
                 { key: 'enrolledDateTime', label: 'Enrolled' },
                 { key: 'autopilotEnrolled', label: 'Autopilot' },
+                { key: 'autopilotGroupTag', label: 'AP Group Tag' },
+                { key: 'autopilotProfileStatus', label: 'AP Profile Status' },
                 // Hardware
                 { key: 'manufacturer', label: 'Manufacturer' },
                 { key: 'model', label: 'Model' },
@@ -394,8 +484,58 @@ const PageDevices = (function() {
 
         var hashParams = getHashParams();
         var searchSeed = hashParams.user || hashParams.device || hashParams.search;
+        var complianceSeed = normalizeComplianceFilterValue(hashParams.compliance || hashParams.complianceState);
+        var osSeed = hashParams.os;
+        var ownershipSeed = hashParams.ownership;
+        var sourceSeed = hashParams.source || hashParams.managementSource;
+        var staleSeed = hashParams.stale;
+
+        var staleValue = coerceBoolean(staleSeed);
+
         if (searchSeed) {
             Filters.setValue('devices-search', searchSeed);
+            devicesFilterState.search = searchSeed;
+        } else if (devicesFilterState.search) {
+            Filters.setValue('devices-search', devicesFilterState.search);
+        }
+
+        if (complianceSeed && complianceSeed !== 'all') {
+            if (setSelectValueIfExists('devices-compliance', complianceSeed)) {
+                devicesFilterState.compliance = complianceSeed;
+            }
+        } else {
+            setSelectValueIfExists('devices-compliance', devicesFilterState.compliance || 'all');
+        }
+
+        if (osSeed) {
+            if (setSelectValueIfExists('devices-os', osSeed)) {
+                devicesFilterState.os = osSeed;
+            }
+        } else {
+            setSelectValueIfExists('devices-os', devicesFilterState.os || 'all');
+        }
+
+        if (ownershipSeed) {
+            if (setSelectValueIfExists('devices-ownership', ownershipSeed)) {
+                devicesFilterState.ownership = ownershipSeed;
+            }
+        } else {
+            setSelectValueIfExists('devices-ownership', devicesFilterState.ownership || 'all');
+        }
+
+        if (sourceSeed) {
+            if (setSelectValueIfExists('devices-source', sourceSeed)) {
+                devicesFilterState.source = sourceSeed;
+            }
+        } else {
+            setSelectValueIfExists('devices-source', devicesFilterState.source || 'all');
+        }
+
+        if (staleValue !== null) {
+            Filters.setValue('devices-stale', staleValue);
+            devicesFilterState.stale = staleValue;
+        } else {
+            Filters.setValue('devices-stale', devicesFilterState.stale);
         }
 
         applyDeviceFilters();
@@ -414,56 +554,82 @@ const PageDevices = (function() {
             search: Filters.getValue('devices-search'),
             searchFields: [
                 'deviceName',
+                'managedDeviceName',
+                'displayName',
                 'userPrincipalName',
                 'primaryUserDisplayName',
+                'emailAddress',
                 'model',
                 'manufacturer',
                 'serialNumber',
                 'os',
                 'osVersion',
                 'windowsType',
-                'windowsRelease'
+                'windowsRelease',
+                'windowsBuild',
+                'enrollmentProfileName',
+                'autopilotGroupTag',
+                'autopilotProfileStatus',
+                'azureAdDeviceId',
+                'id',
+                'joinType'
             ],
             exact: {}
         };
 
-        var osFilter = Filters.getValue('devices-os');
-        if (osFilter && osFilter !== 'all') filterConfig.exact.os = osFilter;
+        var osFilterRaw = Filters.getValue('devices-os') || 'all';
+        var compFilterRaw = normalizeComplianceFilterValue(Filters.getValue('devices-compliance'));
+        var ownerFilterRaw = Filters.getValue('devices-ownership') || 'all';
+        var sourceFilterRaw = Filters.getValue('devices-source') || 'all';
 
-        var compFilter = Filters.getValue('devices-compliance');
-        if (compFilter && compFilter !== 'all') filterConfig.exact.complianceState = compFilter;
-
-        var ownerFilter = Filters.getValue('devices-ownership');
-        if (ownerFilter && ownerFilter !== 'all') filterConfig.exact.ownership = ownerFilter;
+        var osFilter = normalizeString(osFilterRaw);
+        var compFilter = normalizeString(compFilterRaw);
+        var ownerFilter = normalizeString(ownerFilterRaw);
+        var sourceFilter = normalizeString(sourceFilterRaw);
 
         var filtered = Filters.apply(devices, filterConfig);
 
-        // Management source filter (Intune vs Entra vs Unmanaged) - with fallback for older data
-        var sourceFilter = Filters.getValue('devices-source');
-        if (sourceFilter && sourceFilter !== 'all') {
+        if (osFilter && osFilter !== 'all') {
             filtered = filtered.filter(function(d) {
-                var agent = d.managementAgent || '';
-                var source = d.managementSource || '';
-
-                // "Unmanaged" = Entra devices that are not MDM managed (managementAgent === 'entra')
-                if (sourceFilter === 'Unmanaged') {
-                    return agent === 'entra' || (source === 'Entra' && agent !== 'mdm');
-                }
-
-                // Use managementSource if available, otherwise derive from managementAgent
-                if (!source) {
-                    // Fallback: if managementAgent is 'mdm' or 'easMdm', it's Intune; 'entra' means Entra-only
-                    if (agent === 'mdm' || agent === 'easMdm' || agent === 'configManager') {
-                        source = 'Intune';
-                    } else if (agent === 'entra') {
-                        source = 'Entra';
-                    } else {
-                        source = 'Intune'; // Default to Intune for managed devices
-                    }
-                }
-                return source === sourceFilter;
+                return normalizeString(d.os) === osFilter;
             });
         }
+
+        if (ownerFilter && ownerFilter !== 'all') {
+            filtered = filtered.filter(function(d) {
+                return normalizeString(d.ownership) === ownerFilter;
+            });
+        }
+
+        if (compFilter && compFilter !== 'all') {
+            filtered = filtered.filter(function(d) {
+                var state = normalizeString(d.complianceState);
+                if (compFilter === 'ingraceperiod') {
+                    return d.inGracePeriod === true || state === 'ingraceperiod';
+                }
+                if (compFilter === 'unknown') {
+                    return !state || (state !== 'compliant' && state !== 'noncompliant' && state !== 'ingraceperiod');
+                }
+                return state === compFilter;
+            });
+        }
+
+        // Management source filter (Intune vs Entra vs Unmanaged)
+        if (sourceFilter && sourceFilter !== 'all') {
+            filtered = filtered.filter(function(d) {
+                var classification = classifyManagement(d);
+                if (sourceFilter === 'unmanaged') return classification.unmanaged;
+                if (sourceFilter === 'entra') return classification.source === 'entra';
+                if (sourceFilter === 'intune') return classification.source === 'intune';
+                return true;
+            });
+        }
+
+        devicesFilterState.search = Filters.getValue('devices-search') || '';
+        devicesFilterState.os = osFilterRaw;
+        devicesFilterState.compliance = compFilterRaw;
+        devicesFilterState.ownership = ownerFilterRaw;
+        devicesFilterState.source = sourceFilterRaw;
 
         // Stale filter - handle both boolean and string values
         var staleCheckbox = document.getElementById('devices-stale');
@@ -472,6 +638,7 @@ const PageDevices = (function() {
                 return d.isStale === true || d.isStale === 'true' || d.isStale === 'True';
             });
         }
+        devicesFilterState.stale = !!(staleCheckbox && staleCheckbox.checked);
 
         // Update summary cards with filtered data
         updateDevicesSummaryCards(filtered);
@@ -892,29 +1059,40 @@ const PageDevices = (function() {
         }
 
         // Build unique manufacturer and group tag lists for filter dropdowns
-        var manufacturers = [];
-        var groupTags = [];
+        var manufacturers = {};
+        var groupTags = {};
         var hasVMs = false;
         var vmPatterns = ['virtual', 'vmware', 'hyper-v', 'virtualbox', 'qemu', 'xen', 'kvm', 'parallels'];
         autopilot.forEach(function(d) {
-            if (d.manufacturer && manufacturers.indexOf(d.manufacturer) === -1) manufacturers.push(d.manufacturer);
-            if (d.groupTag && groupTags.indexOf(d.groupTag) === -1) groupTags.push(d.groupTag);
+            var mfr = d.manufacturer || '';
+            var mfrKey = normalizeString(mfr);
+            if (mfrKey && !manufacturers[mfrKey]) manufacturers[mfrKey] = mfr.trim() || mfr;
+            var tag = d.groupTag || '';
+            var tagKey = normalizeString(tag);
+            if (tagKey && !groupTags[tagKey]) groupTags[tagKey] = tag.trim() || tag;
             // Check if this is a VM (by manufacturer or model)
-            var mfr = (d.manufacturer || '').toLowerCase();
+            var mfrLower = (d.manufacturer || '').toLowerCase();
             var model = (d.model || '').toLowerCase();
-            if (vmPatterns.some(function(p) { return mfr.indexOf(p) !== -1 || model.indexOf(p) !== -1; })) {
+            if (vmPatterns.some(function(p) { return mfrLower.indexOf(p) !== -1 || model.indexOf(p) !== -1; })) {
                 hasVMs = true;
             }
         });
-        manufacturers.sort();
-        groupTags.sort();
+        var manufacturerKeys = Object.keys(manufacturers).sort(function(a, b) {
+            return String(manufacturers[a]).localeCompare(String(manufacturers[b]));
+        });
+        var groupTagKeys = Object.keys(groupTags).sort(function(a, b) {
+            return String(groupTags[a]).localeCompare(String(groupTags[b]));
+        });
 
         // Build HTML - data values are from local collector JSON, not user input
         var html = '<div class="summary-cards" id="autopilot-summary-cards">';
         html += '<div class="summary-card" id="ap-card-total"><div class="summary-value" id="ap-sum-total">' + autopilot.length + '</div><div class="summary-label">Total Autopilot</div></div>';
         html += '<div class="summary-card card-success" id="ap-card-enrolled"><div class="summary-value" id="ap-sum-enrolled">0</div><div class="summary-label">Enrolled</div></div>';
         html += '<div class="summary-card" id="ap-card-notcontacted"><div class="summary-value" id="ap-sum-notcontacted">0</div><div class="summary-label">Not Contacted</div></div>';
+        html += '<div class="summary-card" id="ap-card-pendingreset"><div class="summary-value" id="ap-sum-pendingreset">0</div><div class="summary-label">Pending Reset</div></div>';
         html += '<div class="summary-card" id="ap-card-failed"><div class="summary-value" id="ap-sum-failed">0</div><div class="summary-label">Failed</div></div>';
+        html += '<div class="summary-card" id="ap-card-blocked"><div class="summary-value" id="ap-sum-blocked">0</div><div class="summary-label">Blocked</div></div>';
+        html += '<div class="summary-card" id="ap-card-unknown"><div class="summary-value" id="ap-sum-unknown">0</div><div class="summary-label">Unknown</div></div>';
         html += '<div class="summary-card" id="ap-card-noprofile"><div class="summary-value" id="ap-sum-noprofile">0</div><div class="summary-label">No Profile</div></div>';
         html += '</div>';
 
@@ -923,9 +1101,10 @@ const PageDevices = (function() {
         html += '<select class="filter-select" id="autopilot-enrollment"><option value="all">All Enrollment</option>';
         html += '<option value="enrolled">Enrolled</option>';
         html += '<option value="notContacted">Not Contacted</option>';
+        html += '<option value="pendingReset">Pending Reset</option>';
         html += '<option value="failed">Failed</option>';
-        html += '<option value="pending">Pending</option>';
-        html += '<option value="notEnrolled">Not Enrolled</option>';
+        html += '<option value="blocked">Blocked</option>';
+        html += '<option value="unknown">Unknown</option>';
         html += '</select>';
         html += '<select class="filter-select" id="autopilot-profile"><option value="all">All Profile Status</option>';
         html += '<option value="assigned">Profile Assigned</option>';
@@ -935,93 +1114,132 @@ const PageDevices = (function() {
         if (hasVMs) {
             html += '<option value="__VM__">Virtual Machines</option>';
         }
-        manufacturers.forEach(function(m) { html += '<option value="' + m + '">' + m + '</option>'; });
+        manufacturerKeys.forEach(function(key) { html += '<option value="' + key + '">' + manufacturers[key] + '</option>'; });
         html += '</select>';
-        if (groupTags.length > 0) {
+        if (groupTagKeys.length > 0) {
             html += '<select class="filter-select" id="autopilot-grouptag"><option value="all">All Group Tags</option>';
-            groupTags.forEach(function(g) { html += '<option value="' + g + '">' + g + '</option>'; });
+            groupTagKeys.forEach(function(key) { html += '<option value="' + key + '">' + groupTags[key] + '</option>'; });
             html += '</select>';
         }
         html += '</div>';
         html += '<div class="table-container" id="autopilot-table"></div>';
         container.innerHTML = html;
 
+        if (autopilotFilterState.search) {
+            Filters.setValue('autopilot-search', autopilotFilterState.search);
+        }
+        setSelectValueIfExists('autopilot-enrollment', autopilotFilterState.enrollment || 'all');
+        setSelectValueIfExists('autopilot-profile', autopilotFilterState.profile || 'all');
+        setSelectValueIfExists('autopilot-manufacturer', autopilotFilterState.manufacturer || 'all');
+        if (groupTagKeys.length > 0) {
+            setSelectValueIfExists('autopilot-grouptag', autopilotFilterState.groupTag || 'all');
+        }
+
         function applyAutopilotFilters() {
-            var search = (Filters.getValue('autopilot-search') || '').toLowerCase();
-            var enrollmentFilter = Filters.getValue('autopilot-enrollment');
-            var profileFilter = Filters.getValue('autopilot-profile');
-            var manufacturerFilter = Filters.getValue('autopilot-manufacturer');
-            var groupTagFilter = Filters.getValue('autopilot-grouptag');
+            var search = normalizeString(Filters.getValue('autopilot-search'));
+            var enrollmentFilter = normalizeString(Filters.getValue('autopilot-enrollment'));
+            var profileFilter = normalizeString(Filters.getValue('autopilot-profile'));
+            var manufacturerFilter = normalizeString(Filters.getValue('autopilot-manufacturer'));
+            var groupTagFilter = normalizeString(Filters.getValue('autopilot-grouptag'));
 
             var filtered = autopilot.filter(function(d) {
                 // Search filter
                 if (search) {
-                    var matchSearch = (d.serialNumber || '').toLowerCase().indexOf(search) !== -1 ||
-                        (d.model || '').toLowerCase().indexOf(search) !== -1 ||
-                        (d.manufacturer || '').toLowerCase().indexOf(search) !== -1 ||
-                        (d.groupTag || '').toLowerCase().indexOf(search) !== -1 ||
-                        (d.displayName || '').toLowerCase().indexOf(search) !== -1;
+                    var matchSearch = normalizeString(d.serialNumber).indexOf(search) !== -1 ||
+                        normalizeString(d.model).indexOf(search) !== -1 ||
+                        normalizeString(d.manufacturer).indexOf(search) !== -1 ||
+                        normalizeString(d.groupTag).indexOf(search) !== -1 ||
+                        normalizeString(d.displayName).indexOf(search) !== -1 ||
+                        normalizeString(d.userPrincipalName).indexOf(search) !== -1 ||
+                        normalizeString(d.azureActiveDirectoryDeviceId).indexOf(search) !== -1 ||
+                        normalizeString(d.azureAdDeviceId).indexOf(search) !== -1 ||
+                        normalizeString(d.managedDeviceId).indexOf(search) !== -1 ||
+                        normalizeString(d.purchaseOrder).indexOf(search) !== -1 ||
+                        normalizeString(d.resourceName).indexOf(search) !== -1 ||
+                        normalizeString(d.systemFamily).indexOf(search) !== -1 ||
+                        normalizeString(d.skuNumber).indexOf(search) !== -1;
                     if (!matchSearch) return false;
                 }
 
                 // Enrollment state filter
                 if (enrollmentFilter && enrollmentFilter !== 'all') {
-                    if (d.enrollmentState !== enrollmentFilter) return false;
+                    if (normalizeString(d.enrollmentState) !== enrollmentFilter) return false;
                 }
 
                 // Profile assigned filter
                 if (profileFilter && profileFilter !== 'all') {
-                    if (profileFilter === 'assigned' && !d.profileAssigned) return false;
-                    if (profileFilter === 'notAssigned' && d.profileAssigned) return false;
+                    if (profileFilter === 'assigned' && d.profileAssigned !== true) return false;
+                    if (profileFilter === 'notassigned' && d.profileAssigned !== false) return false;
                 }
 
                 // Manufacturer filter (with special VM handling)
                 if (manufacturerFilter && manufacturerFilter !== 'all') {
-                    if (manufacturerFilter === '__VM__') {
+                    if (manufacturerFilter === '__vm__') {
                         // Match any VM by manufacturer or model
-                        var mfr = (d.manufacturer || '').toLowerCase();
-                        var model = (d.model || '').toLowerCase();
+                        var mfr = normalizeString(d.manufacturer);
+                        var model = normalizeString(d.model);
                         var isVM = vmPatterns.some(function(p) { return mfr.indexOf(p) !== -1 || model.indexOf(p) !== -1; });
                         if (!isVM) return false;
                     } else {
-                        if (d.manufacturer !== manufacturerFilter) return false;
+                        if (normalizeString(d.manufacturer) !== manufacturerFilter) return false;
                     }
                 }
 
                 // Group tag filter
                 if (groupTagFilter && groupTagFilter !== 'all') {
-                    if (d.groupTag !== groupTagFilter) return false;
+                    if (normalizeString(d.groupTag) !== groupTagFilter) return false;
                 }
 
                 return true;
             });
 
             // Update summary cards with filtered counts
-            var enrolled = filtered.filter(function(d) { return d.enrollmentState === 'enrolled'; }).length;
-            var notContacted = filtered.filter(function(d) { return d.enrollmentState === 'notContacted'; }).length;
-            var failed = filtered.filter(function(d) { return d.enrollmentState === 'failed'; }).length;
-            var noProfile = filtered.filter(function(d) { return !d.profileAssigned; }).length;
+            var enrolled = filtered.filter(function(d) { return normalizeString(d.enrollmentState) === 'enrolled'; }).length;
+            var notContacted = filtered.filter(function(d) { return normalizeString(d.enrollmentState) === 'notcontacted'; }).length;
+            var pendingReset = filtered.filter(function(d) { return normalizeString(d.enrollmentState) === 'pendingreset'; }).length;
+            var failed = filtered.filter(function(d) { return normalizeString(d.enrollmentState) === 'failed'; }).length;
+            var blocked = filtered.filter(function(d) { return normalizeString(d.enrollmentState) === 'blocked'; }).length;
+            var unknown = filtered.filter(function(d) { return normalizeString(d.enrollmentState) === 'unknown'; }).length;
+            var noProfile = filtered.filter(function(d) { return d.profileAssigned !== true; }).length;
 
             var totalEl = document.getElementById('ap-sum-total');
             var enrolledEl = document.getElementById('ap-sum-enrolled');
             var notContactedEl = document.getElementById('ap-sum-notcontacted');
+            var pendingResetEl = document.getElementById('ap-sum-pendingreset');
             var failedEl = document.getElementById('ap-sum-failed');
+            var blockedEl = document.getElementById('ap-sum-blocked');
+            var unknownEl = document.getElementById('ap-sum-unknown');
             var noProfileEl = document.getElementById('ap-sum-noprofile');
 
             if (totalEl) totalEl.textContent = filtered.length;
             if (enrolledEl) enrolledEl.textContent = enrolled;
             if (notContactedEl) notContactedEl.textContent = notContacted;
+            if (pendingResetEl) pendingResetEl.textContent = pendingReset;
             if (failedEl) failedEl.textContent = failed;
+            if (blockedEl) blockedEl.textContent = blocked;
+            if (unknownEl) unknownEl.textContent = unknown;
             if (noProfileEl) noProfileEl.textContent = noProfile;
 
             // Update card styling
             var notContactedCard = document.getElementById('ap-card-notcontacted');
+            var pendingResetCard = document.getElementById('ap-card-pendingreset');
             var failedCard = document.getElementById('ap-card-failed');
+            var blockedCard = document.getElementById('ap-card-blocked');
+            var unknownCard = document.getElementById('ap-card-unknown');
             var noProfileCard = document.getElementById('ap-card-noprofile');
 
             if (notContactedCard) notContactedCard.className = 'summary-card' + (notContacted > 0 ? ' card-warning' : '');
+            if (pendingResetCard) pendingResetCard.className = 'summary-card' + (pendingReset > 0 ? ' card-warning' : '');
             if (failedCard) failedCard.className = 'summary-card' + (failed > 0 ? ' card-danger' : '');
+            if (blockedCard) blockedCard.className = 'summary-card' + (blocked > 0 ? ' card-danger' : '');
+            if (unknownCard) unknownCard.className = 'summary-card' + (unknown > 0 ? ' card-info' : '');
             if (noProfileCard) noProfileCard.className = 'summary-card' + (noProfile > 0 ? ' card-warning' : '');
+
+            autopilotFilterState.search = Filters.getValue('autopilot-search') || '';
+            autopilotFilterState.enrollment = Filters.getValue('autopilot-enrollment') || 'all';
+            autopilotFilterState.profile = Filters.getValue('autopilot-profile') || 'all';
+            autopilotFilterState.manufacturer = Filters.getValue('autopilot-manufacturer') || 'all';
+            autopilotFilterState.groupTag = Filters.getValue('autopilot-grouptag') || 'all';
 
             renderAutopilotTable(filtered);
         }
@@ -1034,7 +1252,7 @@ const PageDevices = (function() {
         Filters.setup('autopilot-enrollment', applyAutopilotFilters);
         Filters.setup('autopilot-profile', applyAutopilotFilters);
         Filters.setup('autopilot-manufacturer', applyAutopilotFilters);
-        if (groupTags.length > 0) {
+        if (groupTagKeys.length > 0) {
             Filters.setup('autopilot-grouptag', applyAutopilotFilters);
         }
     }
@@ -1118,9 +1336,30 @@ const PageDevices = (function() {
     }
 
     function formatCompliance(v) {
-        var map = { 'compliant': 'badge-success', 'noncompliant': 'badge-critical', 'inGracePeriod': 'badge-warning', 'unknown': 'badge-neutral' };
-        var labels = { 'compliant': 'Compliant', 'noncompliant': 'Non-Compliant', 'inGracePeriod': 'Grace Period', 'unknown': 'Unknown' };
-        return '<span class="badge ' + (map[v] || 'badge-neutral') + '">' + (labels[v] || v || 'Unknown') + '</span>';
+        var key = normalizeString(v);
+        var map = {
+            'compliant': 'badge-success',
+            'noncompliant': 'badge-critical',
+            'ingraceperiod': 'badge-warning',
+            'unknown': 'badge-neutral',
+            'notapplicable': 'badge-neutral',
+            'notevaluated': 'badge-neutral',
+            'error': 'badge-warning',
+            'conflict': 'badge-warning',
+            'configmanager': 'badge-neutral'
+        };
+        var labels = {
+            'compliant': 'Compliant',
+            'noncompliant': 'Non-Compliant',
+            'ingraceperiod': 'Grace Period',
+            'unknown': 'Unknown',
+            'notapplicable': 'Not Applicable',
+            'notevaluated': 'Not Evaluated',
+            'error': 'Error',
+            'conflict': 'Conflict',
+            'configmanager': 'ConfigMgr'
+        };
+        return '<span class="badge ' + (map[key] || 'badge-neutral') + '">' + (labels[key] || v || 'Unknown') + '</span>';
     }
 
     function formatCertStatus(v) {
@@ -1248,9 +1487,24 @@ const PageDevices = (function() {
 
 
     function formatEnrollmentState(v) {
-        var map = { 'enrolled': 'badge-success', 'notContacted': 'badge-warning', 'failed': 'badge-critical' };
-        var labels = { 'enrolled': 'Enrolled', 'notContacted': 'Not Contacted', 'failed': 'Failed' };
-        return '<span class="badge ' + (map[v] || 'badge-neutral') + '">' + (labels[v] || v || 'Unknown') + '</span>';
+        var key = normalizeString(v);
+        var map = {
+            'enrolled': 'badge-success',
+            'notcontacted': 'badge-warning',
+            'pendingreset': 'badge-warning',
+            'failed': 'badge-critical',
+            'blocked': 'badge-critical',
+            'unknown': 'badge-neutral'
+        };
+        var labels = {
+            'enrolled': 'Enrolled',
+            'notcontacted': 'Not Contacted',
+            'pendingreset': 'Pending Reset',
+            'failed': 'Failed',
+            'blocked': 'Blocked',
+            'unknown': 'Unknown'
+        };
+        return '<span class="badge ' + (map[key] || 'badge-neutral') + '">' + (labels[key] || v || 'Unknown') + '</span>';
     }
 
     function formatProfileAssigned(v, row) {
