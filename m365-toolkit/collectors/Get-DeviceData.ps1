@@ -342,6 +342,47 @@ try {
         $entraDevices = @()
     }
 
+    # Collect Autopilot device identities and build serial number lookup
+    $autopilotSerialLookup = @{}
+    try {
+        Write-Host "    Collecting Windows Autopilot device identities..." -ForegroundColor Gray
+        $autopilotDevices = @()
+
+        $response = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET `
+                -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities" `
+                -OutputType PSObject
+        } -OperationName "Autopilot device retrieval"
+
+        if ($response.value) {
+            $autopilotDevices = @($response.value)
+        }
+
+        # Handle pagination
+        while ($response.'@odata.nextLink') {
+            $response = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
+            } -OperationName "Autopilot device pagination"
+            if ($response.value) {
+                $autopilotDevices += $response.value
+            }
+        }
+
+        Write-Host "      Retrieved $($autopilotDevices.Count) Autopilot devices" -ForegroundColor Gray
+
+        # Build lookup by serial number (case-insensitive)
+        foreach ($apDevice in $autopilotDevices) {
+            if (-not [string]::IsNullOrWhiteSpace($apDevice.serialNumber)) {
+                $serialLower = $apDevice.serialNumber.ToLower()
+                $autopilotSerialLookup[$serialLower] = $apDevice
+            }
+        }
+    }
+    catch {
+        Write-Host "      [!] Could not retrieve Autopilot devices: $($_.Exception.Message)" -ForegroundColor Yellow
+        $errors += "Autopilot devices: $($_.Exception.Message)"
+    }
+
     # Process each device
     $processedDevices = @()
     $policyStateSupported = $true
@@ -386,6 +427,17 @@ try {
         # Calculate compliance grace period days
         $graceExpiryDays = Get-DaysUntilDate -DateValue $device.ComplianceGracePeriodExpirationDateTime
         $inGracePeriod = $null -ne $graceExpiryDays -and $graceExpiryDays -gt 0
+
+        # Check if device is in Autopilot registry by serial number (more reliable than AutopilotEnrolled property)
+        $isInAutopilot = $false
+        $autopilotRecord = $null
+        if (-not [string]::IsNullOrWhiteSpace($device.SerialNumber)) {
+            $serialLower = $device.SerialNumber.ToLower()
+            if ($autopilotSerialLookup.ContainsKey($serialLower)) {
+                $isInAutopilot = $true
+                $autopilotRecord = $autopilotSerialLookup[$serialLower]
+            }
+        }
 
         # Optional: compliance policy state details (only for non-compliant/unknown)
         $nonCompliantPolicyCount = $null
@@ -506,7 +558,7 @@ try {
             else {
                 $null
             }
-            autopilotEnrolled      = [bool]$device.AutopilotEnrolled
+            autopilotEnrolled      = $isInAutopilot
 
             # ===== CERTIFICATES =====
             certExpiryDate         = Format-IsoDate -DateValue $device.ManagedDeviceCertificateExpirationDate
