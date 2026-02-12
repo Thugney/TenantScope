@@ -20,6 +20,14 @@
 const PageGroups = (function() {
     'use strict';
 
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     var colSelector = null;
 
     /**
@@ -341,15 +349,15 @@ const PageGroups = (function() {
             '    <h4 class="mt-0 mb-sm">Identity</h4>',
             '    <div class="detail-list">',
             '        <span class="detail-label">Display Name:</span>',
-            '        <span class="detail-value">' + group.displayName + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.displayName) + '</span>',
             '        <span class="detail-label">Description:</span>',
-            '        <span class="detail-value">' + (group.description || '--') + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.description || '--') + '</span>',
             '        <span class="detail-label">Mail:</span>',
-            '        <span class="detail-value">' + (group.mail || '--') + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.mail || '--') + '</span>',
             '        <span class="detail-label">Mail Nickname:</span>',
-            '        <span class="detail-value">' + (group.mailNickname || '--') + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.mailNickname || '--') + '</span>',
             '        <span class="detail-label">Group ID:</span>',
-            '        <span class="detail-value" style="font-size: 0.8em;">' + group.id + '</span>',
+            '        <span class="detail-value" style="font-size: 0.8em;">' + escapeHtml(group.id) + '</span>',
             '    </div>',
             '',
             '    <h4 class="mt-lg mb-sm">Configuration</h4>',
@@ -359,15 +367,15 @@ const PageGroups = (function() {
             '        <span class="detail-label">Source:</span>',
             '        <span class="detail-value">' + formatSource(group.userSource) + '</span>',
             '        <span class="detail-label">Visibility:</span>',
-            '        <span class="detail-value">' + (group.visibility || '--') + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.visibility || '--') + '</span>',
             '        <span class="detail-label">Dynamic Group:</span>',
             '        <span class="detail-value">' + (group.isDynamicGroup ? 'Yes' : 'No') + '</span>',
             group.isDynamicGroup ? '        <span class="detail-label">Membership Rule:</span>' : '',
-            group.isDynamicGroup ? '        <span class="detail-value" style="font-size:0.8em;">' + (group.membershipRule || '--') + '</span>' : '',
+            group.isDynamicGroup ? '        <span class="detail-value" style="font-size:0.8em;">' + escapeHtml(group.membershipRule || '--') + '</span>' : '',
             '        <span class="detail-label">Classification:</span>',
-            '        <span class="detail-value">' + (group.classification || '--') + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.classification || '--') + '</span>',
             '        <span class="detail-label">Sensitivity Label:</span>',
-            '        <span class="detail-value">' + (group.sensitivityLabel || '--') + '</span>',
+            '        <span class="detail-value">' + escapeHtml(group.sensitivityLabel || '--') + '</span>',
             '        <span class="detail-label">Created:</span>',
             '        <span class="detail-value">' + DataLoader.formatDate(group.createdDateTime) + '</span>',
             '    </div>'
@@ -380,9 +388,9 @@ const PageGroups = (function() {
                 '    <h4 class="mt-lg mb-sm">On-Premises Sync</h4>',
                 '    <div class="detail-list">',
                 '        <span class="detail-label">Domain:</span>',
-                '        <span class="detail-value">' + (group.onPremDomainName || '--') + '</span>',
+                '        <span class="detail-value">' + escapeHtml(group.onPremDomainName || '--') + '</span>',
                 '        <span class="detail-label">SAM Account Name:</span>',
-                '        <span class="detail-value">' + (group.onPremSamAccountName || '--') + '</span>',
+                '        <span class="detail-value">' + escapeHtml(group.onPremSamAccountName || '--') + '</span>',
                 '        <span class="detail-label">Last Sync:</span>',
                 '        <span class="detail-value">' + DataLoader.formatDate(group.onPremLastSync) + '</span>',
                 '        <span class="detail-label">Sync Age (days):</span>',
@@ -500,19 +508,24 @@ const PageGroups = (function() {
 
         body.innerHTML = modalContent;
 
-        // Bind tab switching
-        var tabs = body.querySelectorAll('.modal-tab');
-        tabs.forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                var targetId = this.getAttribute('data-tab');
-                tabs.forEach(function(t) { t.classList.remove('active'); });
-                this.classList.add('active');
-                var contents = body.querySelectorAll('.modal-tab-content');
-                contents.forEach(function(c) { c.classList.remove('active'); });
-                var targetContent = document.getElementById(targetId);
-                if (targetContent) targetContent.classList.add('active');
-            });
-        });
+        // Bind tab switching using event delegation (prevents listener accumulation)
+        // Remove any existing handler first
+        if (body._tabClickHandler) {
+            body.removeEventListener('click', body._tabClickHandler);
+        }
+        body._tabClickHandler = function(e) {
+            var tab = e.target.closest('.modal-tab');
+            if (!tab) return;
+            var targetId = tab.getAttribute('data-tab');
+            var tabs = body.querySelectorAll('.modal-tab');
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+            var contents = body.querySelectorAll('.modal-tab-content');
+            contents.forEach(function(c) { c.classList.remove('active'); });
+            var targetContent = document.getElementById(targetId);
+            if (targetContent) targetContent.classList.add('active');
+        };
+        body.addEventListener('click', body._tabClickHandler);
 
         modal.classList.add('visible');
     }

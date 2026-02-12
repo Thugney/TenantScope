@@ -30,6 +30,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Devices page filters**: Added safety checks to prevent empty table rendering when column state is corrupted
 - **Autopilot tab**: Profile Status column now displays actual status values (In Sync, Out of Sync, Pending, Not Assigned, Failed) instead of "Unknown"
 
+### Security & Bug Fixes (Dashboard Property Rendering)
+- **HIGH: XSS prevention** - Replaced unsafe inline `onclick` handlers with data attributes and event delegation in `page-app-deployments.js`
+- **HIGH: Runtime crash fix** - Added type validation in `formatThreatSeverity()` to prevent `charAt()` crash on empty strings
+- **HIGH: Null safety** - Added null/undefined checks in `focus-tables.js` `groupBy()` and `renderBreakdownTable()` to prevent TypeError on malformed data
+- **HIGH: Memory leak fix** - Fixed event listener accumulation in device link handlers (`page-devices.js`) by removing old handlers before re-adding
+- **HIGH: Memory leak fix** - Fixed tab event listener stacking in user modal (`page-users.js`) using event delegation with cleanup
+- **HIGH: Race condition fix** - Added index invalidation, version tracking, and concurrent build prevention in `data-relationships.js`
+- **MEDIUM: XSS prevention** - Added `escapeHtml()` function and applied to all user-facing data in `page-compliance-policies.js`
+- **MEDIUM: XSS prevention** - Applied HTML escaping to configuration profiles, app deployments, compliance policies, and Defender alerts tables in device modal
+- **MEDIUM: API typo handling** - Documented intentional handling of Graph API typo `assignedUnkownSyncState` in Autopilot profile status
+- **MEDIUM: Data mutation fix** - Added `deepClone()` function in `page-data-quality.js` to prevent modifications to original DataStore objects
+- **MEDIUM: CSV export fix** - Added formatter support to CSV export (`export.js`) - now applies column formatters and strips HTML for clean exports
+- **MEDIUM: Type safety** - Added string type validation in `formatHealthStatus()` (`shared-formatters.js`) before calling `toLowerCase()`
+- **MEDIUM: Stale context fix** - Improved copy button handler in user modal to use data attributes and check modal visibility before showing toasts
+- **LOW: Null safety** - Added null check for `row` parameter in `primaryUserDisplayName` formatter
+- **LOW: Performance** - Fixed duplicate property reads in `page-data-quality.js` by caching values in local variables
+- **LOW: Documentation** - Added `sortable: false, filterable: false` flags to synthetic `_adminLinks` column with explanatory comments
+
+### Additional Security & Bug Fixes (Round 2)
+- **HIGH: XSS prevention** - Added `escapeHtml()` and applied to modal HTML in `page-configuration-profiles.js` (profile type, platform, category, description, assignments, device statuses)
+- **HIGH: XSS prevention** - Added `escapeHtml()` and applied to modal HTML in `page-groups.js` (display name, description, mail, visibility, membership rule, classification, on-prem fields)
+- **HIGH: XSS prevention** - Added `escapeHtml()` and applied to modal HTML in `page-enterprise-apps.js` (app name, publisher, verified publisher, owners, secrets, certificates)
+- **HIGH: XSS prevention** - Added `escapeHtml()` and applied to error devices table in `page-windows-update.js` (device name, user, update ring, error details)
+- **HIGH: Memory leak fix** - Fixed tab event listener stacking in groups modal (`page-groups.js`) using event delegation with cleanup
+- **MEDIUM: Null safety** - Added null checks for `directReports` array access in `page-organization.js` (lines 1089, 1473, 1488)
+- **MEDIUM: Null safety** - Added null checks for `deviceName` and `settingName` in search filters (`page-compliance-policies.js`)
+- **MEDIUM: Null safety** - Added null checks for `user` object access in overlap filters (`page-license-analysis.js`)
+- **MEDIUM: Null safety** - Added null checks for `page.label` and `page.key` in global search (`global-search.js`)
+- **MEDIUM: Null safety** - Added fallback values for `item.severity`, `item.category`, and `item.title` in action cards (`page-overview.js`)
+
 ---
 
 ## [2.4.1] - 2026-02-11

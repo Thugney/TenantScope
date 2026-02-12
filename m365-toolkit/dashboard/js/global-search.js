@@ -703,8 +703,9 @@ const GlobalSearch = (function() {
 
         // Search navigation pages first
         navigationPages.forEach(function(page) {
-            if (page.label.toLowerCase().includes(queryLower) ||
-                page.key.toLowerCase().includes(queryLower)) {
+            var pageLabel = (page.label || '').toLowerCase();
+            var pageKey = (page.key || '').toLowerCase();
+            if (pageLabel.includes(queryLower) || pageKey.includes(queryLower)) {
                 currentResults.push({
                     type: 'page',
                     page: page.key,

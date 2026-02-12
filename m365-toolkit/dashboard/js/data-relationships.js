@@ -27,13 +27,44 @@ var DataRelationships = (function() {
     var userGroupIndex = {};     // userId -> array of group objects
 
     var indexesBuilt = false;
+    var indexBuildInProgress = false;
+    var lastDataVersion = null;
+
+    /**
+     * Invalidates indexes so they will be rebuilt on next access.
+     * Call this when data is reloaded or updated.
+     */
+    function invalidateIndexes() {
+        indexesBuilt = false;
+        lastDataVersion = null;
+        // Clear all indexes
+        userIndex = {};
+        userUpnIndex = {};
+        deviceIndex = {};
+        deviceNameIndex = {};
+        mfaIndex = {};
+        teamIndex = {};
+        siteIndex = {};
+        siteGroupIndex = {};
+        groupIndex = {};
+        groupNameIndex = {};
+        userGroupIndex = {};
+    }
 
     /**
      * Build all index maps from DataStore data.
      * Call this after DataLoader.loadAll() completes.
+     * Thread-safe: prevents concurrent builds and supports invalidation.
      */
     function buildIndexes() {
-        if (indexesBuilt) return;
+        // Prevent concurrent builds
+        if (indexBuildInProgress) return;
+
+        // Check if already built and data hasn't changed
+        var currentVersion = DataStore.dataVersion || Date.now();
+        if (indexesBuilt && lastDataVersion === currentVersion) return;
+
+        indexBuildInProgress = true;
 
         var users = DataStore.getAllUsers ? DataStore.getAllUsers() : (DataStore.users || []);
         var devices = DataStore.getAllDevices ? DataStore.getAllDevices() : (DataStore.devices || []);
@@ -88,6 +119,8 @@ var DataRelationships = (function() {
         }
 
         indexesBuilt = true;
+        lastDataVersion = currentVersion;
+        indexBuildInProgress = false;
         console.log('DataRelationships: Indexes built -',
             Object.keys(userIndex).length, 'users,',
             Object.keys(deviceIndex).length, 'devices,',
@@ -1469,7 +1502,11 @@ var DataRelationships = (function() {
         getUserPimActivity: getUserPimActivity,
 
         // Risky Sign-Ins
-        getUserRiskySignins: getUserRiskySignins
+        getUserRiskySignins: getUserRiskySignins,
+
+        // Index management
+        invalidateIndexes: invalidateIndexes,
+        buildIndexes: buildIndexes
     };
 })();
 

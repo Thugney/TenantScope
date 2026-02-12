@@ -31,7 +31,9 @@ const FocusTables = (function() {
     function groupBy(data, key) {
         var map = {};
         for (var i = 0; i < data.length; i++) {
-            var val = data[i][key];
+            var item = data[i];
+            if (!item || typeof item !== 'object') continue;
+            var val = item[key];
             var label = (val === null || val === undefined || val === '') ? '(empty)' : String(val);
             map[label] = (map[label] || 0) + 1;
         }
@@ -167,8 +169,10 @@ const FocusTables = (function() {
         var pivot = {};
         var breakdownValues = {};
         for (var i = 0; i < data.length; i++) {
-            var pVal = data[i][config.primaryKey];
-            var bVal = data[i][config.breakdownKey];
+            var item = data[i];
+            if (!item || typeof item !== 'object') continue;
+            var pVal = item[config.primaryKey];
+            var bVal = item[config.breakdownKey];
             var pLabel = (pVal === null || pVal === undefined || pVal === '') ? '(empty)' : String(pVal);
             var bLabel = (bVal === null || bVal === undefined || bVal === '') ? '(empty)' : String(bVal);
 

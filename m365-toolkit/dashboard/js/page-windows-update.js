@@ -7,6 +7,14 @@
 const PageWindowsUpdate = (function() {
     'use strict';
 
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     // Reference to SharedFormatters
     var SF = window.SharedFormatters || {};
 
@@ -119,10 +127,10 @@ const PageWindowsUpdate = (function() {
 
             errorDevices.slice(0, 10).forEach(function(d) {
                 html += '<tr>';
-                html += '<td><a href="#devices?search=' + encodeURIComponent(d.deviceName || '') + '" class="entity-link"><strong>' + (d.deviceName || '--') + '</strong></a></td>';
-                html += '<td class="cell-truncate"><a href="#users?search=' + encodeURIComponent(d.userPrincipalName || '') + '" class="entity-link">' + (d.userPrincipalName || '--') + '</a></td>';
-                html += '<td>' + (d.updateRing || '--') + '</td>';
-                html += '<td class="text-critical">' + (d.errorDetails || 'Unknown error') + '</td>';
+                html += '<td><a href="#devices?search=' + encodeURIComponent(d.deviceName || '') + '" class="entity-link"><strong>' + escapeHtml(d.deviceName || '--') + '</strong></a></td>';
+                html += '<td class="cell-truncate"><a href="#users?search=' + encodeURIComponent(d.userPrincipalName || '') + '" class="entity-link">' + escapeHtml(d.userPrincipalName || '--') + '</a></td>';
+                html += '<td>' + escapeHtml(d.updateRing || '--') + '</td>';
+                html += '<td class="text-critical">' + escapeHtml(d.errorDetails || 'Unknown error') + '</td>';
                 html += '<td>' + SF.formatDate(d.lastSyncDateTime) + '</td>';
                 html += '</tr>';
             });

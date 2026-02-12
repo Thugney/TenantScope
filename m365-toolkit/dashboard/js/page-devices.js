@@ -7,6 +7,14 @@
 const PageDevices = (function() {
     'use strict';
 
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     var currentTab = 'overview';
     var colSelector = null;
 
@@ -540,9 +548,9 @@ const PageDevices = (function() {
             // Core identity
             { key: 'deviceName', label: 'Device Name', formatter: function(v, row) {
                 if (!v) return '--';
-                var id = row && row.id ? row.id : '';
-                var name = v || '';
-                return '<a href="#" class="entity-link device-link" data-device-id="' + id + '" data-device-name="' + name + '"><strong>' + v + '</strong></a>';
+                var id = (row && row.id) ? escapeHtml(row.id) : '';
+                var name = escapeHtml(v || '');
+                return '<a href="#" class="entity-link device-link" data-device-id="' + id + '" data-device-name="' + name + '"><strong>' + name + '</strong></a>';
             }},
             { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
                 if (!v) return '--';
@@ -550,9 +558,9 @@ const PageDevices = (function() {
             }},
             { key: 'primaryUserDisplayName', label: 'Display Name', formatter: function(v, row) {
                 if (!v) return '--';
-                var upn = row.userPrincipalName || '';
-                if (upn) return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link">' + v + '</a>';
-                return v;
+                var upn = (row && row.userPrincipalName) || '';
+                if (upn) return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link">' + escapeHtml(v) + '</a>';
+                return escapeHtml(v);
             }},
             { key: 'azureAdDeviceId', label: 'Azure AD ID', className: 'cell-truncate', formatter: function(v) { return v || '--'; } },
             // OS
@@ -640,8 +648,11 @@ const PageDevices = (function() {
             // Mobile identifiers
             { key: 'imei', label: 'IMEI' },
             { key: 'meid', label: 'MEID' },
-            // Admin portal links
-            { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
+            // Admin portal links - synthetic column (key starts with _)
+            // This column is computed from row data, not from a data field
+            // It should be excluded from sorting/filtering operations
+            { key: '_adminLinks', label: 'Admin', sortable: false, filterable: false, formatter: function(v, row) {
+                if (!row) return '--';
                 var links = [];
                 if (row.id) {
                     links.push('<a href="https://intune.microsoft.com/#view/Microsoft_Intune_Devices/DeviceSettingsBlade/deviceId/' + encodeURIComponent(row.id) + '" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>');
@@ -708,29 +719,37 @@ const PageDevices = (function() {
             onRowClick: showDeviceDetails
         });
 
+        // Use event delegation on the table to avoid listener accumulation on re-render
         var tableEl = document.getElementById('devices-table');
         if (tableEl) {
-            tableEl.querySelectorAll('.device-link').forEach(function(link) {
-                link.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    e.stopPropagation();
+            // Remove existing delegated handler if present (prevent duplicates)
+            if (tableEl._deviceLinkHandler) {
+                tableEl.removeEventListener('click', tableEl._deviceLinkHandler);
+            }
+            // Create new handler with closure over current data
+            tableEl._deviceLinkHandler = function(e) {
+                var link = e.target.closest('.device-link');
+                if (!link) return;
 
-                    var id = this.dataset.deviceId;
-                    var name = this.dataset.deviceName;
-                    var device = null;
+                e.preventDefault();
+                e.stopPropagation();
 
-                    if (id) {
-                        device = data.find(function(d) { return d.id === id; }) || null;
-                    }
-                    if (!device && name) {
-                        device = data.find(function(d) { return d.deviceName === name; }) || null;
-                    }
+                var id = link.dataset.deviceId;
+                var name = link.dataset.deviceName;
+                var device = null;
 
-                    if (device) {
-                        showDeviceDetails(device);
-                    }
-                });
-            });
+                if (id) {
+                    device = data.find(function(d) { return d.id === id; }) || null;
+                }
+                if (!device && name) {
+                    device = data.find(function(d) { return d.deviceName === name; }) || null;
+                }
+
+                if (device) {
+                    showDeviceDetails(device);
+                }
+            };
+            tableEl.addEventListener('click', tableEl._deviceLinkHandler);
         }
     }
 
@@ -1063,11 +1082,13 @@ const PageDevices = (function() {
     }
 
     function formatProfileStatus(v) {
+        // Note: 'assignedUnkownSyncState' is an intentional typo from the Graph API
+        // We handle both the typo and the correct spelling for compatibility
         var map = {
-            'assignedInSync': { badge: 'badge-success', label: 'Assigned (In Sync)' },
-            'assignedOutOfSync': { badge: 'badge-warning', label: 'Assigned (Out of Sync)' },
-            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },
-            'assignedUnknownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },
+            'assignedInSync': { badge: 'badge-success', label: 'Assigned - In Sync' },
+            'assignedOutOfSync': { badge: 'badge-warning', label: 'Assigned - Out of Sync' },
+            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },  // API typo
+            'assignedUnknownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' }, // Correct spelling
             'notAssigned': { badge: 'badge-neutral', label: 'Not Assigned' },
             'pending': { badge: 'badge-warning', label: 'Pending' },
             'failed': { badge: 'badge-critical', label: 'Failed' },
@@ -1197,7 +1218,7 @@ const PageDevices = (function() {
     }
 
     function formatThreatSeverity(v) {
-        if (!v) return '<span class="text-muted">--</span>';
+        if (!v || typeof v !== 'string' || v.length === 0) return '<span class="text-muted">--</span>';
         var map = {
             'critical': 'text-critical font-bold',
             'high': 'text-critical',
@@ -1206,7 +1227,8 @@ const PageDevices = (function() {
             'none': 'text-success',
             'unknown': 'text-muted'
         };
-        return '<span class="' + (map[v] || '') + '">' + (v.charAt(0).toUpperCase() + v.slice(1)) + '</span>';
+        var label = v.charAt(0).toUpperCase() + v.slice(1);
+        return '<span class="' + (map[v] || '') + '">' + label + '</span>';
     }
 
     function formatExchangeAccess(v) {
@@ -1571,9 +1593,9 @@ const PageDevices = (function() {
                 var sevClass = alert.severity === 'high' ? 'text-critical' : alert.severity === 'medium' ? 'text-warning' : '';
                 var statusClass = alert.status === 'new' ? 'text-critical' : alert.status === 'inProgress' ? 'text-warning' : 'text-success';
                 html += '<tr>';
-                html += '<td title="' + (alert.description || '').replace(/"/g, '&quot;') + '">' + (alert.title || '--') + '</td>';
-                html += '<td class="' + sevClass + '">' + (alert.severity || '--') + '</td>';
-                html += '<td class="' + statusClass + '">' + (alert.status || '--') + '</td>';
+                html += '<td title="' + escapeHtml(alert.description || '') + '">' + escapeHtml(alert.title || '--') + '</td>';
+                html += '<td class="' + sevClass + '">' + escapeHtml(alert.severity || '--') + '</td>';
+                html += '<td class="' + statusClass + '">' + escapeHtml(alert.status || '--') + '</td>';
                 html += '<td>' + formatDateConsistent(alert.createdDateTime, false) + '</td>';
                 html += '</tr>';
             });
@@ -1619,9 +1641,9 @@ const PageDevices = (function() {
                 var statusClass = p.hasError ? 'text-critical' : p.hasConflict ? 'text-warning' : 'text-success';
                 var statusText = p.hasError ? 'Error' : p.hasConflict ? 'Conflict' : 'Success';
                 html += '<tr>';
-                html += '<td>' + (p.displayName || '--') + '</td>';
-                html += '<td>' + (p.profileType || '--') + '</td>';
-                html += '<td>' + (p.category || '--') + '</td>';
+                html += '<td>' + escapeHtml(p.displayName || '--') + '</td>';
+                html += '<td>' + escapeHtml(p.profileType || '--') + '</td>';
+                html += '<td>' + escapeHtml(p.category || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
                 html += '</tr>';
             });
@@ -1643,11 +1665,11 @@ const PageDevices = (function() {
                 var statusClass = app.isFailed ? 'text-critical' : 'text-success';
                 var statusText = app.isFailed ? 'Failed' : 'Installed';
                 html += '<tr>';
-                html += '<td>' + (app.displayName || '--') + '</td>';
-                html += '<td>' + (app.version || '--') + '</td>';
-                html += '<td>' + (app.appType || '--') + '</td>';
+                html += '<td>' + escapeHtml(app.displayName || '--') + '</td>';
+                html += '<td>' + escapeHtml(app.version || '--') + '</td>';
+                html += '<td>' + escapeHtml(app.appType || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
-                html += '<td>' + (app.errorCode || '--') + '</td>';
+                html += '<td>' + escapeHtml(app.errorCode || '--') + '</td>';
                 html += '</tr>';
             });
             html += '</tbody></table>';
@@ -1686,12 +1708,14 @@ const PageDevices = (function() {
                 var criticalBadge = p.isCritical ? ' <span class="status-badge status-warning" style="font-size:0.7em">Critical</span>' : '';
                 var failedSettings = p.settingFailures && Array.isArray(p.settingFailures) && p.settingFailures.length > 0 ?
                     p.settingFailures.map(function(s) { return s.settingName; }).join(', ') : '--';
+                var escapedFailedSettings = escapeHtml(failedSettings);
+                var truncatedSettings = failedSettings.length > 40 ? escapeHtml(failedSettings.substring(0, 40)) + '...' : escapedFailedSettings;
                 html += '<tr>';
-                html += '<td>' + (p.displayName || '--') + criticalBadge + '</td>';
-                html += '<td>' + (p.platform || '--') + '</td>';
-                html += '<td>' + (p.category || '--') + '</td>';
+                html += '<td>' + escapeHtml(p.displayName || '--') + criticalBadge + '</td>';
+                html += '<td>' + escapeHtml(p.platform || '--') + '</td>';
+                html += '<td>' + escapeHtml(p.category || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
-                html += '<td title="' + failedSettings + '">' + (failedSettings.length > 40 ? failedSettings.substring(0, 40) + '...' : failedSettings) + '</td>';
+                html += '<td title="' + escapedFailedSettings + '">' + truncatedSettings + '</td>';
                 html += '</tr>';
             });
             html += '</tbody></table>';
@@ -1701,7 +1725,7 @@ const PageDevices = (function() {
             if (device.nonCompliantPolicies && device.nonCompliantPolicies.length > 0) {
                 html += '<ul class="detail-methods-list">';
                 device.nonCompliantPolicies.forEach(function(p) {
-                    html += '<li class="text-critical">' + p + '</li>';
+                    html += '<li class="text-critical">' + escapeHtml(p) + '</li>';
                 });
                 html += '</ul>';
             }

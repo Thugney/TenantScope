@@ -424,6 +424,7 @@ const PageLicenseAnalysis = (function() {
         if (search) {
             var term = search.toLowerCase();
             data = data.filter(function(o) {
+                if (!o || !o.user) return false;
                 return (o.user.displayName && o.user.displayName.toLowerCase().indexOf(term) !== -1) ||
                        (o.user.userPrincipalName && o.user.userPrincipalName.toLowerCase().indexOf(term) !== -1) ||
                        (o.user.department && o.user.department.toLowerCase().indexOf(term) !== -1);
@@ -439,7 +440,7 @@ const PageLicenseAnalysis = (function() {
         // Department filter
         var deptFilter = Filters.getValue('overlaps-dept');
         if (deptFilter && deptFilter !== 'all') {
-            data = data.filter(function(o) { return (o.user.department || 'Unassigned') === deptFilter; });
+            data = data.filter(function(o) { return o && o.user && (o.user.department || 'Unassigned') === deptFilter; });
         }
 
         renderTable(data);

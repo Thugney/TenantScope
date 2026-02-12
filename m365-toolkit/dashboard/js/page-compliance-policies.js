@@ -10,6 +10,14 @@ const PageCompliancePolicies = (function() {
     // Reference to SharedFormatters
     var Formatters = window.SharedFormatters || {};
 
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     var colSelector = null;
     var currentTab = 'overview';
 
@@ -319,8 +327,8 @@ const PageCompliancePolicies = (function() {
                 var policyRate = p.complianceRate !== null && p.complianceRate !== undefined ? Math.round(p.complianceRate) : null;
                 html += '<div class="problem-policy-card">';
                 html += '<div class="policy-header">';
-                html += '<span class="policy-name">' + p.displayName + '</span>';
-                html += (Formatters.formatPlatform ? Formatters.formatPlatform(p.platform) : '<span class="badge badge-info">' + p.platform + '</span>');
+                html += '<span class="policy-name">' + escapeHtml(p.displayName) + '</span>';
+                html += (Formatters.formatPlatform ? Formatters.formatPlatform(p.platform) : '<span class="badge badge-info">' + escapeHtml(p.platform) + '</span>');
                 html += '</div>';
                 html += '<div class="policy-stats">';
                 html += '<span class="text-critical">' + (Formatters.formatCount ? Formatters.formatCount(p.nonCompliantCount, { zeroIsGood: true }) : p.nonCompliantCount) + ' non-compliant</span>';
@@ -505,7 +513,8 @@ const PageCompliancePolicies = (function() {
         Filters.setup('device-search', function() {
             var search = Filters.getValue('device-search') || '';
             var filtered = devices.filter(function(d) {
-                return d.deviceName.toLowerCase().indexOf(search.toLowerCase()) !== -1 ||
+                var deviceName = d.deviceName || '';
+                return deviceName.toLowerCase().indexOf(search.toLowerCase()) !== -1 ||
                        (d.userName && d.userName.toLowerCase().indexOf(search.toLowerCase()) !== -1);
             });
             renderNonCompliantDevicesTable(filtered);
@@ -567,8 +576,10 @@ const PageCompliancePolicies = (function() {
         Filters.setup('setting-search', function() {
             var search = Filters.getValue('setting-search') || '';
             var filtered = settings.filter(function(s) {
-                return s.settingName.toLowerCase().indexOf(search.toLowerCase()) !== -1 ||
-                       s.policyName.toLowerCase().indexOf(search.toLowerCase()) !== -1;
+                var settingName = s.settingName || '';
+                var policyName = s.policyName || '';
+                return settingName.toLowerCase().indexOf(search.toLowerCase()) !== -1 ||
+                       policyName.toLowerCase().indexOf(search.toLowerCase()) !== -1;
             });
             renderSettingsTable(filtered);
         });

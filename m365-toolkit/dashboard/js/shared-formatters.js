@@ -267,9 +267,12 @@ const SharedFormatters = (function() {
             'needsAttention': { badge: 'badge-warning', label: 'Needs Attention' },
             'unknown': { badge: 'badge-neutral', label: 'Unknown' }
         };
-        // Handle camelCase and lowercase variations
-        var key = value ? value.toLowerCase().replace(/\s+/g, '') : 'unknown';
-        if (key === 'needsattention') key = 'needsAttention';
+        // Handle camelCase and lowercase variations - ensure value is a string
+        var key = 'unknown';
+        if (value && typeof value === 'string') {
+            key = value.toLowerCase().replace(/\s+/g, '');
+            if (key === 'needsattention') key = 'needsAttention';
+        }
         var state = states[key] || states['unknown'];
         return '<span class="badge ' + state.badge + '">' + state.label + '</span>';
     }

@@ -11,6 +11,14 @@ const PageConfigurationProfiles = (function() {
     // SharedFormatters reference
     var SF = window.SharedFormatters || {};
 
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     var colSelector = null;
     var rawData = null;
     var activeTab = 'overview';
@@ -149,10 +157,10 @@ const PageConfigurationProfiles = (function() {
 
             problemProfiles.forEach(function(profile) {
                 var pProfile = typeof profile.errorCount !== 'undefined' ? profile : mapProfile(profile);
-                html += '<tr class="clickable-row" data-profile-id="' + pProfile.id + '">';
-                html += '<td><strong>' + (pProfile.displayName || 'Unnamed') + '</strong></td>';
-                html += '<td>' + (SF.formatPlatform ? SF.formatPlatform(pProfile.platform) : '<span class="badge badge-neutral">' + (pProfile.platform || 'Unknown') + '</span>') + '</td>';
-                html += '<td><span class="badge badge-info">' + (pProfile.profileType || 'Unknown') + '</span></td>';
+                html += '<tr class="clickable-row" data-profile-id="' + escapeHtml(pProfile.id) + '">';
+                html += '<td><strong>' + escapeHtml(pProfile.displayName || 'Unnamed') + '</strong></td>';
+                html += '<td>' + (SF.formatPlatform ? SF.formatPlatform(pProfile.platform) : '<span class="badge badge-neutral">' + escapeHtml(pProfile.platform || 'Unknown') + '</span>') + '</td>';
+                html += '<td><span class="badge badge-info">' + escapeHtml(pProfile.profileType || 'Unknown') + '</span></td>';
                 html += '<td>' + (SF.formatCount ? SF.formatCount(pProfile.errorCount, { zeroIsGood: true }) : (pProfile.errorCount > 0 ? '<span class="text-critical font-bold">' + pProfile.errorCount + '</span>' : '<span class="text-muted">0</span>')) + '</td>';
                 html += '<td>' + (pProfile.conflictCount > 0 ? '<span class="text-warning font-bold">' + pProfile.conflictCount + '</span>' : '<span class="text-muted">0</span>') + '</td>';
                 html += '<td>' + (SF.formatPercentage ? SF.formatPercentage(pProfile.successRate, { inverse: true }) : formatSuccessRate(pProfile.successRate)) + '</td>';
@@ -511,7 +519,7 @@ const PageConfigurationProfiles = (function() {
             html += '<div class="detail-section"><h4>Assignments (' + profile.assignments.length + ')</h4>';
             html += '<div class="assignment-tags">';
             profile.assignments.forEach(function(a) {
-                html += '<span class="badge badge-neutral">' + (a.name || a.type || 'Unknown') + '</span> ';
+                html += '<span class="badge badge-neutral">' + escapeHtml(a.name || a.type || 'Unknown') + '</span> ';
             });
             html += '</div></div>';
         }
@@ -523,9 +531,9 @@ const PageConfigurationProfiles = (function() {
             profile.deviceStatuses.slice(0, 10).forEach(function(ds) {
                 var statusBadge = ds.status === 'error' ? 'badge-critical' : ds.status === 'conflict' ? 'badge-warning' : 'badge-neutral';
                 html += '<tr>';
-                html += '<td>' + (ds.deviceName || 'Unknown') + '</td>';
-                html += '<td class="cell-truncate">' + (ds.userName || 'Unknown') + '</td>';
-                html += '<td><span class="badge ' + statusBadge + '">' + (ds.status || 'Unknown') + '</span></td>';
+                html += '<td>' + escapeHtml(ds.deviceName || 'Unknown') + '</td>';
+                html += '<td class="cell-truncate">' + escapeHtml(ds.userName || 'Unknown') + '</td>';
+                html += '<td><span class="badge ' + statusBadge + '">' + escapeHtml(ds.status || 'Unknown') + '</span></td>';
                 html += '<td>' + (SF.formatDate ? SF.formatDate(ds.lastReportedDateTime) : Tables.formatters.date(ds.lastReportedDateTime)) + '</td>';
                 html += '</tr>';
             });
@@ -567,13 +575,13 @@ const PageConfigurationProfiles = (function() {
         html += '<div class="detail-section">';
         html += '<h4>Profile Information</h4>';
         html += '<div class="detail-grid">';
-        html += '<div class="detail-item"><span class="detail-label">Type</span><span class="detail-value"><span class="badge badge-info">' + (profile.profileType || 'Unknown') + '</span></span></div>';
-        html += '<div class="detail-item"><span class="detail-label">Platform</span><span class="detail-value">' + (SF.formatPlatform ? SF.formatPlatform(profile.platform) : '<span class="badge badge-neutral">' + (profile.platform || 'Unknown') + '</span>') + '</span></div>';
-        html += '<div class="detail-item"><span class="detail-label">Category</span><span class="detail-value">' + (profile.category || 'General') + '</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Type</span><span class="detail-value"><span class="badge badge-info">' + escapeHtml(profile.profileType || 'Unknown') + '</span></span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Platform</span><span class="detail-value">' + (SF.formatPlatform ? SF.formatPlatform(profile.platform) : '<span class="badge badge-neutral">' + escapeHtml(profile.platform || 'Unknown') + '</span>') + '</span></div>';
+        html += '<div class="detail-item"><span class="detail-label">Category</span><span class="detail-value">' + escapeHtml(profile.category || 'General') + '</span></div>';
         html += '<div class="detail-item"><span class="detail-label">Assignments</span><span class="detail-value">' + (profile.assignmentCount || 0) + '</span></div>';
         html += '</div>';
         if (profile.description) {
-            html += '<p class="detail-description">' + profile.description + '</p>';
+            html += '<p class="detail-description">' + escapeHtml(profile.description) + '</p>';
         }
         html += '</div>';
 

@@ -42,6 +42,19 @@ const Export = (function() {
      * @param {any} value - Value to escape
      * @returns {string} CSV-safe string
      */
+    /**
+     * Strips HTML tags from a string using regex, returning plain text.
+     * Safer than using innerHTML since we don't execute the content.
+     *
+     * @param {string} html - HTML string to strip
+     * @returns {string} Plain text content
+     */
+    function stripHtml(html) {
+        if (!html || typeof html !== 'string') return String(html || '');
+        // Remove HTML tags
+        return html.replace(/<[^>]*>/g, '').replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").trim();
+    }
+
     function escapeCSV(value) {
         if (value === null || value === undefined) {
             return '';
@@ -134,10 +147,20 @@ const Export = (function() {
             const headers = columns.map(col => escapeCSV(col.label));
             const headerRow = headers.join(',');
 
-            // Build data rows
+            // Build data rows - apply formatters if defined and strip HTML
             const dataRows = data.map(item => {
                 return columns.map(col => {
-                    const value = getNestedValue(item, col.key);
+                    let value = getNestedValue(item, col.key);
+                    // Apply exportFormatter if defined (returns plain text)
+                    if (typeof col.exportFormatter === 'function') {
+                        value = col.exportFormatter(value, item);
+                    }
+                    // Apply regular formatter if defined (may return HTML)
+                    else if (typeof col.formatter === 'function') {
+                        const formatted = col.formatter(value, item);
+                        // Strip HTML tags from formatted value
+                        value = stripHtml(formatted);
+                    }
                     return escapeCSV(value);
                 }).join(',');
             });

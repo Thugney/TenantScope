@@ -524,8 +524,8 @@ const PageOverview = (function() {
                 }
 
                 var actionHeader = el('div', 'action-header');
-                actionHeader.appendChild(el('span', 'action-badge badge-' + item.severity, item.category));
-                actionHeader.appendChild(el('span', 'action-title', item.title));
+                actionHeader.appendChild(el('span', 'action-badge badge-' + (item.severity || 'info'), item.category || 'Info'));
+                actionHeader.appendChild(el('span', 'action-title', item.title || 'Action Item'));
                 actionCard.appendChild(actionHeader);
 
                 if (item.action) {

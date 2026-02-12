@@ -680,6 +680,8 @@ const PageUsers = (function() {
 
     /**
      * Shows detailed modal for a user with tabbed layout and all related data.
+     * Note: Modal displays a snapshot of data at the time of opening.
+     * Data is re-fetched each time the modal is opened for a user.
      *
      * @param {object} user - User data object
      */
@@ -729,14 +731,24 @@ const PageUsers = (function() {
         }
         if (copyBtn) {
             copyBtn.disabled = !disableCommand;
-            copyBtn.addEventListener('click', function() {
-                if (!disableCommand || !AU.copyText) return;
-                AU.copyText(disableCommand).then(function() {
-                    if (window.Toast) Toast.success('Copied', 'Disable user command copied.');
+            // Store command in data attribute to avoid stale closure issues
+            copyBtn.dataset.command = disableCommand || '';
+            // Remove existing handler if present
+            if (copyBtn._clickHandler) {
+                copyBtn.removeEventListener('click', copyBtn._clickHandler);
+            }
+            copyBtn._clickHandler = function() {
+                var cmd = this.dataset.command;
+                if (!cmd || !AU.copyText) return;
+                // Check if modal is still visible before showing toast
+                var modalVisible = modal && modal.classList.contains('visible');
+                AU.copyText(cmd).then(function() {
+                    if (modalVisible && window.Toast) Toast.success('Copied', 'Disable user command copied.');
                 }).catch(function() {
-                    if (window.Toast) Toast.error('Copy failed', 'Unable to copy command.');
+                    if (modalVisible && window.Toast) Toast.error('Copy failed', 'Unable to copy command.');
                 });
-            });
+            };
+            copyBtn.addEventListener('click', copyBtn._clickHandler);
         }
 
         modal.classList.add('visible');
@@ -1252,24 +1264,35 @@ const PageUsers = (function() {
         var tabs = body.querySelectorAll('.modal-tab');
         var panes = body.querySelectorAll('.modal-tab-pane');
 
-        tabs.forEach(function(tab) {
-            tab.addEventListener('click', function() {
-                var targetTab = this.getAttribute('data-tab');
+        // Use event delegation on the tabs container to prevent listener accumulation
+        var tabsContainer = body.querySelector('.modal-tabs');
+        if (!tabsContainer) return;
 
-                // Update active tab
-                tabs.forEach(function(t) { t.classList.remove('active'); });
-                this.classList.add('active');
+        // Remove existing handler if present (prevents stacking on re-open)
+        if (tabsContainer._tabClickHandler) {
+            tabsContainer.removeEventListener('click', tabsContainer._tabClickHandler);
+        }
 
-                // Update active pane
-                panes.forEach(function(p) {
-                    if (p.getAttribute('data-tab') === targetTab) {
-                        p.classList.add('active');
-                    } else {
-                        p.classList.remove('active');
-                    }
-                });
+        tabsContainer._tabClickHandler = function(e) {
+            var tab = e.target.closest('.modal-tab');
+            if (!tab) return;
+
+            var targetTab = tab.getAttribute('data-tab');
+
+            // Update active tab
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            tab.classList.add('active');
+
+            // Update active pane
+            panes.forEach(function(p) {
+                if (p.getAttribute('data-tab') === targetTab) {
+                    p.classList.add('active');
+                } else {
+                    p.classList.remove('active');
+                }
             });
-        });
+        };
+        tabsContainer.addEventListener('click', tabsContainer._tabClickHandler);
     }
 
     function escapeHtml(text) {

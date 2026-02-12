@@ -21,6 +21,14 @@
 const PageEnterpriseApps = (function() {
     'use strict';
 
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
     var currentTab = 'overview';
     var colSelector = null;
 
@@ -631,9 +639,9 @@ const PageEnterpriseApps = (function() {
         html += '<div class="detail-section">';
         html += '<h4>Application Information</h4>';
         html += '<div class="detail-list">';
-        html += '<span class="detail-label">Display Name:</span><span class="detail-value">' + (app.displayName || '--') + '</span>';
-        html += '<span class="detail-label">App ID:</span><span class="detail-value" style="font-size: 0.8em;">' + (app.appId || '--') + '</span>';
-        html += '<span class="detail-label">Service Principal ID:</span><span class="detail-value" style="font-size: 0.8em;">' + (app.id || '--') + '</span>';
+        html += '<span class="detail-label">Display Name:</span><span class="detail-value">' + escapeHtml(app.displayName || '--') + '</span>';
+        html += '<span class="detail-label">App ID:</span><span class="detail-value" style="font-size: 0.8em;">' + escapeHtml(app.appId || '--') + '</span>';
+        html += '<span class="detail-label">Service Principal ID:</span><span class="detail-value" style="font-size: 0.8em;">' + escapeHtml(app.id || '--') + '</span>';
         html += '<span class="detail-label">Created:</span><span class="detail-value">' + DataLoader.formatDate(app.createdDateTime) + '</span>';
         html += '<span class="detail-label">Type:</span><span class="detail-value">' + formatAppType(app.appType) + '</span>';
         html += '</div></div>';
@@ -642,9 +650,9 @@ const PageEnterpriseApps = (function() {
         html += '<div class="detail-section">';
         html += '<h4>Publisher &amp; Status</h4>';
         html += '<div class="detail-list">';
-        html += '<span class="detail-label">Publisher:</span><span class="detail-value">' + (app.publisher || '--') + '</span>';
+        html += '<span class="detail-label">Publisher:</span><span class="detail-value">' + escapeHtml(app.publisher || '--') + '</span>';
         html += '<span class="detail-label">Microsoft App:</span><span class="detail-value">' + (app.isMicrosoft ? 'Yes' : 'No') + '</span>';
-        html += '<span class="detail-label">Verified Publisher:</span><span class="detail-value">' + (app.verifiedPublisher || '<span class="text-muted">Not verified</span>') + '</span>';
+        html += '<span class="detail-label">Verified Publisher:</span><span class="detail-value">' + (app.verifiedPublisher ? escapeHtml(app.verifiedPublisher) : '<span class="text-muted">Not verified</span>') + '</span>';
         html += '<span class="detail-label">Account Status:</span><span class="detail-value">' + formatStatus(app.accountEnabled) + '</span>';
         html += '<span class="detail-label">Assignment Required:</span><span class="detail-value">' + (app.appRoleAssignmentRequired ? 'Yes' : 'No') + '</span>';
         html += '</div></div>';
@@ -655,8 +663,8 @@ const PageEnterpriseApps = (function() {
             html += '<h4>Owners (' + app.owners.length + ')</h4>';
             html += '<div class="detail-list">';
             app.owners.forEach(function(owner) {
-                html += '<span class="detail-label">' + (owner.displayName || 'Unknown') + '</span>';
-                html += '<span class="detail-value">' + (owner.userPrincipalName || owner.mail || '--') + '</span>';
+                html += '<span class="detail-label">' + escapeHtml(owner.displayName || 'Unknown') + '</span>';
+                html += '<span class="detail-value">' + escapeHtml(owner.userPrincipalName || owner.mail || '--') + '</span>';
             });
             html += '</div></div>';
         }
@@ -685,8 +693,8 @@ const PageEnterpriseApps = (function() {
                     else if (secret.daysUntilExpiry <= 90) statusClass = 'text-attention';
                 }
                 html += '<tr>';
-                html += '<td>' + (secret.displayName || 'Unnamed') + '</td>';
-                html += '<td>' + (secret.hint ? '***' + secret.hint : '--') + '</td>';
+                html += '<td>' + escapeHtml(secret.displayName || 'Unnamed') + '</td>';
+                html += '<td>' + (secret.hint ? '***' + escapeHtml(secret.hint) : '--') + '</td>';
                 html += '<td>' + DataLoader.formatDate(secret.endDateTime) + '</td>';
                 html += '<td class="' + statusClass + '">' + (secret.daysUntilExpiry !== null ? secret.daysUntilExpiry + 'd' : '--') + '</td>';
                 html += '</tr>';
@@ -711,8 +719,8 @@ const PageEnterpriseApps = (function() {
                     else if (cert.daysUntilExpiry <= 90) statusClass = 'text-attention';
                 }
                 html += '<tr>';
-                html += '<td>' + (cert.displayName || 'Unnamed') + '</td>';
-                html += '<td>' + (cert.usage || cert.type || '--') + '</td>';
+                html += '<td>' + escapeHtml(cert.displayName || 'Unnamed') + '</td>';
+                html += '<td>' + escapeHtml(cert.usage || cert.type || '--') + '</td>';
                 html += '<td>' + DataLoader.formatDate(cert.endDateTime) + '</td>';
                 html += '<td class="' + statusClass + '">' + (cert.daysUntilExpiry !== null ? cert.daysUntilExpiry + 'd' : '--') + '</td>';
                 html += '</tr>';

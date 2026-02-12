@@ -360,9 +360,10 @@ const PageAppDeployments = (function() {
             html += '<h3>Apps Needing Attention (' + problemApps.length + ')</h3>';
             html += '<div class="problem-apps">';
             problemApps.forEach(function(app) {
-                html += '<div class="problem-app-card" onclick="PageAppDeployments.showAppDetail(\'' + app.id + '\')">';
-                html += '<strong>' + (app.displayName || 'Unknown') + '</strong>';
-                html += '<div class="app-badges"><span class="badge badge-neutral">' + (app.platform || 'Unknown') + '</span> <span class="badge badge-info">' + (app.appType || 'Unknown') + '</span></div>';
+                var safeId = (app.id || '').replace(/['"<>&]/g, '');
+                html += '<div class="problem-app-card" data-app-id="' + safeId + '">';
+                html += '<strong>' + escapeHtml(app.displayName || 'Unknown') + '</strong>';
+                html += '<div class="app-badges"><span class="badge badge-neutral">' + escapeHtml(app.platform || 'Unknown') + '</span> <span class="badge badge-info">' + escapeHtml(app.appType || 'Unknown') + '</span></div>';
                 html += '<div class="app-issue">';
                 if (app.failedCount > 0) html += '<span class="text-critical">' + app.failedCount + ' failed</span> | ';
                 html += '<span class="' + (app.installRate >= 90 ? 'text-success' : app.installRate >= 70 ? 'text-warning' : 'text-critical') + '">' + (app.installRate || 0) + '% success</span>';
@@ -373,6 +374,25 @@ const PageAppDeployments = (function() {
         }
 
         container.innerHTML = html;
+
+        // Event delegation for problem app cards (safer than inline onclick)
+        var problemAppsContainer = container.querySelector('.problem-apps');
+        if (problemAppsContainer) {
+            problemAppsContainer.addEventListener('click', function(e) {
+                var card = e.target.closest('.problem-app-card');
+                if (card && card.dataset.appId) {
+                    showAppDetail(card.dataset.appId);
+                }
+            });
+        }
+    }
+
+    /**
+     * Escapes HTML special characters to prevent XSS
+     */
+    function escapeHtml(str) {
+        if (str === null || str === undefined) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     function renderAppsTab(container) {

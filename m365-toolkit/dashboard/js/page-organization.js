@@ -1086,9 +1086,10 @@ const PageOrganization = (function() {
 
         // Top Managers card
         var topMgrs = hierarchy.managers.slice(0, 4);
-        var maxReports = topMgrs.length > 0 ? topMgrs[0].directReports.length : 1;
+        var maxReports = topMgrs.length > 0 && topMgrs[0].directReports ? topMgrs[0].directReports.length : 1;
         var mgrRows = topMgrs.map(function(m) {
-            return { name: m.name, count: m.directReports.length, pct: Math.round((m.directReports.length / maxReports) * 100), cls: 'bg-primary', showCount: true };
+            var reportCount = m.directReports ? m.directReports.length : 0;
+            return { name: m.name, count: reportCount, pct: Math.round((reportCount / maxReports) * 100), cls: 'bg-primary', showCount: true };
         });
         if (mgrRows.length === 0) {
             mgrRows = [{ name: 'No managers', count: '--', pct: 0, cls: 'bg-neutral' }];
@@ -1470,7 +1471,7 @@ const PageOrganization = (function() {
             ['Office', manager.officeLocation || 'N/A'],
             ['Company', manager.companyName || 'N/A'],
             ['Location', locationDisplay],
-            ['Direct Reports', manager.directReports.length],
+            ['Direct Reports', manager.directReports ? manager.directReports.length : 0],
             ['In Tenant', manager.isUser ? (manager.userType && String(manager.userType).toLowerCase() === 'guest' ? 'Guest' : 'Member') : 'External']
         ];
         items.forEach(function(item) {
@@ -1485,7 +1486,7 @@ const PageOrganization = (function() {
 
         // Direct reports section
         var reportsSection = el('div', 'detail-section');
-        reportsSection.appendChild(el('h4', null, 'Direct Reports (' + manager.directReports.length + ')'));
+        reportsSection.appendChild(el('h4', null, 'Direct Reports (' + (manager.directReports ? manager.directReports.length : 0) + ')'));
 
         var table = document.createElement('table');
         table.className = 'data-table';

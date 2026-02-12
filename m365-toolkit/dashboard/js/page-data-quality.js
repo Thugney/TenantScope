@@ -622,6 +622,21 @@ const PageDataQuality = (function() {
     /**
      * Renders the detail table showing per-user profile fields.
      */
+    /**
+     * Deep clone a value to prevent modifications to original data
+     */
+    function deepClone(obj) {
+        if (obj === null || typeof obj !== 'object') return obj;
+        if (Array.isArray(obj)) return obj.map(deepClone);
+        var clone = {};
+        for (var key in obj) {
+            if (obj.hasOwnProperty(key)) {
+                clone[key] = deepClone(obj[key]);
+            }
+        }
+        return clone;
+    }
+
     function renderDetailTable(data) {
         // Compute per-user completeness
         var enriched = [];
@@ -632,11 +647,8 @@ const PageDataQuality = (function() {
                 if (hasValue(user[PROFILE_FIELDS[f].key])) filled++;
             }
             var pct = PROFILE_FIELDS.length > 0 ? Math.round((filled / PROFILE_FIELDS.length) * 100) : 0;
-            // Shallow copy with completeness
-            var row = {};
-            for (var k in user) {
-                if (user.hasOwnProperty(k)) row[k] = user[k];
-            }
+            // Deep copy to prevent modifications to original DataStore data
+            var row = deepClone(user);
             row._completeness = pct;
             enriched.push(row);
         }
@@ -762,12 +774,13 @@ const PageDataQuality = (function() {
 
         for (var b = 0; b < basicFields.length; b++) {
             var bf = basicFields[b];
+            var bfValue = user[bf.key];  // Read property once to avoid duplicate access
             var tr = document.createElement('tr');
             var td1 = document.createElement('td');
             td1.textContent = bf.label;
             td1.style.fontWeight = '600';
             var td2 = document.createElement('td');
-            td2.textContent = String(user[bf.key] !== null && user[bf.key] !== undefined ? user[bf.key] : '-');
+            td2.textContent = String(bfValue !== null && bfValue !== undefined ? bfValue : '-');
             var td3 = document.createElement('td');
             td3.textContent = '-';
             tr.appendChild(td1);
