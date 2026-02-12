@@ -6,6 +6,9 @@
 const PageAppDeployments = (function() {
     'use strict';
 
+    // DEBUG: Log when this file loads
+    console.log('%c[AppDeployments] JS FILE LOADED - v2', 'background: blue; color: white; font-size: 14px;');
+
     var colSelector = null;
     var rawData = null;
     var currentTab = 'apps';
@@ -13,12 +16,40 @@ const PageAppDeployments = (function() {
     // Extract and normalize data from nested structure
     function getData() {
         var data = DataLoader.getData('appDeployments');
-        if (!data) return null;
+
+        // DEBUG START - comprehensive logging
+        console.log('%c=== APP DEPLOYMENTS DEBUG ===', 'background: red; color: white; font-size: 16px;');
+        console.log('1. Raw data type:', typeof data);
+        console.log('2. Raw data:', data);
+
+        if (!data) {
+            console.log('3. DATA IS NULL/UNDEFINED - returning null');
+            return null;
+        }
+
+        console.log('3. Has data.apps?', !!data.apps);
+        if (data.apps) {
+            console.log('4. data.apps length:', data.apps.length);
+            console.log('5. First app RAW:', JSON.stringify(data.apps[0], null, 2));
+            console.log('6. First app installedDevices:', data.apps[0].installedDevices);
+            console.log('7. First app failedDevices:', data.apps[0].failedDevices);
+            console.log('8. First app pendingDevices:', data.apps[0].pendingDevices);
+        }
+        // DEBUG END
 
         // Handle nested structure from collector - still need to map apps for consistent field names
         if (data.apps) {
+            var mappedApps = data.apps.map(mapApp);
+
+            // DEBUG - check mapped result
+            console.log('%c=== AFTER MAPPING ===', 'background: green; color: white;');
+            console.log('9. First MAPPED app:', JSON.stringify(mappedApps[0], null, 2));
+            console.log('10. Mapped installedCount:', mappedApps[0].installedCount);
+            console.log('11. Mapped failedCount:', mappedApps[0].failedCount);
+            console.log('12. Mapped pendingCount:', mappedApps[0].pendingCount);
+
             return {
-                apps: data.apps.map(mapApp),
+                apps: mappedApps,
                 failedDevices: data.failedDevices || [],
                 insights: data.insights || [],
                 summary: data.summary || buildSummaryFromArray(data.apps)
@@ -50,36 +81,44 @@ const PageAppDeployments = (function() {
         return Math.max.apply(null, nums);
     }
 
+    // Simplified: get first valid number from list of possible field names
+    function getFirstValidCount(app, fieldNames) {
+        for (var i = 0; i < fieldNames.length; i++) {
+            var val = app[fieldNames[i]];
+            if (typeof val === 'number' && !isNaN(val)) {
+                return val;
+            }
+            if (typeof val === 'string' && val !== '') {
+                var num = parseInt(val, 10);
+                if (!isNaN(num)) return num;
+            }
+        }
+        return 0;
+    }
+
     function getAppCounts(a) {
-        var dso = a.deviceStatusOverview || a.deviceStatusSummary || {};
-        var installSummary = a.installSummary || a.installSummaryData || a.installSummaryReport || {};
+        // Simple, direct field access - no complex nesting
+        var installed = getFirstValidCount(a, ['installedDeviceCount', 'installedDevices', 'installedCount']);
+        var failed = getFirstValidCount(a, ['failedDeviceCount', 'failedDevices', 'failedCount']);
+        var pending = getFirstValidCount(a, ['pendingInstallDeviceCount', 'pendingDeviceCount', 'pendingDevices', 'pendingCount']);
+        var notInstalled = getFirstValidCount(a, ['notInstalledDeviceCount', 'notInstalledDevices', 'notInstalledCount']);
+        var notApplicable = getFirstValidCount(a, ['notApplicableDeviceCount', 'notApplicableDevices', 'notApplicableCount']);
+
+        // Debug first app
+        if (!getAppCounts._logged) {
+            console.log('%c[getAppCounts] Processing:', 'color: orange;', a.displayName);
+            console.log('  installedDevices field value:', a.installedDevices, '-> result:', installed);
+            console.log('  failedDevices field value:', a.failedDevices, '-> result:', failed);
+            console.log('  pendingDevices field value:', a.pendingDevices, '-> result:', pending);
+            getAppCounts._logged = true;
+        }
 
         return {
-            installed: pickCount([
-                a.installedDeviceCount, a.installedDevices, a.installedCount,
-                dso.installedDeviceCount, dso.installedDevices, dso.installedCount,
-                installSummary.installedDeviceCount, installSummary.installedDevices, installSummary.installedCount
-            ]),
-            failed: pickCount([
-                a.failedDeviceCount, a.failedDevices, a.failedCount,
-                dso.failedDeviceCount, dso.failedDevices, dso.failedCount,
-                installSummary.failedDeviceCount, installSummary.failedDevices, installSummary.failedCount
-            ]),
-            pending: pickCount([
-                a.pendingInstallDeviceCount, a.pendingDeviceCount, a.pendingDevices, a.pendingCount,
-                dso.pendingInstallDeviceCount, dso.pendingDeviceCount, dso.pendingDevices, dso.pendingCount,
-                installSummary.pendingInstallDeviceCount, installSummary.pendingDeviceCount, installSummary.pendingDevices, installSummary.pendingCount
-            ]),
-            notInstalled: pickCount([
-                a.notInstalledDeviceCount, a.notInstalledDevices, a.notInstalledCount,
-                dso.notInstalledDeviceCount, dso.notInstalledDevices, dso.notInstalledCount,
-                installSummary.notInstalledDeviceCount, installSummary.notInstalledDevices, installSummary.notInstalledCount
-            ]),
-            notApplicable: pickCount([
-                a.notApplicableDeviceCount, a.notApplicableDevices, a.notApplicableCount,
-                dso.notApplicableDeviceCount, dso.notApplicableDevices, dso.notApplicableCount,
-                installSummary.notApplicableDeviceCount, installSummary.notApplicableDevices, installSummary.notApplicableCount
-            ])
+            installed: installed,
+            failed: failed,
+            pending: pending,
+            notInstalled: notInstalled,
+            notApplicable: notApplicable
         };
     }
 
