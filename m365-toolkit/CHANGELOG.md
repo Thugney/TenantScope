@@ -5,6 +5,25 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2026-02-12
+
+### Added
+- **Devices page**: "Unmanaged" filter option to show Entra-only devices not enrolled in MDM (smartphones for MFA authenticator, etc.)
+- **Devices page**: "Unmanaged" summary card showing count of unmanaged devices
+- **Devices page**: "Grace Period" compliance filter option (when `gracePeriodAsNoncompliant` is false)
+- **Config option**: `gracePeriodAsNoncompliant` in thresholds section - set to `false` to show grace period devices separately from non-compliant
+
+### Changed
+- **Get-DeviceData.ps1**: Merged Autopilot device identity collection into device collector for accurate detection
+- **Get-DeviceData.ps1**: Autopilot status now determined by cross-referencing device serial numbers with actual Autopilot registry
+- **CollectorBase.ps1**: Devices with no activity date are now treated as stale (previously counted as active)
+
+### Fixed
+- **Autopilot column**: Fixed devices showing "NO" when they are actually registered in Autopilot
+- **Stale device counts**: Now includes devices with no LastSyncDateTime, aligning closer with Entra ID stale device reports
+
+---
+
 ## [2.4.1] - 2026-02-11
 
 ### Changed
