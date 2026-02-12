@@ -8,6 +8,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-04T08:30:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedInSync",
     "purchaseOrder": "PO-2023-001"
   },
   {
@@ -19,6 +20,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-03T14:15:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedInSync",
     "purchaseOrder": "PO-2022-045"
   },
   {
@@ -30,6 +32,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-04T07:45:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedOutOfSync",
     "purchaseOrder": "PO-2021-089"
   },
   {
@@ -41,6 +44,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-03T16:00:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedInSync",
     "purchaseOrder": "PO-2022-012"
   },
   {
@@ -52,6 +56,7 @@
     "enrollmentState": "notContacted",
     "lastContacted": null,
     "profileAssigned": true,
+    "profileAssignmentStatus": "pending",
     "purchaseOrder": "PO-2026-001"
   },
   {
@@ -63,6 +68,7 @@
     "enrollmentState": "notContacted",
     "lastContacted": null,
     "profileAssigned": true,
+    "profileAssignmentStatus": "pending",
     "purchaseOrder": "PO-2026-001"
   },
   {
@@ -74,6 +80,7 @@
     "enrollmentState": "notContacted",
     "lastContacted": null,
     "profileAssigned": false,
+    "profileAssignmentStatus": "notAssigned",
     "purchaseOrder": "PO-2026-002"
   },
   {
@@ -85,6 +92,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2025-10-15T10:30:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedUnkownSyncState",
     "purchaseOrder": "PO-2020-156"
   },
   {
@@ -96,6 +104,7 @@
     "enrollmentState": "failed",
     "lastContacted": "2026-01-10T09:00:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "failed",
     "purchaseOrder": "PO-2025-089"
   },
   {
@@ -107,6 +116,7 @@
     "enrollmentState": "failed",
     "lastContacted": "2026-01-15T11:30:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "failed",
     "purchaseOrder": "PO-2025-095"
   },
   {
@@ -118,6 +128,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-04T09:00:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedInSync",
     "purchaseOrder": "PO-2023-078"
   },
   {
@@ -129,6 +140,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-03T13:30:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedOutOfSync",
     "purchaseOrder": "PO-2021-145"
   },
   {
@@ -140,6 +152,7 @@
     "enrollmentState": "enrolled",
     "lastContacted": "2026-02-04T10:15:00Z",
     "profileAssigned": true,
+    "profileAssignmentStatus": "assignedInSync",
     "purchaseOrder": "PO-2023-112"
   },
   {
@@ -151,6 +164,7 @@
     "enrollmentState": "notContacted",
     "lastContacted": null,
     "profileAssigned": true,
+    "profileAssignmentStatus": "pending",
     "purchaseOrder": "PO-2026-003"
   },
   {
@@ -162,6 +176,7 @@
     "enrollmentState": "notContacted",
     "lastContacted": null,
     "profileAssigned": false,
+    "profileAssignmentStatus": "notAssigned",
     "purchaseOrder": "PO-2026-003"
   }
 ]

@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Autopilot column**: Fixed devices showing "NO" when they are actually registered in Autopilot
 - **Stale device counts**: Now includes devices with no LastSyncDateTime, aligning closer with Entra ID stale device reports
 - **Devices page filters**: Added safety checks to prevent empty table rendering when column state is corrupted
+- **Autopilot tab**: Profile Status column now displays actual status values (In Sync, Out of Sync, Pending, Not Assigned, Failed) instead of "Unknown"
 
 ---
 
