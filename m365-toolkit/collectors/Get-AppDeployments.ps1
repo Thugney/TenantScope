@@ -165,13 +165,11 @@ function Get-AppInstallSummary {
 
     if (-not $summary) { return $null }
 
-    $installed = if ($null -ne $summary.installedDeviceCount) { [int]$summary.installedDeviceCount } else { 0 }
-    $failed = if ($null -ne $summary.failedDeviceCount) { [int]$summary.failedDeviceCount } else { 0 }
-    $pending = if ($null -ne $summary.pendingInstallDeviceCount) { [int]$summary.pendingInstallDeviceCount }
-               elseif ($null -ne $summary.pendingDeviceCount) { [int]$summary.pendingDeviceCount }
-               else { 0 }
-    $notInstalled = if ($null -ne $summary.notInstalledDeviceCount) { [int]$summary.notInstalledDeviceCount } else { 0 }
-    $notApplicable = if ($null -ne $summary.notApplicableDeviceCount) { [int]$summary.notApplicableDeviceCount } else { 0 }
+    $installed = Get-CountValue -Object $summary -Names @("installedDeviceCount","installedCount","installedUserCount")
+    $failed = Get-CountValue -Object $summary -Names @("failedDeviceCount","failedCount","failedUserCount")
+    $pending = Get-CountValue -Object $summary -Names @("pendingInstallDeviceCount","pendingDeviceCount","pendingCount","pendingInstallUserCount","pendingUserCount")
+    $notInstalled = Get-CountValue -Object $summary -Names @("notInstalledDeviceCount","notInstalledCount","notInstalledUserCount")
+    $notApplicable = Get-CountValue -Object $summary -Names @("notApplicableDeviceCount","notApplicableCount","notApplicableUserCount")
 
     return [PSCustomObject]@{
         installed = $installed
@@ -241,6 +239,51 @@ function Get-ReportValue {
     return $null
 }
 
+function Convert-ToIntSafe {
+    param([Parameter()]$Value)
+
+    if ($null -eq $Value) { return 0 }
+    if ($Value -is [int]) { return $Value }
+    if ($Value -is [long]) { return [int]$Value }
+    if ($Value -is [double] -or $Value -is [decimal]) { return [int][Math]::Round($Value, 0) }
+
+    $text = $Value.ToString().Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) { return 0 }
+
+    $parsed = 0
+    if ([int]::TryParse($text, [ref]$parsed)) { return $parsed }
+
+    $parsedDouble = 0.0
+    if ([double]::TryParse($text, [ref]$parsedDouble)) { return [int][Math]::Round($parsedDouble, 0) }
+
+    return 0
+}
+
+function Get-CountValue {
+    param(
+        [Parameter(Mandatory)]$Object,
+        [Parameter(Mandatory)][string[]]$Names
+    )
+
+    foreach ($name in $Names) {
+        $value = Get-ReportValue -Row $Object -Names @($name)
+        if ($null -ne $value -and $value.ToString().Trim().Length -gt 0) {
+            return Convert-ToIntSafe -Value $value
+        }
+    }
+
+    return 0
+}
+
+function Normalize-GraphId {
+    param([Parameter()]$Id)
+
+    if ($null -eq $Id) { return $null }
+    $text = $Id.ToString().Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) { return $null }
+    return $text.Trim("{}").ToLowerInvariant()
+}
+
 function Get-AppInstallReportMap {
     <#
     .SYNOPSIS
@@ -278,29 +321,79 @@ function Get-AppInstallReportMap {
                 $report = Invoke-GraphWithRetry -ScriptBlock {
                     Invoke-MgGraphRequest -Method POST `
                         -Uri $endpoint `
-                        -Body $body -OutputType PSObject
+                        -Body $body -ContentType "application/json" -OutputType PSObject
                 } -OperationName "App install report"
-
-                if ($report) { break }
             }
             catch {
                 $report = $null
             }
+
+            if (-not $report) { continue }
+
+            $rows = Convert-ReportRows -Report $report
+            if (-not $rows -or $rows.Count -eq 0) { continue }
+
+            foreach ($row in $rows) {
+                $id = Get-ReportValue -Row $row -Names @("appId", "applicationId", "ApplicationId", "id")
+                $normalizedId = Normalize-GraphId -Id $id
+                if (-not $normalizedId) { continue }
+                if (-not $map.ContainsKey($normalizedId)) {
+                    $map[$normalizedId] = $row
+                }
+            }
         }
-
-        if ($report) { break }
-    }
-
-    if (-not $report) { return $map }
-
-    $rows = Convert-ReportRows -Report $report
-    foreach ($row in $rows) {
-        $id = Get-ReportValue -Row $row -Names @("appId", "applicationId", "ApplicationId", "id")
-        if (-not $id) { continue }
-        $map[$id] = $row
     }
 
     return $map
+}
+
+function Add-InstallStateCounts {
+    param(
+        [Parameter(Mandatory)][string]$State,
+        [Parameter(Mandatory)][hashtable]$Counts
+    )
+
+    $s = $State.ToLowerInvariant()
+    if ($s -match "notinstalled|uninstall") { $Counts.notInstalled += 1; return }
+    if ($s -match "installed") { $Counts.installed += 1; return }
+    if ($s -match "fail|error") { $Counts.failed += 1; return }
+    if ($s -match "pending|inprogress|queued|wait|reboot") { $Counts.pending += 1; return }
+    if ($s -match "notapplicable") { $Counts.notApplicable += 1; return }
+}
+
+function Get-AppUserStatusSummary {
+    param([Parameter(Mandatory)][string]$AppId)
+
+    $counts = @{
+        installed = 0
+        failed = 0
+        pending = 0
+        notInstalled = 0
+        notApplicable = 0
+    }
+
+    try {
+        $uri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$AppId/userStatuses?`$top=100"
+        $allStatuses = @()
+        do {
+            $resp = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
+            } -OperationName "App user status retrieval"
+
+            if ($resp.value) { $allStatuses += @($resp.value) }
+            $uri = $resp.'@odata.nextLink'
+        } while ($uri -and $allStatuses.Count -lt 2000)
+
+        foreach ($status in $allStatuses) {
+            if (-not $status.installState) { continue }
+            Add-InstallStateCounts -State $status.installState.ToString() -Counts $counts
+        }
+    }
+    catch {
+        return $null
+    }
+
+    return [PSCustomObject]$counts
 }
 
 # ============================================================================
@@ -402,13 +495,14 @@ try {
 
             # Prefer report summary map when available (covers all app types)
             # Only use it if we get actual non-zero data
-            if ($installReportMap.ContainsKey($app.id)) {
-                $row = $installReportMap[$app.id]
-                $reportInstalled = [int](Get-ReportValue -Row $row -Names @("installedDeviceCount","installedCount"))
-                $reportFailed = [int](Get-ReportValue -Row $row -Names @("failedDeviceCount","failedCount"))
-                $reportPending = [int](Get-ReportValue -Row $row -Names @("pendingInstallDeviceCount","pendingCount"))
-                $reportNotInstalled = [int](Get-ReportValue -Row $row -Names @("notInstalledDeviceCount","notInstalledCount"))
-                $reportNotApplicable = [int](Get-ReportValue -Row $row -Names @("notApplicableDeviceCount","notApplicableCount"))
+            $normalizedAppId = Normalize-GraphId -Id $app.id
+            if ($normalizedAppId -and $installReportMap.ContainsKey($normalizedAppId)) {
+                $row = $installReportMap[$normalizedAppId]
+                $reportInstalled = Get-CountValue -Object $row -Names @("installedDeviceCount","installedCount","installedUserCount")
+                $reportFailed = Get-CountValue -Object $row -Names @("failedDeviceCount","failedCount","failedUserCount")
+                $reportPending = Get-CountValue -Object $row -Names @("pendingInstallDeviceCount","pendingCount","pendingInstallUserCount","pendingUserCount")
+                $reportNotInstalled = Get-CountValue -Object $row -Names @("notInstalledDeviceCount","notInstalledCount","notInstalledUserCount")
+                $reportNotApplicable = Get-CountValue -Object $row -Names @("notApplicableDeviceCount","notApplicableCount","notApplicableUserCount")
 
                 # Only use report data if we got at least some counts
                 if (($reportInstalled + $reportFailed + $reportPending + $reportNotInstalled + $reportNotApplicable) -gt 0) {
@@ -499,6 +593,21 @@ try {
             catch {
                 # deviceStatuses not available for this app type (e.g., Store apps, web links)
                 # This is expected - only managed apps (Win32, LOB) have device-level status
+            }
+
+            # Final fallback for user-targeted apps where device counters remain empty.
+            if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
+                $userSummary = Get-AppUserStatusSummary -AppId $app.id
+                if ($userSummary) {
+                    $userTotal = $userSummary.installed + $userSummary.failed + $userSummary.pending + $userSummary.notInstalled + $userSummary.notApplicable
+                    if ($userTotal -gt 0) {
+                        $installedCount = $userSummary.installed
+                        $failedCount = $userSummary.failed
+                        $pendingCount = $userSummary.pending
+                        $notInstalledCount = $userSummary.notInstalled
+                        $notApplicableCount = $userSummary.notApplicable
+                    }
+                }
             }
 
             $totalDevices = $installedCount + $failedCount + $pendingCount + $notInstalledCount
