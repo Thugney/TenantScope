@@ -364,6 +364,8 @@ function Add-InstallStateCounts {
 function Get-AppUserStatusSummary {
     param([Parameter(Mandatory)][string]$AppId)
 
+    if ($script:AppUserStatusFallbackDisabled) { return $null }
+
     $counts = @{
         installed = 0
         failed = 0
@@ -377,7 +379,7 @@ function Get-AppUserStatusSummary {
         $allStatuses = @()
         do {
             $resp = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
+                Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject -ErrorAction Stop
             } -OperationName "App user status retrieval"
 
             if ($resp.value) { $allStatuses += @($resp.value) }
@@ -390,6 +392,10 @@ function Get-AppUserStatusSummary {
         }
     }
     catch {
+        $msg = $_.Exception.Message
+        if ($msg -match "pipeline has been stopped|PipelineStoppedException|Forbidden|Authorization|ResourceNotFound|NotFound") {
+            $script:AppUserStatusFallbackDisabled = $true
+        }
         return $null
     }
 
@@ -677,7 +683,7 @@ try {
 
                 do {
                     $deviceStatus = Invoke-GraphWithRetry -ScriptBlock {
-                        Invoke-MgGraphRequest -Method GET -Uri $deviceStatusUri -OutputType PSObject
+                        Invoke-MgGraphRequest -Method GET -Uri $deviceStatusUri -OutputType PSObject -ErrorAction Stop
                     } -OperationName "App device status retrieval"
                     if ($deviceStatus.value) {
                         $allStatuses += $deviceStatus.value
@@ -730,22 +736,7 @@ try {
                 # This is expected - only managed apps (Win32, LOB) have device-level status
             }
 
-            # Final fallback for user-targeted apps where device counters remain empty.
-            if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
-                $userSummary = Get-AppUserStatusSummary -AppId $app.id
-                if ($userSummary) {
-                    $userTotal = $userSummary.installed + $userSummary.failed + $userSummary.pending + $userSummary.notInstalled + $userSummary.notApplicable
-                    if ($userTotal -gt 0) {
-                        $installedCount = $userSummary.installed
-                        $failedCount = $userSummary.failed
-                        $pendingCount = $userSummary.pending
-                        $notInstalledCount = $userSummary.notInstalled
-                        $notApplicableCount = $userSummary.notApplicable
-                    }
-                }
-            }
-
-            # Secondary fallback: Intune device install status report (beta reports API).
+            # Primary fallback: device install status report endpoint.
             if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
                 $reportSummary = Get-AppDeviceInstallReportSummary -AppId $app.id
                 if ($reportSummary) {
@@ -756,6 +747,21 @@ try {
                         $pendingCount = $reportSummary.pending
                         $notInstalledCount = $reportSummary.notInstalled
                         $notApplicableCount = $reportSummary.notApplicable
+                    }
+                }
+            }
+
+            # Secondary fallback: user-targeted status endpoint (legacy/best-effort).
+            if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
+                $userSummary = Get-AppUserStatusSummary -AppId $app.id
+                if ($userSummary) {
+                    $userTotal = $userSummary.installed + $userSummary.failed + $userSummary.pending + $userSummary.notInstalled + $userSummary.notApplicable
+                    if ($userTotal -gt 0) {
+                        $installedCount = $userSummary.installed
+                        $failedCount = $userSummary.failed
+                        $pendingCount = $userSummary.pending
+                        $notInstalledCount = $userSummary.notInstalled
+                        $notApplicableCount = $userSummary.notApplicable
                     }
                 }
             }
