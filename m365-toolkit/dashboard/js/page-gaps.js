@@ -10,6 +10,9 @@
 const PageGaps = (function() {
     'use strict';
 
+    var currentFilter = 'defender';
+    var cachedData = null;
+
     function el(tag, className, textContent) {
         var node = document.createElement(tag);
         if (className) node.className = className;
@@ -114,88 +117,79 @@ const PageGaps = (function() {
         });
         var hardeningIssues = hardeningDevices.filter(function(d) { return d.hasIssues; });
 
-        var html = '';
-        html += '<div class="page-header">';
-        html += '<h2 class="page-title">Coverage Gaps</h2>';
-        html += '<p class="page-description">High-value gaps across Defender, ASR telemetry, endpoint security, LAPS, and patch currency.</p>';
-        html += '</div>';
+        // Cache data for filter switching
+        cachedData = {
+            defenderIssues: defenderIssues,
+            asrCoverageRows: null,
+            endpointIssues: endpointIssues,
+            endpointColumns: null,
+            lapsIssues: lapsIssues,
+            lapsRaw: lapsRaw,
+            hardeningIssues: hardeningIssues,
+            patchIssues: patchIssues,
+            signatureThreshold: signatureThreshold,
+            defenderSummary: defenderSummary,
+            asrNoiseThreshold: asrNoiseThreshold
+        };
 
-        html += '<div class="summary-cards">';
-        html += '<div class="summary-card"><div class="summary-value">' + defenderIssues.length + '</div><div class="summary-label">Defender Sensor Gaps</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + asrNoTelemetry.length + '</div><div class="summary-label">ASR No Telemetry</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + endpointIssues.length + '</div><div class="summary-label">Endpoint Security Issues</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + lapsIssues.length + '</div><div class="summary-label">LAPS Gaps</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + hardeningIssues.length + '</div><div class="summary-label">Hardening Gaps</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + patchIssues.length + '</div><div class="summary-label">Patch Currency Gaps</div></div>';
-        html += '</div>';
+        // Build page structure using DOM methods
+        var pageHeader = el('div', 'page-header');
+        var title = el('h2', 'page-title', 'Coverage Gaps');
+        var desc = el('p', 'page-description', 'High-value gaps across Defender, ASR telemetry, endpoint security, LAPS, and patch currency.');
+        pageHeader.appendChild(title);
+        pageHeader.appendChild(desc);
 
-        // Defender section
-        html += '<div class="analytics-section">';
-        html += '<h3>Defender Device Health Gaps</h3>';
-        html += '<div id="gap-defender-table"></div>';
-        html += '</div>';
+        var summaryCards = el('div', 'summary-cards');
+        var cardData = [
+            { value: defenderIssues.length, label: 'Defender Sensor Gaps' },
+            { value: asrNoTelemetry.length, label: 'ASR No Telemetry' },
+            { value: endpointIssues.length, label: 'Endpoint Security Issues' },
+            { value: lapsIssues.length, label: 'LAPS Gaps' },
+            { value: hardeningIssues.length, label: 'Hardening Gaps' },
+            { value: patchIssues.length, label: 'Patch Currency Gaps' }
+        ];
+        cardData.forEach(function(c) {
+            var card = el('div', 'summary-card');
+            card.appendChild(el('div', 'summary-value', String(c.value)));
+            card.appendChild(el('div', 'summary-label', c.label));
+            summaryCards.appendChild(card);
+        });
 
-        // ASR telemetry section
-        html += '<div class="analytics-section">';
-        html += '<h3>ASR Telemetry Coverage</h3>';
-        html += '<div id="gap-asr-table"></div>';
-        html += '</div>';
+        // Filter button group
+        var filterGroup = el('div', 'filter-button-group');
+        filterGroup.style.marginBottom = '1rem';
+        var filters = [
+            { key: 'defender', label: 'Defender', count: defenderIssues.length },
+            { key: 'asr', label: 'ASR Telemetry', count: asrNoTelemetry.length },
+            { key: 'endpoint', label: 'Endpoint Security', count: endpointIssues.length },
+            { key: 'laps', label: 'LAPS', count: lapsIssues.length },
+            { key: 'hardening', label: 'Hardening', count: hardeningIssues.length },
+            { key: 'patch', label: 'Patch Currency', count: patchIssues.length }
+        ];
+        filters.forEach(function(f) {
+            var btn = el('button', 'filter-btn' + (f.key === currentFilter ? ' active' : ''));
+            btn.setAttribute('data-filter', f.key);
+            btn.textContent = f.label + ' (' + f.count + ')';
+            filterGroup.appendChild(btn);
+        });
 
-        // Endpoint Security section
-        html += '<div class="analytics-section">';
-        html += '<h3>Endpoint Security Policy Compliance</h3>';
-        html += '<div id="gap-endpoint-security-table"></div>';
-        html += '</div>';
+        // Single section for filtered content
+        var section = el('div', 'analytics-section');
+        var sectionTitle = el('h3');
+        sectionTitle.id = 'gap-section-title';
+        sectionTitle.textContent = 'Defender Device Health Gaps';
+        var tableContainer = el('div');
+        tableContainer.id = 'gap-table';
+        section.appendChild(sectionTitle);
+        section.appendChild(tableContainer);
 
-        // LAPS section
-        html += '<div class="analytics-section">';
-        html += '<h3>Local Admin / LAPS Coverage</h3>';
-        html += '<div id="gap-laps-table"></div>';
-        html += '</div>';
+        container.textContent = '';
+        container.appendChild(pageHeader);
+        container.appendChild(summaryCards);
+        container.appendChild(filterGroup);
+        container.appendChild(section);
 
-        // Device hardening section
-        html += '<div class="analytics-section">';
-        html += '<h3>Credential Guard & Memory Integrity</h3>';
-        html += '<div id="gap-hardening-table"></div>';
-        html += '</div>';
-
-        // Patch currency section
-        html += '<div class="analytics-section">';
-        html += '<h3>Patch Currency Gaps</h3>';
-        html += '<div id="gap-patch-table"></div>';
-        html += '</div>';
-
-        container.innerHTML = html;
-
-        renderTableOrEmpty('gap-defender-table', defenderIssues, [
-            { key: 'deviceName', label: 'Device', formatter: function(v) {
-                if (!v) return '<span class="text-muted">--</span>';
-                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
-            }},
-            { key: 'onboardingStatus', label: 'Onboarding', formatter: formatStatusBadge },
-            { key: 'sensorHealthState', label: 'Sensor', formatter: formatStatusBadge },
-            { key: 'healthStatus', label: 'Health', formatter: formatStatusBadge },
-            { key: 'tamperProtection', label: 'Tamper', formatter: function(v) { return formatBool(v, 'Enabled', 'Disabled'); } },
-            { key: 'avMode', label: 'AV Mode', formatter: formatStatusBadge },
-            { key: 'avSignatureAgeDays', label: 'Sig Age (Days)', className: 'cell-right', formatter: function(v) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                var cls = v > signatureThreshold ? 'text-critical' : v > 3 ? 'text-warning' : 'text-success';
-                return '<span class="' + cls + '">' + v + '</span>';
-            }},
-            { key: 'sensorLastSeenAgeDays', label: 'Sensor Age (Days)', className: 'cell-right', formatter: function(v) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                var staleThreshold = defenderSummary.sensorStaleThresholdDays || 7;
-                var cls = v > staleThreshold ? 'text-critical' : v > 2 ? 'text-warning' : 'text-success';
-                return '<span class="' + cls + '">' + v + '</span>';
-            }},
-            { key: 'edrBlockModeStatus', label: 'EDR Block', formatter: function(v) { return formatBool(v, 'Enabled', 'Disabled'); } },
-            { key: 'lastSeen', label: 'Last Seen', formatter: Tables.formatters.date },
-            { key: 'issues', label: 'Issues', formatter: function(v) {
-                if (!v || !v.length) return '<span class="text-muted">--</span>';
-                return v.map(function(i) { return '<span class="badge badge-warning">' + Tables.escapeHtml(i) + '</span>'; }).join(' ');
-            }}
-        ], 'No Defender device health gaps detected.');
-
+        // Build ASR coverage rows and cache
         var asrCoverageRows = deployedAsr.map(function(rule) {
             var ev = asrEventMap[rule.ruleId] || {};
             var deployedMode = rule.blockCount > 0 ? 'Block' : rule.auditCount > 0 ? 'Audit' : rule.warnCount > 0 ? 'Warn' : 'Disabled';
@@ -225,30 +219,9 @@ const PageGaps = (function() {
                 driftStatus: driftStatus
             };
         });
+        cachedData.asrCoverageRows = asrCoverageRows;
 
-        renderTableOrEmpty('gap-asr-table', asrCoverageRows, [
-            { key: 'ruleName', label: 'Rule', formatter: function(v, row) {
-                return '<span class="font-bold">' + Tables.escapeHtml(v || row.ruleId || '--') + '</span>';
-            }},
-            { key: 'deployedMode', label: 'Deployed Mode', formatter: formatStatusBadge },
-            { key: 'auditEvents', label: 'Audit', className: 'cell-right' },
-            { key: 'blockEvents', label: 'Block', className: 'cell-right' },
-            { key: 'warnEvents', label: 'Warn', className: 'cell-right' },
-            { key: 'deviceCount', label: 'Devices', className: 'cell-right' },
-            { key: 'lastSeen', label: 'Last Seen', formatter: Tables.formatters.date },
-            { key: 'coverageStatus', label: 'Coverage', formatter: function(v) {
-                if (v === 'No telemetry') return '<span class="badge badge-critical">' + v + '</span>';
-                if (v === 'Noisy') return '<span class="badge badge-warning">Noisy (>' + asrNoiseThreshold + ')</span>';
-                return '<span class="badge badge-success">OK</span>';
-            }},
-            { key: 'driftStatus', label: 'Effectiveness', formatter: function(v) {
-                if (v === 'No telemetry') return '<span class="badge badge-critical">' + v + '</span>';
-                if (v === 'Audit noisy' || v === 'Warn noisy') return '<span class="badge badge-warning">' + v + '</span>';
-                if (v === 'Not enforced') return '<span class="badge badge-warning">' + v + '</span>';
-                return '<span class="badge badge-success">OK</span>';
-            }}
-        ], 'No ASR telemetry gaps detected.');
-
+        // Build endpoint columns and cache
         var categoryOrder = ['Firewall', 'Antivirus', 'Disk Encryption', 'Attack Surface Reduction', 'Account Protection', 'Other'];
         var categorySet = {};
         endpointPolicies.forEach(function(p) {
@@ -257,7 +230,6 @@ const PageGaps = (function() {
         endpointDevices.forEach(function(d) {
             Object.keys(d.categories || {}).forEach(function(k) { categorySet[k] = true; });
         });
-
         var categories = categoryOrder.filter(function(k) { return categorySet[k]; });
         Object.keys(categorySet).forEach(function(k) {
             if (categories.indexOf(k) === -1) categories.push(k);
@@ -278,64 +250,175 @@ const PageGaps = (function() {
             });
         });
         endpointColumns.push({ key: 'worstStatus', label: 'Worst', formatter: formatStatusBadge });
+        cachedData.endpointColumns = endpointColumns;
 
-        renderTableOrEmpty('gap-endpoint-security-table', endpointIssues, endpointColumns, 'No endpoint security policy gaps detected.');
+        // Attach filter button handlers
+        filterGroup.addEventListener('click', function(e) {
+            var btn = e.target.closest('.filter-btn');
+            if (!btn) return;
+            var filter = btn.getAttribute('data-filter');
+            if (filter && filter !== currentFilter) {
+                currentFilter = filter;
+                filterGroup.querySelectorAll('.filter-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                btn.classList.add('active');
+                renderFilteredTable();
+            }
+        });
 
-        renderTableOrEmpty('gap-laps-table', lapsIssues, [
-            { key: 'deviceName', label: 'Device', formatter: function(v) {
-                if (!v) return '<span class="text-muted">--</span>';
-                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
-            }},
-            { key: 'userPrincipalName', label: 'User', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
-            { key: 'lapsEnabled', label: 'LAPS', formatter: function(v) { return formatBool(v, 'Enabled', 'Missing'); } },
-            { key: 'lastRotationDateTime', label: 'Last Rotation', formatter: Tables.formatters.date },
-            { key: 'rotationAgeDays', label: 'Age (Days)', className: 'cell-right', formatter: function(v) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                var cls = v > (lapsRaw.summary ? lapsRaw.summary.rotationThresholdDays || 30 : 30) ? 'text-critical' : 'text-warning';
-                return '<span class="' + cls + '">' + v + '</span>';
-            }},
-            { key: 'localAdminObserved', label: 'Local Admin Seen', formatter: function(v) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                return v ? '<span class="badge badge-warning">Yes</span>' : '<span class="badge badge-neutral">No</span>';
-            }},
-            { key: 'localAdminLastSeen', label: 'Local Admin Last Seen', formatter: Tables.formatters.date },
-            { key: 'localAdminLogonCount', label: 'Local Admin Logons', className: 'cell-right', formatter: function(v) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                return '<span class="text-warning">' + v + '</span>';
-            }},
-            { key: 'status', label: 'Status', formatter: formatStatusBadge }
-        ], 'No LAPS gaps detected.');
+        // Render initial table
+        renderFilteredTable();
+    }
 
-        renderTableOrEmpty('gap-hardening-table', hardeningIssues, [
-            { key: 'deviceName', label: 'Device', formatter: function(v) {
-                if (!v) return '<span class="text-muted">--</span>';
-                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
-            }},
-            { key: 'credentialGuardStatus', label: 'Credential Guard', formatter: formatStatusBadge },
-            { key: 'memoryIntegrityStatus', label: 'Memory Integrity', formatter: formatStatusBadge },
-            { key: 'issues', label: 'Issues', formatter: function(v) {
-                if (!v || !v.length) return '<span class="text-muted">--</span>';
-                return v.map(function(i) { return '<span class="badge badge-warning">' + Tables.escapeHtml(i) + '</span>'; }).join(' ');
-            }}
-        ], 'No device hardening gaps detected.');
+    function renderFilteredTable() {
+        if (!cachedData) return;
 
-        renderTableOrEmpty('gap-patch-table', patchIssues, [
-            { key: 'deviceName', label: 'Device', formatter: function(v) {
-                if (!v) return '<span class="text-muted">--</span>';
-                return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
-            }},
-            { key: 'userPrincipalName', label: 'User', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
-            { key: 'updateStatus', label: 'Update Status', formatter: formatStatusBadge },
-            { key: 'qualityUpdateAgeDays', label: 'Update Age (Days)', className: 'cell-right', formatter: function(v, row) {
-                if (v === null || v === undefined) return '<span class="text-muted">--</span>';
-                var cls = row.qualityUpdateAgeStatus === 'stale' ? 'text-critical' : 'text-warning';
-                return '<span class="' + cls + '">' + v + '</span>';
-            }},
-            { key: 'qualityUpdateAgeSource', label: 'Age Source', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
-            { key: 'qualityUpdateLastEvent', label: 'Last Event', formatter: Tables.formatters.date },
-            { key: 'updateRing', label: 'Ring', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
-            { key: 'featureUpdateVersion', label: 'Feature Version', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } }
-        ], 'No patch currency gaps detected.');
+        var titleEl = document.getElementById('gap-section-title');
+        var titles = {
+            defender: 'Defender Device Health Gaps',
+            asr: 'ASR Telemetry Coverage',
+            endpoint: 'Endpoint Security Policy Compliance',
+            laps: 'Local Admin / LAPS Coverage',
+            hardening: 'Credential Guard & Memory Integrity',
+            patch: 'Patch Currency Gaps'
+        };
+        if (titleEl) titleEl.textContent = titles[currentFilter] || 'Coverage Gaps';
+
+        var emptyMessages = {
+            defender: 'No Defender device health gaps detected.',
+            asr: 'No ASR telemetry gaps detected.',
+            endpoint: 'No endpoint security policy gaps detected.',
+            laps: 'No LAPS gaps detected.',
+            hardening: 'No device hardening gaps detected.',
+            patch: 'No patch currency gaps detected.'
+        };
+
+        var data, columns;
+        var signatureThreshold = cachedData.signatureThreshold;
+        var defenderSummary = cachedData.defenderSummary;
+        var asrNoiseThreshold = cachedData.asrNoiseThreshold;
+        var lapsRaw = cachedData.lapsRaw;
+
+        if (currentFilter === 'defender') {
+            data = cachedData.defenderIssues;
+            columns = [
+                { key: 'deviceName', label: 'Device', formatter: function(v) {
+                    if (!v) return '<span class="text-muted">--</span>';
+                    return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'onboardingStatus', label: 'Onboarding', formatter: formatStatusBadge },
+                { key: 'sensorHealthState', label: 'Sensor', formatter: formatStatusBadge },
+                { key: 'healthStatus', label: 'Health', formatter: formatStatusBadge },
+                { key: 'tamperProtection', label: 'Tamper', formatter: function(v) { return formatBool(v, 'Enabled', 'Disabled'); } },
+                { key: 'avMode', label: 'AV Mode', formatter: formatStatusBadge },
+                { key: 'avSignatureAgeDays', label: 'Sig Age (Days)', className: 'cell-right', formatter: function(v) {
+                    if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                    var cls = v > signatureThreshold ? 'text-critical' : v > 3 ? 'text-warning' : 'text-success';
+                    return '<span class="' + cls + '">' + v + '</span>';
+                }},
+                { key: 'sensorLastSeenAgeDays', label: 'Sensor Age (Days)', className: 'cell-right', formatter: function(v) {
+                    if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                    var staleThreshold = defenderSummary.sensorStaleThresholdDays || 7;
+                    var cls = v > staleThreshold ? 'text-critical' : v > 2 ? 'text-warning' : 'text-success';
+                    return '<span class="' + cls + '">' + v + '</span>';
+                }},
+                { key: 'edrBlockModeStatus', label: 'EDR Block', formatter: function(v) { return formatBool(v, 'Enabled', 'Disabled'); } },
+                { key: 'lastSeen', label: 'Last Seen', formatter: Tables.formatters.date },
+                { key: 'issues', label: 'Issues', formatter: function(v) {
+                    if (!v || !v.length) return '<span class="text-muted">--</span>';
+                    return v.map(function(i) { return '<span class="badge badge-warning">' + Tables.escapeHtml(i) + '</span>'; }).join(' ');
+                }}
+            ];
+        } else if (currentFilter === 'asr') {
+            data = cachedData.asrCoverageRows;
+            columns = [
+                { key: 'ruleName', label: 'Rule', formatter: function(v, row) {
+                    return '<span class="font-bold">' + Tables.escapeHtml(v || row.ruleId || '--') + '</span>';
+                }},
+                { key: 'deployedMode', label: 'Deployed Mode', formatter: formatStatusBadge },
+                { key: 'auditEvents', label: 'Audit', className: 'cell-right' },
+                { key: 'blockEvents', label: 'Block', className: 'cell-right' },
+                { key: 'warnEvents', label: 'Warn', className: 'cell-right' },
+                { key: 'deviceCount', label: 'Devices', className: 'cell-right' },
+                { key: 'lastSeen', label: 'Last Seen', formatter: Tables.formatters.date },
+                { key: 'coverageStatus', label: 'Coverage', formatter: function(v) {
+                    if (v === 'No telemetry') return '<span class="badge badge-critical">' + v + '</span>';
+                    if (v === 'Noisy') return '<span class="badge badge-warning">Noisy (>' + asrNoiseThreshold + ')</span>';
+                    return '<span class="badge badge-success">OK</span>';
+                }},
+                { key: 'driftStatus', label: 'Effectiveness', formatter: function(v) {
+                    if (v === 'No telemetry') return '<span class="badge badge-critical">' + v + '</span>';
+                    if (v === 'Audit noisy' || v === 'Warn noisy') return '<span class="badge badge-warning">' + v + '</span>';
+                    if (v === 'Not enforced') return '<span class="badge badge-warning">' + v + '</span>';
+                    return '<span class="badge badge-success">OK</span>';
+                }}
+            ];
+        } else if (currentFilter === 'endpoint') {
+            data = cachedData.endpointIssues;
+            columns = cachedData.endpointColumns;
+        } else if (currentFilter === 'laps') {
+            data = cachedData.lapsIssues;
+            columns = [
+                { key: 'deviceName', label: 'Device', formatter: function(v) {
+                    if (!v) return '<span class="text-muted">--</span>';
+                    return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'userPrincipalName', label: 'User', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
+                { key: 'lapsEnabled', label: 'LAPS', formatter: function(v) { return formatBool(v, 'Enabled', 'Missing'); } },
+                { key: 'lastRotationDateTime', label: 'Last Rotation', formatter: Tables.formatters.date },
+                { key: 'rotationAgeDays', label: 'Age (Days)', className: 'cell-right', formatter: function(v) {
+                    if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                    var cls = v > (lapsRaw.summary ? lapsRaw.summary.rotationThresholdDays || 30 : 30) ? 'text-critical' : 'text-warning';
+                    return '<span class="' + cls + '">' + v + '</span>';
+                }},
+                { key: 'localAdminObserved', label: 'Local Admin Seen', formatter: function(v) {
+                    if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                    return v ? '<span class="badge badge-warning">Yes</span>' : '<span class="badge badge-neutral">No</span>';
+                }},
+                { key: 'localAdminLastSeen', label: 'Local Admin Last Seen', formatter: Tables.formatters.date },
+                { key: 'localAdminLogonCount', label: 'Local Admin Logons', className: 'cell-right', formatter: function(v) {
+                    if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                    return '<span class="text-warning">' + v + '</span>';
+                }},
+                { key: 'status', label: 'Status', formatter: formatStatusBadge }
+            ];
+        } else if (currentFilter === 'hardening') {
+            data = cachedData.hardeningIssues;
+            columns = [
+                { key: 'deviceName', label: 'Device', formatter: function(v) {
+                    if (!v) return '<span class="text-muted">--</span>';
+                    return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'credentialGuardStatus', label: 'Credential Guard', formatter: formatStatusBadge },
+                { key: 'memoryIntegrityStatus', label: 'Memory Integrity', formatter: formatStatusBadge },
+                { key: 'issues', label: 'Issues', formatter: function(v) {
+                    if (!v || !v.length) return '<span class="text-muted">--</span>';
+                    return v.map(function(i) { return '<span class="badge badge-warning">' + Tables.escapeHtml(i) + '</span>'; }).join(' ');
+                }}
+            ];
+        } else if (currentFilter === 'patch') {
+            data = cachedData.patchIssues;
+            columns = [
+                { key: 'deviceName', label: 'Device', formatter: function(v) {
+                    if (!v) return '<span class="text-muted">--</span>';
+                    return '<a href="#devices?search=' + encodeURIComponent(v) + '" class="entity-link"><strong>' + Tables.escapeHtml(v) + '</strong></a>';
+                }},
+                { key: 'userPrincipalName', label: 'User', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
+                { key: 'updateStatus', label: 'Update Status', formatter: formatStatusBadge },
+                { key: 'qualityUpdateAgeDays', label: 'Update Age (Days)', className: 'cell-right', formatter: function(v, row) {
+                    if (v === null || v === undefined) return '<span class="text-muted">--</span>';
+                    var cls = row.qualityUpdateAgeStatus === 'stale' ? 'text-critical' : 'text-warning';
+                    return '<span class="' + cls + '">' + v + '</span>';
+                }},
+                { key: 'qualityUpdateAgeSource', label: 'Age Source', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
+                { key: 'qualityUpdateLastEvent', label: 'Last Event', formatter: Tables.formatters.date },
+                { key: 'updateRing', label: 'Ring', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } },
+                { key: 'featureUpdateVersion', label: 'Feature Version', formatter: function(v) { return v ? Tables.escapeHtml(v) : '<span class="text-muted">--</span>'; } }
+            ];
+        }
+
+        renderTableOrEmpty('gap-table', data, columns, emptyMessages[currentFilter]);
     }
 
     return { render: render };
