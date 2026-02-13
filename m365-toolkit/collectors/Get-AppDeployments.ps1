@@ -410,14 +410,6 @@ function Get-AppDeviceInstallReportSummary {
         return $script:AppInstallStatusReportCache[$normalizedId]
     }
 
-    $counts = @{
-        installed = 0
-        failed = 0
-        pending = 0
-        notInstalled = 0
-        notApplicable = 0
-    }
-
     $filters = @(
         "(ApplicationId eq '$AppId')",
         "(AppId eq '$AppId')",
@@ -425,52 +417,115 @@ function Get-AppDeviceInstallReportSummary {
         "(appId eq '$AppId')"
     )
 
-    $hadError = $false
-    foreach ($filter in $filters) {
-        $body = @{
-            select = @("ApplicationId","AppId","InstallState","AppInstallState","InstallStateDetail","DeviceId")
-            filter = $filter
-            skip = 0
-            top = 2000
-        } | ConvertTo-Json -Depth 6
+    $selectColumns = @(
+        "DeviceName","UserPrincipalName","Platform","AppVersion","InstallState","InstallStateDetail",
+        "AssignmentFilterIdsExist","LastModifiedDateTime","DeviceId","ErrorCode","UserName","UserId",
+        "ApplicationId","AssignmentFilterIdsList","AppInstallState","AppInstallStateDetails","HexErrorCode"
+    )
 
-        $report = $null
-        try {
-            $report = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method POST `
-                    -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getDeviceInstallStatusReport" `
-                    -Body $body -ContentType "application/json" -OutputType PSObject
-            } -OperationName "Device install status report" -MaxRetries 2
-        }
-        catch {
-            $msg = $_.Exception.Message
-            if ($msg -match "BadRequest|ResourceNotFound|NotFound|Forbidden|Authorization") {
-                $script:AppInstallStatusReportDisabled = $true
-                break
+    $pageSize = 50
+    $maxRows = 5000
+
+    $endpointCandidates = @()
+    if ($script:AppInstallStatusReportEndpoint) {
+        $endpointCandidates += $script:AppInstallStatusReportEndpoint
+    }
+    else {
+        $endpointCandidates += @(
+            "https://graph.microsoft.com/v1.0/deviceManagement/reports/microsoft.graph.retrieveDeviceAppInstallationStatusReport",
+            "https://graph.microsoft.com/v1.0/deviceManagement/reports/retrieveDeviceAppInstallationStatusReport",
+            "https://graph.microsoft.com/beta/deviceManagement/reports/getDeviceInstallStatusReport"
+        )
+    }
+
+    $authFailure = $false
+    foreach ($endpoint in $endpointCandidates) {
+        $anySuccessfulCall = $false
+        $endpointMissing = $false
+
+        foreach ($filter in $filters) {
+            $counts = @{
+                installed = 0
+                failed = 0
+                pending = 0
+                notInstalled = 0
+                notApplicable = 0
             }
-            $hadError = $true
-            continue
+
+            $skip = 0
+            $processedRows = 0
+
+            while ($processedRows -lt $maxRows) {
+                $body = @{
+                    select = $selectColumns
+                    skip = $skip
+                    top = $pageSize
+                    filter = $filter
+                    orderBy = @()
+                } | ConvertTo-Json -Depth 8
+
+                $report = $null
+                try {
+                    $report = Invoke-GraphWithRetry -ScriptBlock {
+                        Invoke-MgGraphRequest -Method POST `
+                            -Uri $endpoint `
+                            -Body $body -ContentType "application/json" -OutputType PSObject
+                    } -OperationName "Device install status report" -MaxRetries 2
+                }
+                catch {
+                    $msg = $_.Exception.Message
+                    if ($msg -match "Forbidden|Authorization|permission|Insufficient privileges") {
+                        $authFailure = $true
+                        $endpointMissing = $true
+                        break
+                    }
+                    if ($msg -match "Resource not found|ResourceNotFound|BadRequest|NotFound") {
+                        $endpointMissing = $true
+                        break
+                    }
+                    break
+                }
+
+                $anySuccessfulCall = $true
+                if (-not $report) { break }
+
+                $rows = Convert-ReportRows -Report $report
+                if (-not $rows -or $rows.Count -eq 0) { break }
+
+                foreach ($row in $rows) {
+                    $state = Get-ReportValue -Row $row -Names @(
+                        "AppInstallState","InstallState","appInstallState","installState","InstallStateDetail","installStateDetail"
+                    )
+                    if (-not $state) { continue }
+                    Add-InstallStateCounts -State $state.ToString() -Counts $counts
+                }
+
+                $processedRows += $rows.Count
+                $skip += $pageSize
+                if ($rows.Count -lt $pageSize) { break }
+            }
+
+            if ($endpointMissing) { break }
+
+            $total = $counts.installed + $counts.failed + $counts.pending + $counts.notInstalled + $counts.notApplicable
+            if ($total -gt 0) {
+                $result = [PSCustomObject]$counts
+                if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $result }
+                $script:AppInstallStatusReportEndpoint = $endpoint
+                return $result
+            }
         }
 
-        if (-not $report) { continue }
-        $rows = Convert-ReportRows -Report $report
-        if (-not $rows -or $rows.Count -eq 0) { continue }
+        if ($endpointMissing) { continue }
 
-        foreach ($row in $rows) {
-            $state = Get-ReportValue -Row $row -Names @(
-                "AppInstallState","InstallState","appInstallState","installState","InstallStateDetail","installStateDetail"
-            )
-            if (-not $state) { continue }
-            Add-InstallStateCounts -State $state.ToString() -Counts $counts
-        }
-
-        $total = $counts.installed + $counts.failed + $counts.pending + $counts.notInstalled + $counts.notApplicable
-        if ($total -gt 0) {
-            $result = [PSCustomObject]$counts
-            if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $result }
-            return $result
+        if ($anySuccessfulCall) {
+            # Pin the working endpoint for subsequent apps in this run.
+            $script:AppInstallStatusReportEndpoint = $endpoint
+            break
         }
     }
+
+    if ($authFailure) { $script:AppInstallStatusReportDisabled = $true }
 
     if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $null }
     return $null
