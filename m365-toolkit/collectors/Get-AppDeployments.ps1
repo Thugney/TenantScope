@@ -396,6 +396,86 @@ function Get-AppUserStatusSummary {
     return [PSCustomObject]$counts
 }
 
+function Get-AppDeviceInstallReportSummary {
+    param([Parameter(Mandatory)][string]$AppId)
+
+    if ($script:AppInstallStatusReportDisabled) { return $null }
+
+    if (-not $script:AppInstallStatusReportCache) {
+        $script:AppInstallStatusReportCache = @{}
+    }
+
+    $normalizedId = Normalize-GraphId -Id $AppId
+    if ($normalizedId -and $script:AppInstallStatusReportCache.ContainsKey($normalizedId)) {
+        return $script:AppInstallStatusReportCache[$normalizedId]
+    }
+
+    $counts = @{
+        installed = 0
+        failed = 0
+        pending = 0
+        notInstalled = 0
+        notApplicable = 0
+    }
+
+    $filters = @(
+        "(ApplicationId eq '$AppId')",
+        "(AppId eq '$AppId')",
+        "(applicationId eq '$AppId')",
+        "(appId eq '$AppId')"
+    )
+
+    $hadError = $false
+    foreach ($filter in $filters) {
+        $body = @{
+            select = @("ApplicationId","AppId","InstallState","AppInstallState","InstallStateDetail","DeviceId")
+            filter = $filter
+            skip = 0
+            top = 2000
+        } | ConvertTo-Json -Depth 6
+
+        $report = $null
+        try {
+            $report = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST `
+                    -Uri "https://graph.microsoft.com/beta/deviceManagement/reports/getDeviceInstallStatusReport" `
+                    -Body $body -ContentType "application/json" -OutputType PSObject
+            } -OperationName "Device install status report" -MaxRetries 2
+        }
+        catch {
+            $msg = $_.Exception.Message
+            if ($msg -match "BadRequest|ResourceNotFound|NotFound|Forbidden|Authorization") {
+                $script:AppInstallStatusReportDisabled = $true
+                break
+            }
+            $hadError = $true
+            continue
+        }
+
+        if (-not $report) { continue }
+        $rows = Convert-ReportRows -Report $report
+        if (-not $rows -or $rows.Count -eq 0) { continue }
+
+        foreach ($row in $rows) {
+            $state = Get-ReportValue -Row $row -Names @(
+                "AppInstallState","InstallState","appInstallState","installState","InstallStateDetail","installStateDetail"
+            )
+            if (-not $state) { continue }
+            Add-InstallStateCounts -State $state.ToString() -Counts $counts
+        }
+
+        $total = $counts.installed + $counts.failed + $counts.pending + $counts.notInstalled + $counts.notApplicable
+        if ($total -gt 0) {
+            $result = [PSCustomObject]$counts
+            if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $result }
+            return $result
+        }
+    }
+
+    if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $null }
+    return $null
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -606,6 +686,21 @@ try {
                         $pendingCount = $userSummary.pending
                         $notInstalledCount = $userSummary.notInstalled
                         $notApplicableCount = $userSummary.notApplicable
+                    }
+                }
+            }
+
+            # Secondary fallback: Intune device install status report (beta reports API).
+            if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
+                $reportSummary = Get-AppDeviceInstallReportSummary -AppId $app.id
+                if ($reportSummary) {
+                    $reportTotal = $reportSummary.installed + $reportSummary.failed + $reportSummary.pending + $reportSummary.notInstalled + $reportSummary.notApplicable
+                    if ($reportTotal -gt 0) {
+                        $installedCount = $reportSummary.installed
+                        $failedCount = $reportSummary.failed
+                        $pendingCount = $reportSummary.pending
+                        $notInstalledCount = $reportSummary.notInstalled
+                        $notApplicableCount = $reportSummary.notApplicable
                     }
                 }
             }
