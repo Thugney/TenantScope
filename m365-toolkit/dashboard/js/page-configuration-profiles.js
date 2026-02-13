@@ -674,8 +674,7 @@ const PageConfigurationProfiles = (function() {
 
         // Tab bar
         html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="overview">Overview</button>';
-        html += '<button class="tab-btn" data-tab="profiles">Profiles (' + totalProfiles + ')</button>';
+        html += '<button class="tab-btn active" data-tab="profiles">Profiles (' + totalProfiles + ')</button>';
         html += '<button class="tab-btn" data-tab="failed-devices">Failed Devices' + (failedDevicesCount > 0 ? ' (' + failedDevicesCount + ')' : '') + '</button>';
         html += '<button class="tab-btn" data-tab="setting-failures">Setting Failures' + (settingFailuresCount > 0 ? ' (' + settingFailuresCount + ')' : '') + '</button>';
         html += '</div>';
@@ -691,8 +690,8 @@ const PageConfigurationProfiles = (function() {
         });
 
         // Render initial tab
-        activeTab = 'overview';
-        renderTabContent('overview');
+        activeTab = 'profiles';
+        renderTabContent('profiles');
     }
 
     function renderTabContent(tab) {
