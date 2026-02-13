@@ -750,8 +750,7 @@ const PageCompliancePolicies = (function() {
 
         // Tabs
         html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="overview">Overview</button>';
-        html += '<button class="tab-btn" data-tab="policies">Policies (' + data.policies.length + ')</button>';
+        html += '<button class="tab-btn active" data-tab="policies">Policies (' + data.policies.length + ')</button>';
         html += '<button class="tab-btn" data-tab="devices">Non-Compliant Devices (' + data.nonCompliantDevices.length + ')</button>';
         html += '<button class="tab-btn" data-tab="settings">Setting Failures (' + data.settingFailures.length + ')</button>';
         html += '</div>';
@@ -767,7 +766,7 @@ const PageCompliancePolicies = (function() {
         });
 
         // Render initial tab
-        currentTab = 'overview';
+        currentTab = 'policies';
         renderTabContent();
     }
 
