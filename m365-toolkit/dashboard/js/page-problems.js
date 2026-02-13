@@ -29,6 +29,9 @@
 const PageProblems = (function() {
     'use strict';
 
+    var currentFilter = 'all';
+    var cachedProblems = null;
+
     /**
      * Helper to create DOM elements
      */
@@ -763,6 +766,7 @@ const PageProblems = (function() {
         container.appendChild(header);
 
         var problems = collectProblems();
+        cachedProblems = problems;
 
         // Count totals
         var criticalCount = problems.critical.length;
@@ -811,52 +815,117 @@ const PageProblems = (function() {
             return;
         }
 
-        // Critical Issues Section
-        if (problems.critical.length > 0) {
-            var critSection = el('div', 'analytics-section');
-            critSection.appendChild(el('h3', null, 'Critical Issues (' + problems.critical.length + ')'));
-            var critGrid = el('div', 'problems-grid');
-            problems.critical.forEach(function(p) {
-                critGrid.appendChild(renderProblemCard(p, 'critical'));
+        // Filter button group
+        var filterGroup = el('div', 'filter-button-group');
+        filterGroup.style.marginBottom = '1rem';
+        var filters = [
+            { key: 'all', label: 'All', count: totalCount },
+            { key: 'critical', label: 'Critical', count: criticalCount },
+            { key: 'high', label: 'High', count: highCount },
+            { key: 'medium', label: 'Medium', count: mediumCount },
+            { key: 'low', label: 'Low', count: lowCount }
+        ];
+        filters.forEach(function(f) {
+            var btn = el('button', 'filter-btn' + (f.key === currentFilter ? ' active' : ''));
+            btn.setAttribute('data-filter', f.key);
+            btn.textContent = f.label + ' (' + f.count + ')';
+            filterGroup.appendChild(btn);
+        });
+        container.appendChild(filterGroup);
+
+        // Single section for filtered content
+        var section = el('div', 'analytics-section');
+        section.id = 'problems-section';
+        var sectionTitle = el('h3');
+        sectionTitle.id = 'problems-section-title';
+        var gridContainer = el('div', 'problems-grid');
+        gridContainer.id = 'problems-grid';
+        section.appendChild(sectionTitle);
+        section.appendChild(gridContainer);
+        container.appendChild(section);
+
+        // Attach filter button handlers
+        filterGroup.addEventListener('click', function(e) {
+            var btn = e.target.closest('.filter-btn');
+            if (!btn) return;
+            var filter = btn.getAttribute('data-filter');
+            if (filter && filter !== currentFilter) {
+                currentFilter = filter;
+                filterGroup.querySelectorAll('.filter-btn').forEach(function(b) {
+                    b.classList.remove('active');
+                });
+                btn.classList.add('active');
+                renderFilteredProblems();
+            }
+        });
+
+        // Render initial filtered view
+        renderFilteredProblems();
+    }
+
+    /**
+     * Renders problems based on current filter
+     */
+    function renderFilteredProblems() {
+        if (!cachedProblems) return;
+
+        var titleEl = document.getElementById('problems-section-title');
+        var gridEl = document.getElementById('problems-grid');
+        if (!titleEl || !gridEl) return;
+
+        var titles = {
+            all: 'All Issues',
+            critical: 'Critical Issues',
+            high: 'High Priority Issues',
+            medium: 'Medium Priority Issues',
+            low: 'Low Priority Issues'
+        };
+
+        var problemsToShow = [];
+        var severityMap = {
+            critical: 'critical',
+            high: 'warning',
+            medium: 'info',
+            low: 'neutral'
+        };
+
+        if (currentFilter === 'all') {
+            // Show all problems grouped by severity
+            cachedProblems.critical.forEach(function(p) {
+                problemsToShow.push({ problem: p, severity: 'critical' });
             });
-            critSection.appendChild(critGrid);
-            container.appendChild(critSection);
+            cachedProblems.high.forEach(function(p) {
+                problemsToShow.push({ problem: p, severity: 'warning' });
+            });
+            cachedProblems.medium.forEach(function(p) {
+                problemsToShow.push({ problem: p, severity: 'info' });
+            });
+            cachedProblems.low.forEach(function(p) {
+                problemsToShow.push({ problem: p, severity: 'neutral' });
+            });
+        } else {
+            var severity = severityMap[currentFilter];
+            cachedProblems[currentFilter].forEach(function(p) {
+                problemsToShow.push({ problem: p, severity: severity });
+            });
         }
 
-        // High Issues Section
-        if (problems.high.length > 0) {
-            var highSection = el('div', 'analytics-section');
-            highSection.appendChild(el('h3', null, 'High Priority Issues (' + problems.high.length + ')'));
-            var highGrid = el('div', 'problems-grid');
-            problems.high.forEach(function(p) {
-                highGrid.appendChild(renderProblemCard(p, 'warning'));
-            });
-            highSection.appendChild(highGrid);
-            container.appendChild(highSection);
-        }
+        var count = problemsToShow.length;
+        titleEl.textContent = titles[currentFilter] + ' (' + count + ')';
 
-        // Medium Issues Section
-        if (problems.medium.length > 0) {
-            var medSection = el('div', 'analytics-section');
-            medSection.appendChild(el('h3', null, 'Medium Priority Issues (' + problems.medium.length + ')'));
-            var medGrid = el('div', 'problems-grid');
-            problems.medium.forEach(function(p) {
-                medGrid.appendChild(renderProblemCard(p, 'info'));
-            });
-            medSection.appendChild(medGrid);
-            container.appendChild(medSection);
-        }
+        // Clear and rebuild grid
+        gridEl.textContent = '';
 
-        // Low Issues Section
-        if (problems.low.length > 0) {
-            var lowSection = el('div', 'analytics-section');
-            lowSection.appendChild(el('h3', null, 'Low Priority Issues (' + problems.low.length + ')'));
-            var lowGrid = el('div', 'problems-grid');
-            problems.low.forEach(function(p) {
-                lowGrid.appendChild(renderProblemCard(p, 'neutral'));
+        if (count === 0) {
+            var emptyMsg = el('div', 'text-muted');
+            emptyMsg.style.padding = '2rem';
+            emptyMsg.style.textAlign = 'center';
+            emptyMsg.textContent = 'No ' + currentFilter + ' issues found.';
+            gridEl.appendChild(emptyMsg);
+        } else {
+            problemsToShow.forEach(function(item) {
+                gridEl.appendChild(renderProblemCard(item.problem, item.severity));
             });
-            lowSection.appendChild(lowGrid);
-            container.appendChild(lowSection);
         }
     }
 
