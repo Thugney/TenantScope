@@ -17,6 +17,7 @@ const PageDevices = (function() {
 
     var currentTab = 'overview';
     var colSelector = null;
+    var apColSelector = null;
 
     function getHashParams() {
         var hash = window.location.hash || '';
@@ -305,87 +306,85 @@ const PageDevices = (function() {
 
         colSelector = ColumnSelector.create({
             containerId: 'devices-colselector',
-            storageKey: 'tenantscope-devices-cols-v4',
+            storageKey: 'tenantscope-devices-cols-v5',
             allColumns: [
-                // Core identity
+                // ═══ COMMON (All Platforms) ═══
                 { key: 'deviceName', label: 'Device Name' },
-                { key: 'managedDeviceName', label: 'Managed Name' },
                 { key: 'userPrincipalName', label: 'User' },
+                { key: 'os', label: 'OS' },
+                { key: 'osVersion', label: 'OS Version' },
+                { key: 'complianceState', label: 'Compliance' },
+                { key: 'lastSync', label: 'Last Sync' },
+                { key: 'daysSinceSync', label: 'Days Since Sync' },
+                { key: 'isStale', label: 'Stale' },
+                { key: 'ownership', label: 'Ownership' },
+                { key: 'manufacturer', label: 'Manufacturer' },
+                { key: 'model', label: 'Model' },
+                { key: 'serialNumber', label: 'Serial' },
+                { key: 'isEncrypted', label: 'Encrypted' },
+                { key: 'enrolledDateTime', label: 'Enrolled' },
+                { key: 'managementAgent', label: 'Mgmt Agent' },
+                // ═══ WINDOWS ═══
+                { key: 'windowsType', label: '[Win] Type' },
+                { key: 'windowsRelease', label: '[Win] Release' },
+                { key: 'windowsBuild', label: '[Win] Build' },
+                { key: 'windowsSupported', label: '[Win] Supported' },
+                { key: 'windowsEOL', label: '[Win] EOL Date' },
+                { key: 'autopilotEnrolled', label: '[Win] Autopilot' },
+                { key: 'autopilotGroupTag', label: '[Win] AP Group Tag' },
+                { key: 'autopilotProfileStatus', label: '[Win] AP Profile' },
+                { key: 'joinType', label: '[Win] Join Type' },
+                { key: 'chassisType', label: '[Win] Chassis' },
+                { key: 'physicalMemoryGB', label: '[Win] RAM (GB)' },
+                { key: 'ethernetMacAddress', label: '[Win] Ethernet MAC' },
+                // ═══ iOS/iPadOS ═══
+                { key: 'isSupervised', label: '[iOS] Supervised' },
+                { key: 'jailBroken', label: '[iOS] Jailbroken' },
+                // ═══ ANDROID ═══
+                { key: 'androidSecurityPatchLevel', label: '[Android] Patch Level' },
+                // ═══ MOBILE (iOS/Android) ═══
+                { key: 'phoneNumber', label: '[Mobile] Phone' },
+                { key: 'subscriberCarrier', label: '[Mobile] Carrier' },
+                { key: 'wifiMacAddress', label: '[Mobile] WiFi MAC' },
+                // ═══ IDENTITY ═══
+                { key: 'managedDeviceName', label: 'Managed Name' },
                 { key: 'primaryUserDisplayName', label: 'Display Name' },
                 { key: 'emailAddress', label: 'Email' },
                 { key: 'azureAdDeviceId', label: 'Azure AD ID' },
                 { key: 'azureAdRegistered', label: 'AAD Registered' },
-                // OS
-                { key: 'os', label: 'OS' },
-                { key: 'osVersion', label: 'OS Version' },
-                { key: 'windowsType', label: 'Win Type' },
-                { key: 'windowsRelease', label: 'Win Release' },
-                { key: 'windowsBuild', label: 'Win Build' },
-                { key: 'windowsSupported', label: 'Win Supported' },
-                { key: 'windowsEOL', label: 'Win EOL' },
-                { key: 'androidSecurityPatchLevel', label: 'Android Patch' },
-                // Compliance
-                { key: 'complianceState', label: 'Compliance' },
+                // ═══ COMPLIANCE ═══
                 { key: 'inGracePeriod', label: 'In Grace Period' },
                 { key: 'nonCompliantPolicyCount', label: 'Non-Compliant Policies' },
-                // Activity
-                { key: 'lastSync', label: 'Last Sync' },
-                { key: 'daysSinceSync', label: 'Days Since Sync' },
-                { key: 'isStale', label: 'Stale' },
-                // Enrollment
-                { key: 'ownership', label: 'Ownership' },
+                // ═══ ENROLLMENT ═══
                 { key: 'enrollmentTypeDisplay', label: 'Enrollment Type' },
                 { key: 'registrationStateDisplay', label: 'Registration' },
                 { key: 'enrollmentProfileName', label: 'Enrollment Profile' },
-                { key: 'enrolledDateTime', label: 'Enrolled' },
-                { key: 'autopilotEnrolled', label: 'Autopilot' },
-                { key: 'autopilotGroupTag', label: 'AP Group Tag' },
-                { key: 'autopilotProfileStatus', label: 'AP Profile Status' },
-                // Hardware
-                { key: 'manufacturer', label: 'Manufacturer' },
-                { key: 'model', label: 'Model' },
-                { key: 'serialNumber', label: 'Serial' },
-                { key: 'chassisType', label: 'Chassis Type' },
-                { key: 'deviceCategory', label: 'Category' },
-                { key: 'physicalMemoryGB', label: 'RAM (GB)' },
-                // Security
-                { key: 'isEncrypted', label: 'Encrypted' },
-                { key: 'jailBroken', label: 'Jailbroken' },
-                { key: 'isSupervised', label: 'Supervised' },
+                { key: 'managementSource', label: 'Source' },
+                // ═══ SECURITY ═══
                 { key: 'threatStateDisplay', label: 'Threat State' },
                 { key: 'threatSeverity', label: 'Threat Severity' },
-                // Management
-                { key: 'joinType', label: 'Join Type' },
-                { key: 'managementAgent', label: 'Mgmt Agent' },
-                { key: 'managementSource', label: 'Source' },
-                // Certificates
                 { key: 'certStatus', label: 'Cert Status' },
                 { key: 'daysUntilCertExpiry', label: 'Cert Days' },
-                // Exchange
+                // ═══ OTHER ═══
+                { key: 'deviceCategory', label: 'Category' },
                 { key: 'exchangeAccessDisplay', label: 'Exchange Access' },
-                // Storage
                 { key: 'totalStorageGB', label: 'Total Storage' },
                 { key: 'freeStorageGB', label: 'Free Storage' },
                 { key: 'storageUsedPct', label: 'Storage Used %' },
-                // Network
-                { key: 'wifiMacAddress', label: 'WiFi MAC' },
-                { key: 'ethernetMacAddress', label: 'Ethernet MAC' },
-                { key: 'phoneNumber', label: 'Phone Number' },
-                { key: 'subscriberCarrier', label: 'Carrier' },
-                // Mobile identifiers
-                { key: 'imei', label: 'IMEI' },
-                { key: 'meid', label: 'MEID' },
-                { key: 'iccid', label: 'ICCID' },
-                { key: 'udid', label: 'UDID' },
-                // Exchange details
+                // ═══ MOBILE IDENTIFIERS ═══
+                { key: 'imei', label: '[Mobile] IMEI' },
+                { key: 'meid', label: '[Mobile] MEID' },
+                { key: 'iccid', label: '[Mobile] ICCID' },
+                { key: 'udid', label: '[iOS] UDID' },
+                // ═══ EXCHANGE ═══
                 { key: 'exchangeAccessReason', label: 'Exchange Reason' },
                 { key: 'exchangeLastSync', label: 'Exchange Sync' },
                 { key: 'easActivated', label: 'EAS Activated' },
                 { key: 'easDeviceId', label: 'EAS Device ID' },
-                // Compliance details
+                // ═══ COMPLIANCE DETAILS ═══
                 { key: 'complianceGracePeriodExpiry', label: 'Grace Expiry' },
                 { key: 'complianceGraceDays', label: 'Grace Days Left' },
-                // Certificate details
+                // ═══ CERTIFICATE DETAILS ═══
                 { key: 'certExpiryDate', label: 'Cert Expiry Date' },
                 // Admin
                 { key: 'notes', label: 'Notes' },
@@ -960,9 +959,31 @@ const PageDevices = (function() {
             groupTags.forEach(function(g) { html += '<option value="' + g + '">' + g + '</option>'; });
             html += '</select>';
         }
+        html += '<div id="autopilot-colselector"></div>';
         html += '</div>';
         html += '<div class="table-container" id="autopilot-table"></div>';
         container.innerHTML = html;
+
+        // Create column selector for Autopilot tab
+        apColSelector = ColumnSelector.create({
+            containerId: 'autopilot-colselector',
+            storageKey: 'tenantscope-autopilot-cols-v1',
+            allColumns: [
+                { key: 'serialNumber', label: 'Serial Number' },
+                { key: 'model', label: 'Model' },
+                { key: 'manufacturer', label: 'Manufacturer' },
+                { key: 'groupTag', label: 'Group Tag' },
+                { key: 'enrollmentState', label: 'Enrollment' },
+                { key: 'lastContacted', label: 'Last Contacted' },
+                { key: 'profileAssigned', label: 'Profile' },
+                { key: 'profileAssignmentStatus', label: 'Profile Status' },
+                { key: 'purchaseOrder', label: 'PO' },
+                { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile' },
+                { key: 'addressableUserName', label: 'User' }
+            ],
+            defaultVisible: ['serialNumber', 'model', 'manufacturer', 'groupTag', 'enrollmentState', 'profileAssignmentStatus'],
+            onColumnsChanged: applyAutopilotFilters
+        });
 
         function applyAutopilotFilters() {
             var search = (Filters.getValue('autopilot-search') || '').toLowerCase();
@@ -1058,20 +1079,26 @@ const PageDevices = (function() {
     }
 
     function renderAutopilotTable(data) {
+        var visible = apColSelector ? apColSelector.getVisible() : ['serialNumber', 'model', 'manufacturer', 'groupTag', 'enrollmentState', 'profileAssignmentStatus'];
+
+        var allDefs = [
+            { key: 'serialNumber', label: 'Serial Number', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
+            { key: 'model', label: 'Model' },
+            { key: 'manufacturer', label: 'Manufacturer' },
+            { key: 'groupTag', label: 'Group Tag' },
+            { key: 'enrollmentState', label: 'Enrollment', formatter: formatEnrollmentState },
+            { key: 'lastContacted', label: 'Last Contacted', formatter: formatDate },
+            { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
+            { key: 'profileAssignmentStatus', label: 'Profile Status', formatter: formatProfileStatus },
+            { key: 'purchaseOrder', label: 'PO' },
+            { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile', formatter: formatProfileStatus },
+            { key: 'addressableUserName', label: 'User' }
+        ];
+
         Tables.render({
             containerId: 'autopilot-table',
             data: data,
-            columns: [
-                { key: 'serialNumber', label: 'Serial Number', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
-                { key: 'model', label: 'Model' },
-                { key: 'manufacturer', label: 'Manufacturer' },
-                { key: 'groupTag', label: 'Group Tag' },
-                { key: 'enrollmentState', label: 'Enrollment', formatter: formatEnrollmentState },
-                { key: 'lastContacted', label: 'Last Contacted', formatter: formatDate },
-                { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
-                { key: 'profileAssignmentStatus', label: 'Profile Status', formatter: formatProfileStatus },
-                { key: 'purchaseOrder', label: 'PO' }
-            ],
+            columns: allDefs.filter(function(c) { return visible.indexOf(c.key) !== -1; }),
             pageSize: 25,
             onRowClick: showAutopilotDetails
         });
