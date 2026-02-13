@@ -900,7 +900,9 @@ const PageDevices = (function() {
     }
 
     function renderAutopilotTab(container) {
-        var autopilot = DataLoader.getData('autopilot') || [];
+        // Handle both array and object formats
+        var rawAutopilot = DataLoader.getData('autopilot');
+        var autopilot = Array.isArray(rawAutopilot) ? rawAutopilot : (rawAutopilot && rawAutopilot.devices ? rawAutopilot.devices : []);
 
         if (autopilot.length === 0) {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-title">No Autopilot Devices</div><p>No Windows Autopilot device identities found.</p></div>';
@@ -1980,8 +1982,9 @@ const PageDevices = (function() {
 
         var rateClass = summary.complianceRate >= 90 ? 'text-success' : summary.complianceRate >= 70 ? 'text-warning' : 'text-critical';
 
-        // Get autopilot count
-        var autopilot = DataLoader.getData('autopilot') || [];
+        // Get autopilot count - handle both array and object formats
+        var rawAutopilot = DataLoader.getData('autopilot');
+        var autopilot = Array.isArray(rawAutopilot) ? rawAutopilot : (rawAutopilot && rawAutopilot.devices ? rawAutopilot.devices : []);
 
         var html = '<div class="page-header"><h2>Devices</h2></div>';
 
