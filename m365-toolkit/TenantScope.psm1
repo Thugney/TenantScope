@@ -15,7 +15,7 @@
     and management through an interactive dashboard.
 
 .NOTES
-    Version: 2.4.0
+    Version: 2.5.0
     Requires: PowerShell 7.0+, Microsoft Graph PowerShell SDK
 #>
 

@@ -5,6 +5,29 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.5.0] - 2026-02-17
+
+### Added
+
+#### Tier 1 — High Impact Operational Tools
+- **Automated User Offboarding** (`tools/Invoke-UserOffboarding.ps1`): Complete employee offboarding workflow — block sign-in, revoke sessions, convert mailbox to shared, forward email to manager, remove group memberships, remove licenses, remove devices, export audit report. Supports `-WhatIf` for dry runs and `-Confirm` for step-by-step approval. Generates JSON audit trail for compliance.
+- **Compliance Drift Monitor** (`tools/Invoke-ComplianceDriftMonitor.ps1`): Weekly scan detecting devices that were compliant but have drifted to noncompliant. Three-stage escalation: monitoring (1-7 days) → alert with email to user/manager (7-14 days) → escalation flag for CA restriction or wipe (14+ days). Tracks compliance state history across runs. Generates HTML and JSON reports.
+- **Conditional Access Gap Analyzer** (`tools/Invoke-CAGapAnalyzer.ps1`): Audits CA policies for coverage gaps — missing baseline policies (legacy auth block, admin MFA, all-users MFA, device compliance, risk-based controls), stale exclusion groups with disabled/guest accounts, report-only policies that should be enforced, user-targeted policies, and missing all-apps coverage. Produces a risk score (0-100) with prioritized findings.
+
+#### Tier 2 — Operational Excellence Tools
+- **Autopilot Readiness & Health Dashboard** (`tools/Invoke-AutopilotHealthReport.ps1`): Monitors Autopilot registration health — devices with hardware hash but no profile, enrollment state breakdown by group tag (per school/department), deployment success/failure rates, average and median deployment time, stale device detection. Weekly HTML report for IT ops.
+- **Group Membership Hygiene** (`tools/Invoke-GroupHygiene.ps1`): Finds stale members across security groups — disabled accounts still in groups, guest accounts in security groups, nested groups creating access expansion, empty groups, ownerless groups. Highlights license assignment groups (cost impact) and role-assignable groups (privilege impact). Supports focus patterns for targeted scans.
+- **Shared Device Compliance Monitor** (`tools/Invoke-SharedDeviceCompliance.ps1`): Specialized monitoring for kiosks, shared iPads, and corporate devices — last check-in tracking, storage utilization alerts, compliance state, OS version currency. Configurable thresholds for check-in days, storage percentage, and certificate expiry warning.
+
+#### Tier 3 — Advanced Governance Tools
+- **Shadow IT Detection** (`tools/Invoke-ShadowITDetection.ps1`): Identifies unsanctioned app usage via OAuth consent grant analysis — high-risk permission scopes, unverified publisher apps, user-consented apps bypassing IT, multi-tenant apps with admin consent. Classifies risk as low/medium/high with detailed risk factor breakdown.
+- **Automated Onboarding Provisioning** (`tools/Invoke-UserOnboarding.ps1`): Complete new employee provisioning — assign license based on department mapping, add to correct groups, set manager relationship, send welcome email to manager with setup instructions. Supports configurable department-to-license/group mappings via `onboarding-mappings.json`. Includes `-WhatIf` and audit trail.
+
+### Changed
+- **VERSION**: Bumped to 2.5.0
+- **TenantScope.psd1**: Updated module version to 2.5.0, added new tags (Offboarding, Onboarding, ShadowIT, Autopilot, Governance)
+- **config.sample.json**: Added `offboarding` and `sharedDeviceMonitoring` configuration sections with default thresholds
+
 ## [2.4.2] - 2026-02-12
 
 ### Fixed

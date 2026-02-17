@@ -1,0 +1,36 @@
+{
+  "departmentMappings": {
+    "Engineering": {
+      "licenseSku": "SPE_E5",
+      "groups": ["SG-Engineering", "SG-VPN-Users", "DL-Engineering-All"],
+      "autopilotGroupTag": "Engineering"
+    },
+    "Sales": {
+      "licenseSku": "SPE_E3",
+      "groups": ["SG-Sales", "SG-CRM-Users", "DL-Sales-All"],
+      "autopilotGroupTag": "Sales"
+    },
+    "Marketing": {
+      "licenseSku": "SPE_E3",
+      "groups": ["SG-Marketing", "DL-Marketing-All"],
+      "autopilotGroupTag": "Marketing"
+    },
+    "Finance": {
+      "licenseSku": "SPE_E3",
+      "groups": ["SG-Finance", "SG-SAP-Users", "DL-Finance-All"],
+      "autopilotGroupTag": "Finance"
+    },
+    "IT": {
+      "licenseSku": "SPE_E5",
+      "groups": ["SG-IT", "SG-IT-Admins", "SG-VPN-Users", "DL-IT-All"],
+      "autopilotGroupTag": "IT"
+    },
+    "HR": {
+      "licenseSku": "SPE_E3",
+      "groups": ["SG-HR", "DL-HR-All"],
+      "autopilotGroupTag": "HR"
+    }
+  },
+  "defaultLicenseSku": "SPE_E3",
+  "defaultGroups": ["SG-All-Employees", "DL-Company-All"]
+}

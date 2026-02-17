@@ -104,5 +104,36 @@
   "dashboard": {
     "title": "TenantScope",
     "subtitle": "M365 Tenant Dashboard"
+  },
+
+  "offboarding": {
+    "skipMailboxConversion": false,
+    "skipEmailForwarding": false,
+    "skipDeviceRemoval": false,
+    "exportPath": "./data/offboarding"
+  },
+  "onboarding": {
+    "defaultLicenseSku": "SPE_E3",
+    "mappingsFile": "./config/onboarding-mappings.json"
+  },
+  "complianceDrift": {
+    "driftThresholdDays": 7,
+    "escalationThresholdDays": 14,
+    "sendNotifications": false
+  },
+  "sharedDeviceMonitoring": {
+    "checkInThresholdDays": 7,
+    "storageThresholdPercent": 85,
+    "certExpiryDays": 30
+  },
+  "groupHygiene": {
+    "includeDistributionGroups": false,
+    "focusGroups": []
+  },
+  "shadowIT": {
+    "riskThreshold": "medium"
+  },
+  "autopilotHealth": {
+    "staleThresholdDays": 90
   }
 }

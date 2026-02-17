@@ -7,7 +7,7 @@
     RootModule = 'TenantScope.psm1'
 
     # Version number of this module.
-    ModuleVersion = '2.4.0'
+    ModuleVersion = '2.5.0'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core')
@@ -82,7 +82,7 @@
     PrivateData = @{
         PSData = @{
             # Tags applied to this module
-            Tags = @('Microsoft365', 'M365', 'Intune', 'AzureAD', 'EntraID', 'Graph', 'Dashboard', 'Reporting', 'Security', 'Compliance')
+            Tags = @('Microsoft365', 'M365', 'Intune', 'AzureAD', 'EntraID', 'Graph', 'Dashboard', 'Reporting', 'Security', 'Compliance', 'Offboarding', 'Onboarding', 'ShadowIT', 'Autopilot', 'Governance')
 
             # A URL to the license for this module
             LicenseUri = 'https://github.com/Thugney/-M365-TENANT-TOOLKIT/blob/main/LICENSE'
