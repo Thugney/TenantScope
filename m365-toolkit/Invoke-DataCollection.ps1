@@ -999,6 +999,35 @@ catch {
 
 Write-CollectionSummary -Results $collectorResults -StartTime $collectionStartTime -EndTime $collectionEndTime
 
+# ============================================================================
+# POST-COLLECTION ANALYSIS
+# Run analysis tools that consume collected data and produce dashboard-ready
+# JSON. These are read-only and do not make Graph API calls.
+# ============================================================================
+
+Write-Host ""
+Write-Host "Running post-collection analysis..." -ForegroundColor Cyan
+
+$analysisTools = @(
+    @{ Name = "CIS Benchmark Audit";       Script = "Invoke-CISBenchmarkAudit.ps1" },
+    @{ Name = "Cross-Entity Risk Scoring";  Script = "Invoke-TenantRiskScore.ps1" },
+    @{ Name = "Sign-In Anomaly Detection";  Script = "Invoke-SignInAnomalyDetection.ps1" }
+)
+
+foreach ($tool in $analysisTools) {
+    $toolPath = Join-Path $PSScriptRoot "tools" $tool.Script
+    if (Test-Path $toolPath) {
+        Write-Host "  Running $($tool.Name)..." -ForegroundColor White
+        try {
+            & $toolPath -Config $configContent 2>&1 | Out-Null
+            Write-Host "  [OK] $($tool.Name) complete" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "  [WARN] $($tool.Name) failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+}
+
 # Disconnect from Graph
 Write-Host "Disconnecting from Microsoft Graph..." -ForegroundColor Cyan
 Disconnect-MgGraph | Out-Null

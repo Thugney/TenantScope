@@ -277,6 +277,11 @@ $bundleMap = @{
     "sharepointSites"         = "sharepoint-sites.json"
     "serviceAnnouncements"    = "service-announcements.json"
     "appSignins"              = "app-signins.json"
+    # Benchmark & risk analysis
+    "cisBenchmark"            = "cis-benchmark-results.json"
+    "riskScores"              = "risk-scores.json"
+    "signinAnomalies"         = "signin-anomaly-results.json"
+    "alertsFeed"              = "alerts-feed.json"
     # Metadata
     "metadata"                = "collection-metadata.json"
     "trendHistory"            = "trend-history.json"
