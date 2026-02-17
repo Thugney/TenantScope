@@ -58,7 +58,10 @@
         'compliance': PageCompliance,
         'vulnerabilities': PageVulnerabilities,
         // Problem Summary page
-        'problems': PageProblems
+        'problems': PageProblems,
+        // Benchmark & risk analysis pages
+        'benchmarks': PageBenchmarks,
+        'risk-scores': PageRiskScores
     };
 
     // ========================================================================

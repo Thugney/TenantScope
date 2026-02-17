@@ -51,6 +51,11 @@ const DataLoader = (function() {
         oauthConsentGrants: null,
         namedLocations: null,
         identityRisk: null,
+        // Benchmark & risk analysis
+        cisBenchmark: null,
+        riskScores: null,
+        signinAnomalies: null,
+        alertsFeed: null,
         // Device management
         devices: [],
         autopilot: [],
@@ -113,6 +118,11 @@ const DataLoader = (function() {
         oauthConsentGrants: 'data/oauth-consent-grants.json',
         namedLocations: 'data/named-locations.json',
         identityRisk: 'data/identity-risk-data.json',
+        // Benchmark & risk analysis
+        cisBenchmark: 'data/cis-benchmark-results.json',
+        riskScores: 'data/risk-scores.json',
+        signinAnomalies: 'data/signin-anomaly-results.json',
+        alertsFeed: 'data/alerts-feed.json',
         // Device management
         devices: 'data/devices.json',
         autopilot: 'data/autopilot.json',
