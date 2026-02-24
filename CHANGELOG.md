@@ -34,10 +34,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Dashboard build and documentation updated to include new datasets and permissions.
 
-### Fixed
-- Teams collector Graph queries now cast owners/members to user objects to avoid `BadRequest`.
-- SharePoint collector falls back to v1.0 usage report when beta endpoint fails.
-
 ## [1.5.8] - 2026-02-06
 
 ### Fixed

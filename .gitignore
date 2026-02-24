@@ -54,6 +54,13 @@ bsure/
 nul
 nul/
 
+# AI/Agent configuration files (not for public repo)
+AGENTS.md
+**/CLAUDE.md
+.codex/
+.cursor/
+.aider*
+
 # BMAD output (generated)
 _bmad-output/
 _bmad/
@@ -70,3 +77,13 @@ _bmad/
 /M365-TENANT-TOOLKIT-ARCHITECTURE.md
 /technical-architecture.png
 /Features.md
+
+# Internal development docs (not for public repo)
+m365-toolkit/reviews/
+m365-toolkit/docs/*-LOG-*.md
+m365-toolkit/docs/*-ROADMAP*.md
+m365-toolkit/docs/*-FINDINGS-*.md
+m365-toolkit/docs/*-READINESS-*.csv
+m365-toolkit/docs/*-MAP-*.csv
+m365-toolkit/docs/*-COVERAGE-*.csv
+m365-toolkit/docs/*-EXTRACT-*.csv
