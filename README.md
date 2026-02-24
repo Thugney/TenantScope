@@ -1,12 +1,13 @@
 # TenantScope - M365 Tenant Toolkit
 
-[![Version](https://img.shields.io/badge/version-2.4.1-blue.svg)](https://github.com/Thugney/TenantScope/releases)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![PowerShell](https://img.shields.io/badge/PowerShell-7.0%2B-5391FE.svg?logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
-[![GitHub stars](https://img.shields.io/github/stars/Thugney/TenantScope?style=social)](https://github.com/Thugney/TenantScope/stargazers)
+[![GitHub](https://img.shields.io/badge/GitHub-Thugney-181717?style=flat&logo=github)](https://github.com/Thugney)
+[![Blog](https://img.shields.io/badge/Blog-eriteach.com-0d9488?style=flat&logo=hugo)](https://blog.eriteach.com)
+[![YouTube](https://img.shields.io/badge/YouTube-Eriteach-FF0000?style=flat&logo=youtube)](https://www.youtube.com/@eriteach)
+[![LinkedIn](https://img.shields.io/badge/LinkedIn-Eriteach-0A66C2?style=flat&logo=linkedin)](https://www.linkedin.com/in/eriteach/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-[![Author](https://img.shields.io/badge/Author-Robel-brightgreen.svg)](https://github.com/Thugney)
-[![X (Twitter)](https://img.shields.io/badge/X-@eriteach-1DA1F2.svg?logo=x&logoColor=white)](https://x.com/eriteach)
+[![PowerShell](https://img.shields.io/badge/PowerShell-7.0%2B-5391FE?style=flat&logo=powershell&logoColor=white)](https://github.com/PowerShell/PowerShell)
+[![Version](https://img.shields.io/badge/version-2.4.1-blue?style=flat)](https://github.com/Thugney/TenantScope/releases)
 
 ---
 
@@ -128,4 +129,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
-**Made with focus by [Robel](https://github.com/Thugney)** | [Follow on X](https://x.com/eriteach)
+**Made with focus by [Robel](https://github.com/Thugney)** | [Blog](https://blog.eriteach.com) | [YouTube](https://www.youtube.com/@eriteach) | [LinkedIn](https://www.linkedin.com/in/eriteach/)
