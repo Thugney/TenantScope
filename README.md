@@ -94,6 +94,17 @@ cd TenantScope/m365-toolkit
 .\Invoke-DataCollection.ps1 -CollectorsToRun @("DeviceData", "UserData", "SignInLogs")
 ```
 
+## Development Workflow
+
+This repository uses a two-machine flow:
+
+1. Develop and commit changes on the primary development machine.
+2. Push to GitHub (`origin/main`) from the dev machine.
+3. Pull latest on the work/test machine.
+4. Run collection + dashboard validation on the work/test machine.
+
+This keeps implementation and tenant validation separated while preserving a single source of truth in GitHub.
+
 ## Documentation
 
 | Document | Description |

@@ -14,6 +14,8 @@
     "staleDeviceDays": 90,
     "inactiveTeamDays": 90,
     "inactiveSiteDays": 90,
+    "maxGroupMemberDetails": 100,
+    "maxGroupOwnerDetails": 100,
     "highStorageThresholdGB": 20,
     "patchAgeDays": 30,
     "signatureAgeDays": 7,

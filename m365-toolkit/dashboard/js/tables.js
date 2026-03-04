@@ -47,6 +47,10 @@ const Tables = (function() {
     /** Table state storage (pagination, sort, column filters) by container ID */
     const tableStates = {};
 
+    /** Export cache storage by table container ID (avoids heavy DOM dataset serialization). */
+    const tableExportData = {};
+    const tableExportColumns = {};
+
     /** SVG for the filter icon in column headers */
     const FILTER_ICON_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>';
 
@@ -383,8 +387,9 @@ const Tables = (function() {
             var filteredData = applyColumnFilters(config.data, config.columns, state.columnFilters);
 
             // Sort data if needed
-            var sortedData = filteredData.slice();
+            var sortedData = filteredData;
             if (state.sortKey) {
+                sortedData = filteredData.slice();
                 sortedData.sort((a, b) => {
                     const aVal = getNestedValue(a, state.sortKey);
                     const bVal = getNestedValue(b, state.sortKey);
@@ -394,6 +399,10 @@ const Tables = (function() {
 
             // Paginate data
             const totalItems = sortedData.length;
+            const totalPages = Math.max(1, Math.ceil(totalItems / state.pageSize));
+            if (state.currentPage > totalPages) {
+                state.currentPage = totalPages;
+            }
             const startIndex = (state.currentPage - 1) * state.pageSize;
             const pageData = sortedData.slice(startIndex, startIndex + state.pageSize);
 
@@ -591,9 +600,9 @@ const Tables = (function() {
 
             container.appendChild(tableContainer);
 
-            // Store reference to current data for export
-            container.dataset.tableData = JSON.stringify(sortedData);
-            container.dataset.tableColumns = JSON.stringify(config.columns);
+            // Store reference to current data for export without expensive JSON stringify.
+            tableExportData[config.containerId] = sortedData;
+            tableExportColumns[config.containerId] = config.columns;
         },
 
         /**
@@ -608,6 +617,8 @@ const Tables = (function() {
                 tableStates[containerId].sortDesc = false;
                 tableStates[containerId].columnFilters = {};
             }
+            delete tableExportData[containerId];
+            delete tableExportColumns[containerId];
         },
 
         /**
@@ -617,9 +628,7 @@ const Tables = (function() {
          * @returns {Array} The table's current data
          */
         getData(containerId) {
-            const container = document.getElementById(containerId);
-            if (!container || !container.dataset.tableData) return [];
-            return JSON.parse(container.dataset.tableData);
+            return tableExportData[containerId] || [];
         },
 
         /**
@@ -629,9 +638,7 @@ const Tables = (function() {
          * @returns {Array} The table's column configuration
          */
         getColumns(containerId) {
-            const container = document.getElementById(containerId);
-            if (!container || !container.dataset.tableColumns) return [];
-            return JSON.parse(container.dataset.tableColumns);
+            return tableExportColumns[containerId] || [];
         },
 
         /**

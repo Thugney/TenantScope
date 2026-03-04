@@ -6,9 +6,6 @@
 const PageAppDeployments = (function() {
     'use strict';
 
-    // DEBUG: Log when this file loads
-    console.log('%c[AppDeployments] JS FILE LOADED - v2', 'background: blue; color: white; font-size: 14px;');
-
     var colSelector = null;
     var rawData = null;
     var currentTab = 'apps';
@@ -16,37 +13,11 @@ const PageAppDeployments = (function() {
     // Extract and normalize data from nested structure
     function getData() {
         var data = DataLoader.getData('appDeployments');
-
-        // DEBUG START - comprehensive logging
-        console.log('%c=== APP DEPLOYMENTS DEBUG ===', 'background: red; color: white; font-size: 16px;');
-        console.log('1. Raw data type:', typeof data);
-        console.log('2. Raw data:', data);
-
-        if (!data) {
-            console.log('3. DATA IS NULL/UNDEFINED - returning null');
-            return null;
-        }
-
-        console.log('3. Has data.apps?', !!data.apps);
-        if (data.apps) {
-            console.log('4. data.apps length:', data.apps.length);
-            console.log('5. First app RAW:', JSON.stringify(data.apps[0], null, 2));
-            console.log('6. First app installedDevices:', data.apps[0].installedDevices);
-            console.log('7. First app failedDevices:', data.apps[0].failedDevices);
-            console.log('8. First app pendingDevices:', data.apps[0].pendingDevices);
-        }
-        // DEBUG END
+        if (!data) return null;
 
         // Handle nested structure from collector - still need to map apps for consistent field names
         if (data.apps) {
             var mappedApps = data.apps.map(mapApp);
-
-            // DEBUG - check mapped result
-            console.log('%c=== AFTER MAPPING ===', 'background: green; color: white;');
-            console.log('9. First MAPPED app:', JSON.stringify(mappedApps[0], null, 2));
-            console.log('10. Mapped installedCount:', mappedApps[0].installedCount);
-            console.log('11. Mapped failedCount:', mappedApps[0].failedCount);
-            console.log('12. Mapped pendingCount:', mappedApps[0].pendingCount);
 
             return {
                 apps: mappedApps,
@@ -71,27 +42,23 @@ const PageAppDeployments = (function() {
 
     function toNumber(value) {
         if (value === null || value === undefined || value === '') return null;
+
+        if (typeof value === 'string') {
+            var normalized = value.replace(/[, ]/g, '').trim();
+            if (normalized === '') return null;
+            var parsed = Number(normalized);
+            return isNaN(parsed) ? null : parsed;
+        }
+
         var num = Number(value);
         return isNaN(num) ? null : num;
-    }
-
-    function pickCount(values) {
-        var nums = values.map(toNumber).filter(function(v) { return v !== null; });
-        if (nums.length === 0) return 0;
-        return Math.max.apply(null, nums);
     }
 
     // Simplified: get first valid number from list of possible field names
     function getFirstValidCount(app, fieldNames) {
         for (var i = 0; i < fieldNames.length; i++) {
-            var val = app[fieldNames[i]];
-            if (typeof val === 'number' && !isNaN(val)) {
-                return val;
-            }
-            if (typeof val === 'string' && val !== '') {
-                var num = parseInt(val, 10);
-                if (!isNaN(num)) return num;
-            }
+            var parsed = toNumber(app[fieldNames[i]]);
+            if (parsed !== null) return parsed;
         }
         return 0;
     }
@@ -103,15 +70,6 @@ const PageAppDeployments = (function() {
         var pending = getFirstValidCount(a, ['pendingInstallDeviceCount', 'pendingDeviceCount', 'pendingDevices', 'pendingCount']);
         var notInstalled = getFirstValidCount(a, ['notInstalledDeviceCount', 'notInstalledDevices', 'notInstalledCount']);
         var notApplicable = getFirstValidCount(a, ['notApplicableDeviceCount', 'notApplicableDevices', 'notApplicableCount']);
-
-        // Debug first app
-        if (!getAppCounts._logged) {
-            console.log('%c[getAppCounts] Processing:', 'color: orange;', a.displayName);
-            console.log('  installedDevices field value:', a.installedDevices, '-> result:', installed);
-            console.log('  failedDevices field value:', a.failedDevices, '-> result:', failed);
-            console.log('  pendingDevices field value:', a.pendingDevices, '-> result:', pending);
-            getAppCounts._logged = true;
-        }
 
         return {
             installed: installed,
@@ -467,7 +425,7 @@ const PageAppDeployments = (function() {
 
         colSelector = ColumnSelector.create({
             containerId: 'apps-colselector',
-            storageKey: 'tenantscope-apps-cols',
+            storageKey: 'tenantscope-apps-cols-v2',
             allColumns: [
                 { key: 'displayName', label: 'App Name' },
                 { key: 'appType', label: 'Type' },
@@ -488,7 +446,7 @@ const PageAppDeployments = (function() {
                 { key: 'lastModifiedDateTime', label: 'Last Modified' },
                 { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'installRate', '_adminLinks'],
+            defaultVisible: ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'pendingCount', 'notInstalledCount', 'notApplicableCount', 'installRate', '_adminLinks'],
             onColumnsChanged: function() { applyAppsFilters(); }
         });
 
@@ -546,7 +504,7 @@ const PageAppDeployments = (function() {
     }
 
     function renderAppsTable(data) {
-        var visible = colSelector ? colSelector.getVisible() : ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'installRate'];
+        var visible = colSelector ? colSelector.getVisible() : ['displayName', 'appType', 'platform', 'installedCount', 'failedCount', 'pendingCount', 'notInstalledCount', 'notApplicableCount', 'installRate', '_adminLinks'];
 
         var allDefs = [
             { key: 'displayName', label: 'App Name', formatter: function(v, row) {
@@ -817,7 +775,7 @@ const PageAppDeployments = (function() {
         var totalApps = summary.totalApps || apps.length;
         var totalInstalled = summary.totalInstalled || 0;
         var totalFailed = summary.totalFailed || 0;
-        var appsWithFailures = summary.appsWithFailures || apps.filter(function(a) { return (a.failedDevices || 0) > 0; }).length;
+        var appsWithFailures = summary.appsWithFailures || apps.filter(function(a) { return (a.failedCount || a.failedDevices || 0) > 0; }).length;
 
         var html = '<div class="page-header"><h2>App Deployments</h2></div>';
 

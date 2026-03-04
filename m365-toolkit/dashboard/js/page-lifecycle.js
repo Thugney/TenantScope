@@ -32,6 +32,10 @@ const PageLifecycle = (function() {
     /** Column selector instance */
     var colSelector = null;
 
+    function asArray(value) {
+        return Array.isArray(value) ? value : [];
+    }
+
     /**
      * Creates an element with className and textContent.
      */
@@ -623,6 +627,16 @@ const PageLifecycle = (function() {
             });
         });
 
+        // Cache a lowercase search blob once to avoid repeated string work on each filter.
+        for (var idx = 0; idx < issues.length; idx++) {
+            var issue = issues[idx];
+            issue._searchBlob = [
+                issue.displayName || '',
+                issue.identifier || '',
+                issue.department || ''
+            ].join('|').toLowerCase();
+        }
+
         return issues;
     }
 
@@ -630,35 +644,35 @@ const PageLifecycle = (function() {
      * Applies filters and renders the issues table.
      */
     function applyIssuesFilters() {
-        var filtered = allIssues.slice();
-
-        // Search filter
+        var filtered = [];
         var search = Filters.getValue('lifecycle-search');
-        if (search) {
-            var term = search.toLowerCase();
-            filtered = filtered.filter(function(i) {
-                return (i.displayName && i.displayName.toLowerCase().indexOf(term) !== -1) ||
-                       (i.identifier && i.identifier.toLowerCase().indexOf(term) !== -1) ||
-                       (i.department && i.department.toLowerCase().indexOf(term) !== -1);
-            });
-        }
-
-        // Category filter
+        var term = search ? search.toLowerCase().trim() : '';
         var category = Filters.getValue('lifecycle-category');
-        if (category && category !== 'all') {
-            filtered = filtered.filter(function(i) { return i.category === category; });
-        }
-
-        // Severity filter
         var severity = Filters.getValue('lifecycle-severity');
-        if (severity && severity !== 'all') {
-            filtered = filtered.filter(function(i) { return i.severity === severity; });
-        }
-
-        // Entity type filter
         var entityType = Filters.getValue('lifecycle-entity');
-        if (entityType && entityType !== 'all') {
-            filtered = filtered.filter(function(i) { return i.entityType === entityType; });
+
+        for (var idx = 0; idx < allIssues.length; idx++) {
+            var issue = allIssues[idx];
+            if (!issue) continue;
+
+            if (term) {
+                var blob = issue._searchBlob || '';
+                if (!blob && (issue.displayName || issue.identifier || issue.department)) {
+                    blob = [
+                        issue.displayName || '',
+                        issue.identifier || '',
+                        issue.department || ''
+                    ].join('|').toLowerCase();
+                    issue._searchBlob = blob;
+                }
+                if (blob.indexOf(term) === -1) continue;
+            }
+
+            if (category && category !== 'all' && issue.category !== category) continue;
+            if (severity && severity !== 'all' && issue.severity !== severity) continue;
+            if (entityType && entityType !== 'all' && issue.entityType !== entityType) continue;
+
+            filtered.push(issue);
         }
 
         // Update count display
@@ -679,9 +693,15 @@ const PageLifecycle = (function() {
     function updateFilteredSummaryCards(filteredIssues) {
         // Calculate counts from filtered data
         var totalCount = filteredIssues.length;
-        var criticalCount = filteredIssues.filter(function(i) { return i.severity === 'critical'; }).length;
-        var warningCount = filteredIssues.filter(function(i) { return i.severity === 'warning'; }).length;
-        var infoCount = filteredIssues.filter(function(i) { return i.severity === 'info'; }).length;
+        var criticalCount = 0;
+        var warningCount = 0;
+        var infoCount = 0;
+        for (var idx = 0; idx < filteredIssues.length; idx++) {
+            var severity = filteredIssues[idx] ? filteredIssues[idx].severity : null;
+            if (severity === 'critical') criticalCount++;
+            else if (severity === 'warning') warningCount++;
+            else if (severity === 'info') infoCount++;
+        }
 
         // Update summary card values if they exist
         var totalEl = document.getElementById('lifecycle-total-value');
@@ -890,6 +910,11 @@ const PageLifecycle = (function() {
         // Bind export button
         Export.bindExportButton('lifecycle-issues-table', 'lifecycle-issues');
 
+        // Avoid stale pagination/sort state when lifecycle data scope changes.
+        if (typeof Tables !== 'undefined' && typeof Tables.reset === 'function') {
+            Tables.reset('lifecycle-issues-table');
+        }
+
         // Initial render
         applyIssuesFilters();
     }
@@ -914,13 +939,15 @@ const PageLifecycle = (function() {
     function render(container) {
         container.textContent = '';
 
-        var allUsers = DataLoader.getData('users');
-        var users = (typeof DepartmentFilter !== 'undefined') ? DepartmentFilter.filterData(allUsers, 'department') : allUsers;
-        var guests = DataLoader.getData('guests');
-        var adminRoles = DataLoader.getData('adminRoles');
-        var teams = DataLoader.getData('teams');
-        var spSites = DataLoader.getData('sharepointSites');
-        var deletedUsers = DataLoader.getData('deletedUsers');
+        var allUsers = asArray(DataLoader.getData('users'));
+        var users = (typeof DepartmentFilter !== 'undefined')
+            ? asArray(DepartmentFilter.filterData(allUsers, 'department'))
+            : allUsers;
+        var guests = asArray(DataLoader.getData('guests'));
+        var adminRoles = asArray(DataLoader.getData('adminRoles'));
+        var teams = asArray(DataLoader.getData('teams'));
+        var spSites = asArray(DataLoader.getData('sharepointSites'));
+        var deletedUsers = asArray(DataLoader.getData('deletedUsers'));
 
         function isUserMember(member) {
             if (!member) return false;
@@ -953,94 +980,128 @@ const PageLifecycle = (function() {
             return missing;
         }
 
-        // Calculate offboarding issues
-        var disabledWithLicenses = users.filter(function(u) { return !u.accountEnabled && u.licenseCount > 0; });
-        var inactiveStillEnabled = users.filter(function(u) { return u.isInactive && u.accountEnabled; });
-
+        var disabledWithLicenses = [];
+        var inactiveStillEnabled = [];
         var upcomingLeavers = [];
         var overdueLeavers = [];
-        users.forEach(function(u) {
-            if (!u.accountEnabled) return;
-            var daysUntilLeave = getLeaveDays(u);
-            if (daysUntilLeave === null || daysUntilLeave === undefined || isNaN(daysUntilLeave)) return;
-            var enriched = Object.assign({}, u, { daysUntilLeave: daysUntilLeave });
-            if (daysUntilLeave < 0) {
-                overdueLeavers.push(enriched);
-            } else if (daysUntilLeave <= 30) {
-                upcomingLeavers.push(enriched);
-            }
-        });
+        var newUsersNoSignIn = [];
+        var newUsersNoMfa = [];
+        var newUsersMissingProfile = [];
 
-        // Find disabled users with admin roles
-        var disabledAdmins = [];
-        adminRoles.forEach(function(role) {
-            role.members.forEach(function(member) {
-                if (!isUserMember(member)) return;
-                if (!member.accountEnabled) {
-                    disabledAdmins.push(Object.assign({}, member, { roleName: role.roleName }));
-                }
-            });
-        });
+        var userById = Object.create(null);
 
-        // Calculate onboarding gaps (created in last 30 days)
+        // Calculate user lifecycle issues in a single pass.
         var thirtyDaysAgo = new Date();
         thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-        var newUsers = users.filter(function(u) {
-            if (!u.createdDateTime) return false;
-            var created = new Date(u.createdDateTime);
-            return created >= thirtyDaysAgo;
-        });
+        users.forEach(function(u) {
+            if (!u) return;
+            if (u.id) userById[u.id] = u;
 
-        var newUsersNoSignIn = newUsers.filter(function(u) { return !u.lastSignIn; });
-        var newUsersNoMfa = newUsers.filter(function(u) { return !u.mfaRegistered; });
-        var newUsersMissingProfile = [];
-        newUsers.forEach(function(u) {
-            var missing = getMissingProfileFields(u);
-            if (missing.length > 0) {
-                newUsersMissingProfile.push(Object.assign({}, u, { missingProfileFields: missing }));
+            if (!u.accountEnabled && u.licenseCount > 0) {
+                disabledWithLicenses.push(u);
+            }
+            if (u.isInactive && u.accountEnabled) {
+                inactiveStillEnabled.push(u);
+            }
+
+            if (u.accountEnabled) {
+                var daysUntilLeave = getLeaveDays(u);
+                if (daysUntilLeave !== null && daysUntilLeave !== undefined && !isNaN(daysUntilLeave)) {
+                    var enrichedLeave = Object.assign({}, u, { daysUntilLeave: daysUntilLeave });
+                    if (daysUntilLeave < 0) {
+                        overdueLeavers.push(enrichedLeave);
+                    } else if (daysUntilLeave <= 30) {
+                        upcomingLeavers.push(enrichedLeave);
+                    }
+                }
+            }
+
+            if (u.createdDateTime) {
+                var created = new Date(u.createdDateTime);
+                if (!isNaN(created.getTime()) && created >= thirtyDaysAgo) {
+                    if (!u.lastSignIn) newUsersNoSignIn.push(u);
+                    if (!u.mfaRegistered) newUsersNoMfa.push(u);
+
+                    var missing = getMissingProfileFields(u);
+                    if (missing.length > 0) {
+                        newUsersMissingProfile.push(Object.assign({}, u, { missingProfileFields: missing }));
+                    }
+                }
             }
         });
 
-        // Calculate role hygiene issues
+        // Role hygiene calculations using O(1) user lookups.
+        var disabledAdmins = [];
         var inactiveAdmins = [];
         var adminsNoMfa = [];
 
         adminRoles.forEach(function(role) {
-            role.members.forEach(function(member) {
+            var members = asArray(role && role.members);
+            members.forEach(function(member) {
                 if (!isUserMember(member)) return;
-                if (member.isInactive) {
-                    inactiveAdmins.push(Object.assign({}, member, { roleName: role.roleName }));
+                var roleName = role ? role.roleName : '';
+
+                if (!member.accountEnabled) {
+                    disabledAdmins.push(Object.assign({}, member, { roleName: roleName }));
                 }
-                // Check MFA from users data
-                var userData = users.find(function(u) { return u.id === member.userId; });
+                if (member.isInactive) {
+                    inactiveAdmins.push(Object.assign({}, member, { roleName: roleName }));
+                }
+
+                var userData = member.userId ? userById[member.userId] : null;
                 if (userData && !userData.mfaRegistered) {
-                    adminsNoMfa.push(Object.assign({}, member, { roleName: role.roleName }));
+                    adminsNoMfa.push(Object.assign({}, member, { roleName: roleName }));
                 }
             });
         });
 
-        // Calculate guest cleanup
-        var staleGuests = guests.filter(function(g) { return g.isStale; });
-        var pendingGuests = guests.filter(function(g) { return g.invitationState === 'PendingAcceptance'; });
-        var neverSignedInGuests = guests.filter(function(g) { return g.neverSignedIn && g.invitationState === 'Accepted'; });
+        // Calculate guest cleanup in one pass.
+        var staleGuests = [];
+        var pendingGuests = [];
+        var neverSignedInGuests = [];
+        guests.forEach(function(g) {
+            if (!g) return;
+            if (g.isStale) staleGuests.push(g);
+            if (g.invitationState === 'PendingAcceptance') pendingGuests.push(g);
+            if (g.neverSignedIn && g.invitationState === 'Accepted') neverSignedInGuests.push(g);
+        });
 
-        // Calculate deleted user risk
-        var deletedCritical = deletedUsers.filter(function(u) { return u.urgency === 'Critical'; });
-        var deletedHigh = deletedUsers.filter(function(u) { return u.urgency === 'High'; });
-        var deletedMedium = deletedUsers.filter(function(u) { return u.urgency === 'Medium'; });
-        var deletedNormal = deletedUsers.filter(function(u) { return u.urgency === 'Normal'; });
+        // Calculate deleted user urgency in one pass.
+        var deletedCritical = [];
+        var deletedHigh = [];
+        var deletedMedium = [];
+        var deletedNormal = [];
+        deletedUsers.forEach(function(u) {
+            if (!u) return;
+            if (u.urgency === 'Critical') deletedCritical.push(u);
+            else if (u.urgency === 'High') deletedHigh.push(u);
+            else if (u.urgency === 'Medium') deletedMedium.push(u);
+            else if (u.urgency === 'Normal') deletedNormal.push(u);
+        });
 
-        // Calculate teams governance issues
-        var ownerlessTeams = teams.filter(function(t) { return t.hasNoOwner; });
-        var inactiveTeamsWithGuests = teams.filter(function(t) { return t.isInactive && t.hasGuests; });
+        // Teams governance in one pass.
+        var ownerlessTeams = [];
+        var inactiveTeamsWithGuests = [];
+        teams.forEach(function(t) {
+            if (!t) return;
+            if (t.hasNoOwner) ownerlessTeams.push(t);
+            if (t.isInactive && t.hasGuests) inactiveTeamsWithGuests.push(t);
+        });
         var teamsIssueCount = ownerlessTeams.length + inactiveTeamsWithGuests.length;
 
-        // Calculate SharePoint governance issues (non-personal sites only)
-        var spNonPersonal = spSites.filter(function(s) { return !s.isPersonalSite; });
-        var sitesWithAnonymousLinks = spNonPersonal.filter(function(s) { return (s.anonymousLinkCount || 0) > 0; });
-        var externalInactiveSites = spNonPersonal.filter(function(s) { return s.isInactive && s.hasExternalSharing; });
-        var sitesWithoutLabels = spNonPersonal.filter(function(s) { return !s.sensitivityLabelId; });
+        // SharePoint governance (non-personal) in one pass.
+        var spNonPersonal = [];
+        var sitesWithAnonymousLinks = [];
+        var externalInactiveSites = [];
+        var sitesWithoutLabels = [];
+        spSites.forEach(function(s) {
+            if (!s || s.isPersonalSite) return;
+            spNonPersonal.push(s);
+            if ((s.anonymousLinkCount || 0) > 0) sitesWithAnonymousLinks.push(s);
+            if (s.isInactive && s.hasExternalSharing) externalInactiveSites.push(s);
+            if (!s.sensitivityLabelId) sitesWithoutLabels.push(s);
+        });
         var spGovernanceCount = sitesWithAnonymousLinks.length + externalInactiveSites.length + sitesWithoutLabels.length;
 
         // Calculate total issues

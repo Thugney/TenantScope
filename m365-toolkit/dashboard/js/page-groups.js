@@ -29,6 +29,9 @@ const PageGroups = (function() {
     }
 
     var colSelector = null;
+    var groupsCache = [];
+    var groupsById = Object.create(null);
+    var groupsByName = Object.create(null);
 
     /**
      * Builds inline SVG donut chart HTML (matching existing dashboard style).
@@ -81,58 +84,70 @@ const PageGroups = (function() {
         return groupsData.summary || null;
     }
 
+    function buildGroupLookups(groups) {
+        groupsById = Object.create(null);
+        groupsByName = Object.create(null);
+
+        if (!Array.isArray(groups)) return;
+
+        groups.forEach(function(group) {
+            if (!group) return;
+            if (group.id) {
+                groupsById[group.id] = group;
+            }
+            if (group.displayName) {
+                groupsByName[group.displayName] = group;
+            }
+            if (!group._groupsSearchBlob) {
+                group._groupsSearchBlob = [
+                    group.displayName || '',
+                    group.description || '',
+                    group.mail || ''
+                ].join(' ').toLowerCase();
+            }
+        });
+    }
+
     /**
      * Applies current filters and re-renders the table.
      */
     function applyFilters() {
-        var groups = getGroupsData();
+        var groups = groupsCache.length ? groupsCache : getGroupsData();
         if (!groups || groups.length === 0) return;
 
-        // Build filter configuration
-        var filterConfig = {
-            search: Filters.getValue('groups-search'),
-            searchFields: ['displayName', 'description', 'mail'],
-            exact: {}
-        };
-
-        // Group type filter
+        var searchValue = (Filters.getValue('groups-search') || '').trim().toLowerCase();
         var typeFilter = Filters.getValue('groups-type');
-        if (typeFilter && typeFilter !== 'all') {
-            filterConfig.exact.groupType = typeFilter;
-        }
-
-        // Apply filters
-        var filteredData = Filters.apply(groups, filterConfig);
-
-        // Source filter
         var sourceFilter = Filters.getValue('groups-source');
-        if (sourceFilter && sourceFilter !== 'all') {
-            switch (sourceFilter) {
-                case 'cloud':
-                    filteredData = filteredData.filter(function(g) { return g.userSource === 'Cloud'; });
-                    break;
-                case 'onprem':
-                    filteredData = filteredData.filter(function(g) { return g.onPremSync === true; });
-                    break;
-            }
-        }
-
-        // Ownerless checkbox
         var ownerlessOnly = Filters.getValue('groups-ownerless');
-        if (ownerlessOnly) {
-            filteredData = filteredData.filter(function(g) { return g.hasNoOwner; });
-        }
-
-        // With guests checkbox
         var guestsOnly = Filters.getValue('groups-has-guests');
-        if (guestsOnly) {
-            filteredData = filteredData.filter(function(g) { return g.hasGuests; });
-        }
-
-        // With licenses checkbox
         var licensesOnly = Filters.getValue('groups-has-licenses');
-        if (licensesOnly) {
-            filteredData = filteredData.filter(function(g) { return g.hasLicenseAssignments; });
+        var filteredData = [];
+
+        for (var i = 0; i < groups.length; i++) {
+            var group = groups[i];
+            if (!group) continue;
+
+            if (searchValue) {
+                var searchBlob = group._groupsSearchBlob || '';
+                if (!searchBlob) {
+                    searchBlob = [
+                        group.displayName || '',
+                        group.description || '',
+                        group.mail || ''
+                    ].join(' ').toLowerCase();
+                    group._groupsSearchBlob = searchBlob;
+                }
+                if (searchBlob.indexOf(searchValue) === -1) continue;
+            }
+
+            if (typeFilter && typeFilter !== 'all' && group.groupType !== typeFilter) continue;
+            if (sourceFilter === 'cloud' && group.userSource !== 'Cloud') continue;
+            if (sourceFilter === 'onprem' && group.onPremSync !== true) continue;
+            if (ownerlessOnly && !group.hasNoOwner) continue;
+            if (guestsOnly && !group.hasGuests) continue;
+            if (licensesOnly && !group.hasLicenseAssignments) continue;
+
+            filteredData.push(group);
         }
 
         // Update summary cards with filtered data
@@ -146,9 +161,17 @@ const PageGroups = (function() {
      */
     function updateGroupsSummaryCards(filteredGroups) {
         var total = filteredGroups.length;
-        var securityCount = filteredGroups.filter(function(g) { return g.groupType === 'Security'; }).length;
-        var m365Count = filteredGroups.filter(function(g) { return g.groupType === 'Microsoft 365'; }).length;
-        var licenseCount = filteredGroups.filter(function(g) { return g.hasLicenseAssignments; }).length;
+        var securityCount = 0;
+        var m365Count = 0;
+        var licenseCount = 0;
+
+        for (var i = 0; i < filteredGroups.length; i++) {
+            var group = filteredGroups[i];
+            if (!group) continue;
+            if (group.groupType === 'Security') securityCount++;
+            if (group.groupType === 'Microsoft 365') m365Count++;
+            if (group.hasLicenseAssignments) licenseCount++;
+        }
 
         // Update values
         var totalEl = document.getElementById('groups-sum-total');
@@ -415,6 +438,7 @@ const PageGroups = (function() {
 
         // Build Members tab content
         var members = group.members || [];
+        var memberLimit = 100;
         var membersHtml = [
             '<div id="group-members" class="modal-tab-content' + (activeTab === 'group-members' ? ' active' : '') + '">',
             '    <h4 class="mt-0 mb-sm">Group Members (' + (group.memberCount || 0) + ')</h4>'
@@ -432,7 +456,7 @@ const PageGroups = (function() {
             membersHtml.push('    <table class="modal-table">');
             membersHtml.push('        <thead><tr><th>Name</th><th>Email</th><th>Type</th></tr></thead>');
             membersHtml.push('        <tbody>');
-            members.slice(0, 100).forEach(function(m) {
+            members.slice(0, memberLimit).forEach(function(m) {
                 var userTypeClass = m.userType === 'Guest' ? 'text-warning' : '';
                 membersHtml.push('            <tr>');
                 membersHtml.push('                <td><a href="#users?search=' + encodeURIComponent(m.userPrincipalName || '') + '" class="text-link">' + (m.displayName || '--') + '</a></td>');
@@ -442,14 +466,18 @@ const PageGroups = (function() {
             });
             membersHtml.push('        </tbody>');
             membersHtml.push('    </table>');
-            if (members.length > 100) {
-                membersHtml.push('    <p class="text-muted mt-sm">Showing first 100 of ' + members.length + ' members.</p>');
+            var shownMembers = Math.min(memberLimit, members.length);
+            if (group.memberCount && group.memberCount > members.length) {
+                membersHtml.push('    <p class="text-muted mt-sm">Showing first ' + shownMembers + ' of ' + group.memberCount + ' members. Full list is truncated for performance.</p>');
+            } else if (members.length > memberLimit) {
+                membersHtml.push('    <p class="text-muted mt-sm">Showing first ' + memberLimit + ' of ' + members.length + ' collected members.</p>');
             }
         }
         membersHtml.push('</div>');
 
         // Build Owners tab content
         var owners = group.owners || [];
+        var ownerLimit = 100;
         var ownersHtml = [
             '<div id="group-owners" class="modal-tab-content' + (activeTab === 'group-owners' ? ' active' : '') + '">',
             '    <h4 class="mt-0 mb-sm">Group Owners (' + (group.ownerCount || 0) + ')</h4>'
@@ -467,7 +495,7 @@ const PageGroups = (function() {
             ownersHtml.push('    <table class="modal-table">');
             ownersHtml.push('        <thead><tr><th>Name</th><th>Email</th></tr></thead>');
             ownersHtml.push('        <tbody>');
-            owners.forEach(function(o) {
+            owners.slice(0, ownerLimit).forEach(function(o) {
                 ownersHtml.push('            <tr>');
                 ownersHtml.push('                <td><a href="#users?search=' + encodeURIComponent(o.userPrincipalName || '') + '" class="text-link">' + (o.displayName || '--') + '</a></td>');
                 ownersHtml.push('                <td>' + (o.userPrincipalName || '--') + '</td>');
@@ -475,6 +503,12 @@ const PageGroups = (function() {
             });
             ownersHtml.push('        </tbody>');
             ownersHtml.push('    </table>');
+            var shownOwners = Math.min(ownerLimit, owners.length);
+            if (group.ownerCount && group.ownerCount > owners.length) {
+                ownersHtml.push('    <p class="text-muted mt-sm">Showing first ' + shownOwners + ' of ' + group.ownerCount + ' owners. Full list is truncated for performance.</p>');
+            } else if (owners.length > ownerLimit) {
+                ownersHtml.push('    <p class="text-muted mt-sm">Showing first ' + ownerLimit + ' of ' + owners.length + ' collected owners.</p>');
+            }
         }
         ownersHtml.push('</div>');
 
@@ -535,11 +569,11 @@ const PageGroups = (function() {
             event.preventDefault();
             event.stopPropagation();
         }
-        var groups = getGroupsData();
         var id = groupId ? decodeURIComponent(groupId) : '';
-        var group = groups.find(function(g) { return g && g.id === id; }) || null;
-        if (!group && groups.length > 0) {
-            group = groups.find(function(g) { return g && g.displayName === id; }) || null;
+        var group = groupsById[id] || groupsByName[id] || null;
+        if (!group && groupsCache.length > 0) {
+            buildGroupLookups(groupsCache);
+            group = groupsById[id] || groupsByName[id] || null;
         }
         if (group) {
             showGroupDetails(group, tabId);
@@ -560,6 +594,9 @@ const PageGroups = (function() {
             container.innerHTML = '<div class="empty-state"><div class="empty-state-title">No Groups Data</div><p>No Entra ID groups data available. Run data collection to gather group information.</p></div>';
             return;
         }
+
+        groupsCache = groups;
+        buildGroupLookups(groupsCache);
 
         // Calculate stats
         var securityCount = summary ? summary.byType.security : groups.filter(function(g) { return g.groupType === 'Security'; }).length;
@@ -719,6 +756,11 @@ const PageGroups = (function() {
 
         // Bind export button
         Export.bindExportButton('groups-table', 'groups');
+
+        // Ensure stale pagination/sort state does not carry over to new datasets
+        if (typeof Tables !== 'undefined' && typeof Tables.reset === 'function') {
+            Tables.reset('groups-table');
+        }
 
         // Initial render
         applyFilters();

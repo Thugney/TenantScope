@@ -23,6 +23,28 @@ const PageConfigurationProfiles = (function() {
     var rawData = null;
     var activeTab = 'overview';
 
+    function toCount(value) {
+        if (value === null || value === undefined || value === '') return null;
+
+        if (typeof value === 'string') {
+            var normalized = value.replace(/[, ]/g, '').trim();
+            if (normalized === '') return null;
+            var parsed = Number(normalized);
+            return isNaN(parsed) ? null : parsed;
+        }
+
+        var num = Number(value);
+        return isNaN(num) ? null : num;
+    }
+
+    function firstCount() {
+        for (var i = 0; i < arguments.length; i++) {
+            var parsed = toCount(arguments[i]);
+            if (parsed !== null) return parsed;
+        }
+        return 0;
+    }
+
     // Extract data from nested structure
     function getData() {
         var data = DataLoader.getData('configurationProfiles');
@@ -49,6 +71,13 @@ const PageConfigurationProfiles = (function() {
 
     // Map collector field names to display field names
     function mapProfile(p) {
+        var success = firstCount(p.successDevices, p.successCount);
+        var errors = firstCount(p.errorDevices, p.errorCount);
+        var conflicts = firstCount(p.conflictDevices, p.conflictCount);
+        var pending = firstCount(p.pendingDevices, p.pendingCount);
+        var notApplicable = firstCount(p.notApplicableDevices, p.notApplicableCount);
+        var totalDevices = firstCount(p.totalDevices, success + errors + conflicts + pending + notApplicable);
+
         return {
             id: p.id,
             displayName: p.displayName,
@@ -59,11 +88,12 @@ const PageConfigurationProfiles = (function() {
             source: p.source,
             assignments: p.assignments || [],
             assignmentCount: p.assignmentCount || (p.assignments ? p.assignments.length : 0),
-            successCount: p.successDevices || p.successCount || 0,
-            errorCount: p.errorDevices || p.errorCount || 0,
-            conflictCount: p.conflictDevices || p.conflictCount || 0,
-            pendingCount: p.pendingDevices || p.pendingCount || 0,
-            totalDevices: p.totalDevices || 0,
+            successCount: success,
+            errorCount: errors,
+            conflictCount: conflicts,
+            pendingCount: pending,
+            notApplicableCount: notApplicable,
+            totalDevices: totalDevices,
             successRate: p.successRate,
             deviceStatuses: p.deviceStatuses || [],
             settingStatuses: p.settingStatuses || [],
@@ -77,22 +107,24 @@ const PageConfigurationProfiles = (function() {
 
     // Build summary from flat array (legacy support)
     function buildSummaryFromArray(profiles) {
-        var totalDevices = 0, successDevices = 0, errorDevices = 0, conflictDevices = 0, pendingDevices = 0;
+        var totalDevices = 0, successDevices = 0, errorDevices = 0, conflictDevices = 0, pendingDevices = 0, notApplicableDevices = 0;
         var platformBreakdown = {}, typeBreakdown = {};
         var profilesWithErrors = 0, profilesWithConflicts = 0;
 
         profiles.forEach(function(p) {
-            var success = p.successDevices || p.successCount || 0;
-            var errors = p.errorDevices || p.errorCount || 0;
-            var conflicts = p.conflictDevices || 0;
-            var pending = p.pendingDevices || 0;
-            var total = p.totalDevices || (success + errors + conflicts + pending);
+            var success = firstCount(p.successDevices, p.successCount);
+            var errors = firstCount(p.errorDevices, p.errorCount);
+            var conflicts = firstCount(p.conflictDevices, p.conflictCount);
+            var pending = firstCount(p.pendingDevices, p.pendingCount);
+            var notApplicable = firstCount(p.notApplicableDevices, p.notApplicableCount);
+            var total = firstCount(p.totalDevices, success + errors + conflicts + pending + notApplicable);
 
             totalDevices += total;
             successDevices += success;
             errorDevices += errors;
             conflictDevices += conflicts;
             pendingDevices += pending;
+            notApplicableDevices += notApplicable;
 
             if (errors > 0) profilesWithErrors++;
             if (conflicts > 0) profilesWithConflicts++;
@@ -123,6 +155,7 @@ const PageConfigurationProfiles = (function() {
             errorDevices: errorDevices,
             conflictDevices: conflictDevices,
             pendingDevices: pendingDevices,
+            notApplicableDevices: notApplicableDevices,
             overallSuccessRate: overallSuccessRate,
             profilesWithErrors: profilesWithErrors,
             profilesWithConflicts: profilesWithConflicts,
@@ -222,7 +255,7 @@ const PageConfigurationProfiles = (function() {
 
         colSelector = ColumnSelector.create({
             containerId: 'profiles-colselector',
-            storageKey: 'tenantscope-configprofiles-cols-v1',
+            storageKey: 'tenantscope-configprofiles-cols-v2',
             allColumns: [
                 { key: 'displayName', label: 'Profile Name' },
                 { key: 'profileType', label: 'Type' },
@@ -233,11 +266,12 @@ const PageConfigurationProfiles = (function() {
                 { key: 'errorCount', label: 'Errors' },
                 { key: 'conflictCount', label: 'Conflicts' },
                 { key: 'pendingCount', label: 'Pending' },
+                { key: 'notApplicableCount', label: 'Not Applicable' },
                 { key: 'successRate', label: 'Success Rate' },
                 { key: 'lastModified', label: 'Last Modified' },
                 { key: '_adminLinks', label: 'Admin' }
             ],
-            defaultVisible: ['displayName', 'profileType', 'platform', 'successCount', 'errorCount', 'successRate', '_adminLinks'],
+            defaultVisible: ['displayName', 'profileType', 'platform', 'successCount', 'errorCount', 'conflictCount', 'pendingCount', 'notApplicableCount', 'successRate', '_adminLinks'],
             onColumnsChanged: function() { applyProfilesFilters(); }
         });
 
@@ -269,7 +303,7 @@ const PageConfigurationProfiles = (function() {
     }
 
     function renderProfilesTable(data) {
-        var visible = colSelector ? colSelector.getVisible() : ['displayName', 'profileType', 'platform', 'successCount', 'errorCount', 'successRate'];
+        var visible = colSelector ? colSelector.getVisible() : ['displayName', 'profileType', 'platform', 'successCount', 'errorCount', 'conflictCount', 'pendingCount', 'notApplicableCount', 'successRate', '_adminLinks'];
 
         var allDefs = [
             { key: 'displayName', label: 'Profile Name', formatter: function(v, row) {
@@ -298,6 +332,9 @@ const PageConfigurationProfiles = (function() {
             }},
             { key: 'pendingCount', label: 'Pending', formatter: function(v) {
                 return v ? '<span class="text-info">' + v + '</span>' : '<span class="text-muted">0</span>';
+            }},
+            { key: 'notApplicableCount', label: 'Not Applicable', formatter: function(v) {
+                return v ? '<span class="text-muted">' + v + '</span>' : '<span class="text-muted">0</span>';
             }},
             { key: 'successRate', label: 'Success Rate', formatter: function(v) {
                 return SF.formatPercentage ? SF.formatPercentage(v, { inverse: true }) : formatSuccessRate(v);
@@ -503,6 +540,7 @@ const PageConfigurationProfiles = (function() {
         html += '<dt>Errors</dt><dd>' + (SF.formatCount ? SF.formatCount(profile.errorCount, { zeroIsGood: true }) : (profile.errorCount > 0 ? '<span class="text-critical font-bold">' + profile.errorCount + '</span>' : '0')) + '</dd>';
         html += '<dt>Conflicts</dt><dd>' + (profile.conflictCount > 0 ? '<span class="text-warning font-bold">' + profile.conflictCount + '</span>' : '0') + '</dd>';
         html += '<dt>Pending</dt><dd>' + (profile.pendingCount || 0) + '</dd>';
+        html += '<dt>Not Applicable</dt><dd>' + (profile.notApplicableCount || 0) + '</dd>';
         html += '<dt>Success Rate</dt><dd>' + (SF.formatPercentage ? SF.formatPercentage(profile.successRate, { inverse: true }) : formatSuccessRate(profile.successRate)) + '</dd>';
         html += '</dl></div>';
 
@@ -593,6 +631,7 @@ const PageConfigurationProfiles = (function() {
         html += '<div class="summary-card' + (profile.errorCount > 0 ? ' card-danger' : '') + '"><div class="summary-value">' + (profile.errorCount || 0) + '</div><div class="summary-label">Errors</div></div>';
         html += '<div class="summary-card' + (profile.conflictCount > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + (profile.conflictCount || 0) + '</div><div class="summary-label">Conflicts</div></div>';
         html += '<div class="summary-card"><div class="summary-value">' + (profile.pendingCount || 0) + '</div><div class="summary-label">Pending</div></div>';
+        html += '<div class="summary-card"><div class="summary-value">' + (profile.notApplicableCount || 0) + '</div><div class="summary-label">Not Applicable</div></div>';
         html += '</div>';
         html += '</div>';
 
