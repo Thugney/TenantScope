@@ -57,6 +57,7 @@ var EntityIndex = (function() {
             usersById: {},
             usersByUpn: {},
             usersByMail: {},
+            usersByDisplayName: {},
             devicesById: {},
             devicesByName: {},
             groupsById: {},
@@ -90,17 +91,27 @@ var EntityIndex = (function() {
             var id = normalize(u.id || u.userId);
             var upn = normalizeLower(u.userPrincipalName);
             var mail = normalizeLower(u.mail);
+            var displayName = normalizeLower(u.displayName);
             if (id) addToIndex(state.usersById, id, u);
             if (upn) addToIndex(state.usersByUpn, upn, u);
             if (mail) addToIndex(state.usersByMail, mail, u);
+            if (displayName) addToIndex(state.usersByDisplayName, displayName, u);
         });
 
         devices.forEach(function(d) {
             if (!d) return;
             var id = normalize(d.id || d.deviceId);
             var name = normalizeLower(d.deviceName || d.displayName);
+            var displayName = normalizeLower(d.displayName);
+            var managedName = normalizeLower(d.managedDeviceName);
+            var serial = normalizeLower(d.serialNumber);
+            var azureAdDeviceId = normalize(d.azureAdDeviceId);
             if (id) addToIndex(state.devicesById, id, d);
+            if (azureAdDeviceId) addToIndex(state.devicesById, azureAdDeviceId, d);
             if (name) addToIndex(state.devicesByName, name, d);
+            if (displayName) addToIndex(state.devicesByName, displayName, d);
+            if (managedName) addToIndex(state.devicesByName, managedName, d);
+            if (serial) addToIndex(state.devicesByName, serial, d);
 
             var userId = normalize(d.userId);
             var upn = normalizeLower(d.userPrincipalName || d.emailAddress || d.userUpn || d.upn);
@@ -180,7 +191,14 @@ var EntityIndex = (function() {
         if (!idOrUpn || !state) return null;
         var key = normalize(idOrUpn);
         var lower = key.toLowerCase();
-        return state.usersById[key] || state.usersByUpn[lower] || state.usersByMail[lower] || null;
+        return state.usersById[key] || state.usersByUpn[lower] || state.usersByMail[lower] || state.usersByDisplayName[lower] || null;
+    }
+
+    function getDevice(idOrName) {
+        if (!idOrName || !state) return null;
+        var key = normalize(idOrName);
+        var lower = key.toLowerCase();
+        return state.devicesById[key] || state.devicesByName[lower] || null;
     }
 
     function getGroup(idOrName) {
@@ -195,6 +213,7 @@ var EntityIndex = (function() {
         buildFromDataLoader: buildFromDataLoader,
         getState: getState,
         getUser: getUser,
+        getDevice: getDevice,
         getGroup: getGroup
     };
 })();

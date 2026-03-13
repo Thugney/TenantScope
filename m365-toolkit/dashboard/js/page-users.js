@@ -797,7 +797,7 @@ const PageUsers = (function() {
 
         var adminLinks = '';
         if (adminUrls.entra || adminUrls.defender) {
-            adminLinks = '<div class="detail-section full-width"><h4>Quick Actions</h4><div class="admin-portal-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">';
+            adminLinks = '<div class="detail-section full-width"><h4>Take Action</h4><div class="admin-portal-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">';
             if (adminUrls.entra) {
                 adminLinks += '<a href="' + adminUrls.entra + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Open in Entra</a>';
             }

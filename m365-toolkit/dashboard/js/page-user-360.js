@@ -14,6 +14,7 @@
 
 const PageUser360 = (function() {
     'use strict';
+    var AU = window.ActionUtils || {};
 
     function el(tag, className, text) {
         var node = document.createElement(tag);
@@ -37,6 +38,47 @@ const PageUser360 = (function() {
         var dt = new Date(value);
         if (isNaN(dt.getTime())) return '--';
         return dt.toLocaleDateString();
+    }
+
+    function getDeviceProfileHref(target) {
+        if (AU.getDeviceProfileHash) return AU.getDeviceProfileHash(target);
+        var value = typeof target === 'string'
+            ? target
+            : (target && (target.deviceName || target.displayName || target.managedDeviceName || target.id || ''));
+        return value ? '#devices?search=' + encodeURIComponent(value) : '#devices';
+    }
+
+    function renderTakeActionSection(adminUrls) {
+        adminUrls = adminUrls || {};
+        var actions = [];
+
+        if (adminUrls.entra) actions.push({ href: adminUrls.entra, label: 'Open in Entra', primary: true });
+        if (adminUrls.entraAuth) actions.push({ href: adminUrls.entraAuth, label: 'Auth Methods' });
+        if (adminUrls.entraDevices) actions.push({ href: adminUrls.entraDevices, label: 'Devices' });
+        if (adminUrls.entraRoles) actions.push({ href: adminUrls.entraRoles, label: 'Roles' });
+        if (adminUrls.defender) actions.push({ href: adminUrls.defender, label: 'Defender' });
+        if (adminUrls.resetPassword) actions.push({ href: adminUrls.resetPassword, label: 'Reset Password' });
+
+        if (actions.length === 0) return null;
+
+        var section = el('div', 'analytics-section');
+        section.appendChild(el('h3', null, 'Take Action'));
+
+        var wrap = el('div', 'admin-portal-links');
+        wrap.style.display = 'flex';
+        wrap.style.flexWrap = 'wrap';
+        wrap.style.gap = '0.5rem';
+
+        actions.forEach(function(action) {
+            var anchor = el('a', action.primary ? 'btn btn-primary btn-sm' : 'btn btn-secondary btn-sm', action.label);
+            anchor.href = action.href;
+            anchor.target = '_blank';
+            anchor.rel = 'noopener';
+            wrap.appendChild(anchor);
+        });
+
+        section.appendChild(wrap);
+        return section;
     }
 
     function getHashParams() {
@@ -275,6 +317,9 @@ const PageUser360 = (function() {
         var mfa = getUserMfa(user);
         var roles = getUserAdminRoles(user);
         var licenses = getUserLicenses(user);
+        var adminUrls = typeof DataRelationships !== 'undefined' && DataRelationships.getUserAdminUrls
+            ? DataRelationships.getUserAdminUrls(user)
+            : {};
 
         container.textContent = '';
 
@@ -289,6 +334,11 @@ const PageUser360 = (function() {
         cards.appendChild(createSummaryCard('Devices', devices.length, devices.length > 0 ? 'info' : ''));
         cards.appendChild(createSummaryCard('Groups', groups.length, groups.length > 0 ? 'info' : ''));
         container.appendChild(cards);
+
+        var actionsSection = renderTakeActionSection(adminUrls);
+        if (actionsSection) {
+            container.appendChild(actionsSection);
+        }
 
         // Identity section
         var identity = el('div', 'analytics-section');
@@ -404,7 +454,7 @@ const PageUser360 = (function() {
         devices.slice(0, 15).forEach(function(d) {
             var tr = el('tr');
             tr.innerHTML =
-                '<td>' + escapeHtml(d.deviceName || d.displayName || '--') + '</td>' +
+                '<td><a href="' + getDeviceProfileHref(d) + '" class="entity-link"><strong>' + escapeHtml(d.deviceName || d.displayName || '--') + '</strong></a></td>' +
                 '<td>' + escapeHtml(d.windowsType || d.os || d.operatingSystem || '--') + '</td>' +
                 '<td>' + escapeHtml(d.complianceState || '--') + '</td>' +
                 '<td>' + formatDate(d.lastSync) + '</td>' +

@@ -665,13 +665,26 @@ const GlobalSearch = (function() {
         } else {
             if (result.category === 'users') {
                 var item = result.item || {};
-                var id = item.id || item.userId || '';
-                var upn = item.userPrincipalName || item.mail || item.displayName || '';
+                var userHash = typeof ActionUtils !== 'undefined' && ActionUtils.getUserProfileHash
+                    ? ActionUtils.getUserProfileHash(item)
+                    : '';
                 close();
-                if (id) {
-                    window.location.hash = '#user-360?id=' + encodeURIComponent(id);
-                } else if (upn) {
-                    window.location.hash = '#user-360?upn=' + encodeURIComponent(upn);
+                if (userHash && userHash !== '#users') {
+                    window.location.hash = userHash;
+                } else {
+                    navigateToPage(result.page);
+                }
+                addRecentSearch(inputEl.value);
+                return;
+            }
+            if (result.category === 'devices') {
+                var deviceItem = result.item || {};
+                var deviceHash = typeof ActionUtils !== 'undefined' && ActionUtils.getDeviceProfileHash
+                    ? ActionUtils.getDeviceProfileHash(deviceItem)
+                    : '';
+                close();
+                if (deviceHash && deviceHash !== '#devices') {
+                    window.location.hash = deviceHash;
                 } else {
                     navigateToPage(result.page);
                 }

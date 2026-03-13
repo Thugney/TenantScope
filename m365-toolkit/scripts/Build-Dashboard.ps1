@@ -59,6 +59,7 @@ param(
 $scriptRoot = Split-Path $PSScriptRoot -Parent
 $dashboardPath = Join-Path $scriptRoot "dashboard"
 $dashboardDataPath = Join-Path $dashboardPath "data"
+$repoRoot = Split-Path $scriptRoot -Parent
 
 # Determine source data path
 if ($UseSampleData) {
@@ -77,6 +78,59 @@ else {
 # ============================================================================
 # VALIDATION
 # ============================================================================
+
+function Get-BuildVersion {
+    param(
+        [Parameter(Mandatory)]
+        [string]$VersionFile,
+
+        [Parameter(Mandatory)]
+        [string]$RepoRoot
+    )
+
+    $baseVersion = "0.0.0"
+    if (Test-Path $VersionFile) {
+        $candidate = (Get-Content $VersionFile -Raw).Trim()
+        if ($candidate) {
+            $baseVersion = $candidate
+        }
+    }
+
+    $gitCmd = Get-Command git -ErrorAction SilentlyContinue
+    if (-not $gitCmd) {
+        return $baseVersion
+    }
+
+    try {
+        $isRepo = (& $gitCmd.Source -C $RepoRoot rev-parse --is-inside-work-tree 2>$null).Trim()
+        if ($LASTEXITCODE -ne 0 -or $isRepo -ne "true") {
+            return $baseVersion
+        }
+
+        $headSha = (& $gitCmd.Source -C $RepoRoot rev-parse --short HEAD 2>$null).Trim()
+        if (-not $headSha) {
+            return $baseVersion
+        }
+
+        $isDirty = [bool](& $gitCmd.Source -C $RepoRoot status --porcelain 2>$null | Select-Object -First 1)
+        $headTags = @(& $gitCmd.Source -C $RepoRoot tag --points-at HEAD 2>$null)
+        $isReleaseTag = $headTags -contains $baseVersion -or $headTags -contains ("v" + $baseVersion)
+
+        if ($isReleaseTag -and -not $isDirty) {
+            return $baseVersion
+        }
+
+        $metadata = @("g$headSha")
+        if ($isDirty) {
+            $metadata += "dirty"
+        }
+
+        return "$baseVersion+$($metadata -join '.')"
+    }
+    catch {
+        return $baseVersion
+    }
+}
 
 # Check if source data exists
 if (-not (Test-Path $sourceDataPath)) {
@@ -211,13 +265,10 @@ Write-Host "Generating data bundle for local file access..." -ForegroundColor Cy
 
 $bundlePath = Join-Path $dashboardPath "js" "data-bundle.js"
 
-# Read version from VERSION file (in repo root, one level up from m365-toolkit/)
-$versionFile = Join-Path (Split-Path $scriptRoot -Parent) "VERSION"
-$appVersion = "0.0.0"
-if (Test-Path $versionFile) {
-    $appVersion = (Get-Content $versionFile -Raw).Trim()
-    Write-Host "  Version: $appVersion" -ForegroundColor Gray
-}
+# Resolve dashboard version from VERSION plus git build metadata
+$versionFile = Join-Path $repoRoot "VERSION"
+$appVersion = Get-BuildVersion -VersionFile $versionFile -RepoRoot $repoRoot
+Write-Host "  Version: $appVersion" -ForegroundColor Gray
 
 # Build the bundle content by reading each JSON file
 $bundleLines = @()

@@ -6,6 +6,7 @@
 
 const PageDevices = (function() {
     'use strict';
+    var AU = window.ActionUtils || {};
 
     /**
      * Escapes HTML special characters to prevent XSS
@@ -13,6 +14,22 @@ const PageDevices = (function() {
     function escapeHtml(str) {
         if (str === null || str === undefined) return '';
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+    }
+
+    function getUserProfileHref(target) {
+        if (AU.getUserProfileHash) return AU.getUserProfileHash(target);
+        var value = typeof target === 'string'
+            ? target
+            : (target && (target.userPrincipalName || target.mail || target.displayName || target.name || ''));
+        return value ? '#users?search=' + encodeURIComponent(value) : '#users';
+    }
+
+    function getDeviceProfileHref(target) {
+        if (AU.getDeviceProfileHash) return AU.getDeviceProfileHash(target);
+        var value = typeof target === 'string'
+            ? target
+            : (target && (target.deviceName || target.displayName || target.managedDeviceName || target.id || ''));
+        return value ? '#devices?search=' + encodeURIComponent(value) : '#devices';
     }
 
     var currentTab = 'overview';
@@ -260,8 +277,8 @@ const PageDevices = (function() {
                 if (d.isEncrypted === false) issues.push('<span class="badge badge-warning">Not Encrypted</span>');
 
                 html += '<tr>';
-                html += '<td><a href="#devices?tab=devices&search=' + encodeURIComponent(d.deviceName || '') + '" class="entity-link"><strong>' + (d.deviceName || '--') + '</strong></a></td>';
-                html += '<td class="cell-truncate">' + (d.userPrincipalName ? '<a href="#users?search=' + encodeURIComponent(d.userPrincipalName) + '" class="entity-link">' + d.userPrincipalName + '</a>' : '--') + '</td>';
+                html += '<td><a href="' + getDeviceProfileHref(d) + '" class="entity-link" onclick="event.stopPropagation();"><strong>' + (d.deviceName || '--') + '</strong></a></td>';
+                html += '<td class="cell-truncate">' + (d.userPrincipalName ? '<a href="' + getUserProfileHref(d.userPrincipalName) + '" class="entity-link" onclick="event.stopPropagation();">' + d.userPrincipalName + '</a>' : '--') + '</td>';
                 html += '<td>' + issues.join(' ') + '</td>';
                 html += '<td>' + formatDate(d.lastSync) + '</td>';
                 if (d.id) {
@@ -541,18 +558,17 @@ const PageDevices = (function() {
             // Core identity
             { key: 'deviceName', label: 'Device Name', formatter: function(v, row) {
                 if (!v) return '--';
-                var id = (row && row.id) ? escapeHtml(row.id) : '';
                 var name = escapeHtml(v || '');
-                return '<a href="#" class="entity-link device-link" data-device-id="' + id + '" data-device-name="' + name + '"><strong>' + name + '</strong></a>';
+                return '<a href="' + getDeviceProfileHref(row) + '" class="entity-link" onclick="event.stopPropagation();"><strong>' + name + '</strong></a>';
             }},
             { key: 'userPrincipalName', label: 'User', className: 'cell-truncate', formatter: function(v) {
                 if (!v) return '--';
-                return '<a href="#users?search=' + encodeURIComponent(v) + '" class="entity-link" title="' + v + '">' + v + '</a>';
+                return '<a href="' + getUserProfileHref(v) + '" class="entity-link" onclick="event.stopPropagation();" title="' + v + '">' + v + '</a>';
             }},
             { key: 'primaryUserDisplayName', label: 'Display Name', formatter: function(v, row) {
                 if (!v) return '--';
                 var upn = (row && row.userPrincipalName) || '';
-                if (upn) return '<a href="#users?search=' + encodeURIComponent(upn) + '" class="entity-link">' + escapeHtml(v) + '</a>';
+                if (upn) return '<a href="' + getUserProfileHref(upn) + '" class="entity-link" onclick="event.stopPropagation();">' + escapeHtml(v) + '</a>';
                 return escapeHtml(v);
             }},
             { key: 'azureAdDeviceId', label: 'Azure AD ID', className: 'cell-truncate', formatter: function(v) { return v || '--'; } },
@@ -644,7 +660,7 @@ const PageDevices = (function() {
             // Admin portal links - synthetic column (key starts with _)
             // This column is computed from row data, not from a data field
             // It should be excluded from sorting/filtering operations
-            { key: '_adminLinks', label: 'Admin', sortable: false, filterable: false, formatter: function(v, row) {
+            { key: '_adminLinks', label: 'Actions', sortable: false, filterable: false, formatter: function(v, row) {
                 if (!row) return '--';
                 var links = [];
                 if (row.id) {
@@ -711,39 +727,6 @@ const PageDevices = (function() {
             pageSize: 50,
             onRowClick: showDeviceDetails
         });
-
-        // Use event delegation on the table to avoid listener accumulation on re-render
-        var tableEl = document.getElementById('devices-table');
-        if (tableEl) {
-            // Remove existing delegated handler if present (prevent duplicates)
-            if (tableEl._deviceLinkHandler) {
-                tableEl.removeEventListener('click', tableEl._deviceLinkHandler);
-            }
-            // Create new handler with closure over current data
-            tableEl._deviceLinkHandler = function(e) {
-                var link = e.target.closest('.device-link');
-                if (!link) return;
-
-                e.preventDefault();
-                e.stopPropagation();
-
-                var id = link.dataset.deviceId;
-                var name = link.dataset.deviceName;
-                var device = null;
-
-                if (id) {
-                    device = data.find(function(d) { return d.id === id; }) || null;
-                }
-                if (!device && name) {
-                    device = data.find(function(d) { return d.deviceName === name; }) || null;
-                }
-
-                if (device) {
-                    showDeviceDetails(device);
-                }
-            };
-            tableEl.addEventListener('click', tableEl._deviceLinkHandler);
-        }
     }
 
     function renderWindowsTab(container, devices) {
@@ -908,9 +891,15 @@ const PageDevices = (function() {
             return;
         }
 
-        // Build unique manufacturer and group tag lists for filter dropdowns
+        // Build unique filter values from the collected Autopilot dataset
         var manufacturers = [];
         var groupTags = [];
+        var enrollmentStates = collectDistinctAutopilotValues(autopilot, function(d) {
+            return normalizeAutopilotEnrollmentState(d.enrollmentState);
+        }, getAutopilotEnrollmentStateLabel);
+        var profileStatuses = collectDistinctAutopilotValues(autopilot, function(d) {
+            return normalizeAutopilotProfileStatus(d.profileAssignmentStatus);
+        }, getAutopilotProfileStatusLabel);
         var hasVMs = false;
         var vmPatterns = ['virtual', 'vmware', 'hyper-v', 'virtualbox', 'qemu', 'xen', 'kvm', 'parallels'];
         autopilot.forEach(function(d) {
@@ -938,15 +927,14 @@ const PageDevices = (function() {
         html += '<div class="filter-bar">';
         html += '<input type="text" class="filter-input" id="autopilot-search" placeholder="Search serial, model, manufacturer...">';
         html += '<select class="filter-select" id="autopilot-enrollment"><option value="all">All Enrollment</option>';
-        html += '<option value="enrolled">Enrolled</option>';
-        html += '<option value="notContacted">Not Contacted</option>';
-        html += '<option value="failed">Failed</option>';
-        html += '<option value="pending">Pending</option>';
-        html += '<option value="notEnrolled">Not Enrolled</option>';
+        enrollmentStates.forEach(function(state) {
+            html += '<option value="' + escapeHtml(state) + '">' + escapeHtml(getAutopilotEnrollmentStateLabel(state)) + '</option>';
+        });
         html += '</select>';
         html += '<select class="filter-select" id="autopilot-profile"><option value="all">All Profile Status</option>';
-        html += '<option value="assigned">Profile Assigned</option>';
-        html += '<option value="notAssigned">No Profile</option>';
+        profileStatuses.forEach(function(status) {
+            html += '<option value="' + escapeHtml(status) + '">' + escapeHtml(getAutopilotProfileStatusLabel(status)) + '</option>';
+        });
         html += '</select>';
         html += '<select class="filter-select" id="autopilot-manufacturer"><option value="all">All Manufacturers</option>';
         if (hasVMs) {
@@ -977,8 +965,8 @@ const PageDevices = (function() {
                 { key: 'lastContacted', label: 'Last Contacted' },
                 { key: 'profileAssigned', label: 'Profile' },
                 { key: 'profileAssignmentStatus', label: 'Profile Status' },
+                { key: 'profileDetailedStatus', label: 'Profile Detail' },
                 { key: 'purchaseOrder', label: 'PO' },
-                { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile' },
                 { key: 'addressableUserName', label: 'User' }
             ],
             defaultVisible: ['serialNumber', 'model', 'manufacturer', 'groupTag', 'enrollmentState', 'profileAssignmentStatus'],
@@ -1005,13 +993,12 @@ const PageDevices = (function() {
 
                 // Enrollment state filter
                 if (enrollmentFilter && enrollmentFilter !== 'all') {
-                    if (d.enrollmentState !== enrollmentFilter) return false;
+                    if (normalizeAutopilotEnrollmentState(d.enrollmentState) !== enrollmentFilter) return false;
                 }
 
-                // Profile assigned filter
+                // Profile assignment status filter
                 if (profileFilter && profileFilter !== 'all') {
-                    if (profileFilter === 'assigned' && !d.profileAssigned) return false;
-                    if (profileFilter === 'notAssigned' && d.profileAssigned) return false;
+                    if (normalizeAutopilotProfileStatus(d.profileAssignmentStatus) !== profileFilter) return false;
                 }
 
                 // Manufacturer filter (with special VM handling)
@@ -1090,8 +1077,8 @@ const PageDevices = (function() {
             { key: 'lastContacted', label: 'Last Contacted', formatter: formatDate },
             { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
             { key: 'profileAssignmentStatus', label: 'Profile Status', formatter: formatProfileStatus },
+            { key: 'profileDetailedStatus', label: 'Profile Detail' },
             { key: 'purchaseOrder', label: 'PO' },
-            { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile', formatter: formatProfileStatus },
             { key: 'addressableUserName', label: 'User' }
         ];
 
@@ -1104,20 +1091,66 @@ const PageDevices = (function() {
         });
     }
 
-    function formatProfileStatus(v) {
-        // Note: 'assignedUnkownSyncState' is an intentional typo from the Graph API
-        // We handle both the typo and the correct spelling for compatibility
+    function collectDistinctAutopilotValues(rows, selector, labelSelector) {
+        var seen = {};
+        var values = [];
+        rows.forEach(function(row) {
+            var value = selector(row);
+            if (!value || seen[value]) return;
+            seen[value] = true;
+            values.push(value);
+        });
+        return values.sort(function(a, b) {
+            return (labelSelector(a) || a).localeCompare(labelSelector(b) || b);
+        });
+    }
+
+    function normalizeAutopilotProfileStatus(value) {
+        if (!value) return 'unknown';
+        if (value === 'assignedUnknownSyncState') return 'assignedUnkownSyncState';
+        return value;
+    }
+
+    function getAutopilotProfileStatusMeta(value) {
         var map = {
             'assignedInSync': { badge: 'badge-success', label: 'Assigned - In Sync' },
             'assignedOutOfSync': { badge: 'badge-warning', label: 'Assigned - Out of Sync' },
-            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },  // API typo
-            'assignedUnknownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' }, // Correct spelling
+            'assignedUnkownSyncState': { badge: 'badge-info', label: 'Assigned - Unknown Sync' },
             'notAssigned': { badge: 'badge-neutral', label: 'Not Assigned' },
             'pending': { badge: 'badge-warning', label: 'Pending' },
             'failed': { badge: 'badge-critical', label: 'Failed' },
             'unknown': { badge: 'badge-neutral', label: 'Unknown' }
         };
-        var info = map[v] || { badge: 'badge-neutral', label: v || 'Unknown' };
+        return map[normalizeAutopilotProfileStatus(value)] || { badge: 'badge-neutral', label: value || 'Unknown' };
+    }
+
+    function getAutopilotProfileStatusLabel(value) {
+        return getAutopilotProfileStatusMeta(value).label;
+    }
+
+    function normalizeAutopilotEnrollmentState(value) {
+        return value || 'unknown';
+    }
+
+    function getAutopilotEnrollmentStateMeta(value) {
+        var normalized = normalizeAutopilotEnrollmentState(value);
+        var map = {
+            'enrolled': { badge: 'badge-success', label: 'Enrolled' },
+            'notContacted': { badge: 'badge-warning', label: 'Not Contacted' },
+            'pendingReset': { badge: 'badge-warning', label: 'Pending Reset' },
+            'failed': { badge: 'badge-critical', label: 'Failed' },
+            'blocked': { badge: 'badge-critical', label: 'Blocked' },
+            'unknown': { badge: 'badge-neutral', label: 'Unknown' }
+        };
+        return map[normalized] || { badge: 'badge-neutral', label: normalized };
+    }
+
+    function getAutopilotEnrollmentStateLabel(value) {
+        return getAutopilotEnrollmentStateMeta(value).label;
+    }
+
+    function formatProfileStatus(v) {
+        var info = getAutopilotProfileStatusMeta(v);
         return '<span class="badge ' + info.badge + '">' + info.label + '</span>';
     }
 
@@ -1297,22 +1330,21 @@ const PageDevices = (function() {
 
 
     function formatEnrollmentState(v) {
-        var map = { 'enrolled': 'badge-success', 'notContacted': 'badge-warning', 'failed': 'badge-critical' };
-        var labels = { 'enrolled': 'Enrolled', 'notContacted': 'Not Contacted', 'failed': 'Failed' };
-        return '<span class="badge ' + (map[v] || 'badge-neutral') + '">' + (labels[v] || v || 'Unknown') + '</span>';
+        var info = getAutopilotEnrollmentStateMeta(v);
+        return '<span class="badge ' + info.badge + '">' + info.label + '</span>';
     }
 
     function formatProfileAssigned(v, row) {
         if (v === true) {
-            var status = row && row.profileAssignmentStatus;
+            var status = normalizeAutopilotProfileStatus(row && row.profileAssignmentStatus);
             if (status === 'assignedInSync') return '<span class="badge badge-success">In Sync</span>';
             if (status === 'assignedOutOfSync') return '<span class="badge badge-warning">Out of Sync</span>';
-            if (status === 'assignedUnkownSyncState' || status === 'assignedUnknownSyncState') return '<span class="badge badge-info">Unknown Sync</span>';
+            if (status === 'assignedUnkownSyncState') return '<span class="badge badge-info">Unknown Sync</span>';
             if (status === 'pending') return '<span class="badge badge-warning">Pending</span>';
             if (status === 'failed') return '<span class="badge badge-critical">Failed</span>';
             return '<span class="badge badge-success">Assigned</span>';
         }
-        if (row && row.profileAssignmentStatus === 'notAssigned') {
+        if (normalizeAutopilotProfileStatus(row && row.profileAssignmentStatus) === 'notAssigned') {
             return '<span class="badge badge-neutral">Not Assigned</span>';
         }
         return '<span class="badge badge-warning">No</span>';
@@ -1483,9 +1515,9 @@ const PageDevices = (function() {
             html += '</dl></div>';
         }
 
-        // Admin Portal Links - Quick Actions
+        // Admin Portal Links - Take Action
         if (adminUrls.intune || adminUrls.entra || adminUrls.defender) {
-            html += '<div class="detail-section full-width"><h4>Quick Actions</h4>';
+            html += '<div class="detail-section full-width"><h4>Take Action</h4>';
             html += '<div class="admin-portal-links" style="display:flex;flex-wrap:wrap;gap:0.5rem">';
             if (adminUrls.intune) {
                 html += '<a href="' + adminUrls.intune + '" target="_blank" rel="noopener" class="btn btn-primary btn-sm">Open in Intune</a>';
@@ -1786,12 +1818,12 @@ const PageDevices = (function() {
             html += '<dt>Manager</dt><dd>' + (primaryUser.manager || '--') + '</dd>';
             html += '<dt>Account Enabled</dt><dd>' + (primaryUser.accountEnabled ? '<span class="text-success">Yes</span>' : '<span class="text-critical">No</span>') + '</dd>';
             html += '</dl>';
-            html += '<p style="margin-top:1rem"><a href="#users?search=' + encodeURIComponent(primaryUser.userPrincipalName) + '" class="text-link">View Full User Profile</a></p>';
+            html += '<p style="margin-top:1rem"><a href="' + getUserProfileHref(primaryUser) + '" class="text-link">View Full User Profile</a></p>';
         } else {
             html += '<p class="empty-state-small">No primary user assigned or user data not available</p>';
             if (device.userPrincipalName) {
                 html += '<p><strong>Assigned UPN:</strong> ' + device.userPrincipalName + '</p>';
-                html += '<p><a href="#users?search=' + encodeURIComponent(device.userPrincipalName) + '" class="text-link">Search for user</a></p>';
+                html += '<p><a href="' + getUserProfileHref(device.userPrincipalName) + '" class="text-link">Open user 360</a></p>';
             }
         }
         html += '</div>';
@@ -1810,9 +1842,12 @@ const PageDevices = (function() {
             signIns.forEach(function(s) {
                 var statusClass = s.status && s.status.errorCode === 0 ? 'text-success' : 'text-critical';
                 var statusText = s.status && s.status.errorCode === 0 ? 'Success' : (s.status ? s.status.failureReason || 'Failed' : 'Unknown');
+                var userCell = s.userPrincipalName
+                    ? '<a href="' + getUserProfileHref(s.userPrincipalName) + '" class="entity-link">' + (s.userPrincipalName || '--') + '</a>'
+                    : '--';
                 html += '<tr>';
                 html += '<td>' + formatDateConsistent(s.createdDateTime, true) + '</td>';
-                html += '<td class="cell-truncate">' + (s.userPrincipalName || '--') + '</td>';
+                html += '<td class="cell-truncate">' + userCell + '</td>';
                 html += '<td class="cell-truncate">' + (s.appDisplayName || '--') + '</td>';
                 html += '<td class="' + statusClass + '">' + statusText + '</td>';
                 html += '<td>' + (s.location ? (s.location.city || '') + ', ' + (s.location.countryOrRegion || '') : '--') + '</td>';

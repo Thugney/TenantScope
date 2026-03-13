@@ -24,6 +24,7 @@
         'overview': PageOverview,
         'users': PageUsers,
         'user-360': PageUser360,
+        'device-360': PageDevice360,
         'licenses': PageLicenses,
         'guests': PageGuests,
         'security': PageSecurity,
@@ -109,11 +110,24 @@
         if (!value) return null;
         const cleaned = String(value).trim();
         if (!cleaned) return null;
+        if (typeof ActionUtils !== 'undefined' && ActionUtils.getUserProfileTarget) {
+            return ActionUtils.getUserProfileTarget(cleaned, { exactOnly: true });
+        }
         if (isLikelyUpn(cleaned)) {
             return { param: 'upn', value: cleaned };
         }
-        if (isGuid(cleaned) && typeof EntityIndex !== 'undefined' && EntityIndex.getUser) {
-            const match = EntityIndex.getUser(cleaned);
+        return null;
+    }
+
+    function resolveDeviceSearchTarget(value) {
+        if (!value) return null;
+        const cleaned = String(value).trim();
+        if (!cleaned) return null;
+        if (typeof ActionUtils !== 'undefined' && ActionUtils.getDeviceProfileTarget) {
+            return ActionUtils.getDeviceProfileTarget(cleaned, { exactOnly: true });
+        }
+        if (isGuid(cleaned) && typeof EntityIndex !== 'undefined' && EntityIndex.getDevice) {
+            const match = EntityIndex.getDevice(cleaned);
             if (match) {
                 return { param: 'id', value: cleaned };
             }
@@ -132,6 +146,20 @@
         const dest = '#user-360?' + target.param + '=' + encodeURIComponent(target.value);
         if (window.location.hash === dest) return false;
         // Use replace so the intermediate users search page doesn't trap browser back.
+        window.location.replace(dest);
+        return true;
+    }
+
+    function shouldRedirectDeviceSearch(pageName) {
+        if (pageName !== 'devices') return false;
+        const params = getHashParams();
+        if (!params || Object.keys(params).length === 0) return false;
+        if (params.no360 === '1' || params.view === 'list') return false;
+        const searchValue = params.search || params.device || params.name || '';
+        const target = resolveDeviceSearchTarget(searchValue);
+        if (!target) return false;
+        const dest = '#device-360?' + target.param + '=' + encodeURIComponent(target.value);
+        if (window.location.hash === dest) return false;
         window.location.replace(dest);
         return true;
     }
@@ -209,7 +237,7 @@
         const pageName = getCurrentPage();
         const page = pages[pageName];
 
-        if (shouldRedirectUserSearch(pageName)) {
+        if (shouldRedirectUserSearch(pageName) || shouldRedirectDeviceSearch(pageName)) {
             return;
         }
 
@@ -285,8 +313,25 @@
     function updateHeaderSubtitle(pageName) {
         const subtitle = document.getElementById('header-subtitle');
         if (subtitle) {
-            // Capitalize first letter
-            subtitle.textContent = pageName.charAt(0).toUpperCase() + pageName.slice(1);
+            const labels = {
+                'user-360': 'User 360',
+                'device-360': 'Device 360',
+                'oauth-consent': 'OAuth Consent',
+                'license-analysis': 'License Analysis',
+                'data-quality': 'Data Quality',
+                'signin-logs': 'Sign-In Logs',
+                'audit-logs': 'Audit Logs',
+                'conditional-access': 'Conditional Access',
+                'configuration-profiles': 'Configuration Profiles',
+                'compliance-policies': 'Compliance Policies',
+                'windows-update': 'Windows Update',
+                'endpoint-analytics': 'Endpoint Analytics',
+                'credential-expiry': 'Credential Expiry',
+                'enterprise-apps': 'Enterprise Apps',
+                'identity-risk': 'Identity Risk',
+                'app-usage': 'App Usage'
+            };
+            subtitle.textContent = labels[pageName] || pageName.charAt(0).toUpperCase() + pageName.slice(1);
         }
     }
 
@@ -522,6 +567,10 @@
         // Initialize global search (Ctrl+K)
         if (typeof GlobalSearch !== 'undefined') {
             GlobalSearch.init();
+        }
+
+        if (typeof ActionUtils !== 'undefined' && ActionUtils.initProfileRouting) {
+            ActionUtils.initProfileRouting();
         }
 
         // Initialize keyboard shortcuts

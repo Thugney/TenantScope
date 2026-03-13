@@ -1,7 +1,9 @@
-﻿# Environment
+# Environment
 .env
 .env.*
 !.env.example
+CLAUDE.md
+m365-toolkit/.claude/
 
 # Dependencies
 node_modules/

@@ -1,16 +1,14 @@
 /**
- * ============================================================================
  * TenantScope - Identity Risk Page
- * ============================================================================
- * Displays Identity Protection risk data including risky users and detections.
- * Data sourced from trusted Graph API collectors - not user input.
+ *
+ * Identity investigation page that prioritizes risky users and detections with
+ * direct pivots into user context instead of a flat table-only view.
  */
 
 const PageIdentityRisk = (function() {
     'use strict';
 
-    var SF = window.SharedFormatters || {};
-    var currentTab = 'risky-users';
+    var AU = window.ActionUtils || {};
     var state = {
         summary: {},
         riskyUsers: [],
@@ -18,452 +16,629 @@ const PageIdentityRisk = (function() {
         insights: []
     };
 
-    function render(container) {
-        const data = DataLoader.getData('identityRisk');
-
-        if (!data || (!data.riskyUsers?.length && !data.riskDetections?.length)) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-title">No Identity Risk Data</div>
-                    <div class="empty-state-description">
-                        No risky users or risk detections found.<br>
-                        This requires Entra ID P2 license and IdentityRiskEvent.Read.All permission.
-                    </div>
-                </div>
-            `;
-            return;
-        }
-
-        const riskyUsersRaw = Array.isArray(data.riskyUsers) ? data.riskyUsers : [];
-        const detectionsRaw = Array.isArray(data.riskDetections) ? data.riskDetections : [];
-
-        const summary = buildSummary(data, riskyUsersRaw, detectionsRaw);
-        const detectionCounts = buildDetectionCountMap(detectionsRaw);
-
-        state = {
-            summary: summary,
-            riskyUsers: riskyUsersRaw.map(user => {
-                const key = user.userId || user.userPrincipalName || user.id;
-                const count = detectionCounts[key] || 0;
-                return Object.assign({}, user, { detectionCount: user.detectionCount || count });
-            }),
-            detections: detectionsRaw,
-            insights: Array.isArray(data.insights) ? data.insights : []
-        };
-
-        let html = `
-            <div class="page-header">
-                <h2 class="page-title">Identity Risk</h2>
-                <p class="page-description">Risky users and detections from Entra ID Identity Protection</p>
-            </div>
-        `;
-
-        const totalRisky = summary.totalRiskyUsers || 0;
-        const highRisk = summary.highRiskUsers || 0;
-        const confirmed = summary.confirmedCompromised || 0;
-        const recent24 = summary.recentDetections24h || 0;
-        const totalDetections = summary.totalDetections || 0;
-
-        const highCardClass = highRisk > 0 ? ' card-danger' : ' card-success';
-        const compromisedClass = confirmed > 0 ? ' card-danger' : ' card-success';
-        const recentClass = recent24 > 0 ? ' card-warning' : '';
-
-        html += '<div class="summary-cards">';
-        html += '<div class="summary-card card-info"><div class="summary-value">' + totalRisky + '</div><div class="summary-label">Risky Users</div></div>';
-        html += '<div class="summary-card' + highCardClass + '"><div class="summary-value text-critical">' + highRisk + '</div><div class="summary-label">High Risk</div></div>';
-        html += '<div class="summary-card' + compromisedClass + '"><div class="summary-value text-critical">' + confirmed + '</div><div class="summary-label">Confirmed Compromised</div></div>';
-        html += '<div class="summary-card' + recentClass + '"><div class="summary-value">' + recent24 + '</div><div class="summary-label">Detections (24h)</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + totalDetections + '</div><div class="summary-label">Total Detections</div></div>';
-        html += '</div>';
-
-        html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="risky-users">Risky Users (' + state.riskyUsers.length + ')</button>';
-        html += '<button class="tab-btn" data-tab="detections">Detections (' + state.detections.length + ')</button>';
-        html += '</div>';
-        html += '<div class="content-area" id="identity-risk-content"></div>';
-
-        container.innerHTML = html;
-
-        const tabButtons = container.querySelectorAll('.tab-btn');
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                currentTab = btn.dataset.tab;
-                tabButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                renderTabContent();
-            });
-        });
-
-        currentTab = 'risky-users';
-        renderTabContent();
+    function escapeHtml(value) {
+        return Tables.escapeHtml(value === null || value === undefined ? '' : String(value));
     }
 
-    function renderTabContent() {
-        const container = document.getElementById('identity-risk-content');
-        if (!container) return;
-
-        if (currentTab === 'risky-users') {
-            renderRiskyUsersTab(container);
-        } else if (currentTab === 'detections') {
-            renderDetectionsTab(container);
-        }
+    function normalizeText(value) {
+        return value === null || value === undefined ? '' : String(value).trim();
     }
 
-    function renderRiskyUsersTab(container) {
-        var html = '<div class="filter-bar">';
-        html += '<input type="text" class="filter-input" id="risk-search" placeholder="Search users...">';
-        html += '<select class="filter-select" id="risk-level"><option value="all">All Risk Levels</option>';
-        html += '<option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option><option value="none">None</option></select>';
-        html += '<select class="filter-select" id="risk-state"><option value="all">All States</option>';
-        html += '<option value="atRisk">At Risk</option><option value="confirmedCompromised">Confirmed Compromised</option>';
-        html += '<option value="remediated">Remediated</option><option value="dismissed">Dismissed</option></select>';
-        html += '</div>';
-        html += '<div id="risky-users-table"></div>';
-        container.innerHTML = html;
-
-        Filters.setup('risk-search', applyRiskyUsersFilter);
-        Filters.setup('risk-level', applyRiskyUsersFilter);
-        Filters.setup('risk-state', applyRiskyUsersFilter);
-        applyRiskyUsersFilter();
+    function formatDateTime(value) {
+        return Tables.formatters.datetime(value);
     }
 
-    function applyRiskyUsersFilter() {
-        var users = state.riskyUsers;
-        var search = (Filters.getValue('risk-search') || '').toLowerCase();
-        var level = Filters.getValue('risk-level');
-        var riskState = Filters.getValue('risk-state');
-
-        var filtered = users.filter(function(user) {
-            if (search && (user.userDisplayName || '').toLowerCase().indexOf(search) === -1 &&
-                (user.userPrincipalName || '').toLowerCase().indexOf(search) === -1) {
-                return false;
-            }
-            if (level && level !== 'all' && (user.riskLevel || '').toLowerCase() !== level) return false;
-            if (riskState && riskState !== 'all' && (user.riskState || '').toLowerCase() !== riskState.toLowerCase()) return false;
-            return true;
-        });
-
-        var tableContainer = document.getElementById('risky-users-table');
-        if (tableContainer) tableContainer.innerHTML = renderRiskyUsersTable(filtered);
-    }
-
-    function renderDetectionsTab(container) {
-        var html = '<div class="filter-bar">';
-        html += '<input type="text" class="filter-input" id="detect-search" placeholder="Search detections...">';
-        html += '<select class="filter-select" id="detect-severity"><option value="all">All Severities</option>';
-        html += '<option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select>';
-        html += '</div>';
-        html += '<div id="detections-table"></div>';
-        container.innerHTML = html;
-
-        Filters.setup('detect-search', applyDetectionsFilter);
-        Filters.setup('detect-severity', applyDetectionsFilter);
-        applyDetectionsFilter();
-    }
-
-    function applyDetectionsFilter() {
-        var detections = state.detections;
-        var search = (Filters.getValue('detect-search') || '').toLowerCase();
-        var severity = Filters.getValue('detect-severity');
-
-        var filtered = detections.filter(function(det) {
-            if (search && (det.userDisplayName || '').toLowerCase().indexOf(search) === -1 &&
-                (det.userPrincipalName || '').toLowerCase().indexOf(search) === -1 &&
-                (det.riskEventType || '').toLowerCase().indexOf(search) === -1) {
-                return false;
-            }
-            var detSev = (det.severity || det.riskLevel || '').toLowerCase();
-            if (severity && severity !== 'all' && detSev !== severity) return false;
-            return true;
-        });
-
-        var tableContainer = document.getElementById('detections-table');
-        if (tableContainer) tableContainer.innerHTML = renderDetectionsTable(filtered);
-    }
-
-    function renderRiskyUsersTable(users) {
-        if (!users.length) {
-            return '<div class="empty-state"><p>No risky users found</p></div>';
-        }
-
-        return `
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Risk Level</th>
-                            <th>Risk State</th>
-                            <th>Detections</th>
-                            <th>Last Updated</th>
-                            <th>Flags</th>
-                            <th>Admin</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${users.map(user => `
-                            <tr class="${user.riskLevel === 'high' ? 'row-critical' : user.riskLevel === 'medium' ? 'row-warning' : ''}">
-                                <td>
-                                    <div class="user-cell">
-                                        <a href="#users?search=${encodeURIComponent(user.userPrincipalName || '')}" class="entity-link">
-                                            <strong>${escapeHtml(user.userDisplayName || 'Unknown')}</strong>
-                                        </a>
-                                        <small>${escapeHtml(user.userPrincipalName || '')}</small>
-                                    </div>
-                                </td>
-                                <td>${formatSeverityBadge(user.riskLevel)}</td>
-                                <td>${formatRiskStateBadge(user.riskState)}</td>
-                                <td>${user.detectionCount || 0}</td>
-                                <td>${formatDate(user.riskLastUpdatedDateTime)}</td>
-                                <td>${(user.flags || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}</td>
-                                <td>${user.id ? '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>' : '--'}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    function renderDetectionsTable(detections) {
-        if (!detections.length) {
-            return '<div class="empty-state"><p>No risk detections found</p></div>';
-        }
-
-        const displayDetections = detections.slice(0, 100);
-
-        return `
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>User</th>
-                            <th>Risk Type</th>
-                            <th>Severity</th>
-                            <th>IP Address</th>
-                            <th>Location</th>
-                            <th>Detected</th>
-                            <th>Admin</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${displayDetections.map(det => {
-                            const severity = det.severity || det.riskLevel || 'low';
-                            const rowClass = severity === 'critical' || severity === 'high' ? 'row-warning' : '';
-                            return `
-                            <tr class="${rowClass}">
-                                <td>
-                                    <div class="user-cell">
-                                        <a href="#users?search=${encodeURIComponent(det.userPrincipalName || '')}" class="entity-link">
-                                            <strong>${escapeHtml(det.userDisplayName || 'Unknown')}</strong>
-                                        </a>
-                                        <small>${escapeHtml(det.userPrincipalName || '')}</small>
-                                    </div>
-                                </td>
-                                <td><code>${escapeHtml(det.riskEventType || 'unknown')}</code></td>
-                                <td>${formatSeverityBadge(severity)}</td>
-                                <td><code>${escapeHtml(det.ipAddress || '--')}</code></td>
-                                <td>${escapeHtml(det.location?.countryOrRegion || '--')}</td>
-                                <td>${formatDate(det.detectedDateTime)}</td>
-                                <td>${det.id ? '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="admin-link" title="Open in Entra">Entra</a>' : '--'}</td>
-                            </tr>
-                            `;
-                        }).join('')}
-                    </tbody>
-                </table>
-            </div>
-            ${detections.length > 100 ? `<p class="text-muted">Showing first 100 of ${detections.length} detections</p>` : ''}
-        `;
-    }
-
-    function buildSummary(data, riskyUsers, detections) {
-        var useSummary = !(window.TimeRangeFilter && TimeRangeFilter.isActive && TimeRangeFilter.isActive());
-        const summary = useSummary ? (data.summary || {}) : {};
-        const computed = computeSummary(riskyUsers, detections);
-
-        return {
-            totalRiskyUsers: valueOr(summary.totalRiskyUsers, computed.totalRiskyUsers),
-            highRiskUsers: valueOr(summary.highRiskUsers, computed.highRiskUsers),
-            mediumRiskUsers: valueOr(summary.mediumRiskUsers, computed.mediumRiskUsers),
-            lowRiskUsers: valueOr(summary.lowRiskUsers, computed.lowRiskUsers),
-            atRiskUsers: valueOr(summary.atRiskUsers, computed.atRiskUsers),
-            confirmedCompromised: valueOr(summary.confirmedCompromised, computed.confirmedCompromised),
-            dismissedUsers: valueOr(summary.dismissedUsers, computed.dismissedUsers),
-            remediatedUsers: valueOr(summary.remediatedUsers, computed.remediatedUsers),
-            totalDetections: valueOr(summary.totalDetections, computed.totalDetections),
-            detectionsByType: (summary.detectionsByType && summary.detectionsByType.length) ? summary.detectionsByType : computed.detectionsByType,
-            detectionsByLocation: (summary.detectionsByLocation && summary.detectionsByLocation.length) ? summary.detectionsByLocation : computed.detectionsByLocation,
-            recentDetections24h: valueOr(summary.recentDetections24h, computed.recentDetections24h),
-            recentDetections7d: valueOr(summary.recentDetections7d, computed.recentDetections7d)
-        };
-    }
-
-    function computeSummary(riskyUsers, detections) {
-        let high = 0;
-        let medium = 0;
-        let low = 0;
-        let atRisk = 0;
-        let confirmed = 0;
-        let dismissed = 0;
-        let remediated = 0;
-
-        riskyUsers.forEach(user => {
-            const level = (user.riskLevel || '').toLowerCase();
-            if (level === 'high') high++;
-            else if (level === 'medium') medium++;
-            else if (level === 'low') low++;
-
-            const state = (user.riskState || '').toLowerCase();
-            if (state === 'atrisk') atRisk++;
-            else if (state === 'confirmedcompromised') confirmed++;
-            else if (state === 'dismissed') dismissed++;
-            else if (state === 'remediated') remediated++;
-        });
-
-        const detectionsByType = buildDetectionsByType(detections);
-        const detectionsByLocation = buildDetectionsByLocation(detections);
-        const recentCounts = buildRecentDetectionCounts(detections);
-
-        return {
-            totalRiskyUsers: riskyUsers.length,
-            highRiskUsers: high,
-            mediumRiskUsers: medium,
-            lowRiskUsers: low,
-            atRiskUsers: atRisk,
-            confirmedCompromised: confirmed,
-            dismissedUsers: dismissed,
-            remediatedUsers: remediated,
-            totalDetections: detections.length,
-            detectionsByType: detectionsByType,
-            detectionsByLocation: detectionsByLocation,
-            recentDetections24h: recentCounts.last24h,
-            recentDetections7d: recentCounts.last7d
-        };
-    }
-
-    function buildDetectionCountMap(detections) {
-        const map = {};
-        detections.forEach(det => {
-            const key = det.userId || det.userPrincipalName || det.id;
-            if (!key) return;
-            map[key] = (map[key] || 0) + 1;
-        });
-        return map;
-    }
-
-    function buildDetectionsByType(detections) {
-        const map = {};
-        detections.forEach(det => {
-            const type = det.riskEventType || 'unknown';
-            const severity = det.severity || det.riskLevel || 'low';
-            if (!map[type]) {
-                map[type] = { type: type, count: 0, severity: severity };
-            }
-            map[type].count++;
-            if (severityRank(severity) > severityRank(map[type].severity)) {
-                map[type].severity = severity;
-            }
-        });
-        return Object.values(map).sort((a, b) => (b.count || 0) - (a.count || 0));
-    }
-
-    function buildDetectionsByLocation(detections) {
-        const map = {};
-        detections.forEach(det => {
-            const country = det.location?.countryOrRegion || 'Unknown';
-            map[country] = (map[country] || 0) + 1;
-        });
-        return Object.keys(map).map(key => ({ country: key, count: map[key] }))
-            .sort((a, b) => (b.count || 0) - (a.count || 0));
-    }
-
-    function buildRecentDetectionCounts(detections) {
-        const now = Date.now();
-        const dayMs = 24 * 60 * 60 * 1000;
-        let last24h = 0;
-        let last7d = 0;
-
-        detections.forEach(det => {
-            const ts = Date.parse(det.detectedDateTime || det.lastUpdatedDateTime || '');
-            if (!ts) return;
-            if (ts >= now - dayMs) last24h++;
-            if (ts >= now - (7 * dayMs)) last7d++;
-        });
-
-        return { last24h: last24h, last7d: last7d };
-    }
-
-    function buildDonutChart(segments, total, label) {
-        const radius = 40;
-        const circumference = 2 * Math.PI * radius;
-        let offset = 0;
-
-        let html = '<div class="donut-chart">';
-        html += '<svg viewBox="0 0 100 100" class="donut">';
-        html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="var(--color-bg-tertiary)" stroke-width="10"/>';
-
-        segments.forEach(seg => {
-            if (!seg.value || seg.value <= 0) return;
-            const dash = (seg.value / total) * circumference;
-            html += '<circle cx="50" cy="50" r="' + radius + '" fill="none" stroke="' + seg.color + '" stroke-width="10" stroke-dasharray="' + dash + ' ' + circumference + '" stroke-dashoffset="-' + offset + '" stroke-linecap="round" transform="rotate(-90 50 50)"/>';
-            offset += dash;
-        });
-
-        html += '</svg>';
-        html += '<div class="donut-center"><span class="donut-value">' + total + '</span><span class="donut-label">' + escapeHtml(label || '') + '</span></div>';
-        html += '</div>';
-        return html;
-    }
-
-    function severityRank(value) {
-        const map = { critical: 4, high: 3, medium: 2, low: 1 };
-        return map[value] || 0;
-    }
-
-    function valueOr(value, fallback) {
-        return (value === null || value === undefined) ? fallback : value;
+    function getUserHref(target) {
+        if (AU.getUserProfileHash) return AU.getUserProfileHash(target);
+        var value = typeof target === 'string'
+            ? target
+            : target && (target.userPrincipalName || target.mail || target.displayName || '');
+        return value ? '#users?search=' + encodeURIComponent(value) : '#users';
     }
 
     function formatSeverityBadge(value) {
-        const sev = (value || '').toLowerCase();
-        return SF.formatSeverity ? SF.formatSeverity(sev) : '<span class="badge badge-neutral">' + escapeHtml(sev || 'Unknown') + '</span>';
+        var sev = normalizeText(value).toLowerCase();
+        var map = {
+            high: 'badge-critical',
+            medium: 'badge-warning',
+            low: 'badge-info',
+            none: 'badge-success'
+        };
+        return '<span class="badge ' + (map[sev] || 'badge-neutral') + '">' + escapeHtml(sev || 'none') + '</span>';
     }
 
-    function formatRiskStateBadge(state) {
-        const value = (state || '').toLowerCase();
-        const cls = value === 'confirmedcompromised' ? 'badge-critical' :
-            value === 'atrisk' ? 'badge-warning' :
-            value === 'remediated' ? 'badge-success' :
-            value === 'dismissed' ? 'badge-neutral' : 'badge-neutral';
-        return '<span class="badge ' + cls + '">' + escapeHtml(state || 'Unknown') + '</span>';
+    function formatRiskStateBadge(value) {
+        var stateValue = normalizeText(value).toLowerCase();
+        var map = {
+            confirmedcompromised: 'badge-critical',
+            atrisk: 'badge-warning',
+            remediated: 'badge-success',
+            dismissed: 'badge-neutral'
+        };
+        return '<span class="badge ' + (map[stateValue] || 'badge-neutral') + '">' + escapeHtml(value || 'unknown') + '</span>';
     }
 
-    function insightClass(severity) {
-        if (severity === 'critical') return 'insight-critical';
-        if (severity === 'high') return 'insight-high';
-        if (severity === 'warning') return 'insight-warning';
-        if (severity === 'info') return 'insight-info';
-        return 'insight-info';
+    function getSignInLogs() {
+        var raw = DataLoader.getData('signinLogs');
+        var list = Array.isArray(raw) ? raw : ((raw && raw.signIns) || []);
+        return list.slice().sort(function(a, b) {
+            return new Date(b.createdDateTime).getTime() - new Date(a.createdDateTime).getTime();
+        });
     }
 
-    function formatDate(dateStr) {
-        if (!dateStr) return '--';
-        try {
-            return new Date(dateStr).toLocaleDateString('en-GB', {
-                year: 'numeric', month: 'short', day: 'numeric',
-                hour: '2-digit', minute: '2-digit'
+    function getLatestSignIn(upn, userId) {
+        var logs = getSignInLogs();
+        var upnLower = normalizeText(upn).toLowerCase();
+        for (var i = 0; i < logs.length; i++) {
+            var item = logs[i];
+            if ((userId && item.userId === userId) || (upnLower && normalizeText(item.userPrincipalName).toLowerCase() === upnLower)) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    function getRecentDetectionsForUser(userId, upn, excludeId) {
+        return state.detections.filter(function(item) {
+            var sameUser = (userId && item.userId === userId) || (upn && normalizeText(item.userPrincipalName).toLowerCase() === normalizeText(upn).toLowerCase());
+            return sameUser && item.id !== excludeId;
+        }).slice(0, 6);
+    }
+
+    function buildSummary(riskyUsers, detections) {
+        var summary = {
+            totalRiskyUsers: riskyUsers.length,
+            highRiskUsers: 0,
+            mediumRiskUsers: 0,
+            lowRiskUsers: 0,
+            confirmedCompromised: 0,
+            adminAccountsAtRisk: 0,
+            recentDetections24h: 0,
+            recentDetections7d: 0,
+            totalDetections: detections.length
+        };
+
+        var now = Date.now();
+        riskyUsers.forEach(function(user) {
+            var level = normalizeText(user.riskLevel).toLowerCase();
+            var flags = Array.isArray(user.flags) ? user.flags : [];
+            if (level === 'high') summary.highRiskUsers++;
+            else if (level === 'medium') summary.mediumRiskUsers++;
+            else if (level === 'low') summary.lowRiskUsers++;
+            if (normalizeText(user.riskState).toLowerCase() === 'confirmedcompromised') summary.confirmedCompromised++;
+            if (flags.indexOf('admin-account') >= 0) summary.adminAccountsAtRisk++;
+        });
+
+        detections.forEach(function(item) {
+            var detected = new Date(item.detectedDateTime).getTime();
+            if (!isNaN(detected)) {
+                var hours = Math.round((now - detected) / 3600000);
+                if (hours <= 24) summary.recentDetections24h++;
+                if (hours <= 24 * 7) summary.recentDetections7d++;
+            }
+        });
+
+        return summary;
+    }
+
+    function computeInsights(summary, riskyUsers, detections, sourceInsights) {
+        var insights = [];
+        if (Array.isArray(sourceInsights)) {
+            insights = sourceInsights.slice(0);
+        }
+        if (summary.confirmedCompromised > 0) {
+            insights.unshift({
+                severity: 'critical',
+                title: 'Confirmed compromised accounts',
+                description: summary.confirmedCompromised + ' user accounts are marked confirmed compromised.',
+                recommendedAction: 'Review user timeline, recent sign-ins, sessions, and containment status immediately.'
             });
-        } catch { return '--'; }
+        }
+        if (summary.adminAccountsAtRisk > 0) {
+            insights.unshift({
+                severity: 'high',
+                title: 'Privileged accounts at risk',
+                description: summary.adminAccountsAtRisk + ' risky users carry admin-account flags.',
+                recommendedAction: 'Review privileged session exposure and force revalidation of access.'
+            });
+        }
+        if (!insights.length && detections.length > 0) {
+            insights.push({
+                severity: 'info',
+                title: 'Identity risk data present',
+                description: 'Risk detections exist, but no collector-provided insights were included.',
+                recommendedAction: 'Use the priority queues below to triage high-risk and recent activity.'
+            });
+        }
+        return insights.slice(0, 6);
     }
 
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/[&<>"']/g, m => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[m]));
+    function enrichRiskyUsers(rawUsers, detections) {
+        var detectionCounts = {};
+        detections.forEach(function(item) {
+            var key = item.userId || item.userPrincipalName || item.id;
+            detectionCounts[key] = (detectionCounts[key] || 0) + 1;
+        });
+
+        return rawUsers.map(function(user) {
+            var key = user.userId || user.userPrincipalName || user.id;
+            var latestSignIn = getLatestSignIn(user.userPrincipalName, user.userId);
+            return Object.assign({}, user, {
+                detectionCount: user.detectionCount || detectionCounts[key] || 0,
+                latestSignIn: latestSignIn
+            });
+        }).sort(function(a, b) {
+            var rank = { high: 3, medium: 2, low: 1, none: 0 };
+            var riskDiff = (rank[normalizeText(b.riskLevel).toLowerCase()] || 0) - (rank[normalizeText(a.riskLevel).toLowerCase()] || 0);
+            if (riskDiff !== 0) return riskDiff;
+            return new Date(b.riskLastUpdatedDateTime).getTime() - new Date(a.riskLastUpdatedDateTime).getTime();
+        });
     }
 
-    return { render };
+    function enrichDetections(rawDetections) {
+        return rawDetections.map(function(item) {
+            return Object.assign({}, item, {
+                latestSignIn: getLatestSignIn(item.userPrincipalName, item.userId)
+            });
+        }).sort(function(a, b) {
+            return new Date(b.detectedDateTime).getTime() - new Date(a.detectedDateTime).getTime();
+        });
+    }
+
+    function formatUserCell(value, row) {
+        var primary = row.userDisplayName || row.userPrincipalName || 'Unknown';
+        var secondary = row.userPrincipalName && row.userDisplayName !== row.userPrincipalName
+            ? '<br><small>' + escapeHtml(row.userPrincipalName) + '</small>'
+            : '';
+        var linkValue = row.userPrincipalName || row.userId;
+        if (!linkValue) return '<strong>' + escapeHtml(primary) + '</strong>' + secondary;
+        return '<a href="' + getUserHref(linkValue) + '" class="entity-link" onclick="event.stopPropagation();"><strong>' + escapeHtml(primary) + '</strong>' + secondary + '</a>';
+    }
+
+    function formatLatestSignIn(value, row) {
+        if (!row.latestSignIn) return '<span class="text-muted">--</span>';
+        var signIn = row.latestSignIn;
+        var bits = [];
+        bits.push('<strong>' + escapeHtml(signIn.appDisplayName || '(unknown)') + '</strong>');
+        bits.push('<small>' + Tables.formatters.datetime(signIn.createdDateTime) + '</small>');
+        if (signIn.ipAddress) bits.push('<small>' + escapeHtml(signIn.ipAddress) + '</small>');
+        return bits.join('<br>');
+    }
+
+    function formatFlags(value) {
+        var list = Array.isArray(value) ? value : [];
+        if (!list.length) return '<span class="text-muted">--</span>';
+        return list.map(function(flag) {
+            return '<span class="tag">' + escapeHtml(flag) + '</span>';
+        }).join(' ');
+    }
+
+    function formatLocation(value, row) {
+        if (!row.location) return '--';
+        return escapeHtml([row.location.city, row.location.countryOrRegion].filter(Boolean).join(', ') || row.location.countryOrRegion || '--');
+    }
+
+    function formatActionCell(value, row) {
+        var actions = [];
+        if (row.userPrincipalName || row.userId) {
+            actions.push('<a href="' + getUserHref(row.userPrincipalName || row.userId) + '" class="admin-link" onclick="event.stopPropagation();" title="Open user profile">User 360</a>');
+        }
+        actions.push('<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="admin-link" onclick="event.stopPropagation();" title="Open in Entra">Entra</a>');
+        return actions.join(' ');
+    }
+
+    function renderSummaryCards() {
+        var element = document.getElementById('identity-risk-summary');
+        if (!element) return;
+        var summary = state.summary;
+        element.innerHTML =
+            '<div class="summary-card"><div class="summary-value">' + summary.totalRiskyUsers + '</div><div class="summary-label">Risky Users</div></div>' +
+            '<div class="summary-card card-danger"><div class="summary-value">' + summary.highRiskUsers + '</div><div class="summary-label">High Risk</div></div>' +
+            '<div class="summary-card card-danger"><div class="summary-value">' + summary.confirmedCompromised + '</div><div class="summary-label">Confirmed Compromised</div></div>' +
+            '<div class="summary-card"><div class="summary-value">' + summary.adminAccountsAtRisk + '</div><div class="summary-label">Admin Accounts At Risk</div></div>' +
+            '<div class="summary-card card-warning"><div class="summary-value">' + summary.recentDetections24h + '</div><div class="summary-label">Detections (24h)</div></div>' +
+            '<div class="summary-card"><div class="summary-value">' + summary.totalDetections + '</div><div class="summary-label">Total Detections</div></div>';
+    }
+
+    function renderInsights() {
+        var container = document.getElementById('identity-risk-insights');
+        if (!container) return;
+        if (!state.insights.length) {
+            container.innerHTML = '<p class="text-muted">No insights available.</p>';
+            return;
+        }
+
+        var html = '<div class="insights-list">';
+        state.insights.forEach(function(insight) {
+            var severity = normalizeText(insight.severity).toLowerCase();
+            var cls = severity === 'critical' ? 'insight-critical' :
+                severity === 'high' ? 'insight-high' :
+                severity === 'warning' ? 'insight-warning' :
+                'insight-info';
+            html += '<div class="insight-card ' + cls + '">';
+            html += '<div class="insight-header"><strong>' + escapeHtml(insight.title || 'Insight') + '</strong></div>';
+            html += '<p class="insight-description">' + escapeHtml(insight.description || '') + '</p>';
+            if (insight.recommendedAction) {
+                html += '<p class="insight-action"><strong>Action:</strong> ' + escapeHtml(insight.recommendedAction) + '</p>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    function buildQueueCard(title, count, filterTarget, subtitle) {
+        return (
+            '<div class="signal-card signal-card--info">' +
+                '<div class="signal-card-value">' + count + '</div>' +
+                '<div class="signal-card-label">' + escapeHtml(title) + '</div>' +
+                '<div class="signal-card-meta">' + escapeHtml(subtitle) + '</div>' +
+                '<div class="signal-card-actions"><button class="btn btn-secondary btn-sm" data-risk-filter="' + filterTarget + '">View</button></div>' +
+            '</div>'
+        );
+    }
+
+    function renderQueues() {
+        var container = document.getElementById('identity-risk-queues');
+        if (!container) return;
+        var confirmed = state.riskyUsers.filter(function(item) {
+            return normalizeText(item.riskState).toLowerCase() === 'confirmedcompromised';
+        }).length;
+        var adminAtRisk = state.riskyUsers.filter(function(item) {
+            return Array.isArray(item.flags) && item.flags.indexOf('admin-account') >= 0;
+        }).length;
+        var high = state.riskyUsers.filter(function(item) {
+            return normalizeText(item.riskLevel).toLowerCase() === 'high';
+        }).length;
+        var recent = state.detections.filter(function(item) {
+            var detected = new Date(item.detectedDateTime).getTime();
+            return !isNaN(detected) && (Date.now() - detected) <= 24 * 3600000;
+        }).length;
+
+        container.innerHTML =
+            buildQueueCard('Confirmed Compromised', confirmed, 'confirmed', 'accounts needing immediate containment') +
+            buildQueueCard('High Risk Users', high, 'high', 'identity protection risk is high') +
+            buildQueueCard('Privileged Users At Risk', adminAtRisk, 'admin', 'admin-account exposure') +
+            buildQueueCard('Recent Detections', recent, 'recent', 'detections within the last 24 hours');
+    }
+
+    function wireQueueButtons() {
+        var buttons = document.querySelectorAll('[data-risk-filter]');
+        Array.prototype.forEach.call(buttons, function(button) {
+            button.addEventListener('click', function() {
+                var target = button.getAttribute('data-risk-filter');
+                if (target === 'confirmed') {
+                    setUserFilter('risk-user-state', 'confirmedCompromised');
+                } else if (target === 'high') {
+                    setUserFilter('risk-user-level', 'high');
+                } else if (target === 'admin') {
+                    setUserFilter('risk-user-search', 'admin');
+                } else if (target === 'recent') {
+                    setDetectionFilter('risk-detection-search', '');
+                    setDetectionFilter('risk-detection-severity', 'all');
+                    setDetectionFilter('risk-detection-type', 'all');
+                    setDetectionFilter('risk-detection-window', '24h');
+                }
+                applyUserFilters();
+                applyDetectionFilters();
+            });
+        });
+    }
+
+    function setUserFilter(id, value) {
+        var element = document.getElementById(id);
+        if (element) element.value = value;
+    }
+
+    function setDetectionFilter(id, value) {
+        var element = document.getElementById(id);
+        if (element) element.value = value;
+    }
+
+    function renderUserTable(data) {
+        Tables.render({
+            containerId: 'identity-risk-users-table',
+            data: data,
+            columns: [
+                { key: 'userPrincipalName', label: 'User', formatter: formatUserCell },
+                { key: 'riskLevel', label: 'Risk Level', formatter: formatSeverityBadge },
+                { key: 'riskState', label: 'Risk State', formatter: formatRiskStateBadge },
+                { key: 'detectionCount', label: 'Detections' },
+                { key: 'riskLastUpdatedDateTime', label: 'Last Updated', formatter: Tables.formatters.datetime },
+                { key: 'latestSignIn', label: 'Latest Sign-In', formatter: formatLatestSignIn },
+                { key: 'flags', label: 'Flags', formatter: formatFlags },
+                { key: '_actions', label: 'Take Action', formatter: formatActionCell }
+            ],
+            pageSize: 50,
+            onRowClick: showUserRiskDetails
+        });
+    }
+
+    function renderDetectionTable(data) {
+        Tables.render({
+            containerId: 'identity-risk-detections-table',
+            data: data,
+            columns: [
+                { key: 'detectedDateTime', label: 'Detected', formatter: Tables.formatters.datetime },
+                { key: 'userPrincipalName', label: 'User', formatter: formatUserCell },
+                { key: 'riskEventType', label: 'Risk Type', formatter: function(v) { return '<code>' + escapeHtml(v || 'unknown') + '</code>'; } },
+                { key: 'riskLevel', label: 'Severity', formatter: formatSeverityBadge },
+                { key: 'ipAddress', label: 'IP Address', formatter: function(v) { return v ? '<code>' + escapeHtml(v) + '</code>' : '--'; } },
+                { key: 'location', label: 'Location', formatter: formatLocation },
+                { key: 'latestSignIn', label: 'Latest Sign-In', formatter: formatLatestSignIn },
+                { key: 'flags', label: 'Flags', formatter: formatFlags },
+                { key: '_actions', label: 'Take Action', formatter: formatActionCell }
+            ],
+            pageSize: 100,
+            onRowClick: showDetectionDetails
+        });
+    }
+
+    function applyUserFilters() {
+        var search = normalizeText(Filters.getValue('risk-user-search')).toLowerCase();
+        var level = Filters.getValue('risk-user-level');
+        var riskState = Filters.getValue('risk-user-state');
+
+        var filtered = state.riskyUsers.filter(function(user) {
+            if (search) {
+                var haystack = [
+                    user.userDisplayName,
+                    user.userPrincipalName,
+                    (user.flags || []).join(' '),
+                    user.riskDetail
+                ].join(' ').toLowerCase();
+                if (haystack.indexOf(search) === -1) return false;
+            }
+            if (level && level !== 'all' && normalizeText(user.riskLevel).toLowerCase() !== level) return false;
+            if (riskState && riskState !== 'all' && normalizeText(user.riskState).toLowerCase() !== riskState.toLowerCase()) return false;
+            return true;
+        });
+
+        renderUserTable(filtered);
+    }
+
+    function applyDetectionFilters() {
+        var search = normalizeText(Filters.getValue('risk-detection-search')).toLowerCase();
+        var severity = Filters.getValue('risk-detection-severity');
+        var type = Filters.getValue('risk-detection-type');
+        var windowValue = Filters.getValue('risk-detection-window');
+
+        var filtered = state.detections.filter(function(item) {
+            if (search) {
+                var haystack = [
+                    item.userDisplayName,
+                    item.userPrincipalName,
+                    item.riskEventType,
+                    item.ipAddress,
+                    item.additionalInfo,
+                    (item.flags || []).join(' ')
+                ].join(' ').toLowerCase();
+                if (haystack.indexOf(search) === -1) return false;
+            }
+            if (severity && severity !== 'all' && normalizeText(item.riskLevel).toLowerCase() !== severity) return false;
+            if (type && type !== 'all' && normalizeText(item.riskEventType).toLowerCase() !== type.toLowerCase()) return false;
+            if (windowValue && windowValue !== 'all') {
+                var hours = windowValue === '24h' ? 24 : 24 * 7;
+                var detected = new Date(item.detectedDateTime).getTime();
+                if (isNaN(detected) || (Date.now() - detected) > hours * 3600000) return false;
+            }
+            return true;
+        });
+
+        renderDetectionTable(filtered);
+    }
+
+    function detailItem(label, value) {
+        return '<div class="detail-item"><span class="detail-label">' + escapeHtml(label) + '</span><span class="detail-value">' + value + '</span></div>';
+    }
+
+    function renderRelatedDetections(items) {
+        if (!items.length) return '<p class="text-muted">No other detections for this user.</p>';
+        var html = '<table class="data-table"><thead><tr><th>Detected</th><th>Risk Type</th><th>Severity</th><th>IP</th></tr></thead><tbody>';
+        items.forEach(function(item) {
+            html += '<tr>';
+            html += '<td>' + formatDateTime(item.detectedDateTime) + '</td>';
+            html += '<td><code>' + escapeHtml(item.riskEventType || 'unknown') + '</code></td>';
+            html += '<td>' + formatSeverityBadge(item.riskLevel) + '</td>';
+            html += '<td>' + (item.ipAddress ? '<code>' + escapeHtml(item.ipAddress) + '</code>' : '--') + '</td>';
+            html += '</tr>';
+        });
+        html += '</tbody></table>';
+        return html;
+    }
+
+    function showUserRiskDetails(user) {
+        var modal = document.getElementById('modal-overlay');
+        var title = document.getElementById('modal-title');
+        var body = document.getElementById('modal-body');
+        if (!modal || !title || !body) return;
+
+        var relatedDetections = getRecentDetectionsForUser(user.userId, user.userPrincipalName);
+        var latestSignIn = user.latestSignIn;
+        var userHref = getUserHref(user.userPrincipalName || user.userId);
+
+        title.textContent = user.userDisplayName || user.userPrincipalName || 'Risky User';
+        body.innerHTML =
+            '<div class="detail-grid">' +
+                detailItem('User', '<a href="' + userHref + '" class="entity-link">' + escapeHtml(user.userDisplayName || user.userPrincipalName || 'Unknown') + '</a>') +
+                detailItem('UPN', escapeHtml(user.userPrincipalName || '--')) +
+                detailItem('Risk Level', formatSeverityBadge(user.riskLevel)) +
+                detailItem('Risk State', formatRiskStateBadge(user.riskState)) +
+                detailItem('Risk Detail', escapeHtml(user.riskDetail || '--')) +
+                detailItem('Detections', String(user.detectionCount || 0)) +
+                detailItem('Last Updated', formatDateTime(user.riskLastUpdatedDateTime)) +
+                detailItem('Latest Sign-In', latestSignIn ? '<strong>' + escapeHtml(latestSignIn.appDisplayName || '(unknown)') + '</strong><br><small>' + formatDateTime(latestSignIn.createdDateTime) + '</small>' : '<span class="text-muted">--</span>') +
+                detailItem('Flags', formatFlags(user.flags)) +
+            '</div>' +
+            '<div class="detail-section"><h4>Take Action</h4><div class="action-row">' +
+                '<a href="' + userHref + '" class="btn btn-primary btn-sm">Open User 360</a>' +
+                '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Entra</a>' +
+            '</div></div>' +
+            '<div class="detail-section"><h4>Other Detections For This User</h4>' + renderRelatedDetections(relatedDetections) + '</div>';
+
+        modal.classList.add('visible');
+    }
+
+    function showDetectionDetails(item) {
+        var modal = document.getElementById('modal-overlay');
+        var title = document.getElementById('modal-title');
+        var body = document.getElementById('modal-body');
+        if (!modal || !title || !body) return;
+
+        var userHref = getUserHref(item.userPrincipalName || item.userId);
+        var relatedDetections = getRecentDetectionsForUser(item.userId, item.userPrincipalName, item.id);
+        var latestSignIn = item.latestSignIn;
+
+        title.textContent = item.riskEventType || 'Risk Detection';
+        body.innerHTML =
+            '<div class="detail-grid">' +
+                detailItem('User', '<a href="' + userHref + '" class="entity-link">' + escapeHtml(item.userDisplayName || item.userPrincipalName || 'Unknown') + '</a>') +
+                detailItem('UPN', escapeHtml(item.userPrincipalName || '--')) +
+                detailItem('Risk Type', '<code>' + escapeHtml(item.riskEventType || 'unknown') + '</code>') +
+                detailItem('Risk Level', formatSeverityBadge(item.riskLevel)) +
+                detailItem('Risk State', formatRiskStateBadge(item.riskState)) +
+                detailItem('Detected', formatDateTime(item.detectedDateTime)) +
+                detailItem('Last Updated', formatDateTime(item.lastUpdatedDateTime)) +
+                detailItem('IP Address', item.ipAddress ? '<code>' + escapeHtml(item.ipAddress) + '</code>' : '--') +
+                detailItem('Location', formatLocation('', item)) +
+                detailItem('Additional Info', escapeHtml(item.additionalInfo || '--')) +
+                detailItem('Latest Sign-In', latestSignIn ? '<strong>' + escapeHtml(latestSignIn.appDisplayName || '(unknown)') + '</strong><br><small>' + formatDateTime(latestSignIn.createdDateTime) + '</small>' : '<span class="text-muted">--</span>') +
+                detailItem('Flags', formatFlags(item.flags)) +
+            '</div>' +
+            '<div class="detail-section"><h4>Take Action</h4><div class="action-row">' +
+                '<a href="' + userHref + '" class="btn btn-primary btn-sm">Open User 360</a>' +
+                '<a href="https://entra.microsoft.com/#view/Microsoft_AAD_IAM/IdentityProtectionMenuBlade/~/RiskyUsers" target="_blank" rel="noopener" class="btn btn-secondary btn-sm">Open in Entra</a>' +
+            '</div></div>' +
+            '<div class="detail-section"><h4>Other Detections For This User</h4>' + renderRelatedDetections(relatedDetections) + '</div>';
+
+        modal.classList.add('visible');
+    }
+
+    function render(container) {
+        var data = DataLoader.getData('identityRisk');
+        if (!data || (!Array.isArray(data.riskyUsers) || !data.riskyUsers.length) && (!Array.isArray(data.riskDetections) || !data.riskDetections.length)) {
+            container.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-state-title">No Identity Risk Data</div>' +
+                    '<div class="empty-state-description">No risky users or risk detections were found. This requires Entra ID P2 and IdentityRiskEvent.Read.All.</div>' +
+                '</div>';
+            return;
+        }
+
+        var riskyUsers = Array.isArray(data.riskyUsers) ? data.riskyUsers : [];
+        var detections = Array.isArray(data.riskDetections) ? data.riskDetections : [];
+
+        state.riskyUsers = enrichRiskyUsers(riskyUsers, detections);
+        state.detections = enrichDetections(detections);
+        state.summary = buildSummary(state.riskyUsers, state.detections);
+        state.insights = computeInsights(state.summary, state.riskyUsers, state.detections, data.insights);
+
+        container.innerHTML =
+            '<div class="page-header">' +
+                '<h2 class="page-title">Identity Risk</h2>' +
+                '<p class="page-description">Risky users and detections with direct pivots into user context and recent sign-in evidence.</p>' +
+            '</div>' +
+            '<div class="summary-cards" id="identity-risk-summary"></div>' +
+            '<div class="analytics-section"><h3>Priority Queues</h3><div class="signal-cards" id="identity-risk-queues"></div></div>' +
+            '<div class="analytics-section"><h3>Identity Risk Insights</h3><div id="identity-risk-insights"></div></div>' +
+            '<div class="analytics-section">' +
+                '<h3>Risky Users</h3>' +
+                '<div id="identity-risk-users-filters"></div>' +
+                '<div id="identity-risk-users-table"></div>' +
+            '</div>' +
+            '<div class="analytics-section">' +
+                '<h3>Risk Detections</h3>' +
+                '<div id="identity-risk-detections-filters"></div>' +
+                '<div id="identity-risk-detections-table"></div>' +
+            '</div>';
+
+        renderSummaryCards();
+        renderQueues();
+        renderInsights();
+
+        Filters.createFilterBar({
+            containerId: 'identity-risk-users-filters',
+            controls: [
+                { type: 'search', id: 'risk-user-search', placeholder: 'Search users, flags, details...' },
+                {
+                    type: 'select',
+                    id: 'risk-user-level',
+                    label: 'Risk Level',
+                    options: [
+                        { value: 'all', label: 'All Levels' },
+                        { value: 'high', label: 'High' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'low', label: 'Low' }
+                    ]
+                },
+                {
+                    type: 'select',
+                    id: 'risk-user-state',
+                    label: 'Risk State',
+                    options: [
+                        { value: 'all', label: 'All States' },
+                        { value: 'atRisk', label: 'At Risk' },
+                        { value: 'confirmedCompromised', label: 'Confirmed Compromised' },
+                        { value: 'remediated', label: 'Remediated' },
+                        { value: 'dismissed', label: 'Dismissed' }
+                    ]
+                }
+            ],
+            onFilter: applyUserFilters
+        });
+
+        var detectionTypes = [{ value: 'all', label: 'All Types' }];
+        state.detections.forEach(function(item) {
+            var value = normalizeText(item.riskEventType);
+            if (!value) return;
+            if (!detectionTypes.some(function(opt) { return opt.value === value; })) {
+                detectionTypes.push({ value: value, label: value });
+            }
+        });
+
+        Filters.createFilterBar({
+            containerId: 'identity-risk-detections-filters',
+            controls: [
+                { type: 'search', id: 'risk-detection-search', placeholder: 'Search detections, users, IPs...' },
+                {
+                    type: 'select',
+                    id: 'risk-detection-severity',
+                    label: 'Severity',
+                    options: [
+                        { value: 'all', label: 'All Severities' },
+                        { value: 'high', label: 'High' },
+                        { value: 'medium', label: 'Medium' },
+                        { value: 'low', label: 'Low' }
+                    ]
+                },
+                {
+                    type: 'select',
+                    id: 'risk-detection-type',
+                    label: 'Detection Type',
+                    options: detectionTypes
+                },
+                {
+                    type: 'select',
+                    id: 'risk-detection-window',
+                    label: 'Time Window',
+                    options: [
+                        { value: 'all', label: 'All Time' },
+                        { value: '24h', label: 'Last 24 Hours' },
+                        { value: '7d', label: 'Last 7 Days' }
+                    ]
+                }
+            ],
+            onFilter: applyDetectionFilters
+        });
+
+        wireQueueButtons();
+        applyUserFilters();
+        applyDetectionFilters();
+    }
+
+    return {
+        render: render
+    };
 })();
 
 window.PageIdentityRisk = PageIdentityRisk;

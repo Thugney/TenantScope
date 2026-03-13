@@ -1,388 +1,361 @@
 /**
- * ============================================================================
  * TenantScope - Compliance Page
- * ============================================================================
- * Combined view for compliance data: Retention, eDiscovery, Sensitivity Labels, Access Reviews.
- * Data sourced from trusted Graph API collectors - all dynamic content sanitized with escapeHtml.
+ *
+ * Governance overview that surfaces overdue or high-impact issues first and
+ * keeps the underlying reference data visible below.
  */
 
 const PageCompliance = (function() {
     'use strict';
 
-    var currentTab = 'retention';
+    var AU = window.ActionUtils || {};
     var state = {
-        retentionData: null,
-        ediscoveryData: null,
-        sensitivityData: null,
-        accessReviewData: null,
-        insights: []
+        retention: null,
+        ediscovery: null,
+        sensitivity: null,
+        accessReviews: null,
+        insights: [],
+        overdueReviews: []
     };
 
-    function render(container) {
-        const retentionData = DataLoader.getData('retentionData');
-        const ediscoveryData = DataLoader.getData('ediscoveryData');
-        const sensitivityData = DataLoader.getData('sensitivityLabels');
-        const accessReviewData = DataLoader.getData('accessReviews');
+    function escapeHtml(value) {
+        return Tables.escapeHtml(value === null || value === undefined ? '' : String(value));
+    }
 
-        const hasData = (retentionData?.labels?.length) ||
-                        (ediscoveryData?.cases?.length) ||
-                        (sensitivityData?.labels?.length) ||
-                        (accessReviewData?.definitions?.length);
+    function normalizeText(value) {
+        return value === null || value === undefined ? '' : String(value).trim();
+    }
+
+    function getUserHref(target) {
+        if (AU.getUserProfileHash) return AU.getUserProfileHash(target);
+        var value = typeof target === 'string'
+            ? target
+            : target && (target.userPrincipalName || target.mail || target.displayName || '');
+        return value ? '#users?search=' + encodeURIComponent(value) : '#users';
+    }
+
+    function getScopeHref(definition) {
+        if (!definition) return '';
+        var scopeType = normalizeText(definition.scopeType).toLowerCase();
+        if (scopeType === 'group') return '#groups?search=' + encodeURIComponent(definition.scopeName || '');
+        if (scopeType === 'application') return '#oauth-consent';
+        if (scopeType === 'role') return '#pim';
+        if (scopeType === 'guest') return '#guests';
+        if (scopeType === 'accesspackage') return '#lifecycle';
+        return '';
+    }
+
+    function formatFlags(flags) {
+        var list = Array.isArray(flags) ? flags : [];
+        if (!list.length) return '<span class="text-muted">--</span>';
+        return list.map(function(flag) {
+            return '<span class="tag">' + escapeHtml(flag) + '</span>';
+        }).join(' ');
+    }
+
+    function buildOverdueReviews(accessReviews) {
+        var definitions = accessReviews && Array.isArray(accessReviews.definitions) ? accessReviews.definitions : [];
+        var definitionById = {};
+        definitions.forEach(function(definition) {
+            definitionById[definition.id] = definition;
+        });
+
+        var instances = accessReviews && Array.isArray(accessReviews.instances) ? accessReviews.instances : [];
+        return instances.filter(function(instance) {
+            return normalizeText(instance.status).toLowerCase() === 'overdue';
+        }).map(function(instance) {
+            var definition = definitionById[instance.definitionId] || {};
+            return {
+                id: instance.id,
+                displayName: definition.displayName || 'Unknown Review',
+                scopeType: definition.scopeType || '--',
+                scopeName: definition.scopeName || '--',
+                reviewerType: definition.reviewerType || '--',
+                decisionsPending: instance.decisionsPending || 0,
+                reviewersCompleted: instance.reviewersCompleted || 0,
+                reviewersTotal: instance.reviewersTotal || 0,
+                endDateTime: instance.endDateTime,
+                flags: definition.flags || [],
+                definition: definition
+            };
+        }).sort(function(a, b) {
+            return new Date(a.endDateTime).getTime() - new Date(b.endDateTime).getTime();
+        });
+    }
+
+    function buildCombinedInsights() {
+        var insights = [];
+        ['retention', 'ediscovery', 'sensitivity', 'accessReviews'].forEach(function(key) {
+            var data = state[key];
+            if (data && Array.isArray(data.insights)) {
+                insights = insights.concat(data.insights);
+            }
+        });
+        if (state.overdueReviews.length > 0) {
+            insights.unshift({
+                severity: 'critical',
+                title: 'Overdue access reviews',
+                description: state.overdueReviews.length + ' review instances are overdue and still have pending access decisions.',
+                recommendedAction: 'Finish overdue reviews first, starting with privileged and guest scopes.'
+            });
+        }
+        return insights.slice(0, 8);
+    }
+
+    function renderSummaryCards() {
+        var element = document.getElementById('compliance-summary');
+        if (!element) return;
+        var retentionSummary = state.retention && state.retention.summary || {};
+        var ediscoverySummary = state.ediscovery && state.ediscovery.summary || {};
+        var sensitivitySummary = state.sensitivity && state.sensitivity.summary || {};
+        var accessSummary = state.accessReviews && state.accessReviews.summary || {};
+
+        element.innerHTML =
+            '<div class="summary-card"><div class="summary-value">' + (retentionSummary.totalLabels || 0) + '</div><div class="summary-label">Retention Labels</div></div>' +
+            '<div class="summary-card"><div class="summary-value">' + (sensitivitySummary.totalLabels || 0) + '</div><div class="summary-label">Sensitivity Labels</div></div>' +
+            '<div class="summary-card card-warning"><div class="summary-value">' + (ediscoverySummary.activeCases || 0) + '</div><div class="summary-label">Active eDiscovery Cases</div></div>' +
+            '<div class="summary-card card-danger"><div class="summary-value">' + state.overdueReviews.length + '</div><div class="summary-label">Overdue Reviews</div></div>' +
+            '<div class="summary-card"><div class="summary-value">' + (accessSummary.totalDefinitions || 0) + '</div><div class="summary-label">Review Definitions</div></div>' +
+            '<div class="summary-card"><div class="summary-value">' + (retentionSummary.labelsNotInUse || 0) + '</div><div class="summary-label">Unused Retention Labels</div></div>';
+    }
+
+    function renderInsights() {
+        var element = document.getElementById('compliance-insights');
+        if (!element) return;
+        if (!state.insights.length) {
+            element.innerHTML = '<p class="text-muted">No governance insights were produced for the current data set.</p>';
+            return;
+        }
+        var html = '<div class="insights-list">';
+        state.insights.forEach(function(insight) {
+            var severity = normalizeText(insight.severity).toLowerCase();
+            var cls = severity === 'critical' ? 'insight-critical' :
+                severity === 'high' ? 'insight-high' :
+                severity === 'warning' ? 'insight-warning' :
+                'insight-info';
+            html += '<div class="insight-card ' + cls + '">';
+            html += '<div class="insight-header"><strong>' + escapeHtml(insight.title || 'Insight') + '</strong></div>';
+            html += '<p class="insight-description">' + escapeHtml(insight.description || '') + '</p>';
+            if (insight.recommendedAction) {
+                html += '<p class="insight-action"><strong>Action:</strong> ' + escapeHtml(insight.recommendedAction) + '</p>';
+            }
+            html += '</div>';
+        });
+        html += '</div>';
+        element.innerHTML = html;
+    }
+
+    function renderOverdueReviews() {
+        Tables.render({
+            containerId: 'compliance-overdue-reviews',
+            data: state.overdueReviews,
+            columns: [
+                {
+                    key: 'displayName',
+                    label: 'Review',
+                    formatter: function(v, row) {
+                        var href = getScopeHref(row.definition);
+                        var label = '<strong>' + escapeHtml(v || '--') + '</strong>';
+                        if (href) label = '<a href="' + href + '" class="entity-link" onclick="event.stopPropagation();">' + label + '</a>';
+                        return label + '<br><small>' + escapeHtml(row.scopeType || '--') + ': ' + escapeHtml(row.scopeName || '--') + '</small>';
+                    }
+                },
+                { key: 'reviewerType', label: 'Reviewer Type' },
+                { key: 'decisionsPending', label: 'Pending Decisions' },
+                {
+                    key: 'reviewersCompleted',
+                    label: 'Reviewer Progress',
+                    formatter: function(v, row) {
+                        return '<strong>' + row.reviewersCompleted + '</strong> / ' + row.reviewersTotal;
+                    }
+                },
+                { key: 'endDateTime', label: 'Due Date', formatter: Tables.formatters.date },
+                { key: 'flags', label: 'Flags', formatter: formatFlags }
+            ],
+            pageSize: 25
+        });
+    }
+
+    function renderEdiscoveryCases() {
+        var cases = state.ediscovery && Array.isArray(state.ediscovery.cases) ? state.ediscovery.cases : [];
+        Tables.render({
+            containerId: 'compliance-ediscovery-cases',
+            data: cases,
+            columns: [
+                {
+                    key: 'displayName',
+                    label: 'Case',
+                    formatter: function(v, row) {
+                        return '<strong>' + escapeHtml(v || '--') + '</strong><br><small>' + escapeHtml(row.caseType || '--') + '</small>';
+                    }
+                },
+                { key: 'status', label: 'Status', formatter: function(v) { return '<span class="badge ' + (normalizeText(v).toLowerCase() === 'active' ? 'badge-warning' : 'badge-neutral') + '">' + escapeHtml(v || '--') + '</span>'; } },
+                { key: 'custodianCount', label: 'Custodians' },
+                { key: 'holdCount', label: 'Legal Holds' },
+                {
+                    key: 'createdBy',
+                    label: 'Created By',
+                    formatter: function(v) {
+                        if (!v) return '--';
+                        var email = normalizeText(v.email);
+                        return email
+                            ? '<a href="' + getUserHref(email) + '" class="entity-link" onclick="event.stopPropagation();">' + escapeHtml(v.displayName || email) + '</a>'
+                            : escapeHtml(v.displayName || '--');
+                    }
+                },
+                { key: 'lastModifiedDateTime', label: 'Last Updated', formatter: Tables.formatters.datetime },
+                { key: 'flags', label: 'Flags', formatter: formatFlags }
+            ],
+            pageSize: 20
+        });
+    }
+
+    function renderCustodians() {
+        var custodians = state.ediscovery && Array.isArray(state.ediscovery.custodians) ? state.ediscovery.custodians : [];
+        Tables.render({
+            containerId: 'compliance-custodians',
+            data: custodians,
+            columns: [
+                {
+                    key: 'displayName',
+                    label: 'Custodian',
+                    formatter: function(v, row) {
+                        return '<a href="' + getUserHref(row.email || row.displayName) + '" class="entity-link" onclick="event.stopPropagation();"><strong>' + escapeHtml(v || '--') + '</strong></a><br><small>' + escapeHtml(row.email || '--') + '</small>';
+                    }
+                },
+                { key: 'caseId', label: 'Case Id' },
+                { key: 'status', label: 'Status' },
+                { key: 'holdStatus', label: 'Hold Status' },
+                { key: 'dataSourcesCount', label: 'Data Sources' }
+            ],
+            pageSize: 15
+        });
+    }
+
+    function renderSensitivityLabels() {
+        var labels = state.sensitivity && Array.isArray(state.sensitivity.labels) ? state.sensitivity.labels : [];
+        Tables.render({
+            containerId: 'compliance-sensitivity-labels',
+            data: labels,
+            columns: [
+                {
+                    key: 'displayName',
+                    label: 'Label',
+                    formatter: function(v, row) {
+                        var color = row.color ? '<span class="color-dot" style="background:' + escapeHtml(row.color) + ';"></span>' : '';
+                        return '<strong>' + escapeHtml(v || '--') + '</strong> ' + color;
+                    }
+                },
+                { key: 'protectionTier', label: 'Tier', formatter: function(v) { return '<span class="badge ' + (v === 'highlyConfidential' ? 'badge-critical' : v === 'confidential' ? 'badge-warning' : 'badge-info') + '">' + escapeHtml(v || '--') + '</span>'; } },
+                { key: 'hasEncryption', label: 'Encryption', formatter: function(v) { return v ? '<span class="text-success">Yes</span>' : '<span class="text-muted">No</span>'; } },
+                { key: 'isAutoLabelingEnabled', label: 'Auto-Labeling', formatter: function(v) { return v ? '<span class="text-success">Enabled</span>' : '<span class="text-muted">Disabled</span>'; } },
+                {
+                    key: '_scope',
+                    label: 'Scope',
+                    formatter: function(v, row) {
+                        return [row.isFileLabel && 'Files', row.isEmailLabel && 'Email', row.isSiteLabel && 'Sites', row.isMeetingLabel && 'Meetings'].filter(Boolean).join(', ') || '--';
+                    }
+                },
+                { key: 'flags', label: 'Flags', formatter: formatFlags }
+            ],
+            pageSize: 25
+        });
+    }
+
+    function renderRetentionLabels() {
+        var labels = state.retention && Array.isArray(state.retention.labels) ? state.retention.labels : [];
+        Tables.render({
+            containerId: 'compliance-retention-labels',
+            data: labels,
+            columns: [
+                { key: 'displayName', label: 'Label', formatter: function(v) { return '<strong>' + escapeHtml(v || '--') + '</strong>'; } },
+                { key: 'labelType', label: 'Type' },
+                {
+                    key: '_retention',
+                    label: 'Retention',
+                    formatter: function(v, row) {
+                        if (row.isUnlimited) return 'Unlimited';
+                        if (row.retentionYears) return row.retentionYears + ' years';
+                        if (row.retentionDays) return row.retentionDays + ' days';
+                        return '--';
+                    }
+                },
+                { key: 'actionAfterRetention', label: 'Action After' },
+                { key: 'itemCount', label: 'Items' },
+                { key: 'isInUse', label: 'In Use', formatter: function(v) { return v ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>'; } },
+                { key: 'flags', label: 'Flags', formatter: formatFlags }
+            ],
+            pageSize: 25
+        });
+    }
+
+    function render(container) {
+        state.retention = DataLoader.getData('retentionData');
+        state.ediscovery = DataLoader.getData('ediscoveryData');
+        state.sensitivity = DataLoader.getData('sensitivityLabels');
+        state.accessReviews = DataLoader.getData('accessReviews');
+
+        var hasData =
+            state.retention && Array.isArray(state.retention.labels) && state.retention.labels.length ||
+            state.ediscovery && Array.isArray(state.ediscovery.cases) && state.ediscovery.cases.length ||
+            state.sensitivity && Array.isArray(state.sensitivity.labels) && state.sensitivity.labels.length ||
+            state.accessReviews && Array.isArray(state.accessReviews.definitions) && state.accessReviews.definitions.length;
 
         if (!hasData) {
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-title">No Compliance Data</div>
-                    <div class="empty-state-description">
-                        No compliance data found. This requires E5/E5 Compliance licenses.<br>
-                        Run data collection to populate retention, eDiscovery, sensitivity labels, and access reviews.
-                    </div>
-                </div>
-            `;
+            container.innerHTML =
+                '<div class="empty-state">' +
+                    '<div class="empty-state-title">No Compliance Data</div>' +
+                    '<div class="empty-state-description">No retention, eDiscovery, sensitivity label, or access review data was found in the local bundle.</div>' +
+                '</div>';
             return;
         }
 
-        state = {
-            retentionData: retentionData,
-            ediscoveryData: ediscoveryData,
-            sensitivityData: sensitivityData,
-            accessReviewData: accessReviewData,
-            insights: [
-                ...(retentionData?.insights || []),
-                ...(ediscoveryData?.insights || []),
-                ...(sensitivityData?.insights || []),
-                ...(accessReviewData?.insights || [])
-            ]
-        };
+        state.overdueReviews = buildOverdueReviews(state.accessReviews);
+        state.insights = buildCombinedInsights();
 
-        const retentionSummary = retentionData?.summary || {};
-        const ediscoverySummary = ediscoveryData?.summary || {};
-        const sensitivitySummary = sensitivityData?.summary || {};
-        const accessReviewSummary = accessReviewData?.summary || {};
+        container.innerHTML =
+            '<div class="page-header">' +
+                '<h2 class="page-title">Compliance &amp; Data Governance</h2>' +
+                '<p class="page-description">Governance exceptions first, then the full retention, eDiscovery, sensitivity, and access review data below.</p>' +
+            '</div>' +
+            '<div class="summary-cards" id="compliance-summary"></div>' +
+            '<div class="analytics-section">' +
+                '<h3>Governance Priorities</h3>' +
+                '<div id="compliance-insights"></div>' +
+            '</div>' +
+            '<div class="analytics-section">' +
+                '<h3>Overdue Access Reviews</h3>' +
+                '<div id="compliance-overdue-reviews"></div>' +
+            '</div>' +
+            '<div class="analytics-section">' +
+                '<h3>eDiscovery Cases</h3>' +
+                '<div id="compliance-ediscovery-cases"></div>' +
+            '</div>' +
+            '<div class="analytics-section">' +
+                '<h3>Custodians Under Hold</h3>' +
+                '<div id="compliance-custodians"></div>' +
+            '</div>' +
+            '<div class="analytics-section">' +
+                '<h3>Sensitivity Labels</h3>' +
+                '<div id="compliance-sensitivity-labels"></div>' +
+            '</div>' +
+            '<div class="analytics-section">' +
+                '<h3>Retention Labels</h3>' +
+                '<div id="compliance-retention-labels"></div>' +
+            '</div>';
 
-        let html = `
-            <div class="page-header">
-                <h2 class="page-title">Compliance &amp; Data Governance</h2>
-                <p class="page-description">Retention, eDiscovery, Information Protection, and Access Reviews</p>
-            </div>
-        `;
-
-        html += '<div class="summary-cards">';
-        html += '<div class="summary-card card-info"><div class="summary-value">' + (retentionSummary.totalLabels || 0) + '</div><div class="summary-label">Retention Labels</div></div>';
-        html += '<div class="summary-card' + ((ediscoverySummary.activeCases || 0) > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + (ediscoverySummary.activeCases || 0) + '</div><div class="summary-label">Active eDiscovery Cases</div></div>';
-        html += '<div class="summary-card"><div class="summary-value">' + (sensitivitySummary.totalLabels || 0) + '</div><div class="summary-label">Sensitivity Labels</div></div>';
-        html += '<div class="summary-card' + ((accessReviewSummary.overdueInstances || 0) > 0 ? ' card-danger' : '') + '"><div class="summary-value">' + (accessReviewSummary.overdueInstances || 0) + '</div><div class="summary-label">Overdue Reviews</div></div>';
-        html += '</div>';
-
-        html += '<div class="tab-bar">';
-        html += '<button class="tab-btn active" data-tab="retention">Retention</button>';
-        html += '<button class="tab-btn" data-tab="sensitivity">Sensitivity Labels</button>';
-        html += '<button class="tab-btn" data-tab="ediscovery">eDiscovery</button>';
-        html += '<button class="tab-btn" data-tab="access-reviews">Access Reviews</button>';
-        html += '</div>';
-
-        html += '<div class="content-area" id="compliance-content"></div>';
-        container.innerHTML = html;
-
-        const tabButtons = container.querySelectorAll('.tab-btn');
-        tabButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                currentTab = btn.dataset.tab;
-                tabButtons.forEach(b => b.classList.remove('active'));
-                btn.classList.add('active');
-                renderTabContent();
-            });
-        });
-
-        currentTab = 'retention';
-        renderTabContent();
+        renderSummaryCards();
+        renderInsights();
+        renderOverdueReviews();
+        renderEdiscoveryCases();
+        renderCustodians();
+        renderSensitivityLabels();
+        renderRetentionLabels();
     }
 
-    function renderTabContent() {
-        const container = document.getElementById('compliance-content');
-        if (!container) return;
-
-        if (currentTab === 'retention') {
-            container.innerHTML = renderRetentionTab(state.retentionData);
-        } else if (currentTab === 'sensitivity') {
-            container.innerHTML = renderSensitivityTab(state.sensitivityData);
-        } else if (currentTab === 'ediscovery') {
-            container.innerHTML = renderEdiscoveryTab(state.ediscoveryData);
-        } else if (currentTab === 'access-reviews') {
-            container.innerHTML = renderAccessReviewsTab(state.accessReviewData);
-        }
-    }
-
-    function renderOverview(container) {
-        const retentionSummary = state.retentionData?.summary || {};
-        const ediscoverySummary = state.ediscoveryData?.summary || {};
-        const sensitivitySummary = state.sensitivityData?.summary || {};
-        const accessReviewSummary = state.accessReviewData?.summary || {};
-
-        let html = '<div class="analytics-grid">';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>Retention Coverage</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">Total Labels</span><span class="category-score">' + (retentionSummary.totalLabels || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Record Labels</span><span class="category-score">' + (retentionSummary.recordLabels || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Regulatory Labels</span><span class="category-score">' + (retentionSummary.regulatoryLabels || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Event-Based</span><span class="category-score">' + (retentionSummary.eventBasedLabels || 0) + '</span></div>';
-        html += '</div></div>';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>Sensitivity Coverage</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">Total Labels</span><span class="category-score">' + (sensitivitySummary.totalLabels || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Encryption</span><span class="category-score">' + (sensitivitySummary.encryptionLabels || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Auto-Labeling</span><span class="category-score">' + (sensitivitySummary.autoLabelingLabels || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Container Labels</span><span class="category-score">' + (sensitivitySummary.containerLabels || 0) + '</span></div>';
-        html += '</div></div>';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>eDiscovery Activity</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">Total Cases</span><span class="category-score">' + (ediscoverySummary.totalCases || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Active Cases</span><span class="category-score">' + (ediscoverySummary.activeCases || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Total Holds</span><span class="category-score">' + (ediscoverySummary.totalHolds || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Total Custodians</span><span class="category-score">' + (ediscoverySummary.totalCustodians || 0) + '</span></div>';
-        html += '</div></div>';
-
-        html += '<div class="analytics-card">';
-        html += '<h3>Access Reviews</h3>';
-        html += '<div class="score-categories">';
-        html += '<div class="category-item"><span class="category-label">Definitions</span><span class="category-score">' + (accessReviewSummary.totalDefinitions || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Active Reviews</span><span class="category-score">' + (accessReviewSummary.activeReviews || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Overdue Instances</span><span class="category-score">' + (accessReviewSummary.overdueInstances || 0) + '</span></div>';
-        html += '<div class="category-item"><span class="category-label">Recurring Reviews</span><span class="category-score">' + (accessReviewSummary.recurringReviews || 0) + '</span></div>';
-        html += '</div></div>';
-
-        html += '</div>';
-
-        if (state.insights.length > 0) {
-            html += '<div class="analytics-section">';
-            html += '<h3>Compliance Insights</h3>';
-            html += '<div class="insights-list">';
-            state.insights.slice(0, 6).forEach(insight => {
-                const cls = insightClass(insight.severity);
-                html += '<div class="insight-card ' + cls + '">';
-                html += '<div class="insight-header"><strong>' + escapeHtml(insight.title || 'Insight') + '</strong></div>';
-                html += '<p class="insight-description">' + escapeHtml(insight.description || '') + '</p>';
-                if (insight.recommendedAction) {
-                    html += '<p class="insight-action"><strong>Action:</strong> ' + escapeHtml(insight.recommendedAction) + '</p>';
-                }
-                html += '</div>';
-            });
-            html += '</div></div>';
-        }
-
-        container.innerHTML = html;
-    }
-
-    function renderRetentionTab(data) {
-        const labels = data?.labels || [];
-        const summary = data?.summary || {};
-
-        if (!labels.length) {
-            return '<div class="empty-state"><p>No retention labels configured</p></div>';
-        }
-
-        return `
-            <div class="section-stats">
-                <span class="stat">Record Labels: <strong>${summary.recordLabels || 0}</strong></span>
-                <span class="stat">Regulatory: <strong>${summary.regulatoryLabels || 0}</strong></span>
-                <span class="stat">Event-Based: <strong>${summary.eventBasedLabels || 0}</strong></span>
-                <span class="stat">Avg Retention: <strong>${summary.avgRetentionDays || 0} days</strong></span>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Label Name</th>
-                            <th>Type</th>
-                            <th>Retention</th>
-                            <th>Action After</th>
-                            <th>In Use</th>
-                            <th>Flags</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${labels.map(label => `
-                            <tr>
-                                <td><strong>${escapeHtml(label.displayName)}</strong></td>
-                                <td><span class="badge ${label.isRegulatoryRecord ? 'badge-critical' : label.isRecordLabel ? 'badge-warning' : 'badge-info'}">${escapeHtml(label.labelType)}</span></td>
-                                <td>${label.isUnlimited ? 'Unlimited' : (label.retentionYears ? label.retentionYears + ' years' : (label.retentionDays ? label.retentionDays + ' days' : '--'))}</td>
-                                <td>${escapeHtml(label.actionAfterRetention || '--')}</td>
-                                <td>${label.isInUse ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-neutral">No</span>'}</td>
-                                <td>${(label.flags || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    function renderSensitivityTab(data) {
-        const labels = data?.labels || [];
-        const summary = data?.summary || {};
-
-        if (!labels.length) {
-            return '<div class="empty-state"><p>No sensitivity labels configured</p></div>';
-        }
-
-        return `
-            <div class="section-stats">
-                <span class="stat">Encryption Labels: <strong>${summary.encryptionLabels || 0}</strong></span>
-                <span class="stat">Auto-Labeling: <strong>${summary.autoLabelingLabels || 0}</strong></span>
-                <span class="stat">Container Labels: <strong>${summary.containerLabels || 0}</strong></span>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Label Name</th>
-                            <th>Protection Tier</th>
-                            <th>Encryption</th>
-                            <th>Marking</th>
-                            <th>Scope</th>
-                            <th>Flags</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${labels.map(label => `
-                            <tr>
-                                <td>
-                                    <strong>${escapeHtml(label.displayName)}</strong>
-                                    ${label.color ? `<span class="color-dot" style="background:${escapeHtml(label.color)}"></span>` : ''}
-                                </td>
-                                <td><span class="badge ${label.protectionTier === 'highlyConfidential' ? 'badge-critical' : label.protectionTier === 'confidential' ? 'badge-warning' : 'badge-info'}">${escapeHtml(label.protectionTier)}</span></td>
-                                <td>${label.hasEncryption ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-neutral">No</span>'}</td>
-                                <td>${label.hasMarking ? '<span class="badge badge-success">Yes</span>' : '<span class="badge badge-neutral">No</span>'}</td>
-                                <td>${[label.isFileLabel && 'Files', label.isEmailLabel && 'Email', label.isSiteLabel && 'Sites'].filter(Boolean).join(', ') || '--'}</td>
-                                <td>${(label.flags || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    function renderEdiscoveryTab(data) {
-        const cases = data?.cases || [];
-        const summary = data?.summary || {};
-
-        if (!cases.length) {
-            return '<div class="empty-state"><p>No eDiscovery cases found</p></div>';
-        }
-
-        return `
-            <div class="section-stats">
-                <span class="stat">Active Cases: <strong>${summary.activeCases || 0}</strong></span>
-                <span class="stat">Total Holds: <strong>${summary.totalHolds || 0}</strong></span>
-                <span class="stat">Total Custodians: <strong>${summary.totalCustodians || 0}</strong></span>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Case Name</th>
-                            <th>Status</th>
-                            <th>Custodians</th>
-                            <th>Legal Holds</th>
-                            <th>Created</th>
-                            <th>Flags</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${cases.map(c => `
-                            <tr class="${c.status === 'active' ? 'row-highlight' : ''}">
-                                <td><strong>${escapeHtml(c.displayName)}</strong></td>
-                                <td><span class="badge ${c.status === 'active' ? 'badge-warning' : 'badge-neutral'}">${escapeHtml(c.status)}</span></td>
-                                <td>${c.custodianCount || 0}</td>
-                                <td>${c.holdCount || 0}</td>
-                                <td>${formatDate(c.createdDateTime)}</td>
-                                <td>${(c.flags || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    function renderAccessReviewsTab(data) {
-        const definitions = data?.definitions || [];
-        const summary = data?.summary || {};
-
-        if (!definitions.length) {
-            return '<div class="empty-state"><p>No access reviews found</p></div>';
-        }
-
-        return `
-            <div class="section-stats">
-                <span class="stat">Definitions: <strong>${summary.totalDefinitions || 0}</strong></span>
-                <span class="stat">Active Reviews: <strong>${summary.activeReviews || 0}</strong></span>
-                <span class="stat">Overdue Instances: <strong>${summary.overdueInstances || 0}</strong></span>
-            </div>
-            <div class="table-container">
-                <table class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Review Name</th>
-                            <th>Scope</th>
-                            <th>Recurrence</th>
-                            <th>Status</th>
-                            <th>Instances</th>
-                            <th>Flags</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${definitions.map(def => `
-                            <tr class="${def.overdueInstanceCount > 0 ? 'row-warning' : ''}">
-                                <td>
-                                    <strong>${escapeHtml(def.displayName)}</strong>
-                                    <small>${escapeHtml(def.description || '')}</small>
-                                </td>
-                                <td>${escapeHtml(def.scopeName || def.scopeType || '--')}</td>
-                                <td>${def.isRecurring ? escapeHtml(def.recurrencePattern || 'recurring') : 'one-time'}</td>
-                                <td>${def.overdueInstanceCount > 0 ? '<span class="badge badge-warning">Overdue</span>' : (def.inProgressInstanceCount > 0 ? '<span class="badge badge-info">In Progress</span>' : '<span class="badge badge-success">On Track</span>')}</td>
-                                <td>${def.instanceCount || 0}</td>
-                                <td>${(def.flags || []).map(f => `<span class="tag">${escapeHtml(f)}</span>`).join(' ')}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-        `;
-    }
-
-    function insightClass(severity) {
-        if (severity === 'critical') return 'insight-critical';
-        if (severity === 'high') return 'insight-high';
-        if (severity === 'warning') return 'insight-warning';
-        if (severity === 'info') return 'insight-info';
-        return 'insight-info';
-    }
-
-    function formatDate(dateStr) {
-        if (!dateStr) return '--';
-        try {
-            return new Date(dateStr).toLocaleDateString('en-GB', {
-                year: 'numeric', month: 'short', day: 'numeric'
-            });
-        } catch { return '--'; }
-    }
-
-    function escapeHtml(str) {
-        if (!str) return '';
-        return String(str).replace(/[&<>"']/g, m => ({
-            '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-        }[m]));
-    }
-
-    return { render };
+    return {
+        render: render
+    };
 })();
 
 window.PageCompliance = PageCompliance;
