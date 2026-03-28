@@ -80,6 +80,44 @@ const PageAppDeployments = (function() {
         };
     }
 
+    function hasStatusData(a, counts) {
+        if (a && typeof a.statusAvailable === 'boolean') return a.statusAvailable;
+        var totalKnown = counts.installed + counts.failed + counts.pending + counts.notInstalled + counts.notApplicable;
+        return totalKnown > 0 || !!(a && a.deviceStatuses && a.deviceStatuses.length > 0);
+    }
+
+    function getStatusSourceLabel(source) {
+        var labels = {
+            'collector': 'Collector',
+            'installSummary': 'Install summary',
+            'deviceStatuses': 'Device statuses',
+            'userStatuses': 'User statuses',
+            'reportSummary': 'App summary report',
+            'legacy:reportSummary': 'Legacy app summary report',
+            'legacy:deviceInstallStatusReport': 'Legacy device install report',
+            'export:AppInstallStatusAggregate': 'Intune export report',
+            'export:AppInstallStatus': 'Intune export report',
+            'export:DeviceInstallStatusByApp': 'Device install export report',
+            'unavailable': 'Unavailable'
+        };
+        return labels[source] || source || '--';
+    }
+
+    function formatStatusCount(value, row, className, zeroClassName) {
+        if (row && row.statusAvailable === false) {
+            return '<span class="text-muted">--</span>';
+        }
+
+        var numeric = value || 0;
+        if (numeric > 0 && className) {
+            return '<span class="' + className + '">' + numeric + '</span>';
+        }
+        if (numeric === 0 && zeroClassName) {
+            return '<span class="' + zeroClassName + '">0</span>';
+        }
+        return numeric;
+    }
+
     // Map collector field names to display field names
     // Supports multiple field name variations from Graph API and collector
     function mapApp(a) {
@@ -91,6 +129,7 @@ const PageAppDeployments = (function() {
         var pendingCount = counts.pending;
         var notInstalledCount = counts.notInstalled;
         var notApplicableCount = counts.notApplicable;
+        var statusAvailable = hasStatusData(a, counts);
 
         // Calculate total if not provided
         var totalDevices = a.totalDevices || a.totalDeviceCount ||
@@ -137,6 +176,9 @@ const PageAppDeployments = (function() {
             notApplicableCount: notApplicableCount,
             totalDevices: totalDevices,
             installRate: installRate,
+            statusAvailable: statusAvailable,
+            statusSource: a.statusSource || (statusAvailable ? 'collector' : null),
+            statusUnavailableReason: a.statusUnavailableReason || null,
             // Device statuses (failed only)
             deviceStatuses: a.deviceStatuses || [],
             // Health
@@ -518,13 +560,14 @@ const PageAppDeployments = (function() {
             { key: 'hasRequiredAssignment', label: 'Required', formatter: function(v) {
                 return v ? '<span class="badge badge-critical">Yes</span>' : '<span class="badge badge-neutral">No</span>';
             }},
-            { key: 'totalDevices', label: 'Assigned Devices' },
-            { key: 'installedCount', label: 'Installed', formatter: function(v) { return '<span class="text-success">' + (v || 0) + '</span>'; } },
-            { key: 'failedCount', label: 'Failed', formatter: function(v) { return v ? '<span class="text-critical font-bold">' + v + '</span>' : '<span class="text-muted">0</span>'; } },
-            { key: 'pendingCount', label: 'Pending', formatter: function(v) { return v ? '<span class="text-warning">' + v + '</span>' : '<span class="text-muted">0</span>'; } },
-            { key: 'notInstalledCount', label: 'Not Installed', formatter: function(v) { return v ? '<span class="text-muted">' + v + '</span>' : '<span class="text-muted">0</span>'; } },
-            { key: 'notApplicableCount', label: 'Not Applicable', formatter: function(v) { return v ? '<span class="text-muted">' + v + '</span>' : '<span class="text-muted">0</span>'; } },
-            { key: 'installRate', label: 'Success Rate', formatter: function(v) {
+            { key: 'totalDevices', label: 'Assigned Devices', formatter: function(v, row) { return row && row.statusAvailable === false ? '<span class="text-muted">--</span>' : (v || 0); } },
+            { key: 'installedCount', label: 'Installed', formatter: function(v, row) { return formatStatusCount(v, row, 'text-success', 'text-muted'); } },
+            { key: 'failedCount', label: 'Failed', formatter: function(v, row) { return formatStatusCount(v, row, 'text-critical font-bold', 'text-muted'); } },
+            { key: 'pendingCount', label: 'Pending', formatter: function(v, row) { return formatStatusCount(v, row, 'text-warning', 'text-muted'); } },
+            { key: 'notInstalledCount', label: 'Not Installed', formatter: function(v, row) { return formatStatusCount(v, row, 'text-muted', 'text-muted'); } },
+            { key: 'notApplicableCount', label: 'Not Applicable', formatter: function(v, row) { return formatStatusCount(v, row, 'text-muted', 'text-muted'); } },
+            { key: 'installRate', label: 'Success Rate', formatter: function(v, row) {
+                if (row && row.statusAvailable === false) return '<span class="text-muted">--</span>';
                 if (v === null || v === undefined) return '<span class="text-muted">--</span>';
                 var cls = v >= 90 ? 'text-success' : v >= 70 ? 'text-warning' : 'text-critical';
                 return '<span class="' + cls + ' font-bold">' + v + '%</span>';
@@ -668,17 +711,31 @@ const PageAppDeployments = (function() {
         // Installation Status
         html += '<div class="detail-section">';
         html += '<h4>Installation Status</h4>';
+        if (app.statusAvailable === false) {
+            html += '<p class="text-muted">Status unavailable. ' + (app.statusUnavailableReason || 'Intune did not return deployment status for this app.') + '</p>';
+        }
+        html += '<div class="detail-grid" style="margin-bottom: var(--spacing-sm);">';
+        html += '<div class="detail-item"><span class="detail-label">Status Source</span><span class="detail-value">' + getStatusSourceLabel(app.statusSource) + '</span></div>';
+        html += '</div>';
+        var installedDisplay = app.statusAvailable === false ? '--' : (app.installedCount || 0);
+        var failedDisplay = app.statusAvailable === false ? '--' : (app.failedCount || 0);
+        var pendingDisplay = app.statusAvailable === false ? '--' : (app.pendingCount || 0);
+        var notInstalledDisplay = app.statusAvailable === false ? '--' : (app.notInstalledCount || 0);
+        var notApplicableDisplay = app.statusAvailable === false ? '--' : (app.notApplicableCount || 0);
+        var totalDevicesDisplay = app.statusAvailable === false ? '--' : (app.totalDevices || 0);
+        var rateDisplay = app.statusAvailable === false || app.installRate === null || app.installRate === undefined ? '--' : (app.installRate + '%');
         html += '<div class="status-cards">';
-        html += '<div class="status-card success"><span class="status-value">' + (app.installedCount || 0) + '</span><span class="status-label">Installed</span></div>';
-        html += '<div class="status-card error"><span class="status-value">' + (app.failedCount || 0) + '</span><span class="status-label">Failed</span></div>';
-        html += '<div class="status-card warning"><span class="status-value">' + (app.pendingCount || 0) + '</span><span class="status-label">Pending</span></div>';
-        html += '<div class="status-card neutral"><span class="status-value">' + (app.notInstalledCount || 0) + '</span><span class="status-label">Not Installed</span></div>';
+        html += '<div class="status-card success"><span class="status-value">' + installedDisplay + '</span><span class="status-label">Installed</span></div>';
+        html += '<div class="status-card error"><span class="status-value">' + failedDisplay + '</span><span class="status-label">Failed</span></div>';
+        html += '<div class="status-card warning"><span class="status-value">' + pendingDisplay + '</span><span class="status-label">Pending</span></div>';
+        html += '<div class="status-card neutral"><span class="status-value">' + notInstalledDisplay + '</span><span class="status-label">Not Installed</span></div>';
         html += '</div>';
         html += '<div class="status-cards" style="margin-top: var(--spacing-sm);">';
-        html += '<div class="status-card neutral"><span class="status-value">' + (app.notApplicableCount || 0) + '</span><span class="status-label">Not Applicable</span></div>';
-        html += '<div class="status-card neutral"><span class="status-value">' + (app.totalDevices || 0) + '</span><span class="status-label">Total Devices</span></div>';
+        html += '<div class="status-card neutral"><span class="status-value">' + notApplicableDisplay + '</span><span class="status-label">Not Applicable</span></div>';
+        html += '<div class="status-card neutral"><span class="status-value">' + totalDevicesDisplay + '</span><span class="status-label">Total Devices</span></div>';
         var rateClass = (app.installRate || 0) >= 90 ? 'success' : (app.installRate || 0) >= 70 ? 'warning' : 'error';
-        html += '<div class="status-card ' + rateClass + '"><span class="status-value">' + (app.installRate || 0) + '%</span><span class="status-label">Success Rate</span></div>';
+        if (app.statusAvailable === false) rateClass = 'neutral';
+        html += '<div class="status-card ' + rateClass + '"><span class="status-value">' + rateDisplay + '</span><span class="status-label">Success Rate</span></div>';
         html += '</div>';
         html += '</div>';
 

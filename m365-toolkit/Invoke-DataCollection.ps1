@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -617,13 +617,14 @@ $collectors = @(
     # Core identity & licensing
     @{ Name = "Get-LicenseData";   Script = "Get-LicenseData.ps1";   Output = "license-skus.json" },
     @{ Name = "Get-MFAData";       Script = "Get-MFAData.ps1";       Output = "mfa-status.json" },
-    @{ Name = "Get-AdminRoleData"; Script = "Get-AdminRoleData.ps1"; Output = "admin-roles.json" },
     @{ Name = "Get-DeletedUsers";  Script = "Get-DeletedUsers.ps1";  Output = "deleted-users.json" },
     @{ Name = "Get-GroupData";     Script = "Get-GroupData.ps1";     Output = "groups.json" },
     # Device management (DeviceData first - populates SharedData.ManagedDevices)
     @{ Name = "Get-DeviceData";    Script = "Get-DeviceData.ps1";    Output = "devices.json" },
     # Identity now gets UserData after DeviceData (reuses SharedData.ManagedDevices)
     @{ Name = "Get-UserData";      Script = "Get-UserData.ps1";      Output = "users.json" },
+    # Admin roles run after users so role members can be enriched with fresh activity and MFA state
+    @{ Name = "Get-AdminRoleData"; Script = "Get-AdminRoleData.ps1"; Output = "admin-roles.json" },
     @{ Name = "Get-GuestData";     Script = "Get-GuestData.ps1";     Output = "guests.json" },
     # Endpoint security coverage (reuses ManagedDevices)
     @{ Name = "Get-EndpointSecurityStates"; Script = "Get-EndpointSecurityStates.ps1"; Output = "endpoint-security-states.json" },
@@ -1032,3 +1033,4 @@ return @{
     Results = $collectorResults
     Summary = $summary
 }
+

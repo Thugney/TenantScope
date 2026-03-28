@@ -332,6 +332,7 @@ const PageDevices = (function() {
                 { key: 'windowsEOL', label: '[Win] EOL Date' },
                 { key: 'autopilotEnrolled', label: '[Win] Autopilot' },
                 { key: 'autopilotGroupTag', label: '[Win] AP Group Tag' },
+                { key: 'autopilotProfileName', label: '[Win] AP Deployment Profile' },
                 { key: 'autopilotProfileStatus', label: '[Win] AP Profile' },
                 { key: 'joinType', label: '[Win] Join Type' },
                 { key: 'chassisType', label: '[Win] Chassis' },
@@ -592,6 +593,7 @@ const PageDevices = (function() {
                 return '<span class="badge badge-neutral">--</span>';
             }},
             { key: 'autopilotGroupTag', label: 'AP Group Tag' },
+            { key: 'autopilotProfileName', label: 'AP Deployment Profile' },
             { key: 'autopilotProfileStatus', label: 'AP Profile Status', formatter: function(v) {
                 if (!v) return '--';
                 var map = {
@@ -977,11 +979,11 @@ const PageDevices = (function() {
                 { key: 'lastContacted', label: 'Last Contacted' },
                 { key: 'profileAssigned', label: 'Profile' },
                 { key: 'profileAssignmentStatus', label: 'Profile Status' },
+                { key: 'deploymentProfileName', label: 'Deployment Profile' },
                 { key: 'purchaseOrder', label: 'PO' },
-                { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile' },
                 { key: 'addressableUserName', label: 'User' }
             ],
-            defaultVisible: ['serialNumber', 'model', 'manufacturer', 'groupTag', 'enrollmentState', 'profileAssignmentStatus'],
+            defaultVisible: ['serialNumber', 'model', 'manufacturer', 'groupTag', 'deploymentProfileName', 'enrollmentState', 'profileAssignmentStatus'],
             onColumnsChanged: applyAutopilotFilters
         });
 
@@ -999,6 +1001,7 @@ const PageDevices = (function() {
                         (d.model || '').toLowerCase().indexOf(search) !== -1 ||
                         (d.manufacturer || '').toLowerCase().indexOf(search) !== -1 ||
                         (d.groupTag || '').toLowerCase().indexOf(search) !== -1 ||
+                        (d.deploymentProfileName || '').toLowerCase().indexOf(search) !== -1 ||
                         (d.displayName || '').toLowerCase().indexOf(search) !== -1;
                     if (!matchSearch) return false;
                 }
@@ -1090,8 +1093,10 @@ const PageDevices = (function() {
             { key: 'lastContacted', label: 'Last Contacted', formatter: formatDate },
             { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
             { key: 'profileAssignmentStatus', label: 'Profile Status', formatter: formatProfileStatus },
+            { key: 'deploymentProfileName', label: 'Deployment Profile', formatter: function(v) {
+                return v ? '<span class="badge badge-outline">' + v + '</span>' : '<span class="text-muted">--</span>';
+            }},
             { key: 'purchaseOrder', label: 'PO' },
-            { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile', formatter: formatProfileStatus },
             { key: 'addressableUserName', label: 'User' }
         ];
 
@@ -1444,6 +1449,8 @@ const PageDevices = (function() {
             html += '<dt>Group Tag</dt><dd>' + (autopilot.groupTag || '--') + '</dd>';
             html += '<dt>Enrollment State</dt><dd>' + (autopilot.enrollmentState || '--') + '</dd>';
             html += '<dt>Profile Assigned</dt><dd>' + (autopilot.profileAssigned ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+            html += '<dt>Deployment Profile</dt><dd>' + (autopilot.deploymentProfileName || '--') + '</dd>';
+            html += '<dt>Profile Status</dt><dd>' + formatProfileStatus(autopilot.profileAssignmentStatus) + '</dd>';
             if (autopilot.purchaseOrder) {
                 html += '<dt>Purchase Order</dt><dd>' + autopilot.purchaseOrder + '</dd>';
             }
@@ -1872,7 +1879,8 @@ const PageDevices = (function() {
         html += '<dt>Enrollment State</dt><dd>' + formatEnrollmentState(device.enrollmentState) + '</dd>';
         html += '<dt>Last Contacted</dt><dd>' + formatDateConsistent(device.lastContacted, true) + '</dd>';
         html += '<dt>Profile Assigned</dt><dd>' + (device.profileAssigned ? 'Yes' : 'No') + '</dd>';
-        html += '<dt>Profile Status</dt><dd>' + (device.profileAssignmentStatus || '--') + '</dd>';
+        html += '<dt>Deployment Profile</dt><dd>' + (device.deploymentProfileName || '--') + '</dd>';
+        html += '<dt>Profile Status</dt><dd>' + formatProfileStatus(device.profileAssignmentStatus) + '</dd>';
         html += '<dt>Device ID</dt><dd style="font-size:0.8em">' + (device.id || '--') + '</dd>';
         html += '</dl></div>';
 

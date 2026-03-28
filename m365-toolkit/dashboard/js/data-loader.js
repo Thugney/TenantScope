@@ -2,7 +2,7 @@
  * ============================================================================
  * TenantScope
  * Author: Robel (https://github.com/Thugney)
- * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+ * Repository: https://github.com/Thugney/tenantscope
  * License: MIT
  * ============================================================================
  *
@@ -498,27 +498,37 @@ const DataLoader = (function() {
             const staleDevices = devices.filter(d => d.isStale).length;
             const mfaRegistered = users.filter(u => u.mfaRegistered).length;
             const noMfa = users.filter(u => !u.mfaRegistered).length;
+            const enabledUsers = users.filter(u => u.accountEnabled !== false).length;
+            const enabledUsersWithMfa = users.filter(u => u.accountEnabled !== false && u.mfaRegistered).length;
+            const enterpriseApps = Array.isArray(dataStore.enterpriseApps) ? dataStore.enterpriseApps : [];
+            const conditionalAccessPolicies = Array.isArray(dataStore.conditionalAccess) ? dataStore.conditionalAccess : [];
 
             return {
                 totalUsers: users.length,
                 employeeCount: users.filter(u => u.domain === 'employee').length,
                 studentCount: users.filter(u => u.domain === 'student').length,
                 otherCount: users.filter(u => u.domain === 'other').length,
+                enabledUsers: enabledUsers,
                 disabledUsers: users.filter(u => !u.accountEnabled).length,
                 inactiveUsers: users.filter(u => u.isInactive).length,
                 noMfaUsers: noMfa,
                 mfaRegisteredCount: mfaRegistered,
                 mfaPct: users.length > 0 ? Math.round((mfaRegistered / users.length) * 100) : 0,
+                mfaRegisteredPct: enabledUsers > 0 ? Math.round((enabledUsersWithMfa / enabledUsers) * 100) : 0,
                 adminCount: users.filter(u => u.flags && u.flags.includes('admin')).length,
                 guestCount: guests.length,
+                guestUsers: guests.length,
                 staleGuests: guests.filter(g => g.isStale).length,
                 totalDevices: devices.length,
                 compliantDevices: compliantDevices,
                 nonCompliantDevices: devices.filter(d => d.complianceState === 'noncompliant').length,
+                noncompliantDevices: devices.filter(d => d.complianceState === 'noncompliant').length,
                 unknownDevices: devices.filter(d => d.complianceState !== 'compliant' && d.complianceState !== 'noncompliant').length,
                 staleDevices: staleDevices,
                 compliancePct: devices.length > 0 ? Math.round((compliantDevices / devices.length) * 100) : 0,
                 activeAlerts: alerts.filter(a => a.status !== 'resolved').length,
+                totalApps: enterpriseApps.length,
+                conditionalAccessPolicies: conditionalAccessPolicies.length,
 
                 // Teams (governance-focused)
                 totalTeams: (dataStore.teams || []).length,
@@ -688,3 +698,4 @@ const DataLoader = (function() {
 
 // Export for use in other modules
 window.DataLoader = DataLoader;
+

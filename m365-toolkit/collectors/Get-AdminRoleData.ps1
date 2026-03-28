@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -89,16 +89,25 @@ $roleCount = 0
 try {
     Write-Host "    Collecting directory roles and members..." -ForegroundColor Gray
 
-    # Load user data for cross-reference (to get activity status)
-    $usersPath = Join-Path (Split-Path $OutputPath -Parent) "users.json"
     $userLookup = @{}
 
-    if (Test-Path $usersPath) {
-        $users = Get-Content $usersPath -Raw | ConvertFrom-Json
+    # Reuse freshly collected user data when available, with file fallback
+    if ($SharedData -and $SharedData.ContainsKey('Users') -and $SharedData['Users'].Count -gt 0) {
+        $users = @($SharedData['Users'])
         foreach ($user in $users) {
             $userLookup[$user.id] = $user
         }
-        Write-Host "      Loaded $($users.Count) users for cross-reference" -ForegroundColor Gray
+        Write-Host "      Reusing $($users.Count) users from shared data for cross-reference" -ForegroundColor Gray
+    }
+    else {
+        $usersPath = Join-Path (Split-Path $OutputPath -Parent) "users.json"
+        if (Test-Path $usersPath) {
+            $users = Get-Content $usersPath -Raw | ConvertFrom-Json
+            foreach ($user in $users) {
+                $userLookup[$user.id] = $user
+            }
+            Write-Host "      Loaded $($users.Count) users for cross-reference" -ForegroundColor Gray
+        }
     }
 
     # Get all active directory roles
@@ -282,3 +291,4 @@ catch {
 
     return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }
+

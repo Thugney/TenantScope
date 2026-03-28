@@ -1,13 +1,13 @@
 @{
     # Module manifest for TenantScope
     # Author: Robel (https://github.com/Thugney)
-    # Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+    # Repository: https://github.com/Thugney/tenantscope
 
     # Script module or binary module file associated with this manifest.
     RootModule = 'TenantScope.psm1'
 
     # Version number of this module.
-    ModuleVersion = '2.4.0'
+    ModuleVersion = '2.4.2'
 
     # Supported PSEditions
     CompatiblePSEditions = @('Core')
@@ -85,31 +85,21 @@
             Tags = @('Microsoft365', 'M365', 'Intune', 'AzureAD', 'EntraID', 'Graph', 'Dashboard', 'Reporting', 'Security', 'Compliance')
 
             # A URL to the license for this module
-            LicenseUri = 'https://github.com/Thugney/-M365-TENANT-TOOLKIT/blob/main/LICENSE'
+            LicenseUri = 'https://github.com/Thugney/tenantscope/blob/main/LICENSE'
 
             # A URL to the main website for this project
-            ProjectUri = 'https://github.com/Thugney/-M365-TENANT-TOOLKIT'
+            ProjectUri = 'https://github.com/Thugney/tenantscope'
 
             # A URL to an icon representing this module
             # IconUri = ''
 
             # Release notes of this module
             ReleaseNotes = @'
-## Version 2.0.0
-- Added 9 new collectors for comprehensive endpoint management:
-  - Compliance Policies (Get-CompliancePolicies)
-  - Configuration Profiles (Get-ConfigurationProfiles)
-  - Windows Update Status (Get-WindowsUpdateStatus)
-  - BitLocker Status (Get-BitLockerStatus)
-  - App Deployments (Get-AppDeployments)
-  - Endpoint Analytics (Get-EndpointAnalytics)
-  - Service Principal Secrets (Get-ServicePrincipalSecrets)
-  - ASR Rules (Get-ASRRules)
-  - Sign-In Logs (Get-SignInLogs)
-- Added parallel collector execution support
-- Added PowerShell module structure
-- Fixed missing API scopes
-- Improved error handling and logging
+## Version 2.4.2
+- Fixed cross-page data contract drift affecting Problems, user/device relationships, and admin-role enrichment.
+- Improved Intune app deployment collection using export-report fallbacks and explicit status availability metadata.
+- Added Autopilot deployment profile names to collectors and dashboard details.
+- Aligned module and repository metadata with the active TenantScope GitHub repository.
 '@
 
             # Prerelease string of this module

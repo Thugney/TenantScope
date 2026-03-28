@@ -5,6 +5,21 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.2] - 2026-03-28
+
+### Changed
+- Dashboard build now injects the displayed version from the root `VERSION` file and injects the repository URL from `origin`, so the sidebar metadata is generated at build time instead of coming from a literal footer string.
+- Repository metadata was aligned to the active GitHub remote (`https://github.com/Thugney/tenantscope`) in the module manifest, dashboard shell, and project scripts.
+- Module manifest version now matches the repository version again.
+
+### Fixed
+- Cross-entity relationship lookups now use the real `DataLoader` contract, restoring richer user/device linking used by 360-style views.
+- Problems page now reads the correct datasets for identity risk, access reviews, and service health.
+- Admin role enrichment now runs after user collection and reuses in-memory user data instead of depending on stale `users.json`.
+- App deployment collection now uses stronger Intune report/export fallbacks, records the source of each status result, and distinguishes unavailable status from a real zero.
+- App Deployments page now renders unavailable deployment status as unavailable instead of silently showing `0`.
+- Autopilot collection now resolves the actual deployment profile name and surfaces it in device and Autopilot views.
+
 ## [2.4.1] - 2026-02-11
 
 ### Changed
