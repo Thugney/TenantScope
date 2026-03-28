@@ -1300,6 +1300,33 @@ const PageDevices = (function() {
         return formatDateConsistent(v, false);
     }
 
+    function formatMetricSeconds(v, goodMax, warningMax) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var seconds = Math.round(Number(v));
+        var cls = seconds <= goodMax ? 'text-success' : seconds <= warningMax ? 'text-warning' : 'text-critical';
+        return '<span class="' + cls + '">' + seconds + 's</span>';
+    }
+
+    function formatMetricMilliseconds(v, goodMax, warningMax) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        return formatMetricSeconds(Math.round(Number(v) / 1000), Math.round(goodMax / 1000), Math.round(warningMax / 1000));
+    }
+
+    function formatMetricPercentage(v, goodMin, warningMin) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var pct = Math.round(Number(v));
+        var cls = pct >= goodMin ? 'text-success' : pct >= warningMin ? 'text-warning' : 'text-critical';
+        return '<span class="' + cls + '">' + pct + '%</span>';
+    }
+
+    function formatMetricMinutes(v) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var minutes = Math.round(Number(v));
+        if (minutes >= 1440) return Math.round((minutes / 1440) * 10) / 10 + 'd';
+        if (minutes >= 60) return Math.round((minutes / 60) * 10) / 10 + 'h';
+        return minutes + 'm';
+    }
+
 
     function formatEnrollmentState(v) {
         var map = { 'enrolled': 'badge-success', 'notContacted': 'badge-warning', 'failed': 'badge-critical' };
@@ -1475,11 +1502,23 @@ const PageDevices = (function() {
             if (endpointAnalytics.needsAttention) {
                 html += '<dt>Needs Attention</dt><dd><span class="text-warning">Yes</span></dd>';
             }
+            if (endpointAnalytics.coreBootTimeInMs !== null) {
+                html += '<dt>Boot Time</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.coreBootTimeInMs, 30000, 60000) + '</dd>';
+            }
+            if (endpointAnalytics.loginTimeInMs !== null) {
+                html += '<dt>Login Time</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.loginTimeInMs, 15000, 45000) + '</dd>';
+            }
             if (endpointAnalytics.bootScore !== null) {
                 html += '<dt>Boot Score</dt><dd>' + endpointAnalytics.bootScore + '</dd>';
             }
             if (endpointAnalytics.loginScore !== null) {
                 html += '<dt>Login Score</dt><dd>' + endpointAnalytics.loginScore + '</dd>';
+            }
+            if (endpointAnalytics.groupPolicyBootTimeInMs !== null) {
+                html += '<dt>GP Boot Overhead</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.groupPolicyBootTimeInMs, 5000, 15000) + '</dd>';
+            }
+            if (endpointAnalytics.groupPolicyLoginTimeInMs !== null) {
+                html += '<dt>GP Login Overhead</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.groupPolicyLoginTimeInMs, 5000, 15000) + '</dd>';
             }
             if (endpointAnalytics.blueScreenCount !== null && endpointAnalytics.blueScreenCount > 0) {
                 html += '<dt>Blue Screen Count</dt><dd><span class="text-critical">' + endpointAnalytics.blueScreenCount + '</span></dd>';
@@ -1488,6 +1527,69 @@ const PageDevices = (function() {
                 html += '<dt>Restart Count</dt><dd>' + endpointAnalytics.restartCount + '</dd>';
             }
             html += '</dl></div>';
+
+            if (endpointAnalytics.batteryHealthPercentage !== null || endpointAnalytics.maxCapacityPercentage !== null || endpointAnalytics.batteryAgeInDays !== null) {
+                html += '<div class="detail-section"><h4>Battery Health</h4><dl class="detail-list">';
+                if (endpointAnalytics.batteryHealthPercentage !== null) {
+                    html += '<dt>Battery Health</dt><dd>' + formatMetricPercentage(endpointAnalytics.batteryHealthPercentage, 80, 60) + '</dd>';
+                }
+                if (endpointAnalytics.maxCapacityPercentage !== null) {
+                    html += '<dt>Max Capacity</dt><dd>' + formatMetricPercentage(endpointAnalytics.maxCapacityPercentage, 80, 60) + '</dd>';
+                }
+                if (endpointAnalytics.batteryAgeInDays !== null) {
+                    html += '<dt>Battery Age</dt><dd>' + endpointAnalytics.batteryAgeInDays + 'd</dd>';
+                }
+                if (endpointAnalytics.fullBatteryDrainCount !== null) {
+                    html += '<dt>Full Drains</dt><dd>' + endpointAnalytics.fullBatteryDrainCount + '</dd>';
+                }
+                if (endpointAnalytics.estimatedBatteryCapacity !== null) {
+                    html += '<dt>Estimated Capacity</dt><dd>' + Number(endpointAnalytics.estimatedBatteryCapacity).toLocaleString() + ' mWh</dd>';
+                }
+                html += '</dl></div>';
+            }
+
+            if (endpointAnalytics.deviceAppHealthScore !== null || endpointAnalytics.appCrashCount !== null || endpointAnalytics.appHangCount !== null) {
+                html += '<div class="detail-section"><h4>App Health</h4><dl class="detail-list">';
+                if (endpointAnalytics.deviceAppHealthScore !== null) {
+                    html += '<dt>Device App Health Score</dt><dd>' + endpointAnalytics.deviceAppHealthScore + '</dd>';
+                }
+                if (endpointAnalytics.deviceAppHealthStatus) {
+                    html += '<dt>App Health Status</dt><dd>' + endpointAnalytics.deviceAppHealthStatus + '</dd>';
+                }
+                if (endpointAnalytics.appCrashCount !== null) {
+                    html += '<dt>App Crash Count</dt><dd>' + endpointAnalytics.appCrashCount + '</dd>';
+                }
+                if (endpointAnalytics.appHangCount !== null) {
+                    html += '<dt>App Hang Count</dt><dd>' + endpointAnalytics.appHangCount + '</dd>';
+                }
+                if (endpointAnalytics.crashedAppCount !== null) {
+                    html += '<dt>Crashed Apps</dt><dd>' + endpointAnalytics.crashedAppCount + '</dd>';
+                }
+                if (endpointAnalytics.meanTimeToFailure !== null) {
+                    html += '<dt>Mean Time To Failure</dt><dd>' + formatMetricMinutes(endpointAnalytics.meanTimeToFailure) + '</dd>';
+                }
+                html += '</dl></div>';
+            }
+
+            if (endpointAnalytics.cloudManagementScore !== null || endpointAnalytics.cloudIdentityScore !== null || endpointAnalytics.cloudProvisioningScore !== null || endpointAnalytics.windowsScore !== null) {
+                html += '<div class="detail-section"><h4>Remote Readiness</h4><dl class="detail-list">';
+                if (endpointAnalytics.cloudManagementScore !== null) {
+                    html += '<dt>Cloud Management</dt><dd>' + endpointAnalytics.cloudManagementScore + '</dd>';
+                }
+                if (endpointAnalytics.cloudIdentityScore !== null) {
+                    html += '<dt>Cloud Identity</dt><dd>' + endpointAnalytics.cloudIdentityScore + '</dd>';
+                }
+                if (endpointAnalytics.cloudProvisioningScore !== null) {
+                    html += '<dt>Cloud Provisioning</dt><dd>' + endpointAnalytics.cloudProvisioningScore + '</dd>';
+                }
+                if (endpointAnalytics.windowsScore !== null) {
+                    html += '<dt>Windows Readiness</dt><dd>' + endpointAnalytics.windowsScore + '</dd>';
+                }
+                if (endpointAnalytics.workFromAnywhereHealthStatus) {
+                    html += '<dt>WFA Status</dt><dd>' + endpointAnalytics.workFromAnywhereHealthStatus + '</dd>';
+                }
+                html += '</dl></div>';
+            }
         }
 
         // Admin Portal Links - Quick Actions

@@ -1496,9 +1496,12 @@ var DataRelationships = (function() {
     function getDeviceEndpointAnalytics(deviceName) {
         if (!deviceName) return null;
 
-        var analyticsData = DataStore.endpointAnalytics || {};
+        var analyticsData = getLoaderObject('endpointAnalytics');
         var deviceScores = analyticsData.deviceScores || [];
         var devicePerformance = analyticsData.devicePerformance || [];
+        var batteryHealth = analyticsData.batteryHealth || [];
+        var deviceAppHealth = analyticsData.deviceAppHealth || [];
+        var workFromAnywhere = analyticsData.workFromAnywhere || [];
         var deviceNameLower = deviceName.toLowerCase();
 
         // Find device in scores
@@ -1511,26 +1514,74 @@ var DataRelationships = (function() {
             return (d.deviceName || '').toLowerCase() === deviceNameLower;
         });
 
-        if (!deviceScore && !devicePerf) return null;
+        var batteryRecord = batteryHealth.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var deviceAppRecord = deviceAppHealth.find(function(d) {
+            return (d.deviceName || d.deviceDisplayName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var modelName = deviceScore ? deviceScore.model :
+            devicePerf ? devicePerf.model :
+                batteryRecord ? batteryRecord.model : null;
+        var manufacturer = deviceScore ? deviceScore.manufacturer :
+            devicePerf ? devicePerf.manufacturer :
+                batteryRecord ? batteryRecord.manufacturer : null;
+
+        var wfaRecord = workFromAnywhere.find(function(d) {
+            var sameModel = (d.model || '').toLowerCase() === (modelName || '').toLowerCase();
+            if (!sameModel) return false;
+            if (!manufacturer) return true;
+            return (d.manufacturer || '').toLowerCase() === manufacturer.toLowerCase();
+        }) || null;
+
+        if (!deviceScore && !devicePerf && !batteryRecord && !deviceAppRecord && !wfaRecord) return null;
 
         return {
             // Health scores
             endpointAnalyticsScore: deviceScore ? deviceScore.endpointAnalyticsScore : null,
             startupPerformanceScore: deviceScore ? deviceScore.startupPerformanceScore : null,
             appReliabilityScore: deviceScore ? deviceScore.appReliabilityScore : null,
-            workFromAnywhereScore: deviceScore ? deviceScore.workFromAnywhereScore : null,
+            workFromAnywhereScore: deviceScore && deviceScore.workFromAnywhereScore !== undefined ? deviceScore.workFromAnywhereScore :
+                wfaRecord ? wfaRecord.workFromAnywhereScore : null,
             healthStatus: deviceScore ? deviceScore.healthStatus : null,
             needsAttention: deviceScore ? deviceScore.needsAttention : false,
-            manufacturer: deviceScore ? deviceScore.manufacturer : null,
-            model: deviceScore ? deviceScore.model : null,
+            manufacturer: manufacturer,
+            model: modelName,
 
             // Performance metrics (if available)
             coreBootTimeInMs: devicePerf ? devicePerf.coreBootTimeInMs : null,
             loginTimeInMs: devicePerf ? devicePerf.loginTimeInMs : null,
+            coreLoginTimeInMs: devicePerf ? devicePerf.coreLoginTimeInMs : null,
+            groupPolicyBootTimeInMs: devicePerf ? devicePerf.groupPolicyBootTimeInMs : null,
+            groupPolicyLoginTimeInMs: devicePerf ? devicePerf.groupPolicyLoginTimeInMs : null,
             restartCount: devicePerf ? devicePerf.restartCount : null,
             blueScreenCount: devicePerf ? devicePerf.blueScreenCount : null,
             bootScore: devicePerf ? devicePerf.bootScore : null,
-            loginScore: devicePerf ? devicePerf.loginScore : null
+            loginScore: devicePerf ? devicePerf.loginScore : null,
+
+            // Battery health
+            batteryHealthPercentage: batteryRecord ? batteryRecord.batteryHealthPercentage : null,
+            maxCapacityPercentage: batteryRecord ? batteryRecord.maxCapacityPercentage : null,
+            batteryAgeInDays: batteryRecord ? batteryRecord.batteryAgeInDays : null,
+            fullBatteryDrainCount: batteryRecord ? batteryRecord.fullBatteryDrainCount : null,
+            estimatedBatteryCapacity: batteryRecord ? batteryRecord.estimatedBatteryCapacity : null,
+
+            // Device-level app health
+            appCrashCount: deviceAppRecord ? deviceAppRecord.appCrashCount : null,
+            appHangCount: deviceAppRecord ? deviceAppRecord.appHangCount : null,
+            crashedAppCount: deviceAppRecord ? deviceAppRecord.crashedAppCount : null,
+            meanTimeToFailure: deviceAppRecord ? deviceAppRecord.meanTimeToFailure : null,
+            deviceAppHealthScore: deviceAppRecord ? deviceAppRecord.deviceAppHealthScore : null,
+            deviceAppHealthStatus: deviceAppRecord ? deviceAppRecord.healthStatus : null,
+
+            // Work from anywhere model context
+            cloudManagementScore: wfaRecord ? wfaRecord.cloudManagementScore : null,
+            cloudIdentityScore: wfaRecord ? wfaRecord.cloudIdentityScore : null,
+            cloudProvisioningScore: wfaRecord ? wfaRecord.cloudProvisioningScore : null,
+            windowsScore: wfaRecord ? wfaRecord.windowsScore : null,
+            workFromAnywhereHealthStatus: wfaRecord ? wfaRecord.healthStatus : null
         };
     }
 
