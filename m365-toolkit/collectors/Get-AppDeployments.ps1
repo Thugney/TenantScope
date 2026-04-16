@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -284,6 +284,162 @@ function Normalize-GraphId {
     return $text.Trim("{}").ToLowerInvariant()
 }
 
+function Invoke-IntuneExportReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ReportName,
+
+        [Parameter()]
+        [string[]]$Select = @(),
+
+        [Parameter()]
+        [string]$Filter
+    )
+
+    $body = @{
+        reportName = $ReportName
+        format = "json"
+    }
+    if ($Select -and $Select.Count -gt 0) { $body.select = $Select }
+    if ($Filter) { $body.filter = $Filter }
+
+    $bodyJson = $body | ConvertTo-Json -Depth 6
+    $job = $null
+    $baseUri = $null
+
+    $jobEndpoints = @(
+        "https://graph.microsoft.com/v1.0/deviceManagement/reports/exportJobs",
+        "https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs"
+    )
+
+    foreach ($endpoint in $jobEndpoints) {
+        try {
+            $job = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST -Uri $endpoint -Body $bodyJson -ContentType "application/json" -OutputType PSObject
+            } -OperationName "Export report job ($ReportName)" -MaxRetries 2
+
+            if ($job -and $job.id) {
+                $baseUri = if ($endpoint -match "/v1.0/") { "https://graph.microsoft.com/v1.0" } else { "https://graph.microsoft.com/beta" }
+                break
+            }
+        }
+        catch {
+            continue
+        }
+    }
+
+    if (-not $job -or -not $job.id) {
+        return @()
+    }
+
+    $statusUri = "$baseUri/deviceManagement/reports/exportJobs('$($job.id)')"
+    $downloadUrl = $null
+    $status = $null
+
+    for ($i = 0; $i -lt 30; $i++) {
+        try {
+            $statusResp = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 2
+
+            $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status","Status")
+            $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
+
+            if ($status -match "completed" -and $downloadUrl) { break }
+            if ($status -match "failed") { return @() }
+        }
+        catch {
+            # Keep polling until attempts are exhausted.
+        }
+
+        Start-Sleep -Seconds 4
+    }
+
+    if (-not $downloadUrl) { return @() }
+
+    $tempRoot = Join-Path $env:TEMP ("tenantscope-report-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+    $zipPath = Join-Path $tempRoot "report.zip"
+
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath | Out-Null
+        Expand-Archive -Path $zipPath -DestinationPath $tempRoot -Force
+
+        $jsonFile = Get-ChildItem -Path $tempRoot -Filter *.json -Recurse | Select-Object -First 1
+        if ($jsonFile) {
+            $raw = Get-Content $jsonFile.FullName -Raw
+            try {
+                $parsed = $raw | ConvertFrom-Json
+            }
+            catch {
+                return @()
+            }
+
+            if ($parsed -is [System.Collections.IEnumerable] -and $parsed.Count -gt 0 -and $parsed[0].PSObject) {
+                return @($parsed)
+            }
+
+            return (Convert-ReportRows -Report $parsed)
+        }
+
+        $csvFile = Get-ChildItem -Path $tempRoot -Filter *.csv -Recurse | Select-Object -First 1
+        if ($csvFile) {
+            return @(Import-Csv -Path $csvFile.FullName)
+        }
+
+        return @()
+    }
+    finally {
+        if (Test-Path $tempRoot) {
+            Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Get-AppInstallAggregateReportMap {
+    $map = @{}
+    $reportNames = @(
+        "AppInstallStatusAggregate",
+        "AppInstallStatus"
+    )
+
+    $select = @(
+        "ApplicationId","ApplicationName","DisplayName","AppVersion","Publisher","Platform","AppType",
+        "InstalledDeviceCount","FailedDeviceCount","PendingInstallDeviceCount","NotInstalledDeviceCount","NotApplicableDeviceCount",
+        "InstalledUserCount","FailedUserCount","PendingInstallUserCount","NotInstalledUserCount","NotApplicableUserCount"
+    )
+
+    foreach ($reportName in $reportNames) {
+        $rows = Invoke-IntuneExportReport -ReportName $reportName -Select $select
+        if (-not $rows -or $rows.Count -eq 0) { continue }
+
+        foreach ($row in $rows) {
+            $id = Get-ReportValue -Row $row -Names @("ApplicationId","applicationId","AppId","appId","Id","id")
+            $normalizedId = Normalize-GraphId -Id $id
+            if (-not $normalizedId) { continue }
+
+            try {
+                $row | Add-Member -NotePropertyName "__source" -NotePropertyValue "export:$reportName" -Force
+            }
+            catch {
+                # Ignore if the row type can't accept note properties.
+            }
+
+            if (-not $map.ContainsKey($normalizedId)) {
+                $map[$normalizedId] = $row
+            }
+        }
+
+        if ($map.Count -gt 0) {
+            Write-Host "      Export report map contains $($map.Count) apps (source: $reportName)" -ForegroundColor Gray
+            break
+        }
+    }
+
+    return $map
+}
+
 function Get-AppInstallReportMap {
     <#
     .SYNOPSIS
@@ -337,6 +493,12 @@ function Get-AppInstallReportMap {
                 $id = Get-ReportValue -Row $row -Names @("appId", "applicationId", "ApplicationId", "id")
                 $normalizedId = Normalize-GraphId -Id $id
                 if (-not $normalizedId) { continue }
+                try {
+                    $row | Add-Member -NotePropertyName "__source" -NotePropertyValue "legacy:reportSummary" -Force
+                }
+                catch {
+                    # Ignore if the row type can't accept note properties.
+                }
                 if (-not $map.ContainsKey($normalizedId)) {
                     $map[$normalizedId] = $row
                 }
@@ -414,6 +576,69 @@ function Get-AppDeviceInstallReportSummary {
     $normalizedId = Normalize-GraphId -Id $AppId
     if ($normalizedId -and $script:AppInstallStatusReportCache.ContainsKey($normalizedId)) {
         return $script:AppInstallStatusReportCache[$normalizedId]
+    }
+
+    $exportFilters = @(
+        "(ApplicationId eq '$AppId')",
+        "(AppId eq '$AppId')",
+        "(applicationId eq '$AppId')",
+        "(appId eq '$AppId')"
+    )
+
+    $exportSelectColumns = @(
+        "DeviceName","UserName","UserPrincipalName","DeviceId","Platform","AppVersion",
+        "InstallState","InstallStateDetail","AppInstallState","AppInstallStateDetails",
+        "ErrorCode","HexErrorCode","LastModifiedDateTime","ApplicationId"
+    )
+
+    foreach ($filter in $exportFilters) {
+        $rows = Invoke-IntuneExportReport -ReportName "DeviceInstallStatusByApp" -Select $exportSelectColumns -Filter $filter
+        if (-not $rows -or $rows.Count -eq 0) { continue }
+
+        $counts = @{
+            installed = 0
+            failed = 0
+            pending = 0
+            notInstalled = 0
+            notApplicable = 0
+        }
+        $failedDevices = @()
+
+        foreach ($row in $rows) {
+            $state = Get-ReportValue -Row $row -Names @(
+                "AppInstallState","InstallState","appInstallState","installState","InstallStateDetail","installStateDetail"
+            )
+            if ($state) {
+                Add-InstallStateCounts -State $state.ToString() -Counts $counts
+            }
+
+            $stateText = if ($state) { $state.ToString() } else { "" }
+            if ($stateText -match "fail|error") {
+                $failedDevices += [PSCustomObject]@{
+                    deviceName = Get-ReportValue -Row $row -Names @("DeviceName","deviceName")
+                    userName = Get-ReportValue -Row $row -Names @("UserName","userName","UserPrincipalName","userPrincipalName")
+                    deviceId = Get-ReportValue -Row $row -Names @("DeviceId","deviceId")
+                    osVersion = $null
+                    installState = $stateText
+                    installStateDetail = Get-ReportValue -Row $row -Names @("InstallStateDetail","installStateDetail","AppInstallStateDetails","appInstallStateDetails")
+                    errorCode = Get-ReportValue -Row $row -Names @("HexErrorCode","hexErrorCode","ErrorCode","errorCode")
+                    lastSyncDateTime = Format-IsoDate -DateValue (Get-ReportValue -Row $row -Names @("LastModifiedDateTime","lastModifiedDateTime"))
+                }
+            }
+        }
+
+        $result = [PSCustomObject]@{
+            installed = $counts.installed
+            failed = $counts.failed
+            pending = $counts.pending
+            notInstalled = $counts.notInstalled
+            notApplicable = $counts.notApplicable
+            failedDevices = $failedDevices
+            source = "export:DeviceInstallStatusByApp"
+        }
+
+        if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $result }
+        return $result
     }
 
     $filters = @(
@@ -515,7 +740,15 @@ function Get-AppDeviceInstallReportSummary {
 
             $total = $counts.installed + $counts.failed + $counts.pending + $counts.notInstalled + $counts.notApplicable
             if ($total -gt 0) {
-                $result = [PSCustomObject]$counts
+                $result = [PSCustomObject]@{
+                    installed = $counts.installed
+                    failed = $counts.failed
+                    pending = $counts.pending
+                    notInstalled = $counts.notInstalled
+                    notApplicable = $counts.notApplicable
+                    failedDevices = @()
+                    source = "legacy:deviceInstallStatusReport"
+                }
                 if ($normalizedId) { $script:AppInstallStatusReportCache[$normalizedId] = $result }
                 $script:AppInstallStatusReportEndpoint = $endpoint
                 return $result
@@ -559,6 +792,7 @@ try {
             lobApps = 0
             webApps = 0
             m365Apps = 0
+            appsWithoutStatus = 0
             totalInstalled = 0
             totalFailed = 0
             totalPending = 0
@@ -595,7 +829,8 @@ try {
     Write-Host "      Retrieved $($allApps.Count) assigned apps" -ForegroundColor Gray
 
     $processedApps = @()
-    $installReportMap = Get-AppInstallReportMap
+    $aggregateInstallReportMap = Get-AppInstallAggregateReportMap
+    $installReportMap = if ($aggregateInstallReportMap.Count -lt $allApps.Count) { Get-AppInstallReportMap } else { @{} }
 
     foreach ($app in $allApps) {
         try {
@@ -632,47 +867,58 @@ try {
             $notApplicableCount = 0
             $notInstalledCount = 0
             $deviceStatuses = @()
+            $statusAvailable = $false
+            $statusSource = $null
+            $statusUnavailableReason = $null
             $usedInstallSummary = $false
 
-            # Prefer report summary map when available (covers all app types)
-            # Only use it if we get actual non-zero data
+            # Prefer report summary maps when available because they cover more app types than deviceStatuses.
             $normalizedAppId = Normalize-GraphId -Id $app.id
-            if ($normalizedAppId -and $installReportMap.ContainsKey($normalizedAppId)) {
-                $row = $installReportMap[$normalizedAppId]
+            $reportRow = $null
+            if ($normalizedAppId) {
+                if ($aggregateInstallReportMap.ContainsKey($normalizedAppId)) {
+                    $reportRow = $aggregateInstallReportMap[$normalizedAppId]
+                }
+                elseif ($installReportMap.ContainsKey($normalizedAppId)) {
+                    $reportRow = $installReportMap[$normalizedAppId]
+                }
+            }
+
+            if ($reportRow) {
+                $row = $reportRow
                 $reportInstalled = Get-CountValue -Object $row -Names @("installedDeviceCount","installedCount","installedUserCount")
                 $reportFailed = Get-CountValue -Object $row -Names @("failedDeviceCount","failedCount","failedUserCount")
                 $reportPending = Get-CountValue -Object $row -Names @("pendingInstallDeviceCount","pendingCount","pendingInstallUserCount","pendingUserCount")
                 $reportNotInstalled = Get-CountValue -Object $row -Names @("notInstalledDeviceCount","notInstalledCount","notInstalledUserCount")
                 $reportNotApplicable = Get-CountValue -Object $row -Names @("notApplicableDeviceCount","notApplicableCount","notApplicableUserCount")
 
-                # Only use report data if we got at least some counts
-                if (($reportInstalled + $reportFailed + $reportPending + $reportNotInstalled + $reportNotApplicable) -gt 0) {
-                    $installedCount = $reportInstalled
-                    $failedCount = $reportFailed
-                    $pendingCount = $reportPending
-                    $notInstalledCount = $reportNotInstalled
-                    $notApplicableCount = $reportNotApplicable
-                    $usedInstallSummary = $true
-                }
+                $installedCount = $reportInstalled
+                $failedCount = $reportFailed
+                $pendingCount = $reportPending
+                $notInstalledCount = $reportNotInstalled
+                $notApplicableCount = $reportNotApplicable
+                $usedInstallSummary = $true
+                $statusAvailable = $true
+                $statusSource = Get-ReportValue -Row $row -Names @("__source")
+                if (-not $statusSource) { $statusSource = "reportSummary" }
             }
 
             # Fallback to aggregate install summary endpoint when report data unavailable
-            if (-not $usedInstallSummary) {
+            if (-not $statusAvailable) {
                 $installSummary = Get-AppInstallSummary -AppId $app.id
                 if ($installSummary) {
-                    $summaryTotal = $installSummary.installed + $installSummary.failed + $installSummary.pending + $installSummary.notInstalled + $installSummary.notApplicable
-                    # Only use summary data if we got at least some counts
-                    if ($summaryTotal -gt 0) {
-                        $installedCount = $installSummary.installed
-                        $failedCount = $installSummary.failed
-                        $pendingCount = $installSummary.pending
-                        $notInstalledCount = $installSummary.notInstalled
-                        $notApplicableCount = $installSummary.notApplicable
-                        $usedInstallSummary = $true
-                    }
+                    $installedCount = $installSummary.installed
+                    $failedCount = $installSummary.failed
+                    $pendingCount = $installSummary.pending
+                    $notInstalledCount = $installSummary.notInstalled
+                    $notApplicableCount = $installSummary.notApplicable
+                    $usedInstallSummary = $true
+                    $statusAvailable = $true
+                    $statusSource = "installSummary"
                 }
             }
 
+            $deviceStatusRetrieved = $false
             try {
                 # deviceStatuses endpoint only works for managed app types (Win32, LOB)
                 # Store apps and web links don't have device-level status
@@ -690,6 +936,7 @@ try {
                     }
                     $deviceStatusUri = $deviceStatus.'@odata.nextLink'
                 } while ($deviceStatusUri -and $allStatuses.Count -lt 1000)
+                $deviceStatusRetrieved = $true
 
                 foreach ($status in $allStatuses) {
                     switch ($status.installState) {
@@ -736,34 +983,54 @@ try {
                 # This is expected - only managed apps (Win32, LOB) have device-level status
             }
 
+            if ($deviceStatusRetrieved -and -not $statusAvailable) {
+                $statusAvailable = $true
+                $statusSource = "deviceStatuses"
+                $usedInstallSummary = $true
+            }
+
             # Primary fallback: device install status report endpoint.
-            if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
+            if (-not $statusAvailable -and $assignments.Count -gt 0) {
                 $reportSummary = Get-AppDeviceInstallReportSummary -AppId $app.id
                 if ($reportSummary) {
-                    $reportTotal = $reportSummary.installed + $reportSummary.failed + $reportSummary.pending + $reportSummary.notInstalled + $reportSummary.notApplicable
-                    if ($reportTotal -gt 0) {
-                        $installedCount = $reportSummary.installed
-                        $failedCount = $reportSummary.failed
-                        $pendingCount = $reportSummary.pending
-                        $notInstalledCount = $reportSummary.notInstalled
-                        $notApplicableCount = $reportSummary.notApplicable
+                    $installedCount = $reportSummary.installed
+                    $failedCount = $reportSummary.failed
+                    $pendingCount = $reportSummary.pending
+                    $notInstalledCount = $reportSummary.notInstalled
+                    $notApplicableCount = $reportSummary.notApplicable
+                    if ($reportSummary.failedDevices -and $reportSummary.failedDevices.Count -gt 0 -and $deviceStatuses.Count -eq 0) {
+                        $deviceStatuses = @($reportSummary.failedDevices)
                     }
+                    $statusAvailable = $true
+                    $statusSource = if ($reportSummary.source) { $reportSummary.source } else { "deviceInstallStatusReport" }
                 }
             }
 
             # Secondary fallback: user-targeted status endpoint (legacy/best-effort).
-            if (($installedCount + $failedCount + $pendingCount + $notInstalledCount + $notApplicableCount) -eq 0 -and $assignments.Count -gt 0) {
+            if (-not $statusAvailable -and $assignments.Count -gt 0) {
                 $userSummary = Get-AppUserStatusSummary -AppId $app.id
                 if ($userSummary) {
-                    $userTotal = $userSummary.installed + $userSummary.failed + $userSummary.pending + $userSummary.notInstalled + $userSummary.notApplicable
-                    if ($userTotal -gt 0) {
-                        $installedCount = $userSummary.installed
-                        $failedCount = $userSummary.failed
-                        $pendingCount = $userSummary.pending
-                        $notInstalledCount = $userSummary.notInstalled
-                        $notApplicableCount = $userSummary.notApplicable
-                    }
+                    $installedCount = $userSummary.installed
+                    $failedCount = $userSummary.failed
+                    $pendingCount = $userSummary.pending
+                    $notInstalledCount = $userSummary.notInstalled
+                    $notApplicableCount = $userSummary.notApplicable
+                    $statusAvailable = $true
+                    $statusSource = "userStatuses"
                 }
+            }
+
+            if (-not $statusAvailable) {
+                if ($assignments.Count -eq 0) {
+                    $statusUnavailableReason = "No assignments found for this app."
+                }
+                elseif ($appType -in @("Store App", "Store for Business", "Web Link", "Web App")) {
+                    $statusUnavailableReason = "Intune did not return deployment status for this app type in the available report APIs."
+                }
+                else {
+                    $statusUnavailableReason = "Intune did not return deployment status for this app from the available report endpoints."
+                }
+                $statusSource = "unavailable"
             }
 
             $totalDevices = $installedCount + $failedCount + $pendingCount + $notInstalledCount
@@ -797,6 +1064,9 @@ try {
                 notApplicableDevices = $notApplicableCount
                 totalDevices         = $totalDevices
                 successRate          = $successRate
+                statusAvailable      = $statusAvailable
+                statusSource         = $statusSource
+                statusUnavailableReason = $statusUnavailableReason
                 # Device statuses (failed only)
                 deviceStatuses       = $deviceStatuses
                 # Health
@@ -809,6 +1079,7 @@ try {
 
             # Update summary
             $appData.summary.totalApps++
+            if (-not $statusAvailable) { $appData.summary.appsWithoutStatus++ }
             $appData.summary.totalInstalled += $installedCount
             $appData.summary.totalFailed += $failedCount
             $appData.summary.totalPending += $pendingCount
@@ -991,3 +1262,4 @@ catch {
 
     return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }
+

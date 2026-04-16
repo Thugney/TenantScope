@@ -2,7 +2,7 @@
  * ============================================================================
  * TenantScope
  * Author: Robel (https://github.com/Thugney)
- * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+ * Repository: https://github.com/Thugney/tenantscope
  * License: MIT
  * ============================================================================
  *
@@ -472,12 +472,15 @@
         setupMobileMenu();
         setupNavGroups();
 
-        // Update version from build bundle
-        if (window.__M365_VERSION) {
-            var versionEl = document.querySelector('.sidebar-version');
-            if (versionEl) {
-                versionEl.textContent = 'v' + window.__M365_VERSION;
-            }
+        // Update footer metadata from the generated build bundle.
+        var versionEl = document.querySelector('.sidebar-version');
+        if (versionEl) {
+            versionEl.textContent = window.__M365_VERSION ? ('v' + window.__M365_VERSION) : 'Version unavailable';
+        }
+
+        var repoLinkEl = document.querySelector('[data-repository-link="true"]');
+        if (repoLinkEl && window.__M365_REPOSITORY_URL) {
+            repoLinkEl.href = window.__M365_REPOSITORY_URL;
         }
 
         // Load data

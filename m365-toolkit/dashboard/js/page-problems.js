@@ -158,7 +158,7 @@ const PageProblems = (function() {
         }
 
         // Risky users
-        var riskData = DataLoader.getData('identityRiskData') || {};
+        var riskData = DataLoader.getData('identityRisk') || {};
         var riskyUsers = riskData.riskyUsers || [];
         var highRiskUsers = riskyUsers.filter(function(u) {
             return u.riskLevel === 'high' || u.riskLevel === 'critical';
@@ -505,7 +505,7 @@ const PageProblems = (function() {
         }
 
         // ===== OVERDUE ACCESS REVIEWS =====
-        var accessReviewData = DataLoader.getData('accessReviewData') || {};
+        var accessReviewData = DataLoader.getData('accessReviews') || {};
         var accessInstances = accessReviewData.instances || [];
         var overdueReviews = accessInstances.filter(function(i) { return i.status === 'overdue'; });
         if (overdueReviews.length > 0) {
@@ -686,20 +686,34 @@ const PageProblems = (function() {
         }
 
         // ===== SERVICE HEALTH ISSUES =====
-        var serviceHealth = DataLoader.getData('serviceHealth') || {};
-        var healthIssues = serviceHealth.issues || [];
-        var activeIssues = healthIssues.filter(function(i) {
-            return i.status !== 'resolved' && i.status !== 'serviceRestored';
+        var serviceAnnouncements = DataLoader.getData('serviceAnnouncements') || {};
+        var serviceHealth = Array.isArray(serviceAnnouncements.serviceHealth) ? serviceAnnouncements.serviceHealth : [];
+        var activeIssues = [];
+        serviceHealth.forEach(function(service) {
+            var issues = Array.isArray(service.issues) ? service.issues : [];
+            issues.forEach(function(issue) {
+                var status = String(issue.status || '').toLowerCase();
+                if (status !== 'resolved' && status !== 'servicerestored') {
+                    activeIssues.push({
+                        service: service.service || service.displayName || 'M365',
+                        title: issue.title || issue.id || issue.classification,
+                        classification: issue.classification,
+                        status: issue.status
+                    });
+                }
+            });
         });
         if (activeIssues.length > 0) {
-            var criticalIssues = activeIssues.filter(function(i) { return i.classification === 'incident'; });
+            var criticalIssues = activeIssues.filter(function(i) {
+                return String(i.classification || '').toLowerCase() === 'incident';
+            });
             problems[criticalIssues.length > 0 ? 'high' : 'medium'].push({
                 category: 'Operations',
                 title: 'Service Health Issues',
                 count: activeIssues.length,
                 description: activeIssues.length + ' active M365 service health issues (' + criticalIssues.length + ' incidents)',
                 action: 'Monitor service health and plan for user communication',
-                link: '#service-health',
+                link: '#overview',
                 items: activeIssues.slice(0, 5).map(function(i) {
                     return { name: i.service || 'M365', detail: i.title || i.classification };
                 })

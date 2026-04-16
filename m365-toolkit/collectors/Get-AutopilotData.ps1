@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -129,6 +129,71 @@ function ConvertTo-SafeDateTime {
     }
 }
 
+function Get-AutopilotDeploymentProfileInfo {
+    param(
+        [Parameter(Mandatory)]
+        $Device,
+
+        [Parameter(Mandatory)]
+        [hashtable]$ProfileCache
+    )
+
+    $resolved = [ordered]@{
+        id = $null
+        name = $null
+        type = $null
+    }
+
+    $embeddedProfile = Get-GraphPropertyValue -Object $Device -PropertyNames @("deploymentProfile","DeploymentProfile")
+    if ($embeddedProfile) {
+        $resolved.id = Get-GraphPropertyValue -Object $embeddedProfile -PropertyNames @("id","Id")
+        $resolved.name = Get-GraphPropertyValue -Object $embeddedProfile -PropertyNames @("displayName","DisplayName","name","Name")
+        $resolved.type = Get-GraphPropertyValue -Object $embeddedProfile -PropertyNames @("@odata.type")
+    }
+
+    if (-not $resolved.id) {
+        $resolved.id = Get-GraphPropertyValue -Object $Device -PropertyNames @("deploymentProfileId","DeploymentProfileId")
+    }
+    if (-not $resolved.name) {
+        $resolved.name = Get-GraphPropertyValue -Object $Device -PropertyNames @("deploymentProfileDisplayName","DeploymentProfileDisplayName","assignedDeploymentProfileName")
+    }
+
+    if (($resolved.id -or $resolved.name) -or -not $Device.id) {
+        return [PSCustomObject]$resolved
+    }
+
+    $assignmentStatus = if ($Device.deploymentProfileAssignmentStatus) { $Device.deploymentProfileAssignmentStatus.ToString() } else { "" }
+    $assignedDate = ConvertTo-SafeDateTime -DateValue $Device.deploymentProfileAssignedDateTime
+    $shouldLookup = ($assignmentStatus -match "(?i)^assigned|^pending") -or $assignedDate
+    if (-not $shouldLookup) {
+        return [PSCustomObject]$resolved
+    }
+
+    $cacheKey = $Device.id.ToString()
+    if ($ProfileCache.ContainsKey($cacheKey)) {
+        return $ProfileCache[$cacheKey]
+    }
+
+    try {
+        $profileResponse = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities/$($Device.id)/deploymentProfile" -OutputType PSObject
+        } -OperationName "Autopilot deployment profile lookup" -MaxRetries 2
+
+        if ($profileResponse) {
+            $resolved.id = Get-GraphPropertyValue -Object $profileResponse -PropertyNames @("id","Id")
+            $resolved.name = Get-GraphPropertyValue -Object $profileResponse -PropertyNames @("displayName","DisplayName","name","Name")
+            $resolved.type = Get-GraphPropertyValue -Object $profileResponse -PropertyNames @("@odata.type")
+        }
+    }
+    catch {
+        # Keep the profile metadata empty when the relationship isn't available.
+    }
+
+    $resolvedObject = [PSCustomObject]$resolved
+    $ProfileCache[$cacheKey] = $resolvedObject
+    return $resolvedObject
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -139,15 +204,28 @@ $autopilotCount = 0
 try {
     Write-Host "    Collecting Windows Autopilot devices..." -ForegroundColor Gray
 
-    # Use beta API for full property set including deploymentProfileAssignmentStatus
-    # v1.0 API doesn't include profile assignment properties
-    # Note: Don't use $select - the beta API returns all properties by default and $select can cause errors
+    # Use beta API for full property set including deploymentProfileAssignmentStatus.
+    # Prefer expanding the related deploymentProfile so the dashboard can show profile names.
     $autopilotDevices = @()
-    $apiUri = "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities"
-
-    $response = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET -Uri $apiUri -OutputType PSObject
-    } -OperationName "Autopilot device retrieval"
+    $apiUri = $null
+    $response = $null
+    foreach ($candidateUri in @(
+        "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities?`$expand=deploymentProfile",
+        "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities"
+    )) {
+        try {
+            $response = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $candidateUri -OutputType PSObject
+            } -OperationName "Autopilot device retrieval"
+            $apiUri = $candidateUri
+            break
+        }
+        catch {
+            if ($candidateUri -eq "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities") {
+                throw
+            }
+        }
+    }
 
     if ($response.value) {
         $autopilotDevices = @($response.value)
@@ -164,6 +242,9 @@ try {
     }
 
     Write-Host "      Retrieved $($autopilotDevices.Count) Autopilot devices" -ForegroundColor Gray
+    if ($apiUri -match "\$expand=deploymentProfile") {
+        Write-Host "      Deployment profiles resolved inline from Graph" -ForegroundColor Gray
+    }
 
     # Debug: Show sample of available properties and values from first device
     if ($autopilotDevices.Count -gt 0) {
@@ -175,11 +256,14 @@ try {
         $sampleProfileStatus = if ($sampleDevice.deploymentProfileAssignmentStatus) { $sampleDevice.deploymentProfileAssignmentStatus } else { "(null)" }
         $sampleEnrollment = if ($sampleDevice.enrollmentState) { $sampleDevice.enrollmentState } else { "(null)" }
         $sampleGroupTag = if ($sampleDevice.groupTag) { $sampleDevice.groupTag } else { "(null)" }
-        Write-Host "      Sample device - enrollmentState: $sampleEnrollment, profileStatus: $sampleProfileStatus, groupTag: $sampleGroupTag" -ForegroundColor Gray
+        $sampleProfileInfo = Get-AutopilotDeploymentProfileInfo -Device $sampleDevice -ProfileCache @{}
+        $sampleProfileName = if ($sampleProfileInfo.name) { $sampleProfileInfo.name } else { "(none)" }
+        Write-Host "      Sample device - enrollmentState: $sampleEnrollment, profileStatus: $sampleProfileStatus, profileName: $sampleProfileName, groupTag: $sampleGroupTag" -ForegroundColor Gray
     }
 
     # Process each Autopilot device
     $processedDevices = @()
+    $profileCache = @{}
 
     foreach ($device in $autopilotDevices) {
         # REST API returns camelCase properties consistently
@@ -208,6 +292,7 @@ try {
 
         # Get deployment profile detailed status (beta property)
         $profileDetailedStatus = $device.deploymentProfileAssignmentDetailedStatus
+        $deploymentProfile = Get-AutopilotDeploymentProfileInfo -Device $device -ProfileCache $profileCache
 
         $processedDevice = [PSCustomObject]@{
             id                           = $device.id
@@ -220,6 +305,9 @@ try {
             profileAssigned              = $profileAssigned
             profileAssignmentStatus      = $profileAssignmentStatus
             profileDetailedStatus        = $profileDetailedStatus
+            deploymentProfileId          = $deploymentProfile.id
+            deploymentProfileName        = $deploymentProfile.name
+            deploymentProfileType        = $deploymentProfile.type
             purchaseOrder                = $device.purchaseOrderIdentifier
             # Additional properties
             displayName                  = $device.displayName
@@ -294,3 +382,4 @@ catch {
 
     return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }
+

@@ -2,7 +2,7 @@
  * ============================================================================
  * TenantScope
  * Author: Robel (https://github.com/Thugney)
- * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+ * Repository: https://github.com/Thugney/tenantscope
  * License: MIT
  * ============================================================================
  *
@@ -1526,5 +1526,6 @@ const PageOrganization = (function() {
 
     return { render: render };
 })();
+
 
 

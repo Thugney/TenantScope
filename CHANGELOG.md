@@ -5,6 +5,42 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2026-04-16
+
+### Added
+- **FieldResolver utility** (`field-resolver.js`): Adaptive field access that tries multiple property name aliases, making the dashboard resilient to collector output variations.
+  - Methods: `get()`, `getDisplay()`, `getNumber()`, `getBool()`, `getArray()`, `getDate()`, `has()`
+  - Diagnostic: `FieldResolver.diagnose(obj)` to inspect available fields
+- **DataLoader diagnostic methods**:
+  - `DataLoader.diagnoseData()`: Console overview of all loaded data types and their status
+  - `DataLoader.inspectData('type')`: Detailed inspection of a specific data type's structure
+- **Key aliases system**: DataLoader now tries multiple property names when looking for arrays (e.g., `devices` also checks `deviceList`, `managedDevices`, `items`, `data`, `value`)
+
+### Changed
+- DataLoader now normalizes ALL object-type data stores (bitlocker, compliance policies, endpoint analytics, etc.) to ensure pages always receive expected structure
+- Enhanced bundle loading with validation - logs warnings for empty or missing data types
+- Improved normalization logging shows when data is found under alternative property names
+
+### Fixed
+- Pages showing 0 data when collectors output different structures than expected
+- Dashboard now adapts to whatever field names collectors use instead of failing silently
+- Object-type data stores now always have expected keys (with empty defaults if data missing)
+
+## [2.4.2] - 2026-03-28
+
+### Changed
+- Dashboard build now injects the displayed version from the root `VERSION` file and injects the repository URL from `origin`, so the sidebar metadata is generated at build time instead of coming from a literal footer string.
+- Repository metadata was aligned to the active GitHub remote (`https://github.com/Thugney/tenantscope`) in the module manifest, dashboard shell, and project scripts.
+- Module manifest version now matches the repository version again.
+
+### Fixed
+- Cross-entity relationship lookups now use the real `DataLoader` contract, restoring richer user/device linking used by 360-style views.
+- Problems page now reads the correct datasets for identity risk, access reviews, and service health.
+- Admin role enrichment now runs after user collection and reuses in-memory user data instead of depending on stale `users.json`.
+- App deployment collection now uses stronger Intune report/export fallbacks, records the source of each status result, and distinguishes unavailable status from a real zero.
+- App Deployments page now renders unavailable deployment status as unavailable instead of silently showing `0`.
+- Autopilot collection now resolves the actual deployment profile name and surfaces it in device and Autopilot views.
+
 ## [2.4.1] - 2026-02-11
 
 ### Changed

@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -246,3 +246,4 @@ catch {
     Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
     return New-CollectorResult -Success $false -Count 0 -Errors $errors
 }
+

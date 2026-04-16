@@ -53,7 +53,7 @@ Copy config.sample.json to config.json and edit with your tenant ID
 
 1. **Download or Clone the Repository**
    ```powershell
-   git clone https://github.com/Thugney/-M365-TENANT-TOOLKIT.git
+   git clone https://github.com/Thugney/tenantscope.git
    cd m365-toolkit
    ```
 
@@ -1225,7 +1225,7 @@ A: This is a community project. For commercial support, consider engaging with M
 ### Documentation
 - [Microsoft Graph API Documentation](https://docs.microsoft.com/graph/)
 - [PowerShell Graph SDK Documentation](https://docs.microsoft.com/powershell/microsoftgraph/)
-- [TenantScope GitHub Repository](https://github.com/Thugney/-M365-TENANT-TOOLKIT)
+- [TenantScope GitHub Repository](https://github.com/Thugney/tenantscope)
 
 ### Training
 - [Microsoft Graph Fundamentals](https://learn.microsoft.com/graph/)
@@ -1239,3 +1239,4 @@ A: This is a community project. For commercial support, consider engaging with M
 
 *Last Updated: February 2026*
 *Usage Guide Version: 1.0*
+

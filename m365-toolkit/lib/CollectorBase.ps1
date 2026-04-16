@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope - CollectorBase
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -1171,3 +1171,4 @@ function Get-WindowsLifecycleInfo {
 # All functions are automatically available when dot-sourced:
 #   . "$PSScriptRoot\..\lib\CollectorBase.ps1"
 # ============================================================================
+

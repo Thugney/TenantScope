@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -317,3 +317,4 @@ catch {
     Write-Host "Error creating scheduled task: $($_.Exception.Message)" -ForegroundColor Red
     exit 1
 }
+

@@ -332,6 +332,7 @@ const PageDevices = (function() {
                 { key: 'windowsEOL', label: '[Win] EOL Date' },
                 { key: 'autopilotEnrolled', label: '[Win] Autopilot' },
                 { key: 'autopilotGroupTag', label: '[Win] AP Group Tag' },
+                { key: 'autopilotProfileName', label: '[Win] AP Deployment Profile' },
                 { key: 'autopilotProfileStatus', label: '[Win] AP Profile' },
                 { key: 'joinType', label: '[Win] Join Type' },
                 { key: 'chassisType', label: '[Win] Chassis' },
@@ -592,6 +593,7 @@ const PageDevices = (function() {
                 return '<span class="badge badge-neutral">--</span>';
             }},
             { key: 'autopilotGroupTag', label: 'AP Group Tag' },
+            { key: 'autopilotProfileName', label: 'AP Deployment Profile' },
             { key: 'autopilotProfileStatus', label: 'AP Profile Status', formatter: function(v) {
                 if (!v) return '--';
                 var map = {
@@ -977,11 +979,11 @@ const PageDevices = (function() {
                 { key: 'lastContacted', label: 'Last Contacted' },
                 { key: 'profileAssigned', label: 'Profile' },
                 { key: 'profileAssignmentStatus', label: 'Profile Status' },
+                { key: 'deploymentProfileName', label: 'Deployment Profile' },
                 { key: 'purchaseOrder', label: 'PO' },
-                { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile' },
                 { key: 'addressableUserName', label: 'User' }
             ],
-            defaultVisible: ['serialNumber', 'model', 'manufacturer', 'groupTag', 'enrollmentState', 'profileAssignmentStatus'],
+            defaultVisible: ['serialNumber', 'model', 'manufacturer', 'groupTag', 'deploymentProfileName', 'enrollmentState', 'profileAssignmentStatus'],
             onColumnsChanged: applyAutopilotFilters
         });
 
@@ -999,6 +1001,7 @@ const PageDevices = (function() {
                         (d.model || '').toLowerCase().indexOf(search) !== -1 ||
                         (d.manufacturer || '').toLowerCase().indexOf(search) !== -1 ||
                         (d.groupTag || '').toLowerCase().indexOf(search) !== -1 ||
+                        (d.deploymentProfileName || '').toLowerCase().indexOf(search) !== -1 ||
                         (d.displayName || '').toLowerCase().indexOf(search) !== -1;
                     if (!matchSearch) return false;
                 }
@@ -1090,8 +1093,10 @@ const PageDevices = (function() {
             { key: 'lastContacted', label: 'Last Contacted', formatter: formatDate },
             { key: 'profileAssigned', label: 'Profile', formatter: formatProfileAssigned },
             { key: 'profileAssignmentStatus', label: 'Profile Status', formatter: formatProfileStatus },
+            { key: 'deploymentProfileName', label: 'Deployment Profile', formatter: function(v) {
+                return v ? '<span class="badge badge-outline">' + v + '</span>' : '<span class="text-muted">--</span>';
+            }},
             { key: 'purchaseOrder', label: 'PO' },
-            { key: 'deploymentProfileAssignmentStatus', label: 'Deploy Profile', formatter: formatProfileStatus },
             { key: 'addressableUserName', label: 'User' }
         ];
 
@@ -1295,6 +1300,33 @@ const PageDevices = (function() {
         return formatDateConsistent(v, false);
     }
 
+    function formatMetricSeconds(v, goodMax, warningMax) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var seconds = Math.round(Number(v));
+        var cls = seconds <= goodMax ? 'text-success' : seconds <= warningMax ? 'text-warning' : 'text-critical';
+        return '<span class="' + cls + '">' + seconds + 's</span>';
+    }
+
+    function formatMetricMilliseconds(v, goodMax, warningMax) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        return formatMetricSeconds(Math.round(Number(v) / 1000), Math.round(goodMax / 1000), Math.round(warningMax / 1000));
+    }
+
+    function formatMetricPercentage(v, goodMin, warningMin) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var pct = Math.round(Number(v));
+        var cls = pct >= goodMin ? 'text-success' : pct >= warningMin ? 'text-warning' : 'text-critical';
+        return '<span class="' + cls + '">' + pct + '%</span>';
+    }
+
+    function formatMetricMinutes(v) {
+        if (v === null || v === undefined || isNaN(Number(v))) return '<span class="text-muted">--</span>';
+        var minutes = Math.round(Number(v));
+        if (minutes >= 1440) return Math.round((minutes / 1440) * 10) / 10 + 'd';
+        if (minutes >= 60) return Math.round((minutes / 60) * 10) / 10 + 'h';
+        return minutes + 'm';
+    }
+
 
     function formatEnrollmentState(v) {
         var map = { 'enrolled': 'badge-success', 'notContacted': 'badge-warning', 'failed': 'badge-critical' };
@@ -1444,6 +1476,8 @@ const PageDevices = (function() {
             html += '<dt>Group Tag</dt><dd>' + (autopilot.groupTag || '--') + '</dd>';
             html += '<dt>Enrollment State</dt><dd>' + (autopilot.enrollmentState || '--') + '</dd>';
             html += '<dt>Profile Assigned</dt><dd>' + (autopilot.profileAssigned ? '<span class="text-success">Yes</span>' : '<span class="text-warning">No</span>') + '</dd>';
+            html += '<dt>Deployment Profile</dt><dd>' + (autopilot.deploymentProfileName || '--') + '</dd>';
+            html += '<dt>Profile Status</dt><dd>' + formatProfileStatus(autopilot.profileAssignmentStatus) + '</dd>';
             if (autopilot.purchaseOrder) {
                 html += '<dt>Purchase Order</dt><dd>' + autopilot.purchaseOrder + '</dd>';
             }
@@ -1468,11 +1502,23 @@ const PageDevices = (function() {
             if (endpointAnalytics.needsAttention) {
                 html += '<dt>Needs Attention</dt><dd><span class="text-warning">Yes</span></dd>';
             }
+            if (endpointAnalytics.coreBootTimeInMs !== null) {
+                html += '<dt>Boot Time</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.coreBootTimeInMs, 30000, 60000) + '</dd>';
+            }
+            if (endpointAnalytics.loginTimeInMs !== null) {
+                html += '<dt>Login Time</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.loginTimeInMs, 15000, 45000) + '</dd>';
+            }
             if (endpointAnalytics.bootScore !== null) {
                 html += '<dt>Boot Score</dt><dd>' + endpointAnalytics.bootScore + '</dd>';
             }
             if (endpointAnalytics.loginScore !== null) {
                 html += '<dt>Login Score</dt><dd>' + endpointAnalytics.loginScore + '</dd>';
+            }
+            if (endpointAnalytics.groupPolicyBootTimeInMs !== null) {
+                html += '<dt>GP Boot Overhead</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.groupPolicyBootTimeInMs, 5000, 15000) + '</dd>';
+            }
+            if (endpointAnalytics.groupPolicyLoginTimeInMs !== null) {
+                html += '<dt>GP Login Overhead</dt><dd>' + formatMetricMilliseconds(endpointAnalytics.groupPolicyLoginTimeInMs, 5000, 15000) + '</dd>';
             }
             if (endpointAnalytics.blueScreenCount !== null && endpointAnalytics.blueScreenCount > 0) {
                 html += '<dt>Blue Screen Count</dt><dd><span class="text-critical">' + endpointAnalytics.blueScreenCount + '</span></dd>';
@@ -1481,6 +1527,69 @@ const PageDevices = (function() {
                 html += '<dt>Restart Count</dt><dd>' + endpointAnalytics.restartCount + '</dd>';
             }
             html += '</dl></div>';
+
+            if (endpointAnalytics.batteryHealthPercentage !== null || endpointAnalytics.maxCapacityPercentage !== null || endpointAnalytics.batteryAgeInDays !== null) {
+                html += '<div class="detail-section"><h4>Battery Health</h4><dl class="detail-list">';
+                if (endpointAnalytics.batteryHealthPercentage !== null) {
+                    html += '<dt>Battery Health</dt><dd>' + formatMetricPercentage(endpointAnalytics.batteryHealthPercentage, 80, 60) + '</dd>';
+                }
+                if (endpointAnalytics.maxCapacityPercentage !== null) {
+                    html += '<dt>Max Capacity</dt><dd>' + formatMetricPercentage(endpointAnalytics.maxCapacityPercentage, 80, 60) + '</dd>';
+                }
+                if (endpointAnalytics.batteryAgeInDays !== null) {
+                    html += '<dt>Battery Age</dt><dd>' + endpointAnalytics.batteryAgeInDays + 'd</dd>';
+                }
+                if (endpointAnalytics.fullBatteryDrainCount !== null) {
+                    html += '<dt>Full Drains</dt><dd>' + endpointAnalytics.fullBatteryDrainCount + '</dd>';
+                }
+                if (endpointAnalytics.estimatedBatteryCapacity !== null) {
+                    html += '<dt>Estimated Capacity</dt><dd>' + Number(endpointAnalytics.estimatedBatteryCapacity).toLocaleString() + ' mWh</dd>';
+                }
+                html += '</dl></div>';
+            }
+
+            if (endpointAnalytics.deviceAppHealthScore !== null || endpointAnalytics.appCrashCount !== null || endpointAnalytics.appHangCount !== null) {
+                html += '<div class="detail-section"><h4>App Health</h4><dl class="detail-list">';
+                if (endpointAnalytics.deviceAppHealthScore !== null) {
+                    html += '<dt>Device App Health Score</dt><dd>' + endpointAnalytics.deviceAppHealthScore + '</dd>';
+                }
+                if (endpointAnalytics.deviceAppHealthStatus) {
+                    html += '<dt>App Health Status</dt><dd>' + endpointAnalytics.deviceAppHealthStatus + '</dd>';
+                }
+                if (endpointAnalytics.appCrashCount !== null) {
+                    html += '<dt>App Crash Count</dt><dd>' + endpointAnalytics.appCrashCount + '</dd>';
+                }
+                if (endpointAnalytics.appHangCount !== null) {
+                    html += '<dt>App Hang Count</dt><dd>' + endpointAnalytics.appHangCount + '</dd>';
+                }
+                if (endpointAnalytics.crashedAppCount !== null) {
+                    html += '<dt>Crashed Apps</dt><dd>' + endpointAnalytics.crashedAppCount + '</dd>';
+                }
+                if (endpointAnalytics.meanTimeToFailure !== null) {
+                    html += '<dt>Mean Time To Failure</dt><dd>' + formatMetricMinutes(endpointAnalytics.meanTimeToFailure) + '</dd>';
+                }
+                html += '</dl></div>';
+            }
+
+            if (endpointAnalytics.cloudManagementScore !== null || endpointAnalytics.cloudIdentityScore !== null || endpointAnalytics.cloudProvisioningScore !== null || endpointAnalytics.windowsScore !== null) {
+                html += '<div class="detail-section"><h4>Remote Readiness</h4><dl class="detail-list">';
+                if (endpointAnalytics.cloudManagementScore !== null) {
+                    html += '<dt>Cloud Management</dt><dd>' + endpointAnalytics.cloudManagementScore + '</dd>';
+                }
+                if (endpointAnalytics.cloudIdentityScore !== null) {
+                    html += '<dt>Cloud Identity</dt><dd>' + endpointAnalytics.cloudIdentityScore + '</dd>';
+                }
+                if (endpointAnalytics.cloudProvisioningScore !== null) {
+                    html += '<dt>Cloud Provisioning</dt><dd>' + endpointAnalytics.cloudProvisioningScore + '</dd>';
+                }
+                if (endpointAnalytics.windowsScore !== null) {
+                    html += '<dt>Windows Readiness</dt><dd>' + endpointAnalytics.windowsScore + '</dd>';
+                }
+                if (endpointAnalytics.workFromAnywhereHealthStatus) {
+                    html += '<dt>WFA Status</dt><dd>' + endpointAnalytics.workFromAnywhereHealthStatus + '</dd>';
+                }
+                html += '</dl></div>';
+            }
         }
 
         // Admin Portal Links - Quick Actions
@@ -1872,7 +1981,8 @@ const PageDevices = (function() {
         html += '<dt>Enrollment State</dt><dd>' + formatEnrollmentState(device.enrollmentState) + '</dd>';
         html += '<dt>Last Contacted</dt><dd>' + formatDateConsistent(device.lastContacted, true) + '</dd>';
         html += '<dt>Profile Assigned</dt><dd>' + (device.profileAssigned ? 'Yes' : 'No') + '</dd>';
-        html += '<dt>Profile Status</dt><dd>' + (device.profileAssignmentStatus || '--') + '</dd>';
+        html += '<dt>Deployment Profile</dt><dd>' + (device.deploymentProfileName || '--') + '</dd>';
+        html += '<dt>Profile Status</dt><dd>' + formatProfileStatus(device.profileAssignmentStatus) + '</dd>';
         html += '<dt>Device ID</dt><dd style="font-size:0.8em">' + (device.id || '--') + '</dd>';
         html += '</dl></div>';
 

@@ -1,7 +1,7 @@
 # ============================================================================
 # TenantScope - Dashboard Server with Usage Tracking
 # Author: Robel (https://github.com/Thugney)
-# Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+# Repository: https://github.com/Thugney/tenantscope
 # License: MIT
 # ============================================================================
 
@@ -448,3 +448,4 @@ finally {
     $listener.Stop()
     Write-Host "`nServer stopped." -ForegroundColor Yellow
 }
+

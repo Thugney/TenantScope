@@ -1,89 +1,31 @@
-# =============================================================================
-# TenantScope - Root .gitignore
-# =============================================================================
+﻿# Environment
+.env
+.env.*
+!.env.example
 
-# Windows
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
+# Dependencies
+node_modules/
+vendor/
+.venv/
+__pycache__/
 
-# macOS
+# Build output
+dist/
+build/
+out/
+.next/
+*.pyc
+
+# OS
 .DS_Store
-._*
+Thumbs.db
+desktop.ini
 
-# IDE / Editor
+# Editor
 .vscode/
 .idea/
 *.swp
-*.swo
-*~
 
-# PowerShell
-PSScriptAnalyzerResults.xml
-
-# Node (future tooling)
-node_modules/
-package-lock.json
-
-# Secrets and credentials
-*.pfx
-*.pem
-*.key
-*.cer
-.env
-.env.*
-credentials.json
-credentials.*.json
-*-secret.*
-*-secrets.*
-
-# Tenant-specific config (copy config.sample.json to config.json and edit)
-m365-toolkit/config.json
-
-# Logs (generated at runtime, not in repo)
+# Logs
 *.log
-
-# Build artifacts
-dist/
-output/
-
-# Local development and tooling
-.claude/
-bsure/
-nul
-nul/
-
-# AI/Agent configuration files (not for public repo)
-AGENTS.md
-**/CLAUDE.md
-.codex/
-.cursor/
-.aider*
-
-# BMAD output (generated)
-_bmad-output/
-_bmad/
-
-# Root-level docs (use m365-toolkit/docs for project documentation)
-/docs/
-!/docs/TenantSccope.png
-
-# Allow m365-toolkit/docs
-!m365-toolkit/docs/
-
-# Misc temp files (root level only)
-/m365-toolkit/endpointgraphapi.md
-/M365-TENANT-TOOLKIT-ARCHITECTURE.md
-/technical-architecture.png
-/Features.md
-
-# Internal development docs (not for public repo)
-m365-toolkit/reviews/
-m365-toolkit/docs/*-LOG-*.md
-m365-toolkit/docs/*-ROADMAP*.md
-m365-toolkit/docs/*-FINDINGS-*.md
-m365-toolkit/docs/*-READINESS-*.csv
-m365-toolkit/docs/*-MAP-*.csv
-m365-toolkit/docs/*-COVERAGE-*.csv
-m365-toolkit/docs/*-EXTRACT-*.csv
+npm-debug.log*

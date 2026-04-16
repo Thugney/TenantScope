@@ -2,7 +2,7 @@
  * ============================================================================
  * TenantScope
  * Author: Robel (https://github.com/Thugney)
- * Repository: https://github.com/Thugney/-M365-TENANT-TOOLKIT
+ * Repository: https://github.com/Thugney/tenantscope
  * License: MIT
  * ============================================================================
  *
@@ -268,11 +268,34 @@ const DataLoader = (function() {
                 // This bypasses fetch/CORS issues when opening via file:// protocol
                 if (window.__M365_DATA) {
                     console.log('DataLoader: Using bundled data (data-bundle.js)');
+                    const bundleKeys = Object.keys(window.__M365_DATA);
+                    const expectedKeys = Object.keys(dataStore);
+                    const missingKeys = expectedKeys.filter(k => !bundleKeys.includes(k));
+                    const emptyBundleKeys = [];
+
                     Object.keys(dataStore).forEach(key => {
                         if (window.__M365_DATA[key] !== undefined) {
-                            dataStore[key] = window.__M365_DATA[key];
+                            const bundleData = window.__M365_DATA[key];
+                            dataStore[key] = bundleData;
+
+                            // Check for empty data
+                            const isEmpty = bundleData === null ||
+                                (Array.isArray(bundleData) && bundleData.length === 0) ||
+                                (typeof bundleData === 'object' && bundleData !== null && Object.keys(bundleData).length === 0);
+
+                            if (isEmpty) {
+                                emptyBundleKeys.push(key);
+                            }
                         }
                     });
+
+                    if (missingKeys.length > 0) {
+                        console.warn('DataLoader: Bundle missing keys:', missingKeys.join(', '));
+                    }
+                    if (emptyBundleKeys.length > 0) {
+                        console.warn('DataLoader: Bundle has empty data for:', emptyBundleKeys.join(', '));
+                    }
+                    console.log('DataLoader: Loaded', bundleKeys.length, 'data types from bundle');
                 } else {
                     // Fallback: fetch JSON files individually (works over HTTP)
                     console.log('DataLoader: Fetching data files via HTTP...');
@@ -289,27 +312,176 @@ const DataLoader = (function() {
                 const normalizeDataArray = (key, nestedKey) => {
                     const data = dataStore[key];
                     if (data && !Array.isArray(data)) {
+                        // Log the structure we're trying to normalize
+                        const dataKeys = Object.keys(data);
+                        console.log(`DataLoader: Normalizing ${key} - object with keys: [${dataKeys.slice(0, 5).join(', ')}${dataKeys.length > 5 ? '...' : ''}]`);
+
                         // Check for nested array with the same name or common names
-                        const arrayKey = data[nestedKey || key] ? (nestedKey || key) :
-                                        (data.items ? 'items' :
-                                        (data.value ? 'value' :
-                                        (data.data ? 'data' : null)));
-                        if (arrayKey && Array.isArray(data[arrayKey])) {
-                            console.log(`DataLoader: Extracting ${key} from nested structure (${arrayKey})`);
+                        // Also check if the nested property exists but is empty array (still valid)
+                        const targetKey = nestedKey || key;
+                        let arrayKey = null;
+
+                        if (targetKey in data && Array.isArray(data[targetKey])) {
+                            arrayKey = targetKey;
+                        } else if ('items' in data && Array.isArray(data.items)) {
+                            arrayKey = 'items';
+                        } else if ('value' in data && Array.isArray(data.value)) {
+                            arrayKey = 'value';
+                        } else if ('data' in data && Array.isArray(data.data)) {
+                            arrayKey = 'data';
+                        }
+
+                        if (arrayKey) {
+                            console.log(`DataLoader: Extracting ${key} from nested structure (${arrayKey}) - ${data[arrayKey].length} items`);
                             dataStore[key] = data[arrayKey];
                         } else {
-                            console.warn(`DataLoader: ${key} is not an array and has no extractable array property`);
+                            console.warn(`DataLoader: ${key} is not an array and has no extractable array property (keys: ${dataKeys.join(', ')})`);
                             dataStore[key] = [];
                         }
                     }
                 };
 
-                // Normalize all expected array data stores
+                // Normalize all expected array data stores (extract arrays from wrapper objects)
                 normalizeDataArray('teams', 'teams');
                 normalizeDataArray('users', 'users');
                 normalizeDataArray('devices', 'devices');
                 normalizeDataArray('groups', 'groups');
                 normalizeDataArray('guests', 'guests');
+
+                // Ensure object-type data stores have expected structure
+                // This handles cases where collectors output different formats
+                // Uses aliases to find data under different property names
+
+                // Key aliases - maps expected key to possible alternatives
+                const keyAliases = {
+                    devices: ['devices', 'deviceList', 'managedDevices', 'items', 'data', 'value'],
+                    policies: ['policies', 'policyList', 'compliancePolicies', 'items', 'data', 'value'],
+                    profiles: ['profiles', 'configurationProfiles', 'profileList', 'items', 'data', 'value'],
+                    apps: ['apps', 'applications', 'appList', 'mobileApps', 'items', 'data', 'value'],
+                    users: ['users', 'riskyUsers', 'userList', 'items', 'data', 'value'],
+                    riskyUsers: ['riskyUsers', 'users', 'atRiskUsers', 'items', 'data', 'value'],
+                    riskDetections: ['riskDetections', 'detections', 'riskEvents', 'items', 'data', 'value'],
+                    deviceScores: ['deviceScores', 'scores', 'devices', 'items', 'data', 'value'],
+                    devicePerformance: ['devicePerformance', 'performance', 'startupPerformance', 'items', 'data'],
+                    batteryHealth: ['batteryHealth', 'batteries', 'batteryStatus', 'items', 'data'],
+                    updateRings: ['updateRings', 'rings', 'windowsUpdateRings', 'items', 'data', 'value'],
+                    featureUpdates: ['featureUpdates', 'featureUpdatePolicies', 'items', 'data'],
+                    qualityUpdates: ['qualityUpdates', 'qualityUpdatePolicies', 'items', 'data'],
+                    driverUpdates: ['driverUpdates', 'drivers', 'driverUpdateProfiles', 'items', 'data'],
+                    deviceCompliance: ['deviceCompliance', 'complianceDevices', 'devices', 'items', 'data'],
+                    grants: ['grants', 'oauthGrants', 'consentGrants', 'items', 'data', 'value'],
+                    reviews: ['reviews', 'accessReviews', 'items', 'data', 'value'],
+                    cases: ['cases', 'ediscoveryCases', 'items', 'data', 'value'],
+                    labels: ['labels', 'sensitivityLabels', 'items', 'data', 'value'],
+                    rules: ['rules', 'asrRules', 'attackSurfaceReductionRules', 'items', 'data'],
+                    rulesArray: ['rulesArray', 'rules', 'asrRules', 'items', 'data'],
+                    events: ['events', 'auditEvents', 'asrEvents', 'items', 'data'],
+                    nonCompliantDevices: ['nonCompliantDevices', 'noncompliantDevices', 'failedDevices', 'devices'],
+                    settingFailures: ['settingFailures', 'settingStatuses', 'failedSettings'],
+                    failedDevices: ['failedDevices', 'failures', 'errorDevices'],
+                    insights: ['insights', 'recommendations', 'suggestions'],
+                    summary: ['summary', 'overview', 'stats', 'statistics', 'metadata'],
+                    overview: ['overview', 'summary', 'stats', 'metadata']
+                };
+
+                const ensureObjectStructure = (key, expectedKeys) => {
+                    let data = dataStore[key];
+
+                    // Helper to get default value for a key (summary/overview = object, others = array)
+                    const getDefault = (k) => {
+                        return (k === 'summary' || k === 'overview') ? {} : [];
+                    };
+
+                    // Helper to find array data using aliases
+                    const findArrayByAliases = (obj, targetKey) => {
+                        const aliases = keyAliases[targetKey] || [targetKey];
+                        for (const alias of aliases) {
+                            if (alias in obj && Array.isArray(obj[alias])) {
+                                if (alias !== targetKey) {
+                                    console.log(`DataLoader: ${key}.${targetKey} found as ${alias}`);
+                                }
+                                return obj[alias];
+                            }
+                        }
+                        return null;
+                    };
+
+                    // Helper to find object data using aliases
+                    const findObjectByAliases = (obj, targetKey) => {
+                        const aliases = keyAliases[targetKey] || [targetKey];
+                        for (const alias of aliases) {
+                            if (alias in obj && typeof obj[alias] === 'object' && !Array.isArray(obj[alias]) && obj[alias] !== null) {
+                                if (alias !== targetKey) {
+                                    console.log(`DataLoader: ${key}.${targetKey} found as ${alias}`);
+                                }
+                                return obj[alias];
+                            }
+                        }
+                        return null;
+                    };
+
+                    // If null/undefined, create empty structure
+                    if (data === null || data === undefined) {
+                        const emptyObj = {};
+                        expectedKeys.forEach(k => { emptyObj[k] = getDefault(k); });
+                        dataStore[key] = emptyObj;
+                        console.log(`DataLoader: ${key} was null, created empty structure`);
+                        return;
+                    }
+
+                    // If array (legacy format), wrap it
+                    if (Array.isArray(data)) {
+                        const wrappedObj = {};
+                        wrappedObj[expectedKeys[0]] = data; // Use first expected key
+                        expectedKeys.slice(1).forEach(k => { wrappedObj[k] = getDefault(k); });
+                        dataStore[key] = wrappedObj;
+                        console.log(`DataLoader: ${key} was array, wrapped as {${expectedKeys[0]}: [${data.length}]}`);
+                        return;
+                    }
+
+                    // If object, ensure all expected keys exist (using aliases to find data)
+                    if (typeof data === 'object') {
+                        let modified = false;
+                        expectedKeys.forEach(k => {
+                            if (!(k in data)) {
+                                // Try to find data using aliases
+                                const isObjectKey = (k === 'summary' || k === 'overview');
+                                const found = isObjectKey ? findObjectByAliases(data, k) : findArrayByAliases(data, k);
+
+                                if (found !== null) {
+                                    data[k] = found;
+                                } else {
+                                    data[k] = getDefault(k);
+                                }
+                                modified = true;
+                            }
+                        });
+                        if (modified) {
+                            console.log(`DataLoader: ${key} structure normalized`);
+                        }
+                    }
+                };
+
+                // Define expected structures for object-type data stores
+                // These match what the page extractData functions expect
+                ensureObjectStructure('bitlockerStatus', ['devices', 'summary']);
+                ensureObjectStructure('compliancePolicies', ['policies', 'nonCompliantDevices', 'settingFailures', 'insights', 'summary']);
+                ensureObjectStructure('configurationProfiles', ['profiles', 'deviceStatuses', 'summary']);
+                ensureObjectStructure('windowsUpdateStatus', ['updateRings', 'featureUpdates', 'qualityUpdates', 'driverUpdates', 'deviceCompliance', 'summary']);
+                ensureObjectStructure('appDeployments', ['apps', 'failedDevices', 'insights', 'summary']);
+                ensureObjectStructure('endpointAnalytics', ['deviceScores', 'devicePerformance', 'batteryHealth', 'deviceAppHealth', 'workFromAnywhere', 'overview']);
+                ensureObjectStructure('identityRisk', ['riskyUsers', 'riskDetections', 'insights', 'summary']);
+                ensureObjectStructure('lapsCoverage', ['devices', 'summary']);
+                ensureObjectStructure('defenderDeviceHealth', ['devices', 'summary']);
+                ensureObjectStructure('deviceHardening', ['devices', 'summary']);
+                ensureObjectStructure('asrRules', ['rulesArray', 'profiles']);
+                ensureObjectStructure('asrAuditEvents', ['rules', 'events']);
+                ensureObjectStructure('endpointSecurityStates', ['devices', 'policies']);
+                ensureObjectStructure('oauthConsentGrants', ['grants']);
+                ensureObjectStructure('accessReviews', ['reviews', 'summary']);
+                ensureObjectStructure('retentionData', ['policies', 'summary']);
+                ensureObjectStructure('ediscoveryData', ['cases', 'summary']);
+                ensureObjectStructure('sensitivityLabels', ['labels', 'summary']);
 
                 // Log what was loaded
                 Object.entries(dataStore).forEach(([key, data]) => {
@@ -498,27 +670,37 @@ const DataLoader = (function() {
             const staleDevices = devices.filter(d => d.isStale).length;
             const mfaRegistered = users.filter(u => u.mfaRegistered).length;
             const noMfa = users.filter(u => !u.mfaRegistered).length;
+            const enabledUsers = users.filter(u => u.accountEnabled !== false).length;
+            const enabledUsersWithMfa = users.filter(u => u.accountEnabled !== false && u.mfaRegistered).length;
+            const enterpriseApps = Array.isArray(dataStore.enterpriseApps) ? dataStore.enterpriseApps : [];
+            const conditionalAccessPolicies = Array.isArray(dataStore.conditionalAccess) ? dataStore.conditionalAccess : [];
 
             return {
                 totalUsers: users.length,
                 employeeCount: users.filter(u => u.domain === 'employee').length,
                 studentCount: users.filter(u => u.domain === 'student').length,
                 otherCount: users.filter(u => u.domain === 'other').length,
+                enabledUsers: enabledUsers,
                 disabledUsers: users.filter(u => !u.accountEnabled).length,
                 inactiveUsers: users.filter(u => u.isInactive).length,
                 noMfaUsers: noMfa,
                 mfaRegisteredCount: mfaRegistered,
                 mfaPct: users.length > 0 ? Math.round((mfaRegistered / users.length) * 100) : 0,
+                mfaRegisteredPct: enabledUsers > 0 ? Math.round((enabledUsersWithMfa / enabledUsers) * 100) : 0,
                 adminCount: users.filter(u => u.flags && u.flags.includes('admin')).length,
                 guestCount: guests.length,
+                guestUsers: guests.length,
                 staleGuests: guests.filter(g => g.isStale).length,
                 totalDevices: devices.length,
                 compliantDevices: compliantDevices,
                 nonCompliantDevices: devices.filter(d => d.complianceState === 'noncompliant').length,
+                noncompliantDevices: devices.filter(d => d.complianceState === 'noncompliant').length,
                 unknownDevices: devices.filter(d => d.complianceState !== 'compliant' && d.complianceState !== 'noncompliant').length,
                 staleDevices: staleDevices,
                 compliancePct: devices.length > 0 ? Math.round((compliantDevices / devices.length) * 100) : 0,
                 activeAlerts: alerts.filter(a => a.status !== 'resolved').length,
+                totalApps: enterpriseApps.length,
+                conditionalAccessPolicies: conditionalAccessPolicies.length,
 
                 // Teams (governance-focused)
                 totalTeams: (dataStore.teams || []).length,
@@ -681,6 +863,152 @@ const DataLoader = (function() {
             if (window.Toast) {
                 window.Toast.error(title || 'Error', message);
             }
+        },
+
+        /**
+         * Diagnoses data loading issues by showing structure of all data stores.
+         * Call from browser console: DataLoader.diagnoseData()
+         *
+         * @returns {object} Diagnostic report object
+         */
+        diagnoseData() {
+            console.log('=== DataLoader Diagnostic Report ===');
+            console.log('Data loaded:', isLoaded);
+            console.log('Load error:', loadError);
+            console.log('');
+
+            const report = {
+                isLoaded: isLoaded,
+                loadError: loadError,
+                dataTypes: {},
+                emptyArrays: [],
+                nullValues: [],
+                objectsWithData: [],
+                collectorsWithErrors: Object.keys(dataErrors)
+            };
+
+            // Analyze each data store
+            Object.entries(dataStore).forEach(([key, data]) => {
+                let status = 'unknown';
+                let details = '';
+
+                if (data === null) {
+                    status = 'null';
+                    report.nullValues.push(key);
+                } else if (data === undefined) {
+                    status = 'undefined';
+                } else if (Array.isArray(data)) {
+                    status = data.length === 0 ? 'empty-array' : 'array';
+                    details = data.length + ' items';
+                    if (data.length === 0) {
+                        report.emptyArrays.push(key);
+                    }
+                } else if (typeof data === 'object') {
+                    const keys = Object.keys(data);
+                    status = 'object';
+                    details = 'keys: ' + keys.slice(0, 5).join(', ') + (keys.length > 5 ? '...' : '');
+
+                    // Check for nested arrays
+                    const arrayKeys = keys.filter(k => Array.isArray(data[k]));
+                    if (arrayKeys.length > 0) {
+                        const arraySizes = arrayKeys.map(k => k + '=' + data[k].length).join(', ');
+                        details += ' | arrays: ' + arraySizes;
+                    }
+
+                    // Check if object has any meaningful data
+                    const hasData = keys.some(k => {
+                        const v = data[k];
+                        if (Array.isArray(v)) return v.length > 0;
+                        if (typeof v === 'object' && v !== null) return Object.keys(v).length > 0;
+                        return v !== null && v !== undefined;
+                    });
+
+                    if (hasData) {
+                        report.objectsWithData.push(key);
+                    }
+                }
+
+                report.dataTypes[key] = { status, details };
+
+                const icon = status === 'array' || status === 'object' ? '✓' :
+                            status === 'empty-array' || status === 'null' ? '⚠' : '✗';
+                console.log(`${icon} ${key}: ${status} ${details ? '(' + details + ')' : ''}`);
+            });
+
+            console.log('');
+            console.log('=== Summary ===');
+            console.log('Empty arrays:', report.emptyArrays.length > 0 ? report.emptyArrays.join(', ') : 'none');
+            console.log('Null values:', report.nullValues.length > 0 ? report.nullValues.join(', ') : 'none');
+            console.log('Objects with data:', report.objectsWithData.length > 0 ? report.objectsWithData.join(', ') : 'none');
+            console.log('Collectors with errors:', report.collectorsWithErrors.length > 0 ? report.collectorsWithErrors.join(', ') : 'none');
+            console.log('');
+            console.log('Tip: If you see empty arrays for data that should exist, check:');
+            console.log('  1. Collection metadata for errors: DataLoader.getMetadata()');
+            console.log('  2. Collector errors: DataLoader.getCollectionErrors()');
+            console.log('  3. Raw data: DataLoader.getRawData("dataType")');
+
+            return report;
+        },
+
+        /**
+         * Inspects a specific data type in detail.
+         * Call from browser console: DataLoader.inspectData('bitlockerStatus')
+         *
+         * @param {string} type - Data type key to inspect
+         * @returns {object} Detailed structure info
+         */
+        inspectData(type) {
+            const data = dataStore[type];
+            console.log(`=== Inspecting: ${type} ===`);
+
+            if (data === null) {
+                console.log('Value: null');
+                return { type, value: null };
+            }
+
+            if (data === undefined) {
+                console.log('Value: undefined');
+                return { type, value: undefined };
+            }
+
+            if (Array.isArray(data)) {
+                console.log('Type: Array');
+                console.log('Length:', data.length);
+                if (data.length > 0) {
+                    console.log('First item keys:', Object.keys(data[0]).join(', '));
+                    console.log('Sample item:', JSON.stringify(data[0], null, 2).slice(0, 500));
+                }
+                return { type, isArray: true, length: data.length, sample: data[0] };
+            }
+
+            if (typeof data === 'object') {
+                const keys = Object.keys(data);
+                console.log('Type: Object');
+                console.log('Keys:', keys.join(', '));
+
+                // Analyze each key
+                keys.forEach(key => {
+                    const value = data[key];
+                    if (Array.isArray(value)) {
+                        console.log(`  ${key}: Array[${value.length}]`);
+                        if (value.length > 0) {
+                            console.log(`    First item keys: ${Object.keys(value[0]).join(', ')}`);
+                        }
+                    } else if (typeof value === 'object' && value !== null) {
+                        console.log(`  ${key}: Object {${Object.keys(value).slice(0, 5).join(', ')}${Object.keys(value).length > 5 ? '...' : ''}}`);
+                    } else {
+                        const displayValue = typeof value === 'string' && value.length > 50
+                            ? value.slice(0, 50) + '...'
+                            : value;
+                        console.log(`  ${key}: ${typeof value} = ${displayValue}`);
+                    }
+                });
+
+                return { type, isObject: true, keys, structure: data };
+            }
+
+            console.log('Value:', data);
+            return { type, value: data };
         }
     };
 
@@ -688,3 +1016,4 @@ const DataLoader = (function() {
 
 // Export for use in other modules
 window.DataLoader = DataLoader;
+

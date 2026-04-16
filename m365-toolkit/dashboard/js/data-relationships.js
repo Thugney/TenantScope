@@ -7,7 +7,7 @@
  * Connects users, devices, vulnerabilities, policies, and other entities
  * to enable "single-pane-of-glass" detail views.
  *
- * Uses existing data from DataStore - no additional API calls.
+ * Uses existing data from DataLoader through a local compatibility adapter.
  */
 
 var DataRelationships = (function() {
@@ -29,6 +29,222 @@ var DataRelationships = (function() {
     var indexesBuilt = false;
     var indexBuildInProgress = false;
     var lastDataVersion = null;
+
+    function getLoader() {
+        return typeof DataLoader !== 'undefined' ? DataLoader : null;
+    }
+
+    function getLoaderData(type, useRaw) {
+        var loader = getLoader();
+        if (!loader) return null;
+
+        var aliases = {
+            identityRiskData: 'identityRisk',
+            accessReviewData: 'accessReviews',
+            serviceHealth: 'serviceAnnouncements'
+        };
+
+        var resolvedType = aliases[type] || type;
+        if (useRaw && loader.getRawData) {
+            return loader.getRawData(resolvedType);
+        }
+        if (loader.getData) {
+            return loader.getData(resolvedType);
+        }
+        return null;
+    }
+
+    function asArray(value, nestedKey) {
+        if (Array.isArray(value)) return value;
+        if (value && nestedKey && Array.isArray(value[nestedKey])) return value[nestedKey];
+        return [];
+    }
+
+    function getLoaderArray(type, nestedKey) {
+        return asArray(getLoaderData(type, true), nestedKey);
+    }
+
+    function getLoaderObject(type) {
+        var value = getLoaderData(type, true);
+        if (value && typeof value === 'object' && !Array.isArray(value)) {
+            return value;
+        }
+        return {};
+    }
+
+    function getSignInEntries() {
+        var raw = getLoaderObject('signinLogs');
+        return asArray(raw, 'signIns');
+    }
+
+    function getDataVersion() {
+        var loader = getLoader();
+        if (!loader || !loader.getMetadata) {
+            return [
+                getLoaderArray('users').length,
+                getLoaderArray('devices').length,
+                getSignInEntries().length
+            ].join('|');
+        }
+
+        var metadata = loader.getMetadata() || {};
+        return metadata.collectionTimestamp ||
+            metadata.collectionDate ||
+            metadata.generatedAt ||
+            metadata.lastUpdated ||
+            [
+                getLoaderArray('users').length,
+                getLoaderArray('devices').length,
+                getSignInEntries().length
+            ].join('|');
+    }
+
+    var DataStore = {
+        getAllUsers: function() {
+            return getLoaderArray('users', 'users');
+        },
+        getAllDevices: function() {
+            return getLoaderArray('devices', 'devices');
+        }
+    };
+
+    Object.defineProperties(DataStore, {
+        dataVersion: {
+            get: function() {
+                return getDataVersion();
+            }
+        },
+        users: {
+            get: function() {
+                return DataStore.getAllUsers();
+            }
+        },
+        devices: {
+            get: function() {
+                return DataStore.getAllDevices();
+            }
+        },
+        groups: {
+            get: function() {
+                return getLoaderData('groups', true) || [];
+            }
+        },
+        licenseSkus: {
+            get: function() {
+                return getLoaderArray('licenseSkus');
+            }
+        },
+        guests: {
+            get: function() {
+                return getLoaderArray('guests');
+            }
+        },
+        mfaStatus: {
+            get: function() {
+                return getLoaderArray('mfaStatus');
+            }
+        },
+        adminRoles: {
+            get: function() {
+                return getLoaderArray('adminRoles');
+            }
+        },
+        riskySignins: {
+            get: function() {
+                return getLoaderArray('riskySignins');
+            }
+        },
+        signinLogs: {
+            get: function() {
+                return getSignInEntries();
+            }
+        },
+        defenderAlerts: {
+            get: function() {
+                return getLoaderArray('defenderAlerts');
+            }
+        },
+        vulnerabilities: {
+            get: function() {
+                return getLoaderObject('vulnerabilities');
+            }
+        },
+        conditionalAccess: {
+            get: function() {
+                return getLoaderArray('conditionalAccess');
+            }
+        },
+        asrRules: {
+            get: function() {
+                return getLoaderObject('asrRules');
+            }
+        },
+        oauthConsentGrants: {
+            get: function() {
+                return getLoaderObject('oauthConsentGrants');
+            }
+        },
+        identityRiskData: {
+            get: function() {
+                return getLoaderObject('identityRiskData');
+            }
+        },
+        autopilot: {
+            get: function() {
+                return getLoaderArray('autopilot');
+            }
+        },
+        compliancePolicies: {
+            get: function() {
+                return getLoaderObject('compliancePolicies');
+            }
+        },
+        configurationProfiles: {
+            get: function() {
+                return getLoaderObject('configurationProfiles');
+            }
+        },
+        windowsUpdateStatus: {
+            get: function() {
+                return getLoaderObject('windowsUpdateStatus');
+            }
+        },
+        bitlockerStatus: {
+            get: function() {
+                return getLoaderObject('bitlockerStatus');
+            }
+        },
+        appDeployments: {
+            get: function() {
+                return getLoaderObject('appDeployments');
+            }
+        },
+        endpointAnalytics: {
+            get: function() {
+                return getLoaderObject('endpointAnalytics');
+            }
+        },
+        auditLogs: {
+            get: function() {
+                return getLoaderArray('auditLogs');
+            }
+        },
+        pimActivity: {
+            get: function() {
+                return getLoaderArray('pimActivity');
+            }
+        },
+        teams: {
+            get: function() {
+                return getLoaderArray('teams', 'teams');
+            }
+        },
+        sharepointSites: {
+            get: function() {
+                return getLoaderArray('sharepointSites', 'sites');
+            }
+        }
+    });
 
     /**
      * Invalidates indexes so they will be rebuilt on next access.
@@ -177,7 +393,11 @@ var DataRelationships = (function() {
                    (log.userPrincipalName && log.userPrincipalName.toLowerCase() === (upn || '').toLowerCase());
         });
         // Return most recent 20
-        return userLogs.slice(0, 20);
+        return userLogs.sort(function(a, b) {
+            var aTime = new Date(a.createdDateTime || a.detectedDateTime || 0).getTime();
+            var bTime = new Date(b.createdDateTime || b.detectedDateTime || 0).getTime();
+            return bTime - aTime;
+        }).slice(0, 20);
     }
 
     /**
@@ -188,7 +408,9 @@ var DataRelationships = (function() {
         var riskyUsers = riskData.riskyUsers || [];
         var riskDetections = riskData.riskDetections || [];
 
-        var userRisk = riskyUsers.find(function(r) { return r.id === userId; });
+        var userRisk = riskyUsers.find(function(r) {
+            return r.userId === userId || r.id === userId;
+        });
         var userDetections = riskDetections.filter(function(d) { return d.userId === userId; });
 
         return {
@@ -209,8 +431,10 @@ var DataRelationships = (function() {
             return members.some(function(m) { return m.id === userId; });
         }).map(function(role) {
             return {
-                displayName: role.displayName,
-                description: role.description,
+                id: role.roleId || role.id || null,
+                roleId: role.roleId || role.id || null,
+                displayName: role.roleName || role.displayName,
+                description: role.roleDescription || role.description,
                 isBuiltIn: role.isBuiltIn
             };
         });
@@ -243,7 +467,8 @@ var DataRelationships = (function() {
         var upnLower = upn.toLowerCase();
 
         return teams.filter(function(team) {
-            var owners = team.ownerUpns || [];
+            var owners = team.ownerUpns || team.ownerUpn || [];
+            if (typeof owners === 'string') owners = [owners];
             return owners.some(function(o) { return o.toLowerCase() === upnLower; });
         }).map(function(team) {
             return {
@@ -310,9 +535,15 @@ var DataRelationships = (function() {
      * Get primary user for device.
      */
     function getDeviceUser(device) {
-        if (!device || !device.userId) return null;
+        if (!device) return null;
         buildIndexes();
-        return userIndex[device.userId] || null;
+        if (device.userId && userIndex[device.userId]) {
+            return userIndex[device.userId];
+        }
+        if (device.userPrincipalName) {
+            return userUpnIndex[device.userPrincipalName.toLowerCase()] || null;
+        }
+        return null;
     }
 
     /**
@@ -1265,9 +1496,12 @@ var DataRelationships = (function() {
     function getDeviceEndpointAnalytics(deviceName) {
         if (!deviceName) return null;
 
-        var analyticsData = DataStore.endpointAnalytics || {};
+        var analyticsData = getLoaderObject('endpointAnalytics');
         var deviceScores = analyticsData.deviceScores || [];
         var devicePerformance = analyticsData.devicePerformance || [];
+        var batteryHealth = analyticsData.batteryHealth || [];
+        var deviceAppHealth = analyticsData.deviceAppHealth || [];
+        var workFromAnywhere = analyticsData.workFromAnywhere || [];
         var deviceNameLower = deviceName.toLowerCase();
 
         // Find device in scores
@@ -1280,26 +1514,74 @@ var DataRelationships = (function() {
             return (d.deviceName || '').toLowerCase() === deviceNameLower;
         });
 
-        if (!deviceScore && !devicePerf) return null;
+        var batteryRecord = batteryHealth.find(function(d) {
+            return (d.deviceName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var deviceAppRecord = deviceAppHealth.find(function(d) {
+            return (d.deviceName || d.deviceDisplayName || '').toLowerCase() === deviceNameLower;
+        });
+
+        var modelName = deviceScore ? deviceScore.model :
+            devicePerf ? devicePerf.model :
+                batteryRecord ? batteryRecord.model : null;
+        var manufacturer = deviceScore ? deviceScore.manufacturer :
+            devicePerf ? devicePerf.manufacturer :
+                batteryRecord ? batteryRecord.manufacturer : null;
+
+        var wfaRecord = workFromAnywhere.find(function(d) {
+            var sameModel = (d.model || '').toLowerCase() === (modelName || '').toLowerCase();
+            if (!sameModel) return false;
+            if (!manufacturer) return true;
+            return (d.manufacturer || '').toLowerCase() === manufacturer.toLowerCase();
+        }) || null;
+
+        if (!deviceScore && !devicePerf && !batteryRecord && !deviceAppRecord && !wfaRecord) return null;
 
         return {
             // Health scores
             endpointAnalyticsScore: deviceScore ? deviceScore.endpointAnalyticsScore : null,
             startupPerformanceScore: deviceScore ? deviceScore.startupPerformanceScore : null,
             appReliabilityScore: deviceScore ? deviceScore.appReliabilityScore : null,
-            workFromAnywhereScore: deviceScore ? deviceScore.workFromAnywhereScore : null,
+            workFromAnywhereScore: deviceScore && deviceScore.workFromAnywhereScore !== undefined ? deviceScore.workFromAnywhereScore :
+                wfaRecord ? wfaRecord.workFromAnywhereScore : null,
             healthStatus: deviceScore ? deviceScore.healthStatus : null,
             needsAttention: deviceScore ? deviceScore.needsAttention : false,
-            manufacturer: deviceScore ? deviceScore.manufacturer : null,
-            model: deviceScore ? deviceScore.model : null,
+            manufacturer: manufacturer,
+            model: modelName,
 
             // Performance metrics (if available)
             coreBootTimeInMs: devicePerf ? devicePerf.coreBootTimeInMs : null,
             loginTimeInMs: devicePerf ? devicePerf.loginTimeInMs : null,
+            coreLoginTimeInMs: devicePerf ? devicePerf.coreLoginTimeInMs : null,
+            groupPolicyBootTimeInMs: devicePerf ? devicePerf.groupPolicyBootTimeInMs : null,
+            groupPolicyLoginTimeInMs: devicePerf ? devicePerf.groupPolicyLoginTimeInMs : null,
             restartCount: devicePerf ? devicePerf.restartCount : null,
             blueScreenCount: devicePerf ? devicePerf.blueScreenCount : null,
             bootScore: devicePerf ? devicePerf.bootScore : null,
-            loginScore: devicePerf ? devicePerf.loginScore : null
+            loginScore: devicePerf ? devicePerf.loginScore : null,
+
+            // Battery health
+            batteryHealthPercentage: batteryRecord ? batteryRecord.batteryHealthPercentage : null,
+            maxCapacityPercentage: batteryRecord ? batteryRecord.maxCapacityPercentage : null,
+            batteryAgeInDays: batteryRecord ? batteryRecord.batteryAgeInDays : null,
+            fullBatteryDrainCount: batteryRecord ? batteryRecord.fullBatteryDrainCount : null,
+            estimatedBatteryCapacity: batteryRecord ? batteryRecord.estimatedBatteryCapacity : null,
+
+            // Device-level app health
+            appCrashCount: deviceAppRecord ? deviceAppRecord.appCrashCount : null,
+            appHangCount: deviceAppRecord ? deviceAppRecord.appHangCount : null,
+            crashedAppCount: deviceAppRecord ? deviceAppRecord.crashedAppCount : null,
+            meanTimeToFailure: deviceAppRecord ? deviceAppRecord.meanTimeToFailure : null,
+            deviceAppHealthScore: deviceAppRecord ? deviceAppRecord.deviceAppHealthScore : null,
+            deviceAppHealthStatus: deviceAppRecord ? deviceAppRecord.healthStatus : null,
+
+            // Work from anywhere model context
+            cloudManagementScore: wfaRecord ? wfaRecord.cloudManagementScore : null,
+            cloudIdentityScore: wfaRecord ? wfaRecord.cloudIdentityScore : null,
+            cloudProvisioningScore: wfaRecord ? wfaRecord.cloudProvisioningScore : null,
+            windowsScore: wfaRecord ? wfaRecord.windowsScore : null,
+            workFromAnywhereHealthStatus: wfaRecord ? wfaRecord.healthStatus : null
         };
     }
 
@@ -1314,8 +1596,36 @@ var DataRelationships = (function() {
      */
     function getUserRiskySignins(user) {
         if (!user) return [];
-        var logs = DataStore.signinLogs || [];
         var upn = (user.userPrincipalName || '').toLowerCase();
+
+        var riskySignins = DataStore.riskySignins || [];
+        if (riskySignins.length > 0) {
+            return riskySignins.filter(function(log) {
+                var logUpn = (log.userPrincipalName || '').toLowerCase();
+                return logUpn === upn;
+            }).sort(function(a, b) {
+                var aDate = new Date(a.detectedDateTime || a.createdDateTime);
+                var bDate = new Date(b.detectedDateTime || b.createdDateTime);
+                var aTime = isNaN(aDate.getTime()) ? 0 : aDate.getTime();
+                var bTime = isNaN(bDate.getTime()) ? 0 : bDate.getTime();
+                return bTime - aTime;
+            }).slice(0, 20).map(function(log) {
+                return {
+                    id: log.id,
+                    createdDateTime: log.detectedDateTime || log.createdDateTime,
+                    appDisplayName: log.appDisplayName,
+                    riskLevel: log.riskLevel,
+                    riskState: log.riskState,
+                    riskEventTypes: log.riskEventTypes || [],
+                    ipAddress: log.ipAddress,
+                    location: log.location,
+                    status: log.status,
+                    mfaSatisfied: log.mfaSatisfied
+                };
+            });
+        }
+
+        var logs = DataStore.signinLogs || [];
 
         return logs.filter(function(log) {
             var logUpn = (log.userPrincipalName || '').toLowerCase();
