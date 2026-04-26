@@ -528,26 +528,24 @@ try {
                     -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles/$($profile.id)/driverInventories?`$top=100" `
                     -OutputType PSObject
 
-                foreach ($driver in $inventoryResponse.value) {
-                    # Get deployment status for this specific driver
-                    $deployedDevices = 0
-                    $pendingDevices = 0
-                    $failedDevices = 0
+                $profileDeviceStates = @()
+                try {
+                    $deviceStates = Invoke-MgGraphRequest -Method GET `
+                        -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles/$($profile.id)/deviceUpdateStates" `
+                        -OutputType PSObject
 
-                    try {
-                        $deviceStates = Invoke-MgGraphRequest -Method GET `
-                            -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles/$($profile.id)/deviceUpdateStates" `
-                            -OutputType PSObject
-
-                        if ($deviceStates.value) {
-                            $deployedDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "installed" -or $_.driverUpdateState -eq "succeeded" }).Count
-                            $pendingDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "pending" -or $_.driverUpdateState -eq "downloading" }).Count
-                            $failedDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "failed" }).Count
-                            Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $deviceStates.value -StatusPropertyNames @("driverUpdateState", "status", "state")
-                        }
+                    if ($deviceStates.value) {
+                        $profileDeviceStates = @($deviceStates.value)
+                        Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $profileDeviceStates -StatusPropertyNames @("driverUpdateState", "status", "state")
                     }
-                    catch { }
+                }
+                catch { }
 
+                $deployedDevices = ($profileDeviceStates | Where-Object { $_.driverUpdateState -eq "installed" -or $_.driverUpdateState -eq "succeeded" }).Count
+                $pendingDevices = ($profileDeviceStates | Where-Object { $_.driverUpdateState -eq "pending" -or $_.driverUpdateState -eq "downloading" }).Count
+                $failedDevices = ($profileDeviceStates | Where-Object { $_.driverUpdateState -eq "failed" }).Count
+
+                foreach ($driver in $inventoryResponse.value) {
                     # Flatten driver into driverUpdates array (dashboard expects this structure)
                     $updateData.driverUpdates += [PSCustomObject]@{
                         id              = $driver.id

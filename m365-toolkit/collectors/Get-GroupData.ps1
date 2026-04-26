@@ -54,11 +54,11 @@ param(
 
     [Parameter()]
     [ValidateRange(1, 5000)]
-    [int]$MaxGroupMemberDetails = 100,
+    [int]$MaxGroupMemberDetails = 25,
 
     [Parameter()]
     [ValidateRange(1, 1000)]
-    [int]$MaxGroupOwnerDetails = 100
+    [int]$MaxGroupOwnerDetails = 10
 )
 
 # ============================================================================
@@ -447,6 +447,66 @@ try {
     $dynamicGroupsCount = 0
     $staleSyncCount = 0
     $largeLicenseGroupsCount = 0
+    $deepCollection = ($Config.collection -is [hashtable] -and $Config.collection.deepCollection -eq $true)
+    $maxGroupCountFetches = if ($deepCollection) { [int]::MaxValue } else { 500 }
+    $maxGroupDetailFetches = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    if ($Config.thresholds -is [hashtable] -and $Config.thresholds.ContainsKey('maxGroupDetailFetches')) {
+        $maxGroupDetailFetches = [int]$Config.thresholds.maxGroupDetailFetches
+    }
+    if ($Config.thresholds -is [hashtable] -and $Config.thresholds.ContainsKey('maxGroupCountFetches')) {
+        $maxGroupCountFetches = [int]$Config.thresholds.maxGroupCountFetches
+    }
+    $groupCountFetches = 0
+    $memberDetailFetches = 0
+    $ownerDetailFetches = 0
+    $groupCountMap = @{}
+    $groupCountRequests = @()
+    $countGroups = @($allGroups | Select-Object -First $maxGroupCountFetches)
+
+    foreach ($countGroup in $countGroups) {
+        if (-not $countGroup.id) { continue }
+        $groupId = [string]$countGroup.id
+        $groupCountRequests += [PSCustomObject]@{
+            id      = "members_$groupId"
+            uri     = "https://graph.microsoft.com/v1.0/groups/$groupId/members/microsoft.graph.user/`$count"
+            headers = @{ ConsistencyLevel = "eventual" }
+        }
+        $groupCountRequests += [PSCustomObject]@{
+            id      = "owners_$groupId"
+            uri     = "https://graph.microsoft.com/v1.0/groups/$groupId/owners/`$count"
+            headers = @{ ConsistencyLevel = "eventual" }
+        }
+        $groupCountRequests += [PSCustomObject]@{
+            id      = "guests_$groupId"
+            uri     = "https://graph.microsoft.com/v1.0/groups/$groupId/members/microsoft.graph.user/`$count?`$filter=userType eq 'Guest'"
+            headers = @{ ConsistencyLevel = "eventual" }
+        }
+    }
+
+    if ($groupCountRequests.Count -gt 0) {
+        Write-Host "      Fetching group counts in Graph batches ($($countGroups.Count) groups)..." -ForegroundColor Gray
+        $groupCountResults = Invoke-GraphBatchGet -Requests $groupCountRequests -OperationName "Group counts batch"
+        foreach ($countGroup in $countGroups) {
+            if (-not $countGroup.id) { continue }
+            $groupId = [string]$countGroup.id
+            $groupCountMap[$groupId] = @{
+                memberCount = $null
+                ownerCount  = $null
+                guestCount  = $null
+            }
+
+            foreach ($kind in @("members", "owners", "guests")) {
+                $resultId = "${kind}_$groupId"
+                if ($groupCountResults.ContainsKey($resultId) -and $groupCountResults[$resultId].status -ge 200 -and $groupCountResults[$resultId].status -lt 300) {
+                    $count = Get-CountFromGraphResponse -Response $groupCountResults[$resultId].body
+                    if ($kind -eq "members") { $groupCountMap[$groupId].memberCount = $count }
+                    elseif ($kind -eq "owners") { $groupCountMap[$groupId].ownerCount = $count }
+                    else { $groupCountMap[$groupId].guestCount = $count }
+                }
+            }
+        }
+        $groupCountFetches = $countGroups.Count
+    }
 
     foreach ($group in $allGroups) {
         $processed++
@@ -458,37 +518,6 @@ try {
         $isDynamic = $group.membershipRule -ne $null -and $group.membershipRule -ne ""
         $isM365 = $group.groupTypes -contains "Unified"
         $onPremSync = $group.onPremisesSyncEnabled -eq $true
-
-        # Get members and owners (detail lists are capped for scale)
-        $memberResult = Get-GroupMembers -GroupId $group.id -MaxMembers $MaxGroupMemberDetails
-        $ownerResult = Get-GroupOwners -GroupId $group.id -MaxOwners $MaxGroupOwnerDetails
-
-        $userMembers = @($memberResult.Items)
-        $owners = @($ownerResult.Items)
-
-        $memberCount = $userMembers.Count
-        if ($memberResult.IsTruncated) {
-            $exactMemberCount = Get-GroupDirectoryObjectCount -GroupId $group.id -CollectionPath "members/microsoft.graph.user" -OperationName "Group members count retrieval"
-            if ($null -ne $exactMemberCount) {
-                $memberCount = $exactMemberCount
-            }
-        }
-
-        $ownerCount = $owners.Count
-        if ($ownerResult.IsTruncated) {
-            $exactOwnerCount = Get-GroupDirectoryObjectCount -GroupId $group.id -CollectionPath "owners" -OperationName "Group owners count retrieval"
-            if ($null -ne $exactOwnerCount) {
-                $ownerCount = $exactOwnerCount
-            }
-        }
-
-        $guestCount = @($userMembers | Where-Object { $_.userType -eq 'Guest' }).Count
-        if ($memberResult.IsTruncated -and $guestCount -eq 0) {
-            $exactGuestCount = Get-GroupGuestCount -GroupId $group.id
-            if ($null -ne $exactGuestCount) {
-                $guestCount = $exactGuestCount
-            }
-        }
 
         # Build license assignments for this group
         $assignedLicenseList = [System.Collections.Generic.List[object]]::new()
@@ -507,6 +536,50 @@ try {
         }
         $assignedLicenses = @($assignedLicenseList | Sort-Object -Property assignedUserCount -Descending)
         $licensedMemberCount = [int](($assignedLicenses | Measure-Object -Property assignedUserCount -Sum).Sum)
+
+        $memberCount = $null
+        $ownerCount = $null
+        $guestCount = $null
+        $batchedCounts = $groupCountMap[[string]$group.id]
+        if ($batchedCounts) {
+            $memberCount = $batchedCounts.memberCount
+            $ownerCount = $batchedCounts.ownerCount
+            $guestCount = $batchedCounts.guestCount
+        }
+        elseif ($deepCollection -and $groupCountFetches -lt $maxGroupCountFetches) {
+            $groupCountFetches++
+            $memberCount = Get-GroupDirectoryObjectCount -GroupId $group.id -CollectionPath "members/microsoft.graph.user" -OperationName "Group members count retrieval"
+            $ownerCount = Get-GroupDirectoryObjectCount -GroupId $group.id -CollectionPath "owners" -OperationName "Group owners count retrieval"
+            $guestCount = Get-GroupGuestCount -GroupId $group.id
+        }
+
+        $userMembers = @()
+        $owners = @()
+        $membersTruncated = $false
+        $ownersTruncated = $false
+
+        $shouldFetchMemberDetails = $deepCollection -or ($assignedLicenses.Count -gt 0 -or $guestCount -gt 0)
+        if ($shouldFetchMemberDetails -and $memberDetailFetches -lt $maxGroupDetailFetches) {
+            $memberDetailFetches++
+            $memberResult = Get-GroupMembers -GroupId $group.id -MaxMembers $MaxGroupMemberDetails
+            $userMembers = @($memberResult.Items)
+            $membersTruncated = [bool]$memberResult.IsTruncated
+            if ($null -eq $memberCount) { $memberCount = $userMembers.Count }
+            if ($null -eq $guestCount) { $guestCount = @($userMembers | Where-Object { $_.userType -eq 'Guest' }).Count }
+        }
+
+        $shouldFetchOwnerDetails = $deepCollection -or ($ownerCount -gt 0 -and $ownerCount -le $MaxGroupOwnerDetails)
+        if ($shouldFetchOwnerDetails -and $ownerDetailFetches -lt $maxGroupDetailFetches) {
+            $ownerDetailFetches++
+            $ownerResult = Get-GroupOwners -GroupId $group.id -MaxOwners $MaxGroupOwnerDetails
+            $owners = @($ownerResult.Items)
+            $ownersTruncated = [bool]$ownerResult.IsTruncated
+            if ($null -eq $ownerCount) { $ownerCount = $owners.Count }
+        }
+
+        if ($null -eq $memberCount) { $memberCount = $userMembers.Count }
+        if ($null -eq $ownerCount) { $ownerCount = $owners.Count }
+        if ($null -eq $guestCount) { $guestCount = @($userMembers | Where-Object { $_.userType -eq 'Guest' }).Count }
 
         # Calculate on-prem sync age
         $onPremSyncAge = $null
@@ -555,8 +628,8 @@ try {
             ownerCount = $ownerCount
             guestMemberCount = $guestCount
             licensedMemberCount = $licensedMemberCount
-            membersTruncated = [bool]$memberResult.IsTruncated
-            ownersTruncated = [bool]$ownerResult.IsTruncated
+            membersTruncated = $membersTruncated
+            ownersTruncated = $ownersTruncated
 
             members = @($userMembers | ForEach-Object {
                 [PSCustomObject]@{

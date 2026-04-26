@@ -246,8 +246,9 @@ function Get-ConfigValidation {
     }
 
     foreach ($domainField in @("employees", "students")) {
-        if ($Config.domains[$domainField] -isnot [array]) {
-            throw "Configuration field 'domains.$domainField' must be an array"
+        $domainValue = $Config.domains[$domainField]
+        if ($domainValue -isnot [array] -and $domainValue -isnot [string]) {
+            throw "Configuration field 'domains.$domainField' must be a string or an array"
         }
     }
 

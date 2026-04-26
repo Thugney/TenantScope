@@ -223,6 +223,126 @@ function Get-GraphAllPages {
     return $results
 }
 
+function ConvertTo-GraphBatchUrl {
+    <#
+    .SYNOPSIS
+        Converts absolute Graph URLs to relative batch URLs.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Uri
+    )
+
+    if ($Uri -match '^https://graph\.microsoft\.com/(v1\.0|beta)(/.+)$') {
+        return "/$($Matches[1])$($Matches[2])"
+    }
+
+    return $Uri
+}
+
+function Invoke-GraphBatchGet {
+    <#
+    .SYNOPSIS
+        Executes independent Graph GET requests through Microsoft Graph $batch.
+
+    .DESCRIPTION
+        Batches GET requests in groups of 20, the Microsoft Graph batch request
+        limit. Throttled or transient sub-responses are retried as their own
+        smaller batch after respecting Retry-After when Graph provides it.
+
+    .PARAMETER Requests
+        Array of request objects with id, uri, and optional headers.
+
+    .OUTPUTS
+        Hashtable keyed by request id. Each value contains status, body, and
+        headers from the Graph batch response.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [object[]]$Requests,
+
+        [Parameter()]
+        [ValidateRange(1, 20)]
+        [int]$BatchSize = 20,
+
+        [Parameter()]
+        [ValidateRange(0, 5)]
+        [int]$MaxRetries = 2,
+
+        [Parameter()]
+        [string]$OperationName = "Graph batch GET"
+    )
+
+    $results = @{}
+    $pending = @($Requests | Where-Object { $_ -and $_.id -and $_.uri })
+    $attempt = 0
+
+    while ($pending.Count -gt 0 -and $attempt -le $MaxRetries) {
+        $retryRequests = @()
+
+        for ($i = 0; $i -lt $pending.Count; $i += $BatchSize) {
+            $end = [Math]::Min($i + $BatchSize - 1, $pending.Count - 1)
+            $chunk = @($pending[$i..$end])
+            $batchRequests = @()
+
+            foreach ($request in $chunk) {
+                $batchRequest = @{
+                    id     = [string]$request.id
+                    method = "GET"
+                    url    = ConvertTo-GraphBatchUrl -Uri ([string]$request.uri)
+                }
+
+                if ($request.headers) {
+                    $batchRequest.headers = $request.headers
+                }
+
+                $batchRequests += $batchRequest
+            }
+
+            $body = @{ requests = $batchRequests } | ConvertTo-Json -Depth 12
+            $response = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST -Uri "https://graph.microsoft.com/v1.0/`$batch" -Body $body -ContentType "application/json" -OutputType PSObject
+            } -OperationName $OperationName
+
+            $retryAfterSeconds = 0
+            foreach ($subResponse in @($response.responses)) {
+                $status = [int]$subResponse.status
+                $results[[string]$subResponse.id] = [PSCustomObject]@{
+                    status  = $status
+                    body    = $subResponse.body
+                    headers = $subResponse.headers
+                }
+
+                if (($status -eq 429 -or $status -ge 500) -and $attempt -lt $MaxRetries) {
+                    $original = $chunk | Where-Object { [string]$_.id -eq [string]$subResponse.id } | Select-Object -First 1
+                    if ($original) { $retryRequests += $original }
+
+                    $headerRetryAfter = $null
+                    if ($subResponse.headers) {
+                        $headerRetryAfter = Get-GraphPropertyValue -Object $subResponse.headers -PropertyNames @("Retry-After", "retry-after")
+                    }
+                    $parsedRetryAfter = 0
+                    if ($headerRetryAfter -and [int]::TryParse([string]$headerRetryAfter, [ref]$parsedRetryAfter)) {
+                        $retryAfterSeconds = [Math]::Max($retryAfterSeconds, $parsedRetryAfter)
+                    }
+                }
+            }
+
+            if ($retryAfterSeconds -gt 0) {
+                Write-Host "      Batch throttled. Waiting ${retryAfterSeconds}s before retry..." -ForegroundColor Yellow
+                Start-Sleep -Seconds $retryAfterSeconds
+            }
+        }
+
+        $pending = @($retryRequests)
+        $attempt++
+    }
+
+    return $results
+}
+
 function Invoke-AdvancedHuntingQuery {
     <#
     .SYNOPSIS

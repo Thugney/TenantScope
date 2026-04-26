@@ -489,6 +489,12 @@ try {
     $processedDevices = @()
     $policyStateSupported = $true
     $policyStateErrorLogged = $false
+    $deepCollection = ($Config.collection -is [hashtable] -and $Config.collection.deepCollection -eq $true)
+    $maxComplianceStateFetches = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    if ($Config.thresholds -is [hashtable] -and $Config.thresholds.ContainsKey('maxDeviceComplianceStateFetches')) {
+        $maxComplianceStateFetches = [int]$Config.thresholds.maxDeviceComplianceStateFetches
+    }
+    $complianceStateFetchCount = 0
 
     foreach ($device in $managedDevices) {
         # Calculate days since last sync using shared utility
@@ -544,8 +550,9 @@ try {
         # Optional: compliance policy state details (only for non-compliant/unknown)
         $nonCompliantPolicyCount = $null
         $nonCompliantPolicies = @()
-        if ($policyStateSupported -and $complianceState -ne "compliant") {
+        if ($policyStateSupported -and $complianceState -ne "compliant" -and $complianceStateFetchCount -lt $maxComplianceStateFetches) {
             try {
+                $complianceStateFetchCount++
                 $policyStates = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$($device.Id)/deviceCompliancePolicyStates" -OperationName "Device compliance policy states"
                 if ($policyStates.Count -gt 0) {
                     foreach ($state in $policyStates) {

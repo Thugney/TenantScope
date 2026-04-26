@@ -156,7 +156,8 @@ try {
     function Get-GroupMembers {
         param(
             [Parameter(Mandatory)]
-            [string]$GroupId
+            [string]$GroupId,
+            [int]$MaxMembers = 100
         )
 
         $members = @()
@@ -169,9 +170,13 @@ try {
             } -OperationName "Group members retrieval"
 
             if ($response.value) {
-                $members += $response.value
+                foreach ($member in $response.value) {
+                    if ($members.Count -ge $MaxMembers) { break }
+                    $members += $member
+                }
             }
 
+            if ($members.Count -ge $MaxMembers) { break }
             $uri = $response.'@odata.nextLink'
         } while ($uri)
 
@@ -255,6 +260,44 @@ try {
     $siteLinkErrorLogged = $false
     $membersAvailable = $true
     $membersErrorLogged = $false
+    $deepCollection = ($Config.collection -is [hashtable] -and $Config.collection.deepCollection -eq $true)
+    $maxTeamChannelLookups = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    $maxTeamSiteLookups = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    $maxTeamMemberLookups = if ($deepCollection) { [int]::MaxValue } else { 50 }
+    if ($Config.thresholds -is [hashtable]) {
+        if ($Config.thresholds.ContainsKey('maxTeamChannelLookups')) { $maxTeamChannelLookups = [int]$Config.thresholds.maxTeamChannelLookups }
+        if ($Config.thresholds.ContainsKey('maxTeamSiteLookups')) { $maxTeamSiteLookups = [int]$Config.thresholds.maxTeamSiteLookups }
+        if ($Config.thresholds.ContainsKey('maxTeamMemberLookups')) { $maxTeamMemberLookups = [int]$Config.thresholds.maxTeamMemberLookups }
+    }
+    $teamChannelLookups = 0
+    $teamSiteLookups = 0
+    $teamMemberLookups = 0
+    $teamMemberCountMap = @{}
+    $teamCountRequests = @()
+
+    foreach ($group in $teamsGroups) {
+        $groupId = if ($group.id) { $group.id } else { $group.Id }
+        if (-not $groupId) { continue }
+        if ($activityData.ContainsKey($groupId) -and $activityData[$groupId].memberCount -gt 0) { continue }
+
+        $teamCountRequests += [PSCustomObject]@{
+            id      = "teamMembers_$groupId"
+            uri     = "https://graph.microsoft.com/v1.0/groups/$groupId/members/`$count"
+            headers = @{ ConsistencyLevel = "eventual" }
+        }
+    }
+
+    if ($teamCountRequests.Count -gt 0) {
+        Write-Host "      Fetching missing Teams member counts in Graph batches ($($teamCountRequests.Count) teams)..." -ForegroundColor Gray
+        $teamCountResults = Invoke-GraphBatchGet -Requests $teamCountRequests -OperationName "Teams member counts batch"
+        foreach ($request in $teamCountRequests) {
+            if ($teamCountResults.ContainsKey($request.id) -and $teamCountResults[$request.id].status -ge 200 -and $teamCountResults[$request.id].status -lt 300) {
+                $groupId = ([string]$request.id).Substring("teamMembers_".Length)
+                $count = Get-CountFromGraphResponse -Response $teamCountResults[$request.id].body
+                if ($null -ne $count) { $teamMemberCountMap[$groupId] = $count }
+            }
+        }
+    }
 
     foreach ($group in $teamsGroups) {
         $groupId = if ($group.id) { $group.id } else { $group.Id }
@@ -268,7 +311,10 @@ try {
         $memberCount = if ($activity -and $activity.memberCount -gt 0) { $activity.memberCount } else { 0 }
 
         # Fallback: Get member count from transitiveMemberCount if report doesn't have it
-        if ($memberCount -eq 0 -and $membersAvailable -and $groupId) {
+        if ($memberCount -eq 0 -and $teamMemberCountMap.ContainsKey([string]$groupId)) {
+            $memberCount = $teamMemberCountMap[[string]$groupId]
+        }
+        elseif ($memberCount -eq 0 -and $membersAvailable -and $groupId -and $deepCollection) {
             try {
                 $memberCountUri = "https://graph.microsoft.com/v1.0/groups/$groupId`?`$select=id&`$count=true"
                 $membersUri = "https://graph.microsoft.com/v1.0/groups/$groupId/members/`$count"
@@ -309,10 +355,16 @@ try {
         }
         $sensitivityLabelName = if ($labelNames.Count -gt 0) { ($labelNames | Sort-Object -Unique) -join ', ' } else { $null }
 
+        $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
+        $isInactive = ($null -ne $daysSinceActivity -and $daysSinceActivity -ge $inactiveThreshold) -or ($null -eq $lastActivityDate)
+        $hasNoOwner = ($ownerCount -eq 0)
+        $hasGuests = ($guestCount -gt 0)
+
         $channelCount = $null
         $privateChannelCount = $null
-        if ($channelsAvailable -and $groupId) {
+        if ($channelsAvailable -and $groupId -and $teamChannelLookups -lt $maxTeamChannelLookups -and ($deepCollection -or $hasGuests -or $hasNoOwner -or $isInactive)) {
             try {
+                $teamChannelLookups++
                 $channelCounts = Get-TeamChannelCounts -TeamId $groupId
                 $channelCount = $channelCounts.total
                 $privateChannelCount = $channelCounts.private
@@ -328,8 +380,9 @@ try {
         }
 
         $linkedSharePointSiteId = $null
-        if ($siteLinkAvailable -and $groupId) {
+        if ($siteLinkAvailable -and $groupId -and $teamSiteLookups -lt $maxTeamSiteLookups -and ($deepCollection -or $hasGuests -or $hasNoOwner -or $isInactive)) {
             try {
+                $teamSiteLookups++
                 $siteInfo = Get-LinkedSharePointSiteId -GroupId $groupId
                 $linkedSharePointSiteId = $siteInfo.id
             }
@@ -349,17 +402,12 @@ try {
             }
         }
 
-        # Calculate governance flags
-        $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
-        $isInactive = ($null -ne $daysSinceActivity -and $daysSinceActivity -ge $inactiveThreshold) -or ($null -eq $lastActivityDate)
-        $hasNoOwner = ($ownerCount -eq 0)
-        $hasGuests = ($guestCount -gt 0)
-
         $externalDomains = @()
         $suggestedOwners = @()
-        if ($membersAvailable -and $groupId -and ($hasGuests -or $hasNoOwner)) {
+        if ($membersAvailable -and $groupId -and ($hasGuests -or $hasNoOwner) -and $teamMemberLookups -lt $maxTeamMemberLookups) {
             try {
-                $members = Get-GroupMembers -GroupId $groupId
+                $teamMemberLookups++
+                $members = Get-GroupMembers -GroupId $groupId -MaxMembers 100
                 foreach ($member in $members) {
                     $userType = $member.userType
                     $upn = if ($member.userPrincipalName) { $member.userPrincipalName } elseif ($member.mail) { $member.mail } else { $null }
