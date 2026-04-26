@@ -80,13 +80,15 @@ function Invoke-GraphWithRetry {
         [Parameter(Mandatory)]
         [scriptblock]$ScriptBlock,
 
+        # PERFORMANCE FIX: Reduced from 5 retries (31 min max wait) to 3 retries (1.75 min max wait)
         [Parameter()]
         [ValidateRange(1, 10)]
-        [int]$MaxRetries = 5,
+        [int]$MaxRetries = 3,
 
+        # PERFORMANCE FIX: Reduced from 60s base to 15s base (prevents 31-minute worst case)
         [Parameter()]
-        [ValidateRange(10, 300)]
-        [int]$BaseBackoffSeconds = 60,
+        [ValidateRange(5, 120)]
+        [int]$BaseBackoffSeconds = 15,
 
         [Parameter()]
         [string]$OperationName = "Graph API call"
@@ -177,6 +179,9 @@ function Get-GraphAllPages {
 
     .PARAMETER OperationName
         Name used for logging/retry context.
+
+    .PARAMETER MaxPages
+        Maximum number of pages to retrieve. Default is 20 (typically 2000-10000 items).
     #>
     [CmdletBinding()]
     param(
@@ -184,10 +189,14 @@ function Get-GraphAllPages {
         [string]$Uri,
 
         [Parameter(Mandatory)]
-        [string]$OperationName
+        [string]$OperationName,
+
+        [Parameter()]
+        [int]$MaxPages = 20
     )
 
     $results = @()
+    $pageCount = 1
     $response = Invoke-GraphWithRetry -ScriptBlock {
         Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
     } -OperationName $OperationName
@@ -196,7 +205,8 @@ function Get-GraphAllPages {
         $results += $response.value
     }
 
-    while ($response.'@odata.nextLink') {
+    while ($response.'@odata.nextLink' -and $pageCount -lt $MaxPages) {
+        $pageCount++
         $response = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
         } -OperationName "$OperationName pagination"
@@ -204,6 +214,10 @@ function Get-GraphAllPages {
         if ($response.value) {
             $results += $response.value
         }
+    }
+
+    if ($response.'@odata.nextLink') {
+        Write-Warning "Reached maximum page limit ($MaxPages) for $OperationName. Some data may be truncated."
     }
 
     return $results
@@ -1016,8 +1030,22 @@ function Save-CollectorData {
         [bool]$EmptyOnError = $true
     )
 
+    $tempPath = $null
     try {
-        $Data | ConvertTo-Json -Depth 10 | Set-Content -Path $OutputPath -Encoding UTF8
+        $outputDirectory = Split-Path -Path $OutputPath -Parent
+        if ([string]::IsNullOrWhiteSpace($outputDirectory)) {
+            $outputDirectory = "."
+        }
+        if ($outputDirectory -and -not (Test-Path $outputDirectory)) {
+            New-Item -ItemType Directory -Path $outputDirectory -Force | Out-Null
+        }
+
+        $tempPath = Join-Path $outputDirectory (".{0}.{1}.tmp" -f (Split-Path -Path $OutputPath -Leaf), [Guid]::NewGuid().ToString("N"))
+        $json = $Data | ConvertTo-Json -Depth 10
+        $json | ConvertFrom-Json | Out-Null
+        Set-Content -Path $tempPath -Value $json -Encoding UTF8
+        Get-Content -Path $tempPath -Raw | ConvertFrom-Json | Out-Null
+        Move-Item -Path $tempPath -Destination $OutputPath -Force
         return $true
     }
     catch {
@@ -1025,7 +1053,17 @@ function Save-CollectorData {
 
         if ($EmptyOnError) {
             try {
-                "[]" | Set-Content -Path $OutputPath -Encoding UTF8
+                $emptyJson = "[]"
+                if (-not $tempPath) {
+                    $outputDirectory = Split-Path -Path $OutputPath -Parent
+                    if ([string]::IsNullOrWhiteSpace($outputDirectory)) {
+                        $outputDirectory = "."
+                    }
+                    $tempPath = Join-Path $outputDirectory (".{0}.{1}.tmp" -f (Split-Path -Path $OutputPath -Leaf), [Guid]::NewGuid().ToString("N"))
+                }
+                Set-Content -Path $tempPath -Value $emptyJson -Encoding UTF8
+                Get-Content -Path $tempPath -Raw | ConvertFrom-Json | Out-Null
+                Move-Item -Path $tempPath -Destination $OutputPath -Force
             }
             catch {
                 # Ignore secondary error
@@ -1033,6 +1071,11 @@ function Save-CollectorData {
         }
 
         return $false
+    }
+    finally {
+        if ($tempPath -and (Test-Path $tempPath)) {
+            Remove-Item -Path $tempPath -Force -ErrorAction SilentlyContinue
+        }
     }
 }
 

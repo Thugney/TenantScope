@@ -171,11 +171,12 @@ try {
         }
 
         # Build lookup by userId - handle both PascalCase and camelCase property names
+        # PERFORMANCE FIX: Use List<object> instead of array += to avoid O(n²) memory allocation
         foreach ($device in $managedDevices) {
             $userId = if ($device.UserId) { $device.UserId } elseif ($device.userId) { $device.userId } else { $null }
             if ($userId) {
                 if (-not $userDeviceLookup.ContainsKey($userId)) {
-                    $userDeviceLookup[$userId] = @()
+                    $userDeviceLookup[$userId] = [System.Collections.Generic.List[object]]::new()
                 }
                 $deviceName = if ($device.DeviceName) { $device.DeviceName } else { $device.deviceName }
                 $os = if ($device.OperatingSystem) { $device.OperatingSystem } else { $device.operatingSystem }
@@ -183,13 +184,13 @@ try {
                 $mgmtAgent = if ($device.ManagementAgent) { $device.ManagementAgent } else { $device.managementAgent }
                 $devId = if ($device.Id) { $device.Id } else { $device.id }
 
-                $userDeviceLookup[$userId] += @{
+                $userDeviceLookup[$userId].Add(@{
                     deviceId = $devId
                     deviceName = $deviceName
                     operatingSystem = $os
                     complianceState = $compliance
                     managementAgent = $mgmtAgent
-                }
+                })
             }
         }
 

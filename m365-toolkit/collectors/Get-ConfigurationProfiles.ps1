@@ -210,6 +210,34 @@ function Get-ConfigurationPolicyReportMap {
     return $map
 }
 
+function Get-ConfigurationPolicyAssignmentFailures {
+    <#
+    .SYNOPSIS
+        Retrieves device-level configuration policy assignment rows from Intune reports.
+    #>
+    $reportNames = @(
+        "ConfigurationPolicyDevices",
+        "ConfigurationPolicyDeviceStatus",
+        "ConfigurationPolicyDeviceStatusV3",
+        "ConfigurationPolicyNonComplianceReport"
+    )
+
+    $select = @(
+        "PolicyId", "PolicyName", "DeviceName", "IntuneDeviceId", "DeviceId",
+        "UPN", "UserPrincipalName", "UserName", "AssignmentStatus", "PolicyStatus", "Status"
+    )
+
+    foreach ($reportName in $reportNames) {
+        $rows = Invoke-IntuneExportReport -ReportName $reportName -Select $select
+        if ($rows -and $rows.Count -gt 0) {
+            Write-Host "      Assignment failure fallback returned $($rows.Count) rows (source: $reportName)" -ForegroundColor Gray
+            return @($rows)
+        }
+    }
+
+    return @()
+}
+
 function Invoke-IntuneExportReport {
     [CmdletBinding()]
     param(
@@ -262,14 +290,15 @@ function Invoke-IntuneExportReport {
     $statusUri = "$baseUri/deviceManagement/reports/exportJobs('$($job.id)')"
     $downloadUrl = $null
     $status = $null
-    $maxAttempts = 30
-    $delaySeconds = 4
+    # Reduced from 30×4s (2 min) to 10×2s (20 sec) to prevent all-day collections
+    $maxAttempts = 10
+    $delaySeconds = 2
 
     for ($i = 0; $i -lt $maxAttempts; $i++) {
         try {
             $statusResp = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
-            } -OperationName "Export report status ($ReportName)" -MaxRetries 2
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 1
 
             $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status","Status")
             $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
@@ -770,6 +799,7 @@ try {
                 notApplicableDevices = $notApplicableCount
                 totalDevices         = $totalDevices
                 successRate          = $successRate
+                statusSource         = $statusSource
                 # Detailed statuses
                 deviceStatuses       = $deviceStatuses
                 settingStatuses      = $settingStatuses

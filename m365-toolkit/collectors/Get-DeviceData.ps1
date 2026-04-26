@@ -906,60 +906,82 @@ try {
 
     Write-Host "      Generating summary statistics..." -ForegroundColor Gray
 
-    # Compliance counts
-    $compliantCount = ($processedDevices | Where-Object { $_.complianceState -eq "compliant" }).Count
-    $noncompliantCount = ($processedDevices | Where-Object { $_.complianceState -eq "noncompliant" }).Count
-    $unknownCount = ($processedDevices | Where-Object { $_.complianceState -eq "unknown" }).Count
-
-    # Encryption counts
-    $encryptedCount = ($processedDevices | Where-Object { $_.isEncrypted -eq $true }).Count
-    $notEncryptedCount = ($processedDevices | Where-Object { $_.isEncrypted -eq $false }).Count
-    $unknownEncryptedCount = ($processedDevices | Where-Object { $null -eq $_.isEncrypted }).Count
-
-    # Stale device counts
-    $staleCount = ($processedDevices | Where-Object { $_.isStale -eq $true }).Count
-    $activeCount = ($processedDevices | Where-Object { $_.isStale -eq $false }).Count
-
-    # Certificate status counts
-    $certExpiredCount = ($processedDevices | Where-Object { $_.certStatus -eq "expired" }).Count
-    $certCriticalCount = ($processedDevices | Where-Object { $_.certStatus -eq "critical" }).Count
-    $certWarningCount = ($processedDevices | Where-Object { $_.certStatus -eq "warning" }).Count
-    $certHealthyCount = ($processedDevices | Where-Object { $_.certStatus -eq "healthy" }).Count
-    $certUnknownCount = ($processedDevices | Where-Object { $_.certStatus -eq "unknown" }).Count
-
-    # Windows device stats
-    $windowsDevices = $processedDevices | Where-Object { $_.os -eq "Windows" }
-    $windows11Count = ($windowsDevices | Where-Object { $_.windowsType -eq "Windows 11" }).Count
-    $windows10Count = ($windowsDevices | Where-Object { $_.windowsType -eq "Windows 10" }).Count
-    $windowsSupportedCount = ($windowsDevices | Where-Object { $_.windowsSupported -eq $true }).Count
-    $windowsUnsupportedCount = ($windowsDevices | Where-Object { $_.windowsSupported -eq $false }).Count
-
-    # Ownership counts
-    $corporateCount = ($processedDevices | Where-Object { $_.ownership -eq "corporate" }).Count
-    $personalCount = ($processedDevices | Where-Object { $_.ownership -eq "personal" }).Count
-
-    # Autopilot counts
-    $autopilotCount = ($processedDevices | Where-Object { $_.autopilotEnrolled -eq $true }).Count
-    $notAutopilotCount = ($processedDevices | Where-Object { $_.autopilotEnrolled -eq $false }).Count
-
-    # Security counts (new)
-    $jailbrokenCount = ($processedDevices | Where-Object { $_.jailBroken -eq "True" -or $_.jailBroken -eq $true }).Count
-    $supervisedCount = ($processedDevices | Where-Object { $_.isSupervised -eq $true }).Count
-    $unsupervisedIos = ($processedDevices | Where-Object { $_.os -eq "iOS" -and $_.isSupervised -ne $true }).Count
-    $threatHighCount = ($processedDevices | Where-Object { $_.threatSeverity -eq "high" -or $_.threatSeverity -eq "critical" }).Count
-    $threatMediumCount = ($processedDevices | Where-Object { $_.threatSeverity -eq "medium" }).Count
-    $compromisedCount = ($processedDevices | Where-Object { $_.partnerThreatState -eq "compromised" }).Count
-    $inGracePeriodCount = ($processedDevices | Where-Object { $_.inGracePeriod -eq $true }).Count
-
-    # Enrollment type breakdown
+    # PERFORMANCE FIX: Single pass through devices instead of 25+ separate Where-Object filters
+    # This reduces O(25n) to O(n) - critical for large device fleets
+    $compliantCount = 0; $noncompliantCount = 0; $unknownCount = 0
+    $encryptedCount = 0; $notEncryptedCount = 0; $unknownEncryptedCount = 0
+    $staleCount = 0; $activeCount = 0
+    $certExpiredCount = 0; $certCriticalCount = 0; $certWarningCount = 0; $certHealthyCount = 0; $certUnknownCount = 0
+    $windows11Count = 0; $windows10Count = 0; $windowsSupportedCount = 0; $windowsUnsupportedCount = 0
+    $corporateCount = 0; $personalCount = 0
+    $autopilotCount = 0; $notAutopilotCount = 0
+    $jailbrokenCount = 0; $supervisedCount = 0; $unsupervisedIos = 0
+    $threatHighCount = 0; $threatMediumCount = 0; $compromisedCount = 0; $inGracePeriodCount = 0
     $enrollmentTypeBreakdown = @{}
+    $windowsDevices = [System.Collections.Generic.List[object]]::new()
+
     foreach ($device in $processedDevices) {
+        # Compliance
+        switch ($device.complianceState) {
+            "compliant" { $compliantCount++ }
+            "noncompliant" { $noncompliantCount++ }
+            "unknown" { $unknownCount++ }
+        }
+
+        # Encryption
+        if ($device.isEncrypted -eq $true) { $encryptedCount++ }
+        elseif ($device.isEncrypted -eq $false) { $notEncryptedCount++ }
+        else { $unknownEncryptedCount++ }
+
+        # Stale status
+        if ($device.isStale -eq $true) { $staleCount++ } else { $activeCount++ }
+
+        # Certificate status
+        switch ($device.certStatus) {
+            "expired" { $certExpiredCount++ }
+            "critical" { $certCriticalCount++ }
+            "warning" { $certWarningCount++ }
+            "healthy" { $certHealthyCount++ }
+            "unknown" { $certUnknownCount++ }
+        }
+
+        # Windows stats
+        if ($device.os -eq "Windows") {
+            $windowsDevices.Add($device)
+            if ($device.windowsType -eq "Windows 11") { $windows11Count++ }
+            elseif ($device.windowsType -eq "Windows 10") { $windows10Count++ }
+            if ($device.windowsSupported -eq $true) { $windowsSupportedCount++ }
+            elseif ($device.windowsSupported -eq $false) { $windowsUnsupportedCount++ }
+        }
+
+        # Ownership
+        switch ($device.ownership) {
+            "corporate" { $corporateCount++ }
+            "personal" { $personalCount++ }
+        }
+
+        # Autopilot
+        if ($device.autopilotEnrolled -eq $true) { $autopilotCount++ }
+        elseif ($device.autopilotEnrolled -eq $false) { $notAutopilotCount++ }
+
+        # Security counts
+        if ($device.jailBroken -eq "True" -or $device.jailBroken -eq $true) { $jailbrokenCount++ }
+        if ($device.isSupervised -eq $true) { $supervisedCount++ }
+        if ($device.os -eq "iOS" -and $device.isSupervised -ne $true) { $unsupervisedIos++ }
+        if ($device.threatSeverity -eq "high" -or $device.threatSeverity -eq "critical") { $threatHighCount++ }
+        if ($device.threatSeverity -eq "medium") { $threatMediumCount++ }
+        if ($device.partnerThreatState -eq "compromised") { $compromisedCount++ }
+        if ($device.inGracePeriod -eq $true) { $inGracePeriodCount++ }
+
+        # Enrollment type (combined with existing loop below)
         $enrollType = if ($device.enrollmentTypeDisplay) { $device.enrollmentTypeDisplay } else { "Unknown" }
         if (-not $enrollmentTypeBreakdown.ContainsKey($enrollType)) {
             $enrollmentTypeBreakdown[$enrollType] = 0
         }
         $enrollmentTypeBreakdown[$enrollType]++
     }
+
+    # Build enrollment type array for output
     $enrollmentTypeArray = @()
     foreach ($key in $enrollmentTypeBreakdown.Keys | Sort-Object { $enrollmentTypeBreakdown[$_] } -Descending) {
         $enrollmentTypeArray += [PSCustomObject]@{

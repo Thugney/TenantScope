@@ -441,6 +441,12 @@ const DataLoader = (function() {
 
                     // If object, ensure all expected keys exist (using aliases to find data)
                     if (typeof data === 'object') {
+                        // First check if all expected keys already exist - no normalization needed
+                        const hasAllKeys = expectedKeys.every(k => k in data);
+                        if (hasAllKeys) {
+                            return; // Data is already in correct format
+                        }
+
                         let modified = false;
                         expectedKeys.forEach(k => {
                             if (!(k in data)) {

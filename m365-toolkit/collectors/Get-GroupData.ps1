@@ -371,15 +371,26 @@ try {
     }
     Write-Host "      Group detail caps - members: $MaxGroupMemberDetails, owners: $MaxGroupOwnerDetails" -ForegroundColor DarkGray
 
-    # Load users.json to cross-reference license assignments
-    $usersPath = Join-Path (Split-Path $OutputPath -Parent) "users.json"
+    # Load users to cross-reference license assignments
+    # PERFORMANCE FIX: Prefer SharedData to avoid re-parsing JSON if already loaded
     $licenseGroupMap = @{}  # Key: groupId -> hashtable(skuId -> assigned user count)
     $skuNameMap = @{}       # Key: skuId -> skuName
+    $users = $null
 
-    if (Test-Path $usersPath) {
-        Write-Host "      Cross-referencing with user license data..." -ForegroundColor Gray
-        $usersData = Get-Content $usersPath -Raw | ConvertFrom-Json
-        $users = if ($usersData.PSObject.Properties['users']) { $usersData.users } else { $usersData }
+    if ($SharedData -and $SharedData.ContainsKey('Users') -and $SharedData['Users'].Count -gt 0) {
+        $users = @($SharedData['Users'])
+        Write-Host "      Reusing $($users.Count) users from shared data for license cross-reference" -ForegroundColor Gray
+    }
+    else {
+        $usersPath = Join-Path (Split-Path $OutputPath -Parent) "users.json"
+        if (Test-Path $usersPath) {
+            Write-Host "      Cross-referencing with user license data..." -ForegroundColor Gray
+            $usersData = Get-Content $usersPath -Raw | ConvertFrom-Json
+            $users = if ($usersData.PSObject.Properties['users']) { $usersData.users } else { $usersData }
+        }
+    }
+
+    if ($users) {
 
         foreach ($user in $users) {
             if (-not $user.assignedLicenses) { continue }

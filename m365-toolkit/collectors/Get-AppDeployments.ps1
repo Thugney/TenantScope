@@ -337,11 +337,12 @@ function Invoke-IntuneExportReport {
     $downloadUrl = $null
     $status = $null
 
-    for ($i = 0; $i -lt 30; $i++) {
+    # Reduced from 30×4s (2 min) to 10×2s (20 sec) to prevent all-day collections
+    for ($i = 0; $i -lt 10; $i++) {
         try {
             $statusResp = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
-            } -OperationName "Export report status ($ReportName)" -MaxRetries 2
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 1
 
             $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status","Status")
             $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
@@ -353,7 +354,7 @@ function Invoke-IntuneExportReport {
             # Keep polling until attempts are exhausted.
         }
 
-        Start-Sleep -Seconds 4
+        Start-Sleep -Seconds 2
     }
 
     if (-not $downloadUrl) { return @() }
@@ -832,6 +833,11 @@ try {
     $aggregateInstallReportMap = Get-AppInstallAggregateReportMap
     $installReportMap = if ($aggregateInstallReportMap.Count -lt $allApps.Count) { Get-AppInstallReportMap } else { @{} }
 
+    # PERFORMANCE FIX: Limit per-app export report fallbacks to prevent hours of waiting
+    # Per-app calls take 20+ seconds each; cap at 10 to keep collection under 5 minutes for this fallback
+    $perAppReportFallbackCount = 0
+    $maxPerAppReportFallbacks = 10
+
     foreach ($app in $allApps) {
         try {
             $appType = Get-AppType -ODataType $app.'@odata.type'
@@ -990,7 +996,9 @@ try {
             }
 
             # Primary fallback: device install status report endpoint.
-            if (-not $statusAvailable -and $assignments.Count -gt 0) {
+            # PERFORMANCE FIX: Limit to maxPerAppReportFallbacks to prevent hours of collection time
+            if (-not $statusAvailable -and $assignments.Count -gt 0 -and $perAppReportFallbackCount -lt $maxPerAppReportFallbacks) {
+                $perAppReportFallbackCount++
                 $reportSummary = Get-AppDeviceInstallReportSummary -AppId $app.id
                 if ($reportSummary) {
                     $installedCount = $reportSummary.installed
@@ -1007,7 +1015,9 @@ try {
             }
 
             # Secondary fallback: user-targeted status endpoint (legacy/best-effort).
-            if (-not $statusAvailable -and $assignments.Count -gt 0) {
+            # PERFORMANCE FIX: Also limit user status fallbacks
+            if (-not $statusAvailable -and $assignments.Count -gt 0 -and $perAppReportFallbackCount -lt $maxPerAppReportFallbacks) {
+                $perAppReportFallbackCount++
                 $userSummary = Get-AppUserStatusSummary -AppId $app.id
                 if ($userSummary) {
                     $installedCount = $userSummary.installed
@@ -1023,6 +1033,9 @@ try {
             if (-not $statusAvailable) {
                 if ($assignments.Count -eq 0) {
                     $statusUnavailableReason = "No assignments found for this app."
+                }
+                elseif ($perAppReportFallbackCount -ge $maxPerAppReportFallbacks) {
+                    $statusUnavailableReason = "Status fallback limit reached ($maxPerAppReportFallbacks apps). Aggregate report data unavailable for this app."
                 }
                 elseif ($appType -in @("Store App", "Store for Business", "Web Link", "Web App")) {
                     $statusUnavailableReason = "Intune did not return deployment status for this app type in the available report APIs."

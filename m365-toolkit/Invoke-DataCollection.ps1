@@ -224,16 +224,77 @@ function Get-ConfigValidation {
         }
     }
 
+    if ($Config.tenantId -isnot [string] -or [string]::IsNullOrWhiteSpace($Config.tenantId)) {
+        throw "Configuration field 'tenantId' must be a non-empty string"
+    }
+
+    if ($Config.domains -isnot [hashtable]) {
+        throw "Configuration field 'domains' must be an object"
+    }
+
+    if ($Config.thresholds -isnot [hashtable]) {
+        throw "Configuration field 'thresholds' must be an object"
+    }
+
+    if ($Config.collection -isnot [hashtable]) {
+        throw "Configuration field 'collection' must be an object"
+    }
+
     # Validate nested required fields
     if (-not $Config.domains.employees -or -not $Config.domains.students) {
         throw "Configuration missing required domain mappings (employees/students)"
+    }
+
+    foreach ($domainField in @("employees", "students")) {
+        if ($Config.domains[$domainField] -isnot [array]) {
+            throw "Configuration field 'domains.$domainField' must be an array"
+        }
     }
 
     if (-not $Config.thresholds.inactiveDays) {
         throw "Configuration missing required threshold: inactiveDays"
     }
 
+    foreach ($thresholdName in @("inactiveDays", "staleDeviceDays")) {
+        if ($Config.thresholds.ContainsKey($thresholdName) -and $null -ne $Config.thresholds[$thresholdName]) {
+            try {
+                [void][int]$Config.thresholds[$thresholdName]
+            }
+            catch {
+                throw "Configuration field 'thresholds.$thresholdName' must be a number"
+            }
+        }
+    }
+
+    if ($Config.thresholds.ContainsKey("gracePeriodAsNoncompliant") -and $null -ne $Config.thresholds.gracePeriodAsNoncompliant -and $Config.thresholds.gracePeriodAsNoncompliant -isnot [bool]) {
+        throw "Configuration field 'thresholds.gracePeriodAsNoncompliant' must be true or false"
+    }
+
     return $true
+}
+
+function Test-GraphScopeCoverage {
+    <#
+    .SYNOPSIS
+        Verifies that a delegated Graph session contains the requested scopes.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        $Context,
+
+        [Parameter(Mandatory)]
+        [string[]]$RequiredScopes
+    )
+
+    if (-not $Context -or -not $Context.Scopes) {
+        return
+    }
+
+    $grantedScopes = @($Context.Scopes)
+    $missingScopes = @($RequiredScopes | Where-Object { $_ -notin $grantedScopes })
+    if ($missingScopes.Count -gt 0) {
+        throw "Graph connection is missing required delegated scopes: $($missingScopes -join ', ')"
+    }
 }
 
 function Test-TenantIdFormat {
@@ -337,8 +398,7 @@ function Merge-MfaDataIntoUsers {
             }
         }
 
-        # Write updated users back to file
-        $users | ConvertTo-Json -Depth 10 | Set-Content -Path $UsersPath -Encoding UTF8
+        Save-CollectorData -Data $users -OutputPath $UsersPath | Out-Null
         Write-Host "    [OK] Merged MFA data into users" -ForegroundColor Green
     }
     catch {
@@ -398,8 +458,7 @@ function Merge-AdminRolesIntoUsers {
             }
         }
 
-        # Write updated users back to file
-        $users | ConvertTo-Json -Depth 10 | Set-Content -Path $UsersPath -Encoding UTF8
+        Save-CollectorData -Data $users -OutputPath $UsersPath | Out-Null
         Write-Host "    [OK] Merged admin role data into users" -ForegroundColor Green
     }
     catch {
@@ -554,6 +613,8 @@ try {
         throw "Failed to establish Graph connection"
     }
 
+    Test-GraphScopeCoverage -Context $context -RequiredScopes $requiredScopes
+
     if ($authMode -eq "Interactive") {
         Write-Host "  [OK] Connected as: $($context.Account)" -ForegroundColor Green
         if (-not $UseDeviceCode) {
@@ -707,7 +768,7 @@ foreach ($collector in $collectors) {
             Errors = @("Collector script not found")
         }
         # Create empty JSON file to prevent dashboard errors
-        "[]" | Set-Content -Path $outputPath -Encoding UTF8
+        Save-CollectorData -Data @() -OutputPath $outputPath | Out-Null
         continue
     }
 
@@ -746,13 +807,11 @@ foreach ($collector in $collectors) {
         }
 
         # Create empty JSON file to prevent dashboard errors
-        "[]" | Set-Content -Path $outputPath -Encoding UTF8
+        Save-CollectorData -Data @() -OutputPath $outputPath | Out-Null
     }
 
-    # Brief pause between collectors to avoid Graph API throttling
-    if ($collector -ne $collectors[-1]) {
-        Start-Sleep -Seconds 5
-    }
+    # No longer needed - retry logic in CollectorBase handles throttling
+    # Removed 5-second delay that added 3+ minutes to collection time
 }
 
 # ============================================================================
@@ -921,7 +980,7 @@ foreach ($collector in $collectorResults.GetEnumerator()) {
 
 # Write metadata file
 $metadataPath = Join-Path $dataPath "collection-metadata.json"
-$metadata | ConvertTo-Json -Depth 10 | Set-Content -Path $metadataPath -Encoding UTF8
+Save-CollectorData -Data $metadata -OutputPath $metadataPath | Out-Null
 Write-Host "  [OK] Metadata written to: $metadataPath" -ForegroundColor Green
 
 # ============================================================================
@@ -987,7 +1046,7 @@ try {
         $trendHistory = $trendHistory[($trendHistory.Count - 12)..($trendHistory.Count - 1)]
     }
 
-    $trendHistory | ConvertTo-Json -Depth 5 | Set-Content -Path $trendPath -Encoding UTF8
+    Save-CollectorData -Data $trendHistory -OutputPath $trendPath | Out-Null
     Write-Host "  [OK] Trend snapshot appended ($($trendHistory.Count) entries)" -ForegroundColor Green
 }
 catch {
