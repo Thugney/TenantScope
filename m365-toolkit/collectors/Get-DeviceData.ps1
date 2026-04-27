@@ -494,7 +494,41 @@ try {
     if ($Config.thresholds -is [hashtable] -and $Config.thresholds.ContainsKey('maxDeviceComplianceStateFetches')) {
         $maxComplianceStateFetches = [int]$Config.thresholds.maxDeviceComplianceStateFetches
     }
-    $complianceStateFetchCount = 0
+
+    # PERFORMANCE FIX: Batch fetch compliance policy states instead of N+1 individual calls
+    # Identify devices that will need compliance state details (non-compliant/unknown)
+    $compliancePolicyStatesMap = @{}
+    $devicesNeedingPolicyStates = @($managedDevices | Where-Object {
+        $state = Get-ComplianceState -IntuneState $_.ComplianceState -GracePeriodAsNoncompliant $gracePeriodAsNoncompliant
+        $state -ne "compliant"
+    } | Select-Object -First $maxComplianceStateFetches)
+
+    if ($devicesNeedingPolicyStates.Count -gt 0 -and $policyStateSupported) {
+        Write-Host "      Batch fetching compliance policy states for $($devicesNeedingPolicyStates.Count) non-compliant devices..." -ForegroundColor Gray
+        $policyStateRequests = @()
+        foreach ($device in $devicesNeedingPolicyStates) {
+            $policyStateRequests += [PSCustomObject]@{
+                id  = [string]$device.Id
+                uri = "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$($device.Id)/deviceCompliancePolicyStates"
+            }
+        }
+
+        try {
+            $policyStateResults = Invoke-GraphBatchGet -Requests $policyStateRequests -OperationName "Device compliance policy states batch"
+            foreach ($deviceId in $policyStateResults.Keys) {
+                $result = $policyStateResults[$deviceId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $states = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $compliancePolicyStatesMap[$deviceId] = $states
+                }
+            }
+            Write-Host "      Retrieved policy states for $($compliancePolicyStatesMap.Count) devices" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch compliance policy states failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            $policyStateSupported = $false
+        }
+    }
 
     foreach ($device in $managedDevices) {
         # Calculate days since last sync using shared utility
@@ -547,31 +581,21 @@ try {
             }
         }
 
-        # Optional: compliance policy state details (only for non-compliant/unknown)
+        # PERFORMANCE FIX: Lookup pre-fetched compliance policy states instead of N+1 API calls
         $nonCompliantPolicyCount = $null
         $nonCompliantPolicies = @()
-        if ($policyStateSupported -and $complianceState -ne "compliant" -and $complianceStateFetchCount -lt $maxComplianceStateFetches) {
-            try {
-                $complianceStateFetchCount++
-                $policyStates = Get-GraphAllPages -Uri "https://graph.microsoft.com/v1.0/deviceManagement/managedDevices/$($device.Id)/deviceCompliancePolicyStates" -OperationName "Device compliance policy states"
-                if ($policyStates.Count -gt 0) {
-                    foreach ($state in $policyStates) {
-                        $stateValue = $state.state
-                        if ($stateValue -and $stateValue -ne "compliant") {
-                            if ($state.displayName) {
-                                $nonCompliantPolicies += $state.displayName
-                            }
+        if ($complianceState -ne "compliant" -and $compliancePolicyStatesMap.ContainsKey([string]$device.Id)) {
+            $policyStates = $compliancePolicyStatesMap[[string]$device.Id]
+            if ($policyStates.Count -gt 0) {
+                foreach ($state in $policyStates) {
+                    $stateValue = $state.state
+                    if ($stateValue -and $stateValue -ne "compliant") {
+                        if ($state.displayName) {
+                            $nonCompliantPolicies += $state.displayName
                         }
                     }
-                    $nonCompliantPolicyCount = $nonCompliantPolicies.Count
                 }
-            }
-            catch {
-                if (-not $policyStateErrorLogged) {
-                    $errors += "Compliance policy states: $($_.Exception.Message)"
-                    $policyStateErrorLogged = $true
-                }
-                $policyStateSupported = $false
+                $nonCompliantPolicyCount = $nonCompliantPolicies.Count
             }
         }
 

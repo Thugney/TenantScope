@@ -508,6 +508,101 @@ try {
         $groupCountFetches = $countGroups.Count
     }
 
+    # PERFORMANCE FIX: Batch fetch member/owner details instead of N+1 individual calls
+    $memberDetailsMap = @{}
+    $ownerDetailsMap = @{}
+
+    # Determine which groups need member details (have license assignments or guests)
+    $groupsNeedingMemberDetails = @()
+    $groupsNeedingOwnerDetails = @()
+
+    foreach ($group in $allGroups) {
+        if (-not $group.id) { continue }
+        $groupId = [string]$group.id
+
+        # Check if group has license assignments
+        $hasLicenseAssignments = $licenseGroupMap.ContainsKey($groupId)
+
+        # Check guest count from batch counts
+        $batchedCounts = $groupCountMap[$groupId]
+        $guestCount = if ($batchedCounts) { $batchedCounts.guestCount } else { $null }
+        $ownerCount = if ($batchedCounts) { $batchedCounts.ownerCount } else { $null }
+
+        # Criteria for member details: deep collection OR has licenses OR has guests
+        $shouldFetchMemberDetails = $deepCollection -or $hasLicenseAssignments -or ($guestCount -gt 0)
+        if ($shouldFetchMemberDetails -and $groupsNeedingMemberDetails.Count -lt $maxGroupDetailFetches) {
+            $groupsNeedingMemberDetails += $group
+        }
+
+        # Criteria for owner details: deep collection OR (has owners AND not too many)
+        $shouldFetchOwnerDetails = $deepCollection -or ($ownerCount -gt 0 -and $ownerCount -le $MaxGroupOwnerDetails)
+        if ($shouldFetchOwnerDetails -and $groupsNeedingOwnerDetails.Count -lt $maxGroupDetailFetches) {
+            $groupsNeedingOwnerDetails += $group
+        }
+    }
+
+    # Batch fetch member details
+    if ($groupsNeedingMemberDetails.Count -gt 0) {
+        Write-Host "      Batch fetching member details for $($groupsNeedingMemberDetails.Count) groups..." -ForegroundColor Gray
+        $memberRequests = @()
+        foreach ($group in $groupsNeedingMemberDetails) {
+            $memberRequests += [PSCustomObject]@{
+                id  = [string]$group.id
+                uri = "https://graph.microsoft.com/v1.0/groups/$($group.id)/members/microsoft.graph.user?`$select=id,displayName,userPrincipalName,mail,userType&`$top=100"
+            }
+        }
+
+        try {
+            $memberResults = Invoke-GraphBatchGet -Requests $memberRequests -OperationName "Group members batch"
+            foreach ($groupId in $memberResults.Keys) {
+                $result = $memberResults[$groupId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $members = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $hasNextLink = $null -ne $result.body.'@odata.nextLink'
+                    $memberDetailsMap[$groupId] = [PSCustomObject]@{
+                        Items       = $members
+                        IsTruncated = $hasNextLink -or ($members.Count -ge 100)
+                    }
+                }
+            }
+            Write-Host "      Retrieved member details for $($memberDetailsMap.Count) groups" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch member details failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    # Batch fetch owner details
+    if ($groupsNeedingOwnerDetails.Count -gt 0) {
+        Write-Host "      Batch fetching owner details for $($groupsNeedingOwnerDetails.Count) groups..." -ForegroundColor Gray
+        $ownerRequests = @()
+        foreach ($group in $groupsNeedingOwnerDetails) {
+            $ownerRequests += [PSCustomObject]@{
+                id  = [string]$group.id
+                uri = "https://graph.microsoft.com/v1.0/groups/$($group.id)/owners?`$select=id,displayName,userPrincipalName,mail&`$top=100"
+            }
+        }
+
+        try {
+            $ownerResults = Invoke-GraphBatchGet -Requests $ownerRequests -OperationName "Group owners batch"
+            foreach ($groupId in $ownerResults.Keys) {
+                $result = $ownerResults[$groupId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $owners = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $hasNextLink = $null -ne $result.body.'@odata.nextLink'
+                    $ownerDetailsMap[$groupId] = [PSCustomObject]@{
+                        Items       = $owners
+                        IsTruncated = $hasNextLink -or ($owners.Count -ge 100)
+                    }
+                }
+            }
+            Write-Host "      Retrieved owner details for $($ownerDetailsMap.Count) groups" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch owner details failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
     foreach ($group in $allGroups) {
         $processed++
         if ($processed % 50 -eq 0) {
@@ -553,25 +648,25 @@ try {
             $guestCount = Get-GroupGuestCount -GroupId $group.id
         }
 
+        # PERFORMANCE FIX: Lookup pre-fetched member/owner details instead of N+1 API calls
         $userMembers = @()
         $owners = @()
         $membersTruncated = $false
         $ownersTruncated = $false
+        $groupId = [string]$group.id
 
-        $shouldFetchMemberDetails = $deepCollection -or ($assignedLicenses.Count -gt 0 -or $guestCount -gt 0)
-        if ($shouldFetchMemberDetails -and $memberDetailFetches -lt $maxGroupDetailFetches) {
-            $memberDetailFetches++
-            $memberResult = Get-GroupMembers -GroupId $group.id -MaxMembers $MaxGroupMemberDetails
+        # Lookup pre-fetched member details
+        if ($memberDetailsMap.ContainsKey($groupId)) {
+            $memberResult = $memberDetailsMap[$groupId]
             $userMembers = @($memberResult.Items)
             $membersTruncated = [bool]$memberResult.IsTruncated
             if ($null -eq $memberCount) { $memberCount = $userMembers.Count }
             if ($null -eq $guestCount) { $guestCount = @($userMembers | Where-Object { $_.userType -eq 'Guest' }).Count }
         }
 
-        $shouldFetchOwnerDetails = $deepCollection -or ($ownerCount -gt 0 -and $ownerCount -le $MaxGroupOwnerDetails)
-        if ($shouldFetchOwnerDetails -and $ownerDetailFetches -lt $maxGroupDetailFetches) {
-            $ownerDetailFetches++
-            $ownerResult = Get-GroupOwners -GroupId $group.id -MaxOwners $MaxGroupOwnerDetails
+        # Lookup pre-fetched owner details
+        if ($ownerDetailsMap.ContainsKey($groupId)) {
+            $ownerResult = $ownerDetailsMap[$groupId]
             $owners = @($ownerResult.Items)
             $ownersTruncated = [bool]$ownerResult.IsTruncated
             if ($null -eq $ownerCount) { $ownerCount = $owners.Count }
