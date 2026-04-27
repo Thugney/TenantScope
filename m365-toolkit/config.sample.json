@@ -38,6 +38,7 @@
     "gracePeriodAsNoncompliant": true
   },
   "collection": {
+    "profile": "Full",
     "deepCollection": false,
     "signInLogDays": 30,
     "defenderAlertDays": 30,
