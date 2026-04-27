@@ -530,7 +530,8 @@ const PageConfigurationProfiles = (function() {
         html += '<dt>Category</dt><dd>' + (profile.category || 'General') + '</dd>';
         html += '<dt>Assignments</dt><dd>' + (profile.assignmentCount || 0) + '</dd>';
         if (profile.description) {
-            html += '<dt>Description</dt><dd>' + profile.description + '</dd>';
+            // XSS FIX: Escape user-controlled description field
+            html += '<dt>Description</dt><dd>' + escapeHtml(profile.description) + '</dd>';
         }
         html += '</dl></div>';
 

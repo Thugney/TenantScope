@@ -299,6 +299,101 @@ try {
         }
     }
 
+    # PERFORMANCE FIX: Batch fetch channel counts and site IDs instead of N+1 individual calls
+    $channelCountsMap = @{}
+    $siteIdsMap = @{}
+
+    # Identify teams that need channel/site lookups
+    $teamsNeedingChannels = @()
+    $teamsNeedingSites = @()
+    foreach ($group in $teamsGroups) {
+        $groupId = if ($group.id) { $group.id } else { $group.Id }
+        if (-not $groupId) { continue }
+
+        $activity = $activityData[$groupId]
+        $guestCount = if ($activity) { $activity.guestCount } else { 0 }
+        $owners = if ($group.owners) { $group.owners } else { @() }
+        $ownerCount = $owners.Count
+        $lastActivityDate = if ($activity) { $activity.lastActivity } else { $null }
+        $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
+        $isInactive = ($null -ne $daysSinceActivity -and $daysSinceActivity -ge $inactiveThreshold) -or ($null -eq $lastActivityDate)
+        $hasNoOwner = ($ownerCount -eq 0)
+        $hasGuests = ($guestCount -gt 0)
+
+        $shouldLookup = $deepCollection -or $hasGuests -or $hasNoOwner -or $isInactive
+        if ($shouldLookup -and $teamsNeedingChannels.Count -lt $maxTeamChannelLookups) {
+            $teamsNeedingChannels += $groupId
+        }
+        if ($shouldLookup -and $teamsNeedingSites.Count -lt $maxTeamSiteLookups) {
+            $teamsNeedingSites += $groupId
+        }
+    }
+
+    # Batch fetch channel counts
+    if ($teamsNeedingChannels.Count -gt 0) {
+        Write-Host "      Batch fetching channel counts for $($teamsNeedingChannels.Count) teams..." -ForegroundColor Gray
+        $channelRequests = @()
+        foreach ($teamId in $teamsNeedingChannels) {
+            $channelRequests += [PSCustomObject]@{
+                id  = [string]$teamId
+                uri = "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id,membershipType"
+            }
+        }
+
+        try {
+            $channelResults = Invoke-GraphBatchGet -Requests $channelRequests -OperationName "Teams channels batch"
+            foreach ($teamId in $channelResults.Keys) {
+                $result = $channelResults[$teamId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $channels = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $total = $channels.Count
+                    $private = @($channels | Where-Object { $_.membershipType -eq 'private' }).Count
+                    $channelCountsMap[$teamId] = @{ total = $total; private = $private }
+                }
+            }
+            Write-Host "      Retrieved channel counts for $($channelCountsMap.Count) teams" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch channel fetch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    # Batch fetch SharePoint site IDs
+    if ($teamsNeedingSites.Count -gt 0) {
+        Write-Host "      Batch fetching SharePoint site IDs for $($teamsNeedingSites.Count) teams..." -ForegroundColor Gray
+        $siteRequests = @()
+        foreach ($groupId in $teamsNeedingSites) {
+            $siteRequests += [PSCustomObject]@{
+                id  = [string]$groupId
+                uri = "https://graph.microsoft.com/v1.0/groups/$groupId/sites/root?`$select=id,webUrl"
+            }
+        }
+
+        try {
+            $siteResults = Invoke-GraphBatchGet -Requests $siteRequests -OperationName "Teams SharePoint sites batch"
+            foreach ($groupId in $siteResults.Keys) {
+                $result = $siteResults[$groupId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $siteId = $result.body.id
+                    $siteGuid = $null
+                    if ($siteId -and $siteId -match ',') {
+                        $parts = $siteId -split ','
+                        if ($parts.Count -ge 2) { $siteGuid = $parts[1] }
+                    }
+                    $siteIdsMap[$groupId] = if ($siteGuid) { $siteGuid } else { $siteId }
+                }
+            }
+            Write-Host "      Retrieved site IDs for $($siteIdsMap.Count) teams" -ForegroundColor Gray
+        }
+        catch {
+            if ($_.Exception.Message -match "Forbidden|403|Authorization") {
+                Write-Host "      [!] SharePoint site lookup requires Sites.Read.All permission (skipping)" -ForegroundColor Yellow
+            } else {
+                Write-Host "      [!] Batch site fetch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+    }
+
     foreach ($group in $teamsGroups) {
         $groupId = if ($group.id) { $group.id } else { $group.Id }
         $displayName = if ($group.displayName) { $group.displayName } else { $group.DisplayName }
@@ -360,46 +455,19 @@ try {
         $hasNoOwner = ($ownerCount -eq 0)
         $hasGuests = ($guestCount -gt 0)
 
+        # PERFORMANCE FIX: Lookup pre-fetched channel counts instead of N+1 API calls
         $channelCount = $null
         $privateChannelCount = $null
-        if ($channelsAvailable -and $groupId -and $teamChannelLookups -lt $maxTeamChannelLookups -and ($deepCollection -or $hasGuests -or $hasNoOwner -or $isInactive)) {
-            try {
-                $teamChannelLookups++
-                $channelCounts = Get-TeamChannelCounts -TeamId $groupId
-                $channelCount = $channelCounts.total
-                $privateChannelCount = $channelCounts.private
-            }
-            catch {
-                if (-not $channelsErrorLogged) {
-                    Write-Host "      [!] Could not fetch channel counts: $($_.Exception.Message)" -ForegroundColor Yellow
-                    $errors += "Channels unavailable: $($_.Exception.Message)"
-                    $channelsErrorLogged = $true
-                }
-                $channelsAvailable = $false
-            }
+        if ($channelCountsMap.ContainsKey([string]$groupId)) {
+            $channelCounts = $channelCountsMap[[string]$groupId]
+            $channelCount = $channelCounts.total
+            $privateChannelCount = $channelCounts.private
         }
 
+        # PERFORMANCE FIX: Lookup pre-fetched site ID instead of N+1 API calls
         $linkedSharePointSiteId = $null
-        if ($siteLinkAvailable -and $groupId -and $teamSiteLookups -lt $maxTeamSiteLookups -and ($deepCollection -or $hasGuests -or $hasNoOwner -or $isInactive)) {
-            try {
-                $teamSiteLookups++
-                $siteInfo = Get-LinkedSharePointSiteId -GroupId $groupId
-                $linkedSharePointSiteId = $siteInfo.id
-            }
-            catch {
-                if (-not $siteLinkErrorLogged) {
-                    if ($_.Exception.Message -match "Forbidden|403|Authorization") {
-                        Write-Host "      [!] SharePoint site lookup requires Sites.Read.All permission (skipping)" -ForegroundColor Yellow
-                        $errors += "Linked SharePoint site lookup requires Sites.Read.All permission"
-                    }
-                    else {
-                        Write-Host "      [!] Could not fetch linked SharePoint site IDs: $($_.Exception.Message)" -ForegroundColor Yellow
-                        $errors += "Linked SharePoint site lookup unavailable: $($_.Exception.Message)"
-                    }
-                    $siteLinkErrorLogged = $true
-                }
-                $siteLinkAvailable = $false
-            }
+        if ($siteIdsMap.ContainsKey([string]$groupId)) {
+            $linkedSharePointSiteId = $siteIdsMap[[string]$groupId]
         }
 
         $externalDomains = @()

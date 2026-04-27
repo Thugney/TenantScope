@@ -201,11 +201,17 @@ function Get-GraphAllPages {
         Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
     } -OperationName $OperationName
 
+    # BUG FIX: Add null check to prevent null reference errors
+    if ($null -eq $response) {
+        Write-Warning "No response received for $OperationName"
+        return $results
+    }
+
     if ($response.value) {
         $results += $response.value
     }
 
-    while ($response.'@odata.nextLink' -and $pageCount -lt $MaxPages) {
+    while ($null -ne $response -and $response.'@odata.nextLink' -and $pageCount -lt $MaxPages) {
         $pageCount++
         $response = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
@@ -338,6 +344,12 @@ function Invoke-GraphBatchGet {
 
         $pending = @($retryRequests)
         $attempt++
+    }
+
+    # BUG FIX: Warn if requests failed after max retries (silent data loss prevention)
+    if ($pending.Count -gt 0) {
+        $failedIds = @($pending | ForEach-Object { $_.id }) -join ', '
+        Write-Warning "$OperationName: $($pending.Count) requests failed after $MaxRetries retries. Failed IDs: $failedIds"
     }
 
     return $results

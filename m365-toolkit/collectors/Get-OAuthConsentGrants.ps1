@@ -194,9 +194,34 @@ try {
         riskyScopeBreakdown = @{}
     }
 
-    # Build user lookup for principalDisplayName
+    # PERFORMANCE FIX: Batch fetch user display names instead of N+1 individual calls
     $userLookup = @{}
-    $userLookupErrorLogged = $false
+    $uniquePrincipalIds = @($grants | Where-Object { $_.principalId -and $_.consentType -ne "AllPrincipals" } | ForEach-Object { $_.principalId } | Sort-Object -Unique)
+
+    if ($uniquePrincipalIds.Count -gt 0) {
+        Write-Host "      Batch fetching user names for $($uniquePrincipalIds.Count) principals..." -ForegroundColor Gray
+        $userRequests = @()
+        foreach ($principalId in $uniquePrincipalIds) {
+            $userRequests += [PSCustomObject]@{
+                id  = [string]$principalId
+                uri = "https://graph.microsoft.com/v1.0/users/$principalId`?`$select=displayName"
+            }
+        }
+
+        try {
+            $userResults = Invoke-GraphBatchGet -Requests $userRequests -OperationName "OAuth user names batch"
+            foreach ($principalId in $userResults.Keys) {
+                $result = $userResults[$principalId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body -and $result.body.displayName) {
+                    $userLookup[$principalId] = $result.body.displayName
+                }
+            }
+            Write-Host "      Retrieved names for $($userLookup.Count) users" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch user lookup failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
 
     foreach ($grant in $grants) {
         $clientId = $grant.clientId
@@ -212,30 +237,10 @@ try {
         # Get appId from service principal
         $appId = if ($appInfo -and $appInfo.appId) { $appInfo.appId } else { $null }
 
-        # Get principal display name (user name for user consent grants)
+        # PERFORMANCE FIX: Lookup pre-fetched user display name instead of N+1 API calls
         $principalDisplayName = $null
-        if ($principalId -and $consentType -ne "AllPrincipals") {
-            if ($userLookup.ContainsKey($principalId)) {
-                $principalDisplayName = $userLookup[$principalId]
-            }
-            else {
-                try {
-                    $userInfo = Invoke-MgGraphRequest -Method GET `
-                        -Uri "https://graph.microsoft.com/v1.0/users/$principalId`?`$select=displayName" `
-                        -OutputType PSObject -ErrorAction SilentlyContinue
-                    if ($userInfo -and $userInfo.displayName) {
-                        $principalDisplayName = $userInfo.displayName
-                        $userLookup[$principalId] = $principalDisplayName
-                    }
-                }
-                catch {
-                    if (-not $userLookupErrorLogged) {
-                        # Don't log every user lookup failure, just track it happened
-                        $userLookupErrorLogged = $true
-                    }
-                    $userLookup[$principalId] = $null
-                }
-            }
+        if ($principalId -and $consentType -ne "AllPrincipals" -and $userLookup.ContainsKey($principalId)) {
+            $principalDisplayName = $userLookup[$principalId]
         }
 
         # Determine if Microsoft app
