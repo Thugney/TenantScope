@@ -29,6 +29,205 @@
 #Requires -Version 7.0
 
 # ============================================================================
+# LOGGING UTILITIES
+# ============================================================================
+
+# Script-level log file path (set by Initialize-CollectionLogging)
+$script:LogFilePath = $null
+$script:LogLevel = "Info"
+
+function Initialize-CollectionLogging {
+    <#
+    .SYNOPSIS
+        Initializes persistent logging for the collection session.
+
+    .PARAMETER LogDirectory
+        Directory where log files will be written.
+
+    .PARAMETER CollectionId
+        Unique collection ID for the log file name.
+
+    .PARAMETER LogLevel
+        Minimum log level: Debug, Info, Warning, Error. Default is Info.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$LogDirectory,
+
+        [Parameter(Mandatory)]
+        [string]$CollectionId,
+
+        [Parameter()]
+        [ValidateSet("Debug", "Info", "Warning", "Error")]
+        [string]$LogLevel = "Info"
+    )
+
+    if (-not (Test-Path $LogDirectory)) {
+        New-Item -ItemType Directory -Path $LogDirectory -Force | Out-Null
+    }
+
+    $script:LogFilePath = Join-Path $LogDirectory "$CollectionId.log"
+    $script:LogLevel = $LogLevel
+
+    # Write log header
+    $header = @"
+================================================================================
+TenantScope Collection Log
+Collection ID: $CollectionId
+Started: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
+Log Level: $LogLevel
+================================================================================
+
+"@
+    Set-Content -Path $script:LogFilePath -Value $header -Encoding UTF8
+
+    return $script:LogFilePath
+}
+
+function Write-CollectionLog {
+    <#
+    .SYNOPSIS
+        Writes a log entry to both console and log file.
+
+    .PARAMETER Message
+        The message to log.
+
+    .PARAMETER Level
+        Log level: Debug, Info, Warning, Error.
+
+    .PARAMETER NoConsole
+        If specified, only writes to log file.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$Message,
+
+        [Parameter()]
+        [ValidateSet("Debug", "Info", "Warning", "Error")]
+        [string]$Level = "Info",
+
+        [Parameter()]
+        [switch]$NoConsole
+    )
+
+    $levelOrder = @{ "Debug" = 0; "Info" = 1; "Warning" = 2; "Error" = 3 }
+
+    # Skip if below configured log level
+    if ($levelOrder[$Level] -lt $levelOrder[$script:LogLevel]) {
+        return
+    }
+
+    $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss"
+    $logEntry = "[$timestamp] [$Level] $Message"
+
+    # Write to log file if initialized
+    if ($script:LogFilePath -and (Test-Path (Split-Path $script:LogFilePath -Parent))) {
+        Add-Content -Path $script:LogFilePath -Value $logEntry -Encoding UTF8
+    }
+
+    # Write to console unless suppressed
+    if (-not $NoConsole) {
+        $color = switch ($Level) {
+            "Debug"   { "Gray" }
+            "Info"    { "White" }
+            "Warning" { "Yellow" }
+            "Error"   { "Red" }
+        }
+        Write-Host $logEntry -ForegroundColor $color
+    }
+}
+
+function Get-CollectionLogPath {
+    <#
+    .SYNOPSIS
+        Returns the current log file path.
+    #>
+    return $script:LogFilePath
+}
+
+# ============================================================================
+# TOKEN REFRESH UTILITIES
+# ============================================================================
+
+# Track last token refresh time
+$script:LastTokenRefresh = $null
+$script:TokenRefreshIntervalMinutes = 45  # Refresh 15 min before expiry (tokens last 60 min)
+
+function Initialize-TokenRefresh {
+    <#
+    .SYNOPSIS
+        Initializes token refresh tracking.
+    #>
+    $script:LastTokenRefresh = Get-Date
+}
+
+function Test-TokenRefreshNeeded {
+    <#
+    .SYNOPSIS
+        Checks if the Graph token needs to be refreshed.
+
+    .OUTPUTS
+        Boolean indicating if refresh is needed.
+    #>
+    if ($null -eq $script:LastTokenRefresh) {
+        return $false
+    }
+
+    $elapsed = (Get-Date) - $script:LastTokenRefresh
+    return $elapsed.TotalMinutes -ge $script:TokenRefreshIntervalMinutes
+}
+
+function Invoke-TokenRefresh {
+    <#
+    .SYNOPSIS
+        Refreshes the Microsoft Graph token if needed.
+
+    .DESCRIPTION
+        For interactive sessions, this forces a token refresh by making a simple
+        Graph call. For app-only auth, the SDK handles refresh automatically.
+
+    .PARAMETER Force
+        Force refresh even if interval hasn't elapsed.
+
+    .OUTPUTS
+        Boolean indicating if refresh was performed.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [switch]$Force
+    )
+
+    if (-not $Force -and -not (Test-TokenRefreshNeeded)) {
+        return $false
+    }
+
+    try {
+        $context = Get-MgContext
+        if ($null -eq $context) {
+            Write-CollectionLog -Message "Cannot refresh token - no active Graph context" -Level Warning
+            return $false
+        }
+
+        # For delegated auth, we need to force a new token
+        # The SDK will use the refresh token automatically when we make a call
+        # We just need to verify the context is still valid
+        $null = Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/organization?`$select=id" -OutputType PSObject
+
+        $script:LastTokenRefresh = Get-Date
+        Write-CollectionLog -Message "Token refreshed successfully" -Level Info -NoConsole
+
+        return $true
+    }
+    catch {
+        Write-CollectionLog -Message "Token refresh failed: $($_.Exception.Message)" -Level Warning
+        return $false
+    }
+}
+
+# ============================================================================
 # GRAPH API UTILITIES
 # ============================================================================
 
@@ -97,6 +296,11 @@ function Invoke-GraphWithRetry {
     $attempt = 0
     while ($attempt -le $MaxRetries) {
         try {
+            # Check if token needs refresh before making call
+            if (Test-TokenRefreshNeeded) {
+                Invoke-TokenRefresh | Out-Null
+            }
+
             return & $ScriptBlock
         }
         catch {
@@ -181,7 +385,15 @@ function Get-GraphAllPages {
         Name used for logging/retry context.
 
     .PARAMETER MaxPages
-        Maximum number of pages to retrieve. Default is 20 (typically 2000-10000 items).
+        Maximum number of pages to retrieve. Default is 100 (typically 10000-50000 items).
+        Set to 0 for unlimited pages (use with caution).
+
+    .PARAMETER WarnOnTruncation
+        If true, logs a warning when data is truncated. Default is true.
+
+    .PARAMETER ReturnMetadata
+        If true, returns a hashtable with Items and IsTruncated properties.
+        If false (default), returns just the items array.
     #>
     [CmdletBinding()]
     param(
@@ -192,11 +404,19 @@ function Get-GraphAllPages {
         [string]$OperationName,
 
         [Parameter()]
-        [int]$MaxPages = 20
+        [int]$MaxPages = 100,
+
+        [Parameter()]
+        [bool]$WarnOnTruncation = $true,
+
+        [Parameter()]
+        [switch]$ReturnMetadata
     )
 
     $results = @()
     $pageCount = 1
+    $isTruncated = $false
+
     $response = Invoke-GraphWithRetry -ScriptBlock {
         Invoke-MgGraphRequest -Method GET -Uri $Uri -OutputType PSObject
     } -OperationName $OperationName
@@ -204,6 +424,9 @@ function Get-GraphAllPages {
     # BUG FIX: Add null check to prevent null reference errors
     if ($null -eq $response) {
         Write-Warning "No response received for $OperationName"
+        if ($ReturnMetadata) {
+            return @{ Items = $results; IsTruncated = $false; PageCount = 0 }
+        }
         return $results
     }
 
@@ -211,7 +434,15 @@ function Get-GraphAllPages {
         $results += $response.value
     }
 
-    while ($null -ne $response -and $response.'@odata.nextLink' -and $pageCount -lt $MaxPages) {
+    $hasMorePages = $true
+    while ($hasMorePages -and $null -ne $response -and $response.'@odata.nextLink') {
+        # Check page limit (0 = unlimited)
+        if ($MaxPages -gt 0 -and $pageCount -ge $MaxPages) {
+            $isTruncated = $true
+            $hasMorePages = $false
+            break
+        }
+
         $pageCount++
         $response = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
@@ -222,8 +453,19 @@ function Get-GraphAllPages {
         }
     }
 
-    if ($response.'@odata.nextLink') {
-        Write-Warning "Reached maximum page limit ($MaxPages) for $OperationName. Some data may be truncated."
+    if ($isTruncated -and $WarnOnTruncation) {
+        $warningMsg = "DATA TRUNCATION: $OperationName reached max page limit ($MaxPages pages, $($results.Count) items). Increase MaxPages or use filtering to get complete data."
+        Write-Warning $warningMsg
+        Write-CollectionLog -Message $warningMsg -Level Warning -NoConsole
+    }
+
+    if ($ReturnMetadata) {
+        return @{
+            Items = $results
+            IsTruncated = $isTruncated
+            PageCount = $pageCount
+            ItemCount = $results.Count
+        }
     }
 
     return $results

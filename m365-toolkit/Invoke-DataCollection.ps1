@@ -496,7 +496,15 @@ $collectionId = "col-{0:yyyy-MM-dd-HHmmss}" -f $collectionStartTime
 
 Write-Host "  Collection ID: $collectionId" -ForegroundColor Gray
 Write-Host "  Started: $($collectionStartTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
+
+# Initialize persistent logging
+$logsPath = Join-Path $PSScriptRoot "logs"
+$logFilePath = Initialize-CollectionLogging -LogDirectory $logsPath -CollectionId $collectionId
+Write-Host "  Log file: $logFilePath" -ForegroundColor Gray
 Write-Host ""
+
+# Initialize token refresh tracking
+Initialize-TokenRefresh
 
 # ============================================================================
 # STEP 1: Load and validate configuration
@@ -856,12 +864,34 @@ if ($CollectionProfile -eq "Fast" -and $skippedCollectors.Count -gt 0) {
     }
 }
 
+# Track progress for time estimation
+$collectorIndex = 0
+$collectorDurations = @()
+$totalCollectors = $collectors.Count
+
 # Run each collector
 foreach ($collector in $collectors) {
+    $collectorIndex++
     $collectorPath = Join-Path $PSScriptRoot "collectors" $collector.Script
     $outputPath = Join-Path $dataPath $collector.Output
 
+    # Calculate progress and ETA
+    $progressPct = [Math]::Round(($collectorIndex - 1) / $totalCollectors * 100)
+    $etaText = ""
+    if ($collectorDurations.Count -gt 0) {
+        $avgDuration = ($collectorDurations | Measure-Object -Average).Average
+        $remainingCollectors = $totalCollectors - $collectorIndex + 1
+        $etaSeconds = [Math]::Round($avgDuration * $remainingCollectors)
+        if ($etaSeconds -ge 60) {
+            $etaText = " | ETA: $([Math]::Floor($etaSeconds / 60))m $($etaSeconds % 60)s"
+        } else {
+            $etaText = " | ETA: ${etaSeconds}s"
+        }
+    }
+
+    Write-Host "  [$collectorIndex/$totalCollectors] $progressPct%$etaText" -ForegroundColor Gray
     Write-Host "  ► $($collector.Name)" -ForegroundColor White
+    Write-CollectionLog -Message "Starting collector: $($collector.Name)" -Level Info -NoConsole
 
     $collectorStart = Get-Date
     $runStatus.currentCollector = [ordered]@{
@@ -874,14 +904,22 @@ foreach ($collector in $collectors) {
 
     if (-not (Test-Path $collectorPath)) {
         Write-Host "    [X] Collector script not found: $collectorPath" -ForegroundColor Red
+        Write-CollectionLog -Message "Collector $($collector.Name) NOT FOUND: $collectorPath" -Level Error -NoConsole
         $collectorResults[$collector.Name] = @{
             Success = $false
             Count = 0
             Duration = 0
             Errors = @("Collector script not found")
         }
-        # Create empty JSON file to prevent dashboard errors
-        Save-CollectorData -Data @() -OutputPath $outputPath | Out-Null
+        # ERROR PROPAGATION FIX: Write error marker instead of empty array
+        $errorMarker = @{
+            _collectionError = $true
+            collector = $collector.Name
+            errors = @("Collector script not found: $collectorPath")
+            timestamp = (Get-Date).ToString("o")
+            message = "Collector script missing. Verify installation."
+        }
+        Save-CollectorData -Data $errorMarker -OutputPath $outputPath | Out-Null
         $runStatus.failedCollectors += [ordered]@{
             name = $collector.Name
             durationSeconds = 0
@@ -908,44 +946,75 @@ foreach ($collector in $collectors) {
 
         if ($result.Success) {
             Write-Host "    [OK] Collected $($result.Count) items ($("{0:N1}" -f $duration)s)" -ForegroundColor Green
+            Write-CollectionLog -Message "Collector $($collector.Name) completed: $($result.Count) items in $("{0:N1}" -f $duration)s" -Level Info -NoConsole
             $runStatus.completedCollectors += [ordered]@{
                 name = $collector.Name
                 count = $result.Count
                 durationSeconds = [Math]::Round($duration, 1)
                 completedAt = $collectorEnd.ToString("o")
             }
+            # Track duration for ETA calculation
+            $collectorDurations += $duration
         }
         else {
-            Write-Host "    [X] Failed: $($result.Errors -join '; ')" -ForegroundColor Red
+            $errorMsg = $result.Errors -join '; '
+            Write-Host "    [X] Failed: $errorMsg" -ForegroundColor Red
+            Write-CollectionLog -Message "Collector $($collector.Name) FAILED: $errorMsg" -Level Error -NoConsole
+
+            # ERROR PROPAGATION FIX: Write error marker file instead of empty array
+            # This makes failures visible to dashboard and downstream tools
+            $errorMarker = @{
+                _collectionError = $true
+                collector = $collector.Name
+                errors = @($result.Errors)
+                timestamp = $collectorEnd.ToString("o")
+                message = "Collection failed. Check logs for details: $logFilePath"
+            }
+            Save-CollectorData -Data $errorMarker -OutputPath $outputPath | Out-Null
+
             $runStatus.failedCollectors += [ordered]@{
                 name = $collector.Name
                 durationSeconds = [Math]::Round($duration, 1)
                 errors = @($result.Errors)
                 completedAt = $collectorEnd.ToString("o")
             }
+            # Still track duration for ETA even on failure
+            $collectorDurations += $duration
         }
     }
     catch {
         $collectorEnd = Get-Date
         $duration = ($collectorEnd - $collectorStart).TotalSeconds
+        $errorMsg = $_.Exception.Message
 
-        Write-Host "    [X] Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "    [X] Error: $errorMsg" -ForegroundColor Red
+        Write-CollectionLog -Message "Collector $($collector.Name) EXCEPTION: $errorMsg" -Level Error -NoConsole
 
         $collectorResults[$collector.Name] = @{
             Success = $false
             Count = 0
             Duration = $duration
-            Errors = @($_.Exception.Message)
+            Errors = @($errorMsg)
         }
 
-        # Create empty JSON file to prevent dashboard errors
-        Save-CollectorData -Data @() -OutputPath $outputPath | Out-Null
+        # ERROR PROPAGATION FIX: Write error marker file instead of empty array
+        $errorMarker = @{
+            _collectionError = $true
+            collector = $collector.Name
+            errors = @($errorMsg)
+            timestamp = $collectorEnd.ToString("o")
+            message = "Collection failed with exception. Check logs for details: $logFilePath"
+        }
+        Save-CollectorData -Data $errorMarker -OutputPath $outputPath | Out-Null
+
         $runStatus.failedCollectors += [ordered]@{
             name = $collector.Name
             durationSeconds = [Math]::Round($duration, 1)
-            errors = @($_.Exception.Message)
+            errors = @($errorMsg)
             completedAt = $collectorEnd.ToString("o")
         }
+        # Still track duration for ETA
+        $collectorDurations += $duration
     }
 
     $runStatus.currentCollector = $null
@@ -1201,6 +1270,26 @@ catch {
 # ============================================================================
 
 Write-CollectionSummary -Results $collectorResults -StartTime $collectionStartTime -EndTime $collectionEndTime
+
+# Log final summary
+$successCount = @($collectorResults.Values | Where-Object { $_.Success }).Count
+$failCount = @($collectorResults.Values | Where-Object { -not $_.Success }).Count
+Write-CollectionLog -Message "Collection completed: $successCount succeeded, $failCount failed, $("{0:N1}" -f $totalDuration)s total" -Level Info -NoConsole
+Write-CollectionLog -Message "Log file saved to: $logFilePath" -Level Info -NoConsole
+
+# Add final log separator
+if ($script:LogFilePath -and (Test-Path $script:LogFilePath)) {
+    $footer = @"
+
+================================================================================
+Collection Complete
+Duration: $("{0:N1}" -f $totalDuration) seconds
+Successful Collectors: $successCount
+Failed Collectors: $failCount
+================================================================================
+"@
+    Add-Content -Path $script:LogFilePath -Value $footer -Encoding UTF8
+}
 
 # Disconnect from Graph
 Write-Host "Disconnecting from Microsoft Graph..." -ForegroundColor Cyan

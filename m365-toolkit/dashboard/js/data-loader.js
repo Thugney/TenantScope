@@ -272,10 +272,30 @@ const DataLoader = (function() {
                     const expectedKeys = Object.keys(dataStore);
                     const missingKeys = expectedKeys.filter(k => !bundleKeys.includes(k));
                     const emptyBundleKeys = [];
+                    const errorMarkerKeys = [];
 
                     Object.keys(dataStore).forEach(key => {
                         if (window.__M365_DATA[key] !== undefined) {
                             const bundleData = window.__M365_DATA[key];
+
+                            // Check for error marker from failed collectors
+                            if (bundleData && typeof bundleData === 'object' && bundleData._collectionError === true) {
+                                console.warn(`DataLoader: ${key} contains collection error marker`);
+                                errorMarkerKeys.push(key);
+                                // Store error in dataErrors
+                                dataErrors[key] = {
+                                    name: bundleData.collector || key,
+                                    output: null,
+                                    script: null,
+                                    errors: Array.isArray(bundleData.errors) ? bundleData.errors : [bundleData.message || 'Collection failed'],
+                                    timestamp: bundleData.timestamp,
+                                    isErrorMarker: true
+                                };
+                                // Set empty default for data
+                                dataStore[key] = Array.isArray(dataStore[key]) ? [] : null;
+                                return;
+                            }
+
                             dataStore[key] = bundleData;
 
                             // Check for empty data
@@ -294,6 +314,9 @@ const DataLoader = (function() {
                     }
                     if (emptyBundleKeys.length > 0) {
                         console.warn('DataLoader: Bundle has empty data for:', emptyBundleKeys.join(', '));
+                    }
+                    if (errorMarkerKeys.length > 0) {
+                        console.error('DataLoader: Collection errors detected for:', errorMarkerKeys.join(', '));
                     }
                     console.log('DataLoader: Loaded', bundleKeys.length, 'data types from bundle');
                 } else {
