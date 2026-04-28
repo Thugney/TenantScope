@@ -912,7 +912,7 @@ foreach ($collector in $collectors) {
             Errors = @("Collector script not found")
         }
         # ERROR PROPAGATION FIX: Write error marker instead of empty array
-        $errorMarker = @{
+        $errorMarker = [PSCustomObject]@{
             _collectionError = $true
             collector = $collector.Name
             errors = @("Collector script not found: $collectorPath")
@@ -963,7 +963,7 @@ foreach ($collector in $collectors) {
 
             # ERROR PROPAGATION FIX: Write error marker file instead of empty array
             # This makes failures visible to dashboard and downstream tools
-            $errorMarker = @{
+            $errorMarker = [PSCustomObject]@{
                 _collectionError = $true
                 collector = $collector.Name
                 errors = @($result.Errors)
@@ -998,7 +998,7 @@ foreach ($collector in $collectors) {
         }
 
         # ERROR PROPAGATION FIX: Write error marker file instead of empty array
-        $errorMarker = @{
+        $errorMarker = [PSCustomObject]@{
             _collectionError = $true
             collector = $collector.Name
             errors = @($errorMsg)
