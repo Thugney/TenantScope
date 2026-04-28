@@ -144,6 +144,69 @@
         `;
     }
 
+    const pageDataTypes = {
+        'overview': ['metadata', 'users', 'devices', 'secureScore', 'defenderAlerts'],
+        'users': ['users'],
+        'organization': ['users'],
+        'security': ['riskySignins', 'adminRoles', 'users', 'defenderAlerts', 'secureScore'],
+        'conditional-access': ['conditionalAccess'],
+        'pim': ['pimActivity'],
+        'identity-risk': ['identityRisk'],
+        'devices': ['devices', 'autopilot', 'bitlockerStatus', 'windowsUpdateStatus'],
+        'compliance-policies': ['compliancePolicies'],
+        'configuration-profiles': ['configurationProfiles'],
+        'windows-update': ['windowsUpdateStatus'],
+        'bitlocker': ['bitlockerStatus'],
+        'app-deployments': ['appDeployments'],
+        'endpoint-analytics': ['endpointAnalytics'],
+        'asr-rules': ['asrRules', 'asrAuditEvents'],
+        'oauth-consent': ['oauthConsentGrants'],
+        'compliance': ['retentionData', 'ediscoveryData', 'sensitivityLabels', 'accessReviews'],
+        'vulnerabilities': ['vulnerabilities'],
+        'sharepoint': ['sharepointSites'],
+        'teams': ['teams'],
+        'enterprise-apps': ['enterpriseApps', 'servicePrincipalSecrets'],
+        'app-usage': ['appSignins'],
+        'audit-logs': ['auditLogs'],
+        'signin-logs': ['signinLogs'],
+        'data-quality': ['metadata']
+    };
+
+    function renderCollectionIssueBanner(pageName, container) {
+        if (!container || typeof DataLoader === 'undefined' || !DataLoader.getDataError) return;
+
+        const types = pageDataTypes[pageName] || [];
+        const issues = types.map(type => DataLoader.getDataError(type)).filter(Boolean);
+        if (issues.length === 0) return;
+
+        const banner = document.createElement('div');
+        banner.className = 'collection-issue-banner';
+
+        const title = document.createElement('strong');
+        title.textContent = issues.length === 1 ? 'Collection issue affects this page' : 'Collection issues affect this page';
+        banner.appendChild(title);
+
+        const list = document.createElement('ul');
+        issues.slice(0, 4).forEach(issue => {
+            const item = document.createElement('li');
+            const detail = Array.isArray(issue.errors) && issue.errors.length > 0
+                ? issue.errors.join('; ')
+                : 'Collector returned no details.';
+            item.textContent = (issue.name || issue.output || 'Collector') + ': ' + detail;
+            list.appendChild(item);
+        });
+        banner.appendChild(list);
+
+        if (issues.length > 4) {
+            const more = document.createElement('div');
+            more.className = 'collection-issue-more';
+            more.textContent = '+' + (issues.length - 4) + ' more collection issues. See Data Quality for full details.';
+            banner.appendChild(more);
+        }
+
+        container.insertBefore(banner, container.firstChild);
+    }
+
     function shouldRedirectUserSearch(pageName) {
         if (pageName !== 'users') return false;
         const params = getHashParams();
@@ -266,6 +329,7 @@
         // Render the page
         try {
             page.render(container);
+            renderCollectionIssueBanner(pageName, container);
             applyHashParamsToPage(pageName);
             if (typeof DepartmentFilter !== 'undefined' && DepartmentFilter.refreshBanner) {
                 DepartmentFilter.refreshBanner();
