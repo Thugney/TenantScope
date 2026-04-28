@@ -250,7 +250,6 @@ function Get-ConfigValidation {
 
     $requiredFields = @(
         "tenantId",
-        "domains",
         "thresholds",
         "collection"
     )
@@ -266,12 +265,13 @@ function Get-ConfigValidation {
         throw "Configuration field 'tenantId' must be a non-empty string"
     }
 
-    $domains = Get-ConfigValueByAlias -Source $Config -Names @("domains")
+    $domains = Get-ConfigValueByAlias -Source $Config -Names @("domains", "domainMappings", "domainMapping")
     $thresholds = Get-ConfigValueByAlias -Source $Config -Names @("thresholds")
     $collection = Get-ConfigValueByAlias -Source $Config -Names @("collection")
 
-    if ($domains -isnot [hashtable]) {
-        throw "Configuration field 'domains' must be an object"
+    if ($null -ne $domains -and $domains -isnot [hashtable]) {
+        Write-Warning "Configuration field 'domains' is not an object. User domain classification will default to 'other'."
+        $domains = $null
     }
 
     if ($thresholds -isnot [hashtable]) {
@@ -282,7 +282,8 @@ function Get-ConfigValidation {
         throw "Configuration field 'collection' must be an object"
     }
 
-    # Validate nested required fields
+    # Validate optional domain mappings. These classify users in reports, but
+    # they should never block tenant collection.
     $requiredDomainMappings = @(
         @{
             Name    = "employees"
@@ -294,26 +295,33 @@ function Get-ConfigValidation {
         }
     )
 
-    foreach ($domainMapping in $requiredDomainMappings) {
-        $domainField = $domainMapping.Name
-        $domainValue = Get-ConfigValueByAlias -Source $domains -Names $domainMapping.Aliases
+    if ($domains -is [hashtable]) {
+        foreach ($domainMapping in $requiredDomainMappings) {
+            $domainField = $domainMapping.Name
+            $domainValue = Get-ConfigValueByAlias -Source $domains -Names $domainMapping.Aliases
 
-        if ($null -eq $domainValue) {
-            $availableDomainKeys = (@($domains.Keys) | ForEach-Object { [string]$_ }) -join ", "
-            throw "Configuration missing required domain mapping '$domainField'. Found domain keys: $availableDomainKeys"
-        }
+            if ($null -eq $domainValue) {
+                $availableDomainKeys = (@($domains.Keys) | ForEach-Object { [string]$_ }) -join ", "
+                Write-Warning "Configuration missing optional domain mapping '$domainField'. Found domain keys: $availableDomainKeys"
+                continue
+            }
 
-        if ($domainValue -isnot [array] -and $domainValue -isnot [string]) {
-            throw "Configuration field 'domains.$domainField' must be a string or an array"
-        }
+            if ($domainValue -isnot [array] -and $domainValue -isnot [string]) {
+                Write-Warning "Configuration field 'domains.$domainField' must be a string or an array. This mapping will be ignored."
+                continue
+            }
 
-        $domainValues = @($domainValue) | Where-Object {
-            $_ -is [string] -and -not [string]::IsNullOrWhiteSpace($_)
-        }
+            $domainValues = @($domainValue) | Where-Object {
+                $_ -is [string] -and -not [string]::IsNullOrWhiteSpace($_)
+            }
 
-        if ($domainValues.Count -eq 0) {
-            throw "Configuration field 'domains.$domainField' must contain at least one domain"
+            if ($domainValues.Count -eq 0) {
+                Write-Warning "Configuration field 'domains.$domainField' is empty. This mapping will be ignored."
+            }
         }
+    }
+    else {
+        Write-Warning "No domain mappings found. User domain classification will default to 'other'."
     }
 
     $inactiveDays = Get-ConfigValueByAlias -Source $thresholds -Names @("inactiveDays")

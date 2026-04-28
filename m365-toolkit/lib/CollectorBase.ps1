@@ -1033,11 +1033,56 @@ function Get-DomainClassification {
     # Extract domain from UPN (everything after @)
     $upnDomain = "@" + ($UserPrincipalName -split "@")[-1]
 
+    function Get-ConfigValueByAlias {
+        param(
+            [Parameter(Mandatory)]
+            [hashtable]$Source,
+
+            [Parameter(Mandatory)]
+            [string[]]$Names
+        )
+
+        foreach ($name in $Names) {
+            foreach ($key in $Source.Keys) {
+                if ([string]::Equals([string]$key, $name, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    return $Source[$key]
+                }
+            }
+        }
+
+        return $null
+    }
+
+    function Test-DomainMatch {
+        param(
+            [Parameter(Mandatory)]
+            [string]$Domain,
+
+            $ConfiguredDomains
+        )
+
+        foreach ($configuredDomain in @($ConfiguredDomains)) {
+            if ($configuredDomain -is [string] -and [string]::Equals($Domain, $configuredDomain, [System.StringComparison]::OrdinalIgnoreCase)) {
+                return $true
+            }
+        }
+
+        return $false
+    }
+
+    $domainMappings = Get-ConfigValueByAlias -Source $Config -Names @("domains", "domainMappings", "domainMapping")
+    if ($domainMappings -isnot [hashtable]) {
+        return "other"
+    }
+
+    $employeeDomains = Get-ConfigValueByAlias -Source $domainMappings -Names @("employees", "employee", "staff", "faculty")
+    $studentDomains = Get-ConfigValueByAlias -Source $domainMappings -Names @("students", "student", "pupils")
+
     # Check against configured domains
-    if ($Config.domains -and $upnDomain -eq $Config.domains.employees) {
+    if (Test-DomainMatch -Domain $upnDomain -ConfiguredDomains $employeeDomains) {
         return "employee"
     }
-    elseif ($Config.domains -and $upnDomain -eq $Config.domains.students) {
+    elseif (Test-DomainMatch -Domain $upnDomain -ConfiguredDomains $studentDomains) {
         return "student"
     }
     else {
