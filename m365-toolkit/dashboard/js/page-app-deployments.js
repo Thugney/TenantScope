@@ -458,7 +458,7 @@ const PageAppDeployments = (function() {
         html += '<select class="filter-select" id="apps-type"><option value="all">All Types</option>';
         Object.keys(types).forEach(function(t) { html += '<option value="' + t + '">' + t + '</option>'; });
         html += '</select>';
-        html += '<select class="filter-select" id="apps-status"><option value="all">All Status</option><option value="failing">With Failures</option><option value="pending">With Pending</option></select>';
+        html += '<select class="filter-select" id="apps-status"><option value="all">All Status</option><option value="failing">With Failures</option><option value="pending">With Pending</option><option value="unavailable">Status Not Collected</option></select>';
         html += '<div id="apps-colselector"></div>';
         html += '</div>';
         html += '<div class="table-container" id="apps-table"></div>';
@@ -521,6 +521,7 @@ const PageAppDeployments = (function() {
         var statusFilter = Filters.getValue('apps-status');
         if (statusFilter === 'failing') filteredData = filteredData.filter(function(a) { return a.failedCount > 0; });
         else if (statusFilter === 'pending') filteredData = filteredData.filter(function(a) { return a.pendingCount > 0; });
+        else if (statusFilter === 'unavailable') filteredData = filteredData.filter(function(a) { return a.statusAvailable === false; });
 
         // Update summary cards with filtered counts
         updateAppsSummaryCards(filteredData, totalApps);
@@ -530,19 +531,23 @@ const PageAppDeployments = (function() {
 
     function updateAppsSummaryCards(filteredApps, totalApps) {
         var filtered = filteredApps.length;
+        var withStatus = filteredApps.filter(function(a) { return a.statusAvailable !== false; }).length;
         var installed = filteredApps.reduce(function(sum, a) { return sum + (a.installedCount || 0); }, 0);
         var failed = filteredApps.reduce(function(sum, a) { return sum + (a.failedCount || 0); }, 0);
         var withFailures = filteredApps.filter(function(a) { return (a.failedCount || 0) > 0; }).length;
+        var withoutStatus = filteredApps.filter(function(a) { return a.statusAvailable === false; }).length;
 
         var totalEl = document.getElementById('apps-total-value');
         var installedEl = document.getElementById('apps-installed-value');
         var failedEl = document.getElementById('apps-failed-value');
         var withFailuresEl = document.getElementById('apps-withfailures-value');
+        var withoutStatusEl = document.getElementById('apps-withoutstatus-value');
 
         if (totalEl) totalEl.textContent = filtered + (filtered !== totalApps ? ' / ' + totalApps : '');
-        if (installedEl) installedEl.textContent = installed.toLocaleString();
-        if (failedEl) failedEl.textContent = failed.toLocaleString();
+        if (installedEl) installedEl.textContent = withStatus > 0 ? installed.toLocaleString() : '--';
+        if (failedEl) failedEl.textContent = withStatus > 0 ? failed.toLocaleString() : '--';
         if (withFailuresEl) withFailuresEl.textContent = withFailures;
+        if (withoutStatusEl) withoutStatusEl.textContent = withoutStatus;
     }
 
     function renderAppsTable(data) {
@@ -834,15 +839,20 @@ const PageAppDeployments = (function() {
         var totalInstalled = summary.totalInstalled || 0;
         var totalFailed = summary.totalFailed || 0;
         var appsWithFailures = summary.appsWithFailures || apps.filter(function(a) { return (a.failedCount || a.failedDevices || 0) > 0; }).length;
+        var appsWithStatus = apps.filter(function(a) { return a.statusAvailable !== false; }).length;
+        var appsWithoutStatus = summary.appsWithoutStatus !== undefined
+            ? summary.appsWithoutStatus
+            : apps.filter(function(a) { return a.statusAvailable === false; }).length;
 
         var html = '<div class="page-header"><h2>App Deployments</h2></div>';
 
         // Summary Cards with IDs for filter updates
         html += '<div class="summary-cards">';
         html += '<div class="summary-card"><div class="summary-value" id="apps-total-value">' + totalApps + '</div><div class="summary-label">Total Apps</div></div>';
-        html += '<div class="summary-card card-success"><div class="summary-value" id="apps-installed-value">' + totalInstalled.toLocaleString() + '</div><div class="summary-label">Installed</div></div>';
-        html += '<div class="summary-card card-danger"><div class="summary-value" id="apps-failed-value">' + totalFailed.toLocaleString() + '</div><div class="summary-label">Failed</div></div>';
+        html += '<div class="summary-card card-success"><div class="summary-value" id="apps-installed-value">' + (appsWithStatus > 0 ? totalInstalled.toLocaleString() : '--') + '</div><div class="summary-label">Installed</div></div>';
+        html += '<div class="summary-card card-danger"><div class="summary-value" id="apps-failed-value">' + (appsWithStatus > 0 ? totalFailed.toLocaleString() : '--') + '</div><div class="summary-label">Failed</div></div>';
         html += '<div class="summary-card card-warning"><div class="summary-value" id="apps-withfailures-value">' + appsWithFailures + '</div><div class="summary-label">Apps with Failures</div></div>';
+        html += '<div class="summary-card card-info"><div class="summary-value" id="apps-withoutstatus-value">' + appsWithoutStatus + '</div><div class="summary-label">Status Not Collected</div></div>';
         html += '</div>';
 
         // Tabs

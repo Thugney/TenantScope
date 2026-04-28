@@ -191,7 +191,17 @@ function Convert-ReportRows {
 
     # Pattern: { columns: [...], values: [[...], ...] }
     if ($Report.values -and $Report.columns) {
-        $cols = @($Report.columns | ForEach-Object { $_.name })
+        $cols = @($Report.columns | ForEach-Object {
+            $name = $null
+            if ($_ -and $_.PSObject) {
+                $name = $_.PSObject.Properties["name"]?.Value
+                if (-not $name) { $name = $_.PSObject.Properties["Name"]?.Value }
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$name)) {
+                return "__column_$([guid]::NewGuid().ToString('N'))"
+            }
+            return [string]$name
+        })
         $rows = @()
         foreach ($row in $Report.values) {
             $obj = [ordered]@{}
@@ -205,7 +215,17 @@ function Convert-ReportRows {
 
     # Pattern: { schema: [...], value: [[...], ...] }
     if ($Report.value -and $Report.schema) {
-        $cols = @($Report.schema | ForEach-Object { $_.name })
+        $cols = @($Report.schema | ForEach-Object {
+            $name = $null
+            if ($_ -and $_.PSObject) {
+                $name = $_.PSObject.Properties["name"]?.Value
+                if (-not $name) { $name = $_.PSObject.Properties["Name"]?.Value }
+            }
+            if ([string]::IsNullOrWhiteSpace([string]$name)) {
+                return "__column_$([guid]::NewGuid().ToString('N'))"
+            }
+            return [string]$name
+        })
         $rows = @()
         foreach ($row in $Report.value) {
             if (-not ($row -is [System.Array])) { continue }
@@ -282,6 +302,29 @@ function Normalize-GraphId {
     $text = $Id.ToString().Trim()
     if ([string]::IsNullOrWhiteSpace($text)) { return $null }
     return $text.Trim("{}").ToLowerInvariant()
+}
+
+function Get-EffectiveThresholdValue {
+    <#
+    .SYNOPSIS
+        Returns a config override when present, otherwise the supplied default.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Thresholds,
+
+        [Parameter(Mandatory)]
+        [string]$Name,
+
+        [Parameter(Mandatory)]
+        [int]$DefaultValue
+    )
+
+    if ($Thresholds.ContainsKey($Name)) {
+        return [int]$Thresholds[$Name]
+    }
+
+    return $DefaultValue
 }
 
 function Invoke-IntuneExportReport {
@@ -835,24 +878,24 @@ try {
 
     Write-Host "      Retrieved $($allApps.Count) assigned apps" -ForegroundColor Gray
 
-    $processedApps = @()
-    $aggregateInstallReportMap = Get-AppInstallAggregateReportMap
-    $installReportMap = if ($aggregateInstallReportMap.Count -lt $allApps.Count) { Get-AppInstallReportMap } else { @{} }
-
     $deepCollection = $false
     if ($Config.collection -is [hashtable]) {
         $deepCollection = ($Config.collection.deepCollection -eq $true -or $Config.collection.appDeploymentDeepScan -eq $true)
     }
 
-    $maxAssignmentFetches = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    $processedApps = @()
+    $aggregateInstallReportMap = Get-AppInstallAggregateReportMap
+    $installReportMap = if ($aggregateInstallReportMap.Count -lt $allApps.Count) { Get-AppInstallReportMap } else { @{} }
+
+    $maxAssignmentFetches = if ($deepCollection) { [int]::MaxValue } else { $allApps.Count }
     $maxPerAppInstallSummaryFallbacks = if ($deepCollection) { [int]::MaxValue } else { 25 }
     $maxDeviceStatusApps = if ($deepCollection) { [int]::MaxValue } else { 10 }
     $maxDeviceStatusesPerApp = if ($deepCollection) { 1000 } else { 200 }
     if ($Config.thresholds -is [hashtable]) {
-        if ($Config.thresholds.ContainsKey('maxAppAssignmentFetches')) { $maxAssignmentFetches = [int]$Config.thresholds.maxAppAssignmentFetches }
-        if ($Config.thresholds.ContainsKey('maxAppInstallSummaryFallbacks')) { $maxPerAppInstallSummaryFallbacks = [int]$Config.thresholds.maxAppInstallSummaryFallbacks }
-        if ($Config.thresholds.ContainsKey('maxAppDeviceStatusApps')) { $maxDeviceStatusApps = [int]$Config.thresholds.maxAppDeviceStatusApps }
-        if ($Config.thresholds.ContainsKey('maxAppDeviceStatusesPerApp')) { $maxDeviceStatusesPerApp = [int]$Config.thresholds.maxAppDeviceStatusesPerApp }
+        $maxAssignmentFetches = Get-EffectiveThresholdValue -Thresholds $Config.thresholds -Name 'maxAppAssignmentFetches' -DefaultValue $maxAssignmentFetches
+        $maxPerAppInstallSummaryFallbacks = Get-EffectiveThresholdValue -Thresholds $Config.thresholds -Name 'maxAppInstallSummaryFallbacks' -DefaultValue $maxPerAppInstallSummaryFallbacks
+        $maxDeviceStatusApps = Get-EffectiveThresholdValue -Thresholds $Config.thresholds -Name 'maxAppDeviceStatusApps' -DefaultValue $maxDeviceStatusApps
+        $maxDeviceStatusesPerApp = Get-EffectiveThresholdValue -Thresholds $Config.thresholds -Name 'maxAppDeviceStatusesPerApp' -DefaultValue $maxDeviceStatusesPerApp
     }
 
     $assignmentFetchCount = 0
@@ -860,7 +903,17 @@ try {
     $deviceStatusAppCount = 0
     $perAppReportFallbackCount = 0
     $maxPerAppReportFallbacks = if ($deepCollection) { 10 } else { 3 }
+    if ($Config.thresholds -is [hashtable]) {
+        $maxPerAppReportFallbacks = Get-EffectiveThresholdValue -Thresholds $Config.thresholds -Name 'maxAppReportFallbacks' -DefaultValue $maxPerAppReportFallbacks
+    }
     $assignmentBatchMap = @{}
+
+    if (-not $deepCollection -and $aggregateInstallReportMap.Count -eq 0 -and $installReportMap.Count -eq 0) {
+        Write-Host "      Aggregate app status reports unavailable. Expanding per-app fallbacks for this run..." -ForegroundColor Yellow
+        $maxPerAppInstallSummaryFallbacks = [Math]::Max($maxPerAppInstallSummaryFallbacks, $allApps.Count)
+        $maxPerAppReportFallbacks = [Math]::Max($maxPerAppReportFallbacks, $allApps.Count)
+        $maxDeviceStatusApps = [Math]::Max($maxDeviceStatusApps, [Math]::Min($allApps.Count, 50))
+    }
 
     if ($maxAssignmentFetches -gt 0) {
         $assignmentTargets = @($allApps | Select-Object -First $maxAssignmentFetches)
@@ -1122,11 +1175,14 @@ try {
             }
 
             if (-not $statusAvailable) {
-                if (-not $assignmentsFetched -and $assignmentFetchCount -ge $maxAssignmentFetches) {
+                if ($assignments.Count -eq 0 -and $assignmentsFetched) {
+                    $statusUnavailableReason = "No assignments found for this app."
+                }
+                elseif (-not $assignmentsFetched -and $assignmentFetchCount -ge $maxAssignmentFetches -and $maxAssignmentFetches -lt $allApps.Count) {
                     $statusUnavailableReason = "Assignment and device-status detail limit reached. Run deepCollection for full per-app detail."
                 }
-                elseif ($assignments.Count -eq 0) {
-                    $statusUnavailableReason = "No assignments found for this app."
+                elseif (-not $assignmentsFetched) {
+                    $statusUnavailableReason = "App assignments could not be retrieved for this app."
                 }
                 elseif ($perAppReportFallbackCount -ge $maxPerAppReportFallbacks) {
                     $statusUnavailableReason = "Status fallback limit reached ($maxPerAppReportFallbacks apps). Aggregate report data unavailable for this app."

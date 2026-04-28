@@ -151,6 +151,215 @@ function Get-UpdateStateTimestamp {
     }
 }
 
+function Convert-ReportRows {
+    <#
+    .SYNOPSIS
+        Converts Intune report responses into an array of objects.
+    #>
+    param([Parameter(Mandatory)]$Report)
+
+    if (-not $Report) { return @() }
+
+    if ($Report.values -and $Report.columns) {
+        $cols = @($Report.columns | ForEach-Object {
+            $name = Get-GraphPropertyValue -Object $_ -PropertyNames @("name", "Name")
+            if ([string]::IsNullOrWhiteSpace([string]$name)) {
+                return "__column_$([guid]::NewGuid().ToString('N'))"
+            }
+            return [string]$name
+        })
+
+        $rows = @()
+        foreach ($row in $Report.values) {
+            $obj = [ordered]@{}
+            for ($i = 0; $i -lt $cols.Count; $i++) {
+                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+            }
+            $rows += [PSCustomObject]$obj
+        }
+        return $rows
+    }
+
+    if ($Report.value -and $Report.schema) {
+        $cols = @($Report.schema | ForEach-Object {
+            $name = Get-GraphPropertyValue -Object $_ -PropertyNames @("name", "Name")
+            if ([string]::IsNullOrWhiteSpace([string]$name)) {
+                return "__column_$([guid]::NewGuid().ToString('N'))"
+            }
+            return [string]$name
+        })
+
+        $rows = @()
+        foreach ($row in $Report.value) {
+            if (-not ($row -is [System.Array])) { continue }
+            $obj = [ordered]@{}
+            for ($i = 0; $i -lt $cols.Count; $i++) {
+                $obj[$cols[$i]] = if ($i -lt $row.Count) { $row[$i] } else { $null }
+            }
+            $rows += [PSCustomObject]$obj
+        }
+        return $rows
+    }
+
+    if ($Report.value -and $Report.value[0] -and $Report.value[0].PSObject) {
+        return @($Report.value)
+    }
+
+    return @()
+}
+
+function Invoke-IntuneExportReport {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]
+        [string]$ReportName,
+
+        [Parameter()]
+        [string[]]$Select = @(),
+
+        [Parameter()]
+        [string]$Filter
+    )
+
+    $body = @{
+        reportName = $ReportName
+        format = "json"
+    }
+    if ($Select -and $Select.Count -gt 0) { $body.select = $Select }
+    if ($Filter) { $body.filter = $Filter }
+
+    $bodyJson = $body | ConvertTo-Json -Depth 6
+    $job = $null
+    $baseUri = $null
+
+    foreach ($endpoint in @(
+        "https://graph.microsoft.com/v1.0/deviceManagement/reports/exportJobs",
+        "https://graph.microsoft.com/beta/deviceManagement/reports/exportJobs"
+    )) {
+        try {
+            $job = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method POST -Uri $endpoint -Body $bodyJson -ContentType "application/json" -OutputType PSObject
+            } -OperationName "Export report job ($ReportName)" -MaxRetries 2
+        }
+        catch {
+            if (Test-GraphAccessError -Value $_) { throw }
+            continue
+        }
+
+        if ($job) {
+            $baseUri = $endpoint
+            break
+        }
+    }
+
+    if (-not $job -or -not $baseUri) { return @() }
+
+    $jobId = Get-GraphPropertyValue -Object $job -PropertyNames @("id", "Id")
+    if (-not $jobId) { return @() }
+
+    $statusUri = "$baseUri/$jobId"
+    $downloadUrl = $null
+
+    for ($i = 0; $i -lt 10; $i++) {
+        try {
+            $statusResp = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 1
+
+            $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status", "Status")
+            $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url", "Url", "downloadUrl", "DownloadUrl")
+
+            if ($status -match "completed" -and $downloadUrl) { break }
+            if (Test-GraphAccessError -Value $status) {
+                throw "Intune report export job returned access failure status '$status' for report '$ReportName'."
+            }
+            if ($status -match "failed") { return @() }
+        }
+        catch {
+            if (Test-GraphAccessError -Value $_) { throw }
+        }
+
+        Start-Sleep -Seconds 2
+    }
+
+    if (-not $downloadUrl) { return @() }
+
+    $tempRoot = Join-Path $env:TEMP ("tenantscope-report-" + [Guid]::NewGuid().ToString("N"))
+    New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+    $zipPath = Join-Path $tempRoot "report.zip"
+
+    try {
+        Invoke-WebRequest -Uri $downloadUrl -OutFile $zipPath | Out-Null
+        Expand-Archive -Path $zipPath -DestinationPath $tempRoot -Force
+
+        $jsonFile = Get-ChildItem -Path $tempRoot -Filter *.json -Recurse | Select-Object -First 1
+        if ($jsonFile) {
+            $raw = Get-Content $jsonFile.FullName -Raw
+            try {
+                $parsed = $raw | ConvertFrom-Json
+            }
+            catch {
+                return @()
+            }
+
+            if ($parsed -is [System.Collections.IEnumerable] -and $parsed.Count -gt 0 -and $parsed[0].PSObject) {
+                return @($parsed)
+            }
+
+            return Convert-ReportRows -Report $parsed
+        }
+
+        $csvFile = Get-ChildItem -Path $tempRoot -Filter *.csv -Recurse | Select-Object -First 1
+        if ($csvFile) {
+            return @(Import-Csv -Path $csvFile.FullName)
+        }
+
+        return @()
+    }
+    finally {
+        if (Test-Path $tempRoot) {
+            Remove-Item -Path $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Get-FeatureUpdateStatusSummaryMap {
+    <#
+    .SYNOPSIS
+        Returns per-policy feature update summary counts keyed by policy id.
+    #>
+    $map = @{}
+    $rows = Invoke-IntuneExportReport -ReportName "FeatureUpdatePolicyStatusSummary" -Select @(
+        "PolicyId",
+        "PolicyName",
+        "FeatureUpdateVersion",
+        "CountDevicesSuccessStatus",
+        "CountDevicesInProgressStatus",
+        "CountDevicesErrorStatus"
+    )
+
+    foreach ($row in @($rows)) {
+        $policyId = Get-GraphPropertyValue -Object $row -PropertyNames @("PolicyId", "policyId")
+        if ([string]::IsNullOrWhiteSpace([string]$policyId)) { continue }
+
+        $succeeded = Convert-ToIntSafe (Get-GraphPropertyValue -Object $row -PropertyNames @("CountDevicesSuccessStatus", "countDevicesSuccessStatus"))
+        $pending = Convert-ToIntSafe (Get-GraphPropertyValue -Object $row -PropertyNames @("CountDevicesInProgressStatus", "countDevicesInProgressStatus"))
+        $failed = Convert-ToIntSafe (Get-GraphPropertyValue -Object $row -PropertyNames @("CountDevicesErrorStatus", "countDevicesErrorStatus"))
+        $total = $succeeded + $pending + $failed
+
+        $map[[string]$policyId] = [PSCustomObject]@{
+            total = $total
+            succeeded = $succeeded
+            pending = $pending
+            failed = $failed
+            notApplicable = 0
+            source = "FeatureUpdatePolicyStatusSummary"
+        }
+    }
+
+    return $map
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -341,6 +550,19 @@ try {
     # Collect Feature Update Policies
     # ========================================
     try {
+        $featureStatusSummaryMap = @{}
+        try {
+            $featureStatusSummaryMap = Get-FeatureUpdateStatusSummaryMap
+            if ($featureStatusSummaryMap.Count -gt 0) {
+                Write-Host "      Retrieved feature update status summary for $($featureStatusSummaryMap.Count) policies" -ForegroundColor Gray
+            }
+        }
+        catch {
+            if (Test-GraphAccessError -Value $_) {
+                $errors += "Feature update status summary: $($_.Exception.Message)"
+            }
+        }
+
         $featureUpdates = Invoke-GraphWithRetry -ScriptBlock {
             Invoke-MgGraphRequest -Method GET `
                 -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsFeatureUpdateProfiles" `
@@ -348,10 +570,19 @@ try {
         } -OperationName "Feature update profiles retrieval"
 
         foreach ($policy in $featureUpdates.value) {
-            # Get deployment state - Feature Update profiles don't have deviceUpdateStates endpoint
-            # The deviceUpdateStates endpoint is for expedited quality updates only
-            # For feature updates, status is tracked through reports API or assignment filter status
-            $deploymentState = @{ total = 0; succeeded = 0; pending = 0; failed = 0; notApplicable = 0 }
+            $deploymentState = if ($featureStatusSummaryMap.ContainsKey([string]$policy.id)) {
+                $featureStatusSummaryMap[[string]$policy.id]
+            }
+            else {
+                [PSCustomObject]@{
+                    total = 0
+                    succeeded = 0
+                    pending = 0
+                    failed = 0
+                    notApplicable = 0
+                    source = "unavailable"
+                }
+            }
 
             # Get assignments
             $assignedGroups = @()
@@ -378,6 +609,14 @@ try {
                 endOfSupportDate     = Format-IsoDate -DateValue $policy.endOfSupportDate
                 assignedGroups       = $assignedGroups
                 deploymentState      = $deploymentState
+                statusAvailable      = ($deploymentState.total -gt 0)
+                statusSource         = $deploymentState.source
+                statusUnavailableReason = if ($deploymentState.total -gt 0) {
+                    $null
+                }
+                else {
+                    "Feature update deployment summary was not returned by the Intune reports API for this policy."
+                }
             }
 
             $totalItems++
@@ -569,6 +808,13 @@ try {
                             succeeded = $deployedDevices
                             pending   = $pendingDevices
                             failed    = $failedDevices
+                        }
+                        statusAvailable = (($deployedDevices + $pendingDevices + $failedDevices) -gt 0)
+                        statusSource    = if (($deployedDevices + $pendingDevices + $failedDevices) -gt 0) { "deviceUpdateStates" } else { "unavailable" }
+                        statusUnavailableReason = if (($deployedDevices + $pendingDevices + $failedDevices) -gt 0) {
+                            $null
+                        } else {
+                            "Driver deployment status was not returned by Graph for this update profile."
                         }
                     }
 

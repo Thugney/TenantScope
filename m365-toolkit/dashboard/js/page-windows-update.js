@@ -63,7 +63,7 @@ const PageWindowsUpdate = (function() {
         var complianceRate = totalDevices > 0 ? Math.round((upToDate / totalDevices) * 100 * 10) / 10 : 0;
         var pausedRings = rings.filter(function(r) { return r.qualityUpdatesPaused || r.featureUpdatesPaused; }).length;
         var expeditedCount = qualityUpdates.filter(function(q) { return q.isExpedited || q.expeditedUpdateSettings; }).length;
-        var pendingApproval = driverUpdates.filter(function(d) { return d.approvalStatus === 'needs_review'; }).length;
+        var pendingApproval = driverUpdates.filter(function(d) { return normalizeApprovalStatus(d.approvalStatus) === 'needsReview'; }).length;
 
         return {
             totalRings: rings.length,
@@ -79,6 +79,44 @@ const PageWindowsUpdate = (function() {
             expeditedUpdatesActive: expeditedCount,
             driversNeedingReview: pendingApproval
         };
+    }
+
+    function getDeploymentState(update) {
+        return (update && update.deploymentState && typeof update.deploymentState === 'object') ? update.deploymentState : {};
+    }
+
+    function getDeploymentTotal(state) {
+        return (state.total || 0) + (state.succeeded || 0) + (state.pending || 0) + (state.failed || 0) + (state.notApplicable || 0);
+    }
+
+    function hasDeploymentStatus(update) {
+        var state = getDeploymentState(update);
+        return getDeploymentTotal(state) > 0;
+    }
+
+    function formatDeploymentCount(value, row, className) {
+        if (row && row.statusAvailable === false) {
+            return '<span class="text-muted" title="Deployment status was not returned by Graph for this policy">--</span>';
+        }
+        if (value > 0 && className) return '<span class="' + className + '">' + value + '</span>';
+        return SF.formatCount(value || 0, { zeroIsGood: true });
+    }
+
+    function formatDeploymentProgress(value, row) {
+        if (row && row.statusAvailable === false) {
+            return '<span class="badge badge-neutral" title="Policy exists, but deployment status was not collected">Not collected</span>';
+        }
+        return SF.formatComplianceRate(value || 0);
+    }
+
+    function normalizeApprovalStatus(value) {
+        var raw = (value || '').toString().trim();
+        if (!raw) return 'unknown';
+        var collapsed = raw.replace(/[\s_-]/g, '').toLowerCase();
+        if (collapsed === 'needsreview') return 'needsReview';
+        if (collapsed === 'approved') return 'approved';
+        if (collapsed === 'declined') return 'declined';
+        return raw;
     }
 
     function switchTab(tab) {
@@ -365,7 +403,8 @@ const PageWindowsUpdate = (function() {
             u.succeeded = state.succeeded || 0;
             u.pending = state.pending || 0;
             u.failed = state.failed || 0;
-            u.total = state.total || 0;
+            u.total = state.total || (u.succeeded + u.pending + u.failed + (state.notApplicable || 0));
+            u.statusAvailable = hasDeploymentStatus(u);
             u.progress = u.total > 0 ? Math.round((u.succeeded / u.total) * 100) : 0;
             return u;
         });
@@ -374,10 +413,10 @@ const PageWindowsUpdate = (function() {
             { key: 'displayName', label: 'Policy Name', formatter: function(v) { return '<strong>' + (v || '--') + '</strong>'; }},
             { key: 'featureUpdateVersion', label: 'Target Version', formatter: function(v) { return '<span class="badge badge-info">' + (v || '--') + '</span>'; }},
             { key: 'endOfSupportDate', label: 'End of Support', formatter: function(v) { return SF.formatDate(v); }},
-            { key: 'succeeded', label: 'Succeeded', formatter: function(v) { return '<span class="text-success font-bold">' + v + '</span>'; }},
-            { key: 'pending', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + v + '</span>'; }},
-            { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
-            { key: 'progress', label: 'Progress', formatter: function(v) { return SF.formatComplianceRate(v); }},
+            { key: 'succeeded', label: 'Succeeded', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-success font-bold'); }},
+            { key: 'pending', label: 'Pending', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-warning'); }},
+            { key: 'failed', label: 'Failed', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-critical'); }},
+            { key: 'progress', label: 'Progress', formatter: formatDeploymentProgress },
             { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return SF.formatDate(v); }},
             { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
                 return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/featureUpdates" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
@@ -503,7 +542,7 @@ const PageWindowsUpdate = (function() {
         var html = '<div class="filter-bar">';
         html += '<input type="text" class="filter-input" id="drivers-search" placeholder="Search drivers...">';
         html += '<select class="filter-select" id="drivers-approval"><option value="all">All Approval Status</option>';
-        html += '<option value="approved">Approved</option><option value="needs_review">Needs Review</option><option value="declined">Declined</option></select>';
+        html += '<option value="approved">Approved</option><option value="needsReview">Needs Review</option><option value="declined">Declined</option></select>';
         html += '<div id="drivers-colselector"></div>';
         html += '</div>';
         html += '<div class="table-container" id="drivers-table"></div>';
@@ -549,7 +588,7 @@ const PageWindowsUpdate = (function() {
         var approvalFilter = Filters.getValue('drivers-approval');
         if (approvalFilter && approvalFilter !== 'all') {
             filtered = filtered.filter(function(d) {
-                return d.approvalStatus === approvalFilter;
+                return normalizeApprovalStatus(d.approvalStatus) === approvalFilter;
             });
         }
 
@@ -565,6 +604,8 @@ const PageWindowsUpdate = (function() {
             d.succeeded = state.succeeded || 0;
             d.pending = state.pending || 0;
             d.failed = state.failed || 0;
+            d.total = state.total || (d.succeeded + d.pending + d.failed + (state.notApplicable || 0));
+            d.statusAvailable = d.statusAvailable === false ? false : hasDeploymentStatus(d);
             return d;
         });
 
@@ -576,9 +617,9 @@ const PageWindowsUpdate = (function() {
             { key: 'releaseDateTime', label: 'Release Date', formatter: function(v) { return SF.formatDate(v); }},
             { key: 'approvalStatus', label: 'Approval', formatter: formatApprovalStatus },
             { key: 'applicableDeviceCount', label: 'Applicable', formatter: function(v) { return SF.formatCount(v); }},
-            { key: 'succeeded', label: 'Succeeded', formatter: function(v) { return '<span class="text-success font-bold">' + v + '</span>'; }},
-            { key: 'pending', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + v + '</span>'; }},
-            { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
+            { key: 'succeeded', label: 'Succeeded', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-success font-bold'); }},
+            { key: 'pending', label: 'Pending', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-warning'); }},
+            { key: 'failed', label: 'Failed', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-critical'); }},
             { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
                 return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/driverUpdates" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
             }}
@@ -616,10 +657,12 @@ const PageWindowsUpdate = (function() {
     function formatApprovalStatus(value) {
         var map = {
             'approved': { badge: 'badge-success', label: 'Approved' },
+            'needsReview': { badge: 'badge-warning', label: 'Needs Review' },
             'needs_review': { badge: 'badge-warning', label: 'Needs Review' },
             'declined': { badge: 'badge-critical', label: 'Declined' }
         };
-        var state = map[value] || { badge: 'badge-neutral', label: (value || 'Unknown').replace(/_/g, ' ') };
+        var normalized = normalizeApprovalStatus(value);
+        var state = map[normalized] || { badge: 'badge-neutral', label: (value || 'Unknown').replace(/_/g, ' ') };
         return '<span class="badge ' + state.badge + '">' + state.label + '</span>';
     }
 
@@ -720,13 +763,19 @@ const PageWindowsUpdate = (function() {
 
         // Deployment Status
         html += '<div class="detail-section"><h4>Deployment Status</h4><dl class="detail-list">';
-        html += '<dt>Total Devices</dt><dd>' + (state.total || 0) + '</dd>';
-        html += '<dt>Succeeded</dt><dd><span class="text-success font-bold">' + (state.succeeded || 0) + '</span></dd>';
-        html += '<dt>Pending</dt><dd><span class="text-warning">' + (state.pending || 0) + '</span></dd>';
-        html += '<dt>Failed</dt><dd>' + SF.formatCount(state.failed, { zeroIsGood: true }) + '</dd>';
-        html += '<dt>Not Applicable</dt><dd>' + (state.notApplicable || 0) + '</dd>';
-        var progress = state.total > 0 ? Math.round((state.succeeded / state.total) * 100) : 0;
-        html += '<dt>Progress</dt><dd>' + SF.formatComplianceRate(progress) + '</dd>';
+        var statusAvailable = hasDeploymentStatus(update);
+        if (statusAvailable) {
+            html += '<dt>Total Devices</dt><dd>' + (state.total || 0) + '</dd>';
+            html += '<dt>Succeeded</dt><dd><span class="text-success font-bold">' + (state.succeeded || 0) + '</span></dd>';
+            html += '<dt>Pending</dt><dd><span class="text-warning">' + (state.pending || 0) + '</span></dd>';
+            html += '<dt>Failed</dt><dd>' + SF.formatCount(state.failed, { zeroIsGood: true }) + '</dd>';
+            html += '<dt>Not Applicable</dt><dd>' + (state.notApplicable || 0) + '</dd>';
+            var progress = state.total > 0 ? Math.round((state.succeeded / state.total) * 100) : 0;
+            html += '<dt>Progress</dt><dd>' + SF.formatComplianceRate(progress) + '</dd>';
+        } else {
+            html += '<dt>Status</dt><dd><span class="badge badge-neutral">Not collected</span></dd>';
+            html += '<dt>Reason</dt><dd>Graph did not return per-policy deployment status for this feature update.</dd>';
+        }
         html += '</dl></div>';
 
         // Dates
@@ -839,10 +888,16 @@ const PageWindowsUpdate = (function() {
 
         // Deployment Status
         html += '<div class="detail-section"><h4>Deployment Status</h4><dl class="detail-list">';
-        html += '<dt>Total</dt><dd>' + (state.total || 0) + '</dd>';
-        html += '<dt>Succeeded</dt><dd><span class="text-success font-bold">' + (state.succeeded || 0) + '</span></dd>';
-        html += '<dt>Pending</dt><dd><span class="text-warning">' + (state.pending || 0) + '</span></dd>';
-        html += '<dt>Failed</dt><dd>' + SF.formatCount(state.failed, { zeroIsGood: true }) + '</dd>';
+        var statusAvailable = driver.statusAvailable === false ? false : hasDeploymentStatus(driver);
+        if (statusAvailable) {
+            html += '<dt>Total</dt><dd>' + (state.total || 0) + '</dd>';
+            html += '<dt>Succeeded</dt><dd><span class="text-success font-bold">' + (state.succeeded || 0) + '</span></dd>';
+            html += '<dt>Pending</dt><dd><span class="text-warning">' + (state.pending || 0) + '</span></dd>';
+            html += '<dt>Failed</dt><dd>' + SF.formatCount(state.failed, { zeroIsGood: true }) + '</dd>';
+        } else {
+            html += '<dt>Status</dt><dd><span class="badge badge-neutral">Not collected</span></dd>';
+            html += '<dt>Reason</dt><dd>' + escapeHtml(driver.statusUnavailableReason || 'Graph did not return deployment status for this driver update.') + '</dd>';
+        }
         html += '</dl></div>';
 
         html += '</div>'; // end detail-grid

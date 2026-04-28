@@ -417,11 +417,11 @@ try {
             }
         }
 
-        foreach ($config in $legacyConfigs) {
+        foreach ($legacyConfig in $legacyConfigs) {
             try {
                 $wrapper = [PSCustomObject]@{
                     source = "deviceConfigurations"
-                    data = $config
+                    data = $legacyConfig
                 }
                 [void]$allProfiles.Add($wrapper)
             }
