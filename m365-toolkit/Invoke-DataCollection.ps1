@@ -228,6 +228,26 @@ function Get-ConfigValidation {
         [hashtable]$Config
     )
 
+    function Get-ConfigValueByAlias {
+        param(
+            [Parameter(Mandatory)]
+            [hashtable]$Source,
+
+            [Parameter(Mandatory)]
+            [string[]]$Names
+        )
+
+        foreach ($name in $Names) {
+            foreach ($key in $Source.Keys) {
+                if ([string]::Equals([string]$key, $name, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    return $Source[$key]
+                }
+            }
+        }
+
+        return $null
+    }
+
     $requiredFields = @(
         "tenantId",
         "domains",
@@ -236,18 +256,19 @@ function Get-ConfigValidation {
     )
 
     foreach ($field in $requiredFields) {
-        if (-not $Config.ContainsKey($field)) {
+        if ($null -eq (Get-ConfigValueByAlias -Source $Config -Names @($field))) {
             throw "Configuration missing required field: $field"
         }
     }
 
-    if ($Config["tenantId"] -isnot [string] -or [string]::IsNullOrWhiteSpace($Config["tenantId"])) {
+    $tenantId = Get-ConfigValueByAlias -Source $Config -Names @("tenantId")
+    if ($tenantId -isnot [string] -or [string]::IsNullOrWhiteSpace($tenantId)) {
         throw "Configuration field 'tenantId' must be a non-empty string"
     }
 
-    $domains = $Config["domains"]
-    $thresholds = $Config["thresholds"]
-    $collection = $Config["collection"]
+    $domains = Get-ConfigValueByAlias -Source $Config -Names @("domains")
+    $thresholds = Get-ConfigValueByAlias -Source $Config -Names @("thresholds")
+    $collection = Get-ConfigValueByAlias -Source $Config -Names @("collection")
 
     if ($domains -isnot [hashtable]) {
         throw "Configuration field 'domains' must be an object"
@@ -262,12 +283,26 @@ function Get-ConfigValidation {
     }
 
     # Validate nested required fields
-    foreach ($domainField in @("employees", "students")) {
-        if (-not $domains.ContainsKey($domainField)) {
-            throw "Configuration missing required domain mappings (employees/students)"
+    $requiredDomainMappings = @(
+        @{
+            Name    = "employees"
+            Aliases = @("employees", "employee", "staff", "faculty")
+        },
+        @{
+            Name    = "students"
+            Aliases = @("students", "student", "pupils")
+        }
+    )
+
+    foreach ($domainMapping in $requiredDomainMappings) {
+        $domainField = $domainMapping.Name
+        $domainValue = Get-ConfigValueByAlias -Source $domains -Names $domainMapping.Aliases
+
+        if ($null -eq $domainValue) {
+            $availableDomainKeys = (@($domains.Keys) | ForEach-Object { [string]$_ }) -join ", "
+            throw "Configuration missing required domain mapping '$domainField'. Found domain keys: $availableDomainKeys"
         }
 
-        $domainValue = $domains[$domainField]
         if ($domainValue -isnot [array] -and $domainValue -isnot [string]) {
             throw "Configuration field 'domains.$domainField' must be a string or an array"
         }
@@ -281,14 +316,16 @@ function Get-ConfigValidation {
         }
     }
 
-    if (-not $thresholds.ContainsKey("inactiveDays") -or $null -eq $thresholds["inactiveDays"] -or [string]::IsNullOrWhiteSpace([string]$thresholds["inactiveDays"])) {
+    $inactiveDays = Get-ConfigValueByAlias -Source $thresholds -Names @("inactiveDays")
+    if ($null -eq $inactiveDays -or [string]::IsNullOrWhiteSpace([string]$inactiveDays)) {
         throw "Configuration missing required threshold: inactiveDays"
     }
 
     foreach ($thresholdName in @("inactiveDays", "staleDeviceDays")) {
-        if ($thresholds.ContainsKey($thresholdName) -and $null -ne $thresholds[$thresholdName]) {
+        $thresholdValue = Get-ConfigValueByAlias -Source $thresholds -Names @($thresholdName)
+        if ($null -ne $thresholdValue) {
             try {
-                [void][int]$thresholds[$thresholdName]
+                [void][int]$thresholdValue
             }
             catch {
                 throw "Configuration field 'thresholds.$thresholdName' must be a number"
@@ -296,11 +333,13 @@ function Get-ConfigValidation {
         }
     }
 
-    if ($thresholds.ContainsKey("gracePeriodAsNoncompliant") -and $null -ne $thresholds["gracePeriodAsNoncompliant"] -and $thresholds["gracePeriodAsNoncompliant"] -isnot [bool]) {
+    $gracePeriodAsNoncompliant = Get-ConfigValueByAlias -Source $thresholds -Names @("gracePeriodAsNoncompliant")
+    if ($null -ne $gracePeriodAsNoncompliant -and $gracePeriodAsNoncompliant -isnot [bool]) {
         throw "Configuration field 'thresholds.gracePeriodAsNoncompliant' must be true or false"
     }
 
-    if ($collection.ContainsKey("profile") -and $null -ne $collection["profile"] -and [string]$collection["profile"] -notin @("Fast", "Full")) {
+    $configuredProfile = Get-ConfigValueByAlias -Source $collection -Names @("profile")
+    if ($null -ne $configuredProfile -and [string]$configuredProfile -notin @("Fast", "Full")) {
         throw "Configuration field 'collection.profile' must be Fast or Full"
     }
 
