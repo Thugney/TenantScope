@@ -471,6 +471,39 @@ function Get-GraphAllPages {
     return $results
 }
 
+function Test-GraphAccessError {
+    <#
+    .SYNOPSIS
+        Detects Graph and Defender authorization/licensing failures.
+
+    .DESCRIPTION
+        Microsoft Graph and report export jobs do not always fail with a clean
+        HTTP exception. Some APIs return text statuses such as unauthorized or
+        forbidden inside an otherwise successful response. Collectors use this
+        helper to avoid reporting those responses as successful collection.
+    #>
+    [CmdletBinding()]
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $Value
+    )
+
+    if ($null -eq $Value) { return $false }
+
+    $text = if ($Value -is [string]) {
+        $Value
+    }
+    elseif ($Value.Exception -and $Value.Exception.Message) {
+        $Value.Exception.Message
+    }
+    else {
+        $Value.ToString()
+    }
+
+    return ($text -match "(?i)\b(unauthorized|forbidden|authorization|access denied|insufficient privileges|does not have access|not allowed|permission|consent required|401|403)\b")
+}
+
 function ConvertTo-GraphBatchUrl {
     <#
     .SYNOPSIS
@@ -1395,6 +1428,7 @@ function Save-CollectorData {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory)]
+        [AllowNull()]
         $Data,
 
         [Parameter(Mandatory)]
@@ -1406,6 +1440,10 @@ function Save-CollectorData {
 
     $tempPath = $null
     try {
+        if ($null -eq $Data) {
+            $Data = @()
+        }
+
         $outputDirectory = Split-Path -Path $OutputPath -Parent
         if ([string]::IsNullOrWhiteSpace($outputDirectory)) {
             $outputDirectory = "."
@@ -1415,7 +1453,7 @@ function Save-CollectorData {
         }
 
         $tempPath = Join-Path $outputDirectory (".{0}.{1}.tmp" -f (Split-Path -Path $OutputPath -Leaf), [Guid]::NewGuid().ToString("N"))
-        $json = $Data | ConvertTo-Json -Depth 10
+        $json = ConvertTo-Json -InputObject $Data -Depth 10
         $json | ConvertFrom-Json | Out-Null
         Set-Content -Path $tempPath -Value $json -Encoding UTF8
         Get-Content -Path $tempPath -Raw | ConvertFrom-Json | Out-Null

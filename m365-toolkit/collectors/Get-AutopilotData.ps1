@@ -371,7 +371,7 @@ catch {
     $errors += $errorMessage
 
     # Check if this is a licensing/permission issue
-    if ($errorMessage -match "Intune|license|subscription|permission|forbidden|Autopilot") {
+    if ((Test-GraphAccessError -Value $errorMessage) -or $errorMessage -match "Intune|license|subscription|Autopilot") {
         Write-Host "    [!] Autopilot collection requires appropriate Intune permissions" -ForegroundColor Yellow
     }
 

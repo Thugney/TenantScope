@@ -480,7 +480,7 @@ catch {
     $errorMessage = $_.Exception.Message
     $errors += $errorMessage
 
-    if ($errorMessage -match "Intune|license|subscription|permission|forbidden|Authorization") {
+    if ((Test-GraphAccessError -Value $errorMessage) -or $errorMessage -match "Intune|license|subscription") {
         Write-Host "    [!] Compliance policy collection requires Intune license and DeviceManagementConfiguration.Read.All permission" -ForegroundColor Yellow
     }
 

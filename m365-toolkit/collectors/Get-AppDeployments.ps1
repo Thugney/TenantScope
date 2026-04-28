@@ -348,10 +348,16 @@ function Invoke-IntuneExportReport {
             $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
 
             if ($status -match "completed" -and $downloadUrl) { break }
+            if (Test-GraphAccessError -Value $status) {
+                throw "Intune report export job returned access failure status '$status' for report '$ReportName'."
+            }
             if ($status -match "failed") { return @() }
         }
         catch {
-            # Keep polling until attempts are exhausted.
+            if (Test-GraphAccessError -Value $_) {
+                throw
+            }
+            # Keep polling until attempts are exhausted for transient report status issues.
         }
 
         Start-Sleep -Seconds 2

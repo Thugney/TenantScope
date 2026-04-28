@@ -192,8 +192,8 @@ function Write-CollectionSummary {
     Write-Host "  ─────────────────────────────────────────────────────────" -ForegroundColor Gray
 
     foreach ($collector in $Results.GetEnumerator() | Sort-Object Name) {
-        $status = if ($collector.Value.Success) { "[OK] Success" } else { "[X] Failed" }
-        $statusColor = if ($collector.Value.Success) { "Green" } else { "Red" }
+        $status = if (-not $collector.Value.Success) { "[X] Failed" } elseif ($collector.Value.Partial) { "[!] Partial" } else { "[OK] Success" }
+        $statusColor = if (-not $collector.Value.Success) { "Red" } elseif ($collector.Value.Partial) { "Yellow" } else { "Green" }
         $count = $collector.Value.Count.ToString().PadLeft(6)
         $duration = "{0:N1}s" -f $collector.Value.Duration
 
@@ -937,21 +937,30 @@ foreach ($collector in $collectors) {
         $collectorEnd = Get-Date
         $duration = ($collectorEnd - $collectorStart).TotalSeconds
 
+        $hasCollectorWarnings = @($result.Errors).Count -gt 0
         $collectorResults[$collector.Name] = @{
             Success = $result.Success
+            Partial = ($result.Success -and $hasCollectorWarnings)
             Count = $result.Count
             Duration = $duration
             Errors = $result.Errors
         }
 
         if ($result.Success) {
-            Write-Host "    [OK] Collected $($result.Count) items ($("{0:N1}" -f $duration)s)" -ForegroundColor Green
-            Write-CollectionLog -Message "Collector $($collector.Name) completed: $($result.Count) items in $("{0:N1}" -f $duration)s" -Level Info -NoConsole
+            if ($hasCollectorWarnings) {
+                Write-Host "    [!] Partial: collected $($result.Count) items with warnings ($("{0:N1}" -f $duration)s)" -ForegroundColor Yellow
+                Write-CollectionLog -Message "Collector $($collector.Name) completed with warnings: $($result.Count) items in $("{0:N1}" -f $duration)s; warnings: $($result.Errors -join '; ')" -Level Warning -NoConsole
+            }
+            else {
+                Write-Host "    [OK] Collected $($result.Count) items ($("{0:N1}" -f $duration)s)" -ForegroundColor Green
+                Write-CollectionLog -Message "Collector $($collector.Name) completed: $($result.Count) items in $("{0:N1}" -f $duration)s" -Level Info -NoConsole
+            }
             $runStatus.completedCollectors += [ordered]@{
                 name = $collector.Name
                 count = $result.Count
                 durationSeconds = [Math]::Round($duration, 1)
                 completedAt = $collectorEnd.ToString("o")
+                warnings = if ($hasCollectorWarnings) { @($result.Errors) } else { @() }
             }
             # Track duration for ETA calculation
             $collectorDurations += $duration
@@ -1163,7 +1172,7 @@ $metadata = @{
     collectedBy = (Get-MgContext).Account
     profile = $CollectionProfile
     skippedCollectors = $skippedCollectorNames
-    status = if ($collectorResults.Values | Where-Object { -not $_.Success }) { "partial" } else { "completed" }
+    status = if ($collectorResults.Values | Where-Object { -not $_.Success -or $_.Partial }) { "partial" } else { "completed" }
     collectors = @()
     summary = $summary
     thresholds = $configContent.thresholds
@@ -1182,6 +1191,7 @@ foreach ($collector in $collectorResults.GetEnumerator()) {
     $metadata.collectors += @{
         name = $collector.Name
         success = $collector.Value.Success
+        partial = $collector.Value.Partial
         count = $collector.Value.Count
         durationSeconds = [math]::Round($collector.Value.Duration, 0)
         errors = $collector.Value.Errors
