@@ -18,16 +18,41 @@ const PageCompliance = (function() {
         insights: []
     };
 
+    function asArray(value) {
+        if (Array.isArray(value)) return value;
+        if (!value || typeof value !== 'object') return [];
+        return Object.values(value).filter(function(item) {
+            return item && typeof item === 'object';
+        });
+    }
+
+    function hasPositiveSummary(summary) {
+        if (!summary || typeof summary !== 'object') return false;
+        return Object.keys(summary).some(function(key) {
+            return typeof summary[key] === 'number' && summary[key] > 0;
+        });
+    }
+
     function render(container) {
         const retentionData = DataLoader.getData('retentionData');
         const ediscoveryData = DataLoader.getData('ediscoveryData');
         const sensitivityData = DataLoader.getData('sensitivityLabels');
         const accessReviewData = DataLoader.getData('accessReviews');
 
-        const hasData = (retentionData?.labels?.length) ||
-                        (ediscoveryData?.cases?.length) ||
-                        (sensitivityData?.labels?.length) ||
-                        (accessReviewData?.definitions?.length);
+        const hasData = asArray(retentionData?.labels).length ||
+                        asArray(retentionData?.policies).length ||
+                        asArray(ediscoveryData?.cases).length ||
+                        asArray(sensitivityData?.labels).length ||
+                        asArray(accessReviewData?.definitions).length ||
+                        asArray(accessReviewData?.reviews).length ||
+                        hasPositiveSummary(retentionData?.summary) ||
+                        hasPositiveSummary(ediscoveryData?.summary) ||
+                        hasPositiveSummary(sensitivityData?.summary) ||
+                        hasPositiveSummary(accessReviewData?.summary) ||
+                        (retentionData?.insights || []).length ||
+                        (ediscoveryData?.insights || []).length ||
+                        (sensitivityData?.insights || []).length ||
+                        (accessReviewData?.insights || []).length;
 
         if (!hasData) {
             container.innerHTML = `
@@ -180,7 +205,7 @@ const PageCompliance = (function() {
     }
 
     function renderRetentionTab(data) {
-        const labels = data?.labels || [];
+        const labels = asArray(data?.labels);
         const summary = data?.summary || {};
 
         if (!labels.length) {
@@ -224,7 +249,7 @@ const PageCompliance = (function() {
     }
 
     function renderSensitivityTab(data) {
-        const labels = data?.labels || [];
+        const labels = asArray(data?.labels);
         const summary = data?.summary || {};
 
         if (!labels.length) {
@@ -270,7 +295,7 @@ const PageCompliance = (function() {
     }
 
     function renderEdiscoveryTab(data) {
-        const cases = data?.cases || [];
+        const cases = asArray(data?.cases);
         const summary = data?.summary || {};
 
         if (!cases.length) {
@@ -313,10 +338,11 @@ const PageCompliance = (function() {
     }
 
     function renderAccessReviewsTab(data) {
-        const definitions = data?.definitions || [];
+        const definitions = asArray(data?.definitions);
+        const reviews = definitions.length ? definitions : asArray(data?.reviews);
         const summary = data?.summary || {};
 
-        if (!definitions.length) {
+        if (!reviews.length) {
             return '<div class="empty-state"><p>No access reviews found</p></div>';
         }
 
@@ -339,7 +365,7 @@ const PageCompliance = (function() {
                         </tr>
                     </thead>
                     <tbody>
-                        ${definitions.map(def => `
+                        ${reviews.map(def => `
                             <tr class="${def.overdueInstanceCount > 0 ? 'row-warning' : ''}">
                                 <td>
                                     <strong>${escapeHtml(def.displayName)}</strong>

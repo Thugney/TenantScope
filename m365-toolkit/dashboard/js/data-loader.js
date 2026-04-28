@@ -483,13 +483,8 @@ const DataLoader = (function() {
                     }
 
                     // If object, ensure all expected keys exist (using aliases to find data)
+                    // and coerce existing null/object placeholders into the expected shape.
                     if (typeof data === 'object') {
-                        // First check if all expected keys already exist - no normalization needed
-                        const hasAllKeys = expectedKeys.every(k => k in data);
-                        if (hasAllKeys) {
-                            return; // Data is already in correct format
-                        }
-
                         let modified = false;
                         expectedKeys.forEach(k => {
                             if (!(k in data)) {
@@ -570,22 +565,23 @@ const DataLoader = (function() {
                 // These match what the page extractData functions expect
                 ensureObjectStructure('bitlockerStatus', ['devices', 'summary']);
                 ensureObjectStructure('compliancePolicies', ['policies', 'nonCompliantDevices', 'settingFailures', 'insights', 'summary']);
-                ensureObjectStructure('configurationProfiles', ['profiles', 'deviceStatuses', 'summary']);
-                ensureObjectStructure('windowsUpdateStatus', ['updateRings', 'featureUpdates', 'qualityUpdates', 'driverUpdates', 'deviceCompliance', 'summary']);
+                ensureObjectStructure('configurationProfiles', ['profiles', 'deviceStatuses', 'failedDevices', 'settingFailures', 'insights', 'summary']);
+                ensureObjectStructure('windowsUpdateStatus', ['updateRings', 'featureUpdates', 'qualityUpdates', 'driverUpdates', 'deviceCompliance', 'insights', 'summary']);
                 ensureObjectStructure('appDeployments', ['apps', 'failedDevices', 'insights', 'summary']);
-                ensureObjectStructure('endpointAnalytics', ['deviceScores', 'devicePerformance', 'batteryHealth', 'deviceAppHealth', 'workFromAnywhere', 'overview']);
+                ensureObjectStructure('endpointAnalytics', ['deviceScores', 'devicePerformance', 'batteryHealth', 'deviceAppHealth', 'workFromAnywhere', 'startupProcesses', 'startupHistory', 'modelInsights', 'appReliability', 'insights', 'overview', 'summary']);
                 ensureObjectStructure('identityRisk', ['riskyUsers', 'riskDetections', 'insights', 'summary']);
                 ensureObjectStructure('lapsCoverage', ['devices', 'summary']);
                 ensureObjectStructure('defenderDeviceHealth', ['devices', 'summary']);
                 ensureObjectStructure('deviceHardening', ['devices', 'summary']);
+                ensureObjectStructure('vulnerabilities', ['vulnerabilities', 'insights', 'summary']);
                 ensureObjectStructure('asrRules', ['rulesArray', 'profiles']);
                 ensureObjectStructure('asrAuditEvents', ['rules', 'events']);
                 ensureObjectStructure('endpointSecurityStates', ['devices', 'policies']);
                 ensureObjectStructure('oauthConsentGrants', ['grants']);
-                ensureObjectStructure('accessReviews', ['reviews', 'summary']);
-                ensureObjectStructure('retentionData', ['policies', 'summary']);
-                ensureObjectStructure('ediscoveryData', ['cases', 'summary']);
-                ensureObjectStructure('sensitivityLabels', ['labels', 'summary']);
+                ensureObjectStructure('accessReviews', ['definitions', 'reviews', 'insights', 'summary']);
+                ensureObjectStructure('retentionData', ['labels', 'policies', 'eventTypes', 'insights', 'summary']);
+                ensureObjectStructure('ediscoveryData', ['cases', 'insights', 'summary']);
+                ensureObjectStructure('sensitivityLabels', ['labels', 'insights', 'summary']);
 
                 synthesizeUsersFromCollectedData();
 
@@ -767,6 +763,17 @@ const DataLoader = (function() {
          * @returns {object} Summary object with counts
          */
         getSummary() {
+            const asArray = (value, preferredKey) => {
+                if (Array.isArray(value)) return value;
+                if (!value || typeof value !== 'object') return [];
+                if (preferredKey && Array.isArray(value[preferredKey])) return value[preferredKey];
+                const arrayKeys = ['items', 'data', 'value', 'apps', 'teams', 'sites', 'devices', 'users', 'groups'];
+                for (const key of arrayKeys) {
+                    if (Array.isArray(value[key])) return value[key];
+                }
+                return [];
+            };
+
             // Always compute from raw data to ensure all fields are present
             const users = Array.isArray(dataStore.users) ? dataStore.users : [];
             const guests = Array.isArray(dataStore.guests) ? dataStore.guests : [];
@@ -789,8 +796,10 @@ const DataLoader = (function() {
             const noMfa = users.filter(u => !u.mfaRegistered).length;
             const enabledUsers = users.filter(u => u.accountEnabled !== false).length;
             const enabledUsersWithMfa = users.filter(u => u.accountEnabled !== false && u.mfaRegistered).length;
-            const enterpriseApps = Array.isArray(dataStore.enterpriseApps) ? dataStore.enterpriseApps : [];
+            const enterpriseApps = asArray(dataStore.enterpriseApps, 'apps');
             const conditionalAccessPolicies = Array.isArray(dataStore.conditionalAccess) ? dataStore.conditionalAccess : [];
+            const teams = asArray(dataStore.teams, 'teams');
+            const sharepointSites = asArray(dataStore.sharepointSites, 'sites');
 
             return {
                 totalUsers: users.length,
@@ -820,26 +829,26 @@ const DataLoader = (function() {
                 conditionalAccessPolicies: conditionalAccessPolicies.length,
 
                 // Teams (governance-focused)
-                totalTeams: (dataStore.teams || []).length,
-                activeTeams: (dataStore.teams || []).filter(t => !t.isInactive).length,
-                inactiveTeams: (dataStore.teams || []).filter(t => t.isInactive).length,
-                ownerlessTeams: (dataStore.teams || []).filter(t => t.hasNoOwner).length,
-                teamsWithGuests: (dataStore.teams || []).filter(t => t.hasGuests).length,
-                publicTeams: (dataStore.teams || []).filter(t => t.visibility === 'Public').length,
-                privateTeams: (dataStore.teams || []).filter(t => t.visibility === 'Private').length,
+                totalTeams: teams.length,
+                activeTeams: teams.filter(t => !t.isInactive).length,
+                inactiveTeams: teams.filter(t => t.isInactive).length,
+                ownerlessTeams: teams.filter(t => t.hasNoOwner).length,
+                teamsWithGuests: teams.filter(t => t.hasGuests).length,
+                publicTeams: teams.filter(t => t.visibility === 'Public').length,
+                privateTeams: teams.filter(t => t.visibility === 'Private').length,
 
                 // SharePoint
-                totalSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite).length,
-                activeSites: (dataStore.sharepointSites || []).filter(s => !s.isInactive && !s.isPersonalSite).length,
-                inactiveSites: (dataStore.sharepointSites || []).filter(s => s.isInactive && !s.isPersonalSite).length,
-                totalStorageGB: Math.round(((dataStore.sharepointSites || []).reduce((sum, s) => sum + (s.storageUsedGB || 0), 0)) * 10) / 10,
-                groupConnectedSites: (dataStore.sharepointSites || []).filter(s => s.isGroupConnected).length,
-                highStorageSites: (dataStore.sharepointSites || []).filter(s =>
+                totalSites: sharepointSites.filter(s => !s.isPersonalSite).length,
+                activeSites: sharepointSites.filter(s => !s.isInactive && !s.isPersonalSite).length,
+                inactiveSites: sharepointSites.filter(s => s.isInactive && !s.isPersonalSite).length,
+                totalStorageGB: Math.round((sharepointSites.reduce((sum, s) => sum + (s.storageUsedGB || 0), 0)) * 10) / 10,
+                groupConnectedSites: sharepointSites.filter(s => s.isGroupConnected).length,
+                highStorageSites: sharepointSites.filter(s =>
                     !s.isPersonalSite && ((s.flags && s.flags.includes('high-storage')) || (s.storageUsedGB || 0) >= spHighStorageThreshold)
                 ).length,
-                externalSharingSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && s.hasExternalSharing).length,
-                anonymousLinkSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && (s.anonymousLinkCount || 0) > 0).length,
-                noLabelSites: (dataStore.sharepointSites || []).filter(s => !s.isPersonalSite && !s.sensitivityLabelId).length,
+                externalSharingSites: sharepointSites.filter(s => !s.isPersonalSite && s.hasExternalSharing).length,
+                anonymousLinkSites: sharepointSites.filter(s => !s.isPersonalSite && (s.anonymousLinkCount || 0) > 0).length,
+                noLabelSites: sharepointSites.filter(s => !s.isPersonalSite && !s.sensitivityLabelId).length,
 
                 // Admin Center (Message Center + Service Health)
                 messageCenterCount: messageCenter.length,
