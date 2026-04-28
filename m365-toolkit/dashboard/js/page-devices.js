@@ -1351,15 +1351,11 @@ const PageDevices = (function() {
     }
 
     function showDeviceDetails(device) {
-        try {
-            // Device details modal - data is from trusted collector scripts
-            var modalTitle = document.getElementById('modal-title');
-            var modalBody = document.getElementById('modal-body');
-            var modalOverlay = document.getElementById('modal-overlay');
-            if (!modalTitle || !modalBody || !modalOverlay) {
-                console.error('Modal elements not found');
-                return;
-            }
+        // Device details modal - data is from trusted collector scripts
+        var modalTitle = document.getElementById('modal-title');
+        var modalBody = document.getElementById('modal-body');
+        var modalOverlay = document.getElementById('modal-overlay');
+        if (!modalTitle || !modalBody || !modalOverlay) return;
 
             modalTitle.textContent = device.deviceName || 'Device Details';
 
@@ -1992,21 +1988,8 @@ const PageDevices = (function() {
 
         html += '</div>';
 
-            modalBody.innerHTML = html;
-            modalOverlay.classList.add('visible');
-        } catch (error) {
-            console.error('Error showing device details:', error);
-            var modalBody = document.getElementById('modal-body');
-            var modalOverlay = document.getElementById('modal-overlay');
-            if (modalBody && modalOverlay) {
-                var errorDiv = document.createElement('div');
-                errorDiv.className = 'error-state';
-                errorDiv.innerHTML = '<h4>Error Loading Device Details</h4><p>' + escapeHtml(error.message || 'An unknown error occurred') + '</p><p class="text-muted">Check browser console for details.</p>';
-                modalBody.innerHTML = '';
-                modalBody.appendChild(errorDiv);
-                modalOverlay.classList.add('visible');
-            }
-        }
+        modalBody.innerHTML = html;
+        modalOverlay.classList.add('visible');
     }
 
     /**
