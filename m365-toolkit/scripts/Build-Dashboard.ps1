@@ -304,8 +304,23 @@ $bundleMap = @{
 foreach ($entry in $bundleMap.GetEnumerator()) {
     $jsonFile = Join-Path $dashboardDataPath $entry.Value
     if (Test-Path $jsonFile) {
-        $jsonContent = Get-Content -Path $jsonFile -Raw -Encoding UTF8
-        $bundleLines += "window.__M365_DATA[`"$($entry.Key)`"] = $jsonContent;"
+        try {
+            $jsonContent = Get-Content -Path $jsonFile -Raw -Encoding UTF8
+            # BUG FIX: Validate JSON before embedding to prevent bundle corruption
+            $null = $jsonContent | ConvertFrom-Json -ErrorAction Stop
+            # XSS FIX: Escape </script> tags to prevent script injection
+            $jsonContent = $jsonContent -replace '</script>', '<\/script>'
+            $bundleLines += "window.__M365_DATA[`"$($entry.Key)`"] = $jsonContent;"
+        }
+        catch {
+            Write-Warning "Invalid JSON in $($entry.Value): $($_.Exception.Message). Using empty array."
+            if ($entry.Key -eq "metadata") {
+                $bundleLines += "window.__M365_DATA[`"$($entry.Key)`"] = null;"
+            }
+            else {
+                $bundleLines += "window.__M365_DATA[`"$($entry.Key)`"] = [];"
+            }
+        }
     }
     else {
         if ($entry.Key -eq "metadata") {

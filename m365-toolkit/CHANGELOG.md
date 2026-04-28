@@ -5,6 +5,21 @@ All notable changes to TenantScope will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.4.3] - 2026-04-16
+
+### Added
+- FieldResolver utility for resilient dashboard access to collector output aliases.
+- DataLoader diagnostic helpers for inspecting loaded data types.
+- Key alias normalization so dashboard pages can handle collector schema variation.
+
+### Changed
+- DataLoader normalizes object-type datasets before page rendering.
+- Dashboard build injects displayed version from the root `VERSION` file.
+
+### Fixed
+- Dashboard pages no longer silently show zero data when collectors use alternate field names.
+- Object-type data stores now receive expected keys with safe empty defaults when source data is missing.
+
 ## [2.4.2] - 2026-02-12
 
 ### Fixed

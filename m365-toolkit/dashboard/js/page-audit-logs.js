@@ -534,7 +534,9 @@ const PageAuditLogs = (function() {
             var cat = e.category || 'Other';
             categories[cat] = (categories[cat] || 0) + 1;
         });
-        var topCategory = Object.entries(categories).sort(function(a, b) { return b[1] - a[1]; })[0];
+        // BUG FIX: Add bounds check for empty categories array
+        var sortedCategories = Object.entries(categories).sort(function(a, b) { return b[1] - a[1]; });
+        var topCategory = sortedCategories.length > 0 ? sortedCategories[0] : ['None', 0];
 
         auditState = {
             auditLogs: auditLogs,

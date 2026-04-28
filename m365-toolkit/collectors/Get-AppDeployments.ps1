@@ -337,11 +337,12 @@ function Invoke-IntuneExportReport {
     $downloadUrl = $null
     $status = $null
 
-    for ($i = 0; $i -lt 30; $i++) {
+    # Reduced from 30×4s (2 min) to 10×2s (20 sec) to prevent all-day collections
+    for ($i = 0; $i -lt 10; $i++) {
         try {
             $statusResp = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
-            } -OperationName "Export report status ($ReportName)" -MaxRetries 2
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 1
 
             $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status","Status")
             $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
@@ -353,7 +354,7 @@ function Invoke-IntuneExportReport {
             # Keep polling until attempts are exhausted.
         }
 
-        Start-Sleep -Seconds 4
+        Start-Sleep -Seconds 2
     }
 
     if (-not $downloadUrl) { return @() }
@@ -832,6 +833,57 @@ try {
     $aggregateInstallReportMap = Get-AppInstallAggregateReportMap
     $installReportMap = if ($aggregateInstallReportMap.Count -lt $allApps.Count) { Get-AppInstallReportMap } else { @{} }
 
+    $deepCollection = $false
+    if ($Config.collection -is [hashtable]) {
+        $deepCollection = ($Config.collection.deepCollection -eq $true -or $Config.collection.appDeploymentDeepScan -eq $true)
+    }
+
+    $maxAssignmentFetches = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    $maxPerAppInstallSummaryFallbacks = if ($deepCollection) { [int]::MaxValue } else { 25 }
+    $maxDeviceStatusApps = if ($deepCollection) { [int]::MaxValue } else { 10 }
+    $maxDeviceStatusesPerApp = if ($deepCollection) { 1000 } else { 200 }
+    if ($Config.thresholds -is [hashtable]) {
+        if ($Config.thresholds.ContainsKey('maxAppAssignmentFetches')) { $maxAssignmentFetches = [int]$Config.thresholds.maxAppAssignmentFetches }
+        if ($Config.thresholds.ContainsKey('maxAppInstallSummaryFallbacks')) { $maxPerAppInstallSummaryFallbacks = [int]$Config.thresholds.maxAppInstallSummaryFallbacks }
+        if ($Config.thresholds.ContainsKey('maxAppDeviceStatusApps')) { $maxDeviceStatusApps = [int]$Config.thresholds.maxAppDeviceStatusApps }
+        if ($Config.thresholds.ContainsKey('maxAppDeviceStatusesPerApp')) { $maxDeviceStatusesPerApp = [int]$Config.thresholds.maxAppDeviceStatusesPerApp }
+    }
+
+    $assignmentFetchCount = 0
+    $installSummaryFallbackCount = 0
+    $deviceStatusAppCount = 0
+    $perAppReportFallbackCount = 0
+    $maxPerAppReportFallbacks = if ($deepCollection) { 10 } else { 3 }
+    $assignmentBatchMap = @{}
+
+    if ($maxAssignmentFetches -gt 0) {
+        $assignmentTargets = @($allApps | Select-Object -First $maxAssignmentFetches)
+        $assignmentRequests = @()
+        $requestIndex = 0
+        foreach ($assignmentApp in $assignmentTargets) {
+            if (-not $assignmentApp.id) { continue }
+            $requestIndex++
+            $requestId = "appAssignments$requestIndex"
+            $assignmentBatchMap[[string]$requestId] = [string]$assignmentApp.id
+            $assignmentRequests += [PSCustomObject]@{
+                id  = $requestId
+                uri = "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($assignmentApp.id)/assignments"
+            }
+        }
+
+        if ($assignmentRequests.Count -gt 0) {
+            Write-Host "      Fetching app assignments in Graph batches ($($assignmentRequests.Count) apps)..." -ForegroundColor Gray
+            $assignmentBatchResults = Invoke-GraphBatchGet -Requests $assignmentRequests -OperationName "App assignments batch"
+            $assignmentFetchCount = $assignmentRequests.Count
+        }
+        else {
+            $assignmentBatchResults = @{}
+        }
+    }
+    else {
+        $assignmentBatchResults = @{}
+    }
+
     foreach ($app in $allApps) {
         try {
             $appType = Get-AppType -ODataType $app.'@odata.type'
@@ -840,24 +892,52 @@ try {
 
             # Get assignments
             $assignments = @()
-            try {
-                $assignmentResponse = Invoke-MgGraphRequest -Method GET `
-                    -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/assignments" `
-                    -OutputType PSObject
+            $assignmentsFetched = $false
+            $assignmentRequestId = $null
+            foreach ($entry in $assignmentBatchMap.GetEnumerator()) {
+                if ($entry.Value -eq [string]$app.id) {
+                    $assignmentRequestId = $entry.Key
+                    break
+                }
+            }
 
-                foreach ($assignment in $assignmentResponse.value) {
-                    $intent = Get-InstallIntent -Intent $assignment.intent
-                    $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
-                    $assignments += @{
-                        intent     = $intent
-                        targetType = $target.type  # Use friendly name (AllDevices, Group, etc.) not @odata.type
-                        targetName = $target.name
-                        groupId    = $target.groupId
+            if ($assignmentRequestId -and $assignmentBatchResults.ContainsKey($assignmentRequestId)) {
+                $assignmentResult = $assignmentBatchResults[$assignmentRequestId]
+                if ($assignmentResult.status -ge 200 -and $assignmentResult.status -lt 300) {
+                    $assignmentsFetched = $true
+                    foreach ($assignment in @($assignmentResult.body.value)) {
+                        $intent = Get-InstallIntent -Intent $assignment.intent
+                        $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
+                        $assignments += @{
+                            intent     = $intent
+                            targetType = $target.type
+                            targetName = $target.name
+                            groupId    = $target.groupId
+                        }
                     }
                 }
             }
-            catch {
-                Write-Warning "      Failed to get assignments for app $($app.displayName): $($_.Exception.Message)"
+            elseif ($deepCollection) {
+                try {
+                    $assignmentResponse = Invoke-MgGraphRequest -Method GET `
+                        -Uri "https://graph.microsoft.com/beta/deviceAppManagement/mobileApps/$($app.id)/assignments" `
+                        -OutputType PSObject
+                    $assignmentsFetched = $true
+
+                    foreach ($assignment in $assignmentResponse.value) {
+                        $intent = Get-InstallIntent -Intent $assignment.intent
+                        $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
+                        $assignments += @{
+                            intent     = $intent
+                            targetType = $target.type  # Use friendly name (AllDevices, Group, etc.) not @odata.type
+                            targetName = $target.name
+                            groupId    = $target.groupId
+                        }
+                    }
+                }
+                catch {
+                    Write-Warning "      Failed to get assignments for app $($app.displayName): $($_.Exception.Message)"
+                }
             }
 
             # Get device install status
@@ -904,7 +984,8 @@ try {
             }
 
             # Fallback to aggregate install summary endpoint when report data unavailable
-            if (-not $statusAvailable) {
+            if (-not $statusAvailable -and $installSummaryFallbackCount -lt $maxPerAppInstallSummaryFallbacks) {
+                $installSummaryFallbackCount++
                 $installSummary = Get-AppInstallSummary -AppId $app.id
                 if ($installSummary) {
                     $installedCount = $installSummary.installed
@@ -919,7 +1000,16 @@ try {
             }
 
             $deviceStatusRetrieved = $false
-            try {
+            $shouldFetchDeviceStatuses = $deepCollection -or (
+                $deviceStatusAppCount -lt $maxDeviceStatusApps -and (
+                    (-not $statusAvailable) -or
+                    ($failedCount -gt 0 -and $deviceStatuses.Count -eq 0)
+                )
+            )
+
+            if ($shouldFetchDeviceStatuses) {
+                $deviceStatusAppCount++
+                try {
                 # deviceStatuses endpoint only works for managed app types (Win32, LOB)
                 # Store apps and web links don't have device-level status
                 # Use $top=100 as Graph API max for paginated endpoints
@@ -935,7 +1025,7 @@ try {
                         $allStatuses += $deviceStatus.value
                     }
                     $deviceStatusUri = $deviceStatus.'@odata.nextLink'
-                } while ($deviceStatusUri -and $allStatuses.Count -lt 1000)
+                } while ($deviceStatusUri -and $allStatuses.Count -lt $maxDeviceStatusesPerApp)
                 $deviceStatusRetrieved = $true
 
                 foreach ($status in $allStatuses) {
@@ -977,10 +1067,11 @@ try {
                         default          { } # Ignore other states
                     }
                 }
-            }
-            catch {
-                # deviceStatuses not available for this app type (e.g., Store apps, web links)
-                # This is expected - only managed apps (Win32, LOB) have device-level status
+                }
+                catch {
+                    # deviceStatuses not available for this app type (e.g., Store apps, web links)
+                    # This is expected - only managed apps (Win32, LOB) have device-level status
+                }
             }
 
             if ($deviceStatusRetrieved -and -not $statusAvailable) {
@@ -990,7 +1081,9 @@ try {
             }
 
             # Primary fallback: device install status report endpoint.
-            if (-not $statusAvailable -and $assignments.Count -gt 0) {
+            # PERFORMANCE FIX: Limit to maxPerAppReportFallbacks to prevent hours of collection time
+            if (-not $statusAvailable -and $perAppReportFallbackCount -lt $maxPerAppReportFallbacks) {
+                $perAppReportFallbackCount++
                 $reportSummary = Get-AppDeviceInstallReportSummary -AppId $app.id
                 if ($reportSummary) {
                     $installedCount = $reportSummary.installed
@@ -1007,7 +1100,9 @@ try {
             }
 
             # Secondary fallback: user-targeted status endpoint (legacy/best-effort).
-            if (-not $statusAvailable -and $assignments.Count -gt 0) {
+            # PERFORMANCE FIX: Also limit user status fallbacks
+            if (-not $statusAvailable -and $perAppReportFallbackCount -lt $maxPerAppReportFallbacks) {
+                $perAppReportFallbackCount++
                 $userSummary = Get-AppUserStatusSummary -AppId $app.id
                 if ($userSummary) {
                     $installedCount = $userSummary.installed
@@ -1021,8 +1116,14 @@ try {
             }
 
             if (-not $statusAvailable) {
-                if ($assignments.Count -eq 0) {
+                if (-not $assignmentsFetched -and $assignmentFetchCount -ge $maxAssignmentFetches) {
+                    $statusUnavailableReason = "Assignment and device-status detail limit reached. Run deepCollection for full per-app detail."
+                }
+                elseif ($assignments.Count -eq 0) {
                     $statusUnavailableReason = "No assignments found for this app."
+                }
+                elseif ($perAppReportFallbackCount -ge $maxPerAppReportFallbacks) {
+                    $statusUnavailableReason = "Status fallback limit reached ($maxPerAppReportFallbacks apps). Aggregate report data unavailable for this app."
                 }
                 elseif ($appType -in @("Store App", "Store for Business", "Web Link", "Web App")) {
                     $statusUnavailableReason = "Intune did not return deployment status for this app type in the available report APIs."

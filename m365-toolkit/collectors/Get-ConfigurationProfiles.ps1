@@ -210,6 +210,34 @@ function Get-ConfigurationPolicyReportMap {
     return $map
 }
 
+function Get-ConfigurationPolicyAssignmentFailures {
+    <#
+    .SYNOPSIS
+        Retrieves device-level configuration policy assignment rows from Intune reports.
+    #>
+    $reportNames = @(
+        "ConfigurationPolicyDevices",
+        "ConfigurationPolicyDeviceStatus",
+        "ConfigurationPolicyDeviceStatusV3",
+        "ConfigurationPolicyNonComplianceReport"
+    )
+
+    $select = @(
+        "PolicyId", "PolicyName", "DeviceName", "IntuneDeviceId", "DeviceId",
+        "UPN", "UserPrincipalName", "UserName", "AssignmentStatus", "PolicyStatus", "Status"
+    )
+
+    foreach ($reportName in $reportNames) {
+        $rows = Invoke-IntuneExportReport -ReportName $reportName -Select $select
+        if ($rows -and $rows.Count -gt 0) {
+            Write-Host "      Assignment failure fallback returned $($rows.Count) rows (source: $reportName)" -ForegroundColor Gray
+            return @($rows)
+        }
+    }
+
+    return @()
+}
+
 function Invoke-IntuneExportReport {
     [CmdletBinding()]
     param(
@@ -262,14 +290,15 @@ function Invoke-IntuneExportReport {
     $statusUri = "$baseUri/deviceManagement/reports/exportJobs('$($job.id)')"
     $downloadUrl = $null
     $status = $null
-    $maxAttempts = 30
-    $delaySeconds = 4
+    # Reduced from 30×4s (2 min) to 10×2s (20 sec) to prevent all-day collections
+    $maxAttempts = 10
+    $delaySeconds = 2
 
     for ($i = 0; $i -lt $maxAttempts; $i++) {
         try {
             $statusResp = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $statusUri -OutputType PSObject
-            } -OperationName "Export report status ($ReportName)" -MaxRetries 2
+            } -OperationName "Export report status ($ReportName)" -MaxRetries 1
 
             $status = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("status","Status")
             $downloadUrl = Get-GraphPropertyValue -Object $statusResp -PropertyNames @("url","Url","downloadUrl","DownloadUrl")
@@ -465,13 +494,68 @@ try {
     $groupNameCache = @{}
 
     # Throttle control: limit detailed API calls to avoid 429s
-    $overviewFetchLimit = 150
-    $detailedStatusLimit = 30  # Fetch detailed status for first N profiles with errors/conflicts
+    $deepCollection = ($Config.collection -is [hashtable] -and $Config.collection.deepCollection -eq $true)
+    $overviewFetchLimit = if ($deepCollection) { 150 } else { 50 }
+    $detailedStatusLimit = if ($deepCollection) { 30 } else { 10 }  # Fetch detailed status for first N profiles with errors/conflicts
     $detailedStatusCount = 0
-    $assignmentFetchLimit = 60
+    $assignmentFetchLimit = if ($deepCollection) { 60 } else { 25 }
     $assignmentFetchCount = 0
     $apiCallCount = 0
     $throttleDelay = 200  # ms between API-heavy operations (increased to prevent throttling)
+    if ($Config.thresholds -is [hashtable]) {
+        if ($Config.thresholds.ContainsKey('maxConfigurationProfileOverviews')) { $overviewFetchLimit = [int]$Config.thresholds.maxConfigurationProfileOverviews }
+        if ($Config.thresholds.ContainsKey('maxConfigurationProfileDetails')) { $detailedStatusLimit = [int]$Config.thresholds.maxConfigurationProfileDetails }
+        if ($Config.thresholds.ContainsKey('maxConfigurationProfileAssignments')) { $assignmentFetchLimit = [int]$Config.thresholds.maxConfigurationProfileAssignments }
+    }
+    $overviewBatchMap = @{}
+    $assignmentBatchMap = @{}
+    $overviewBatchResults = @{}
+    $assignmentBatchResults = @{}
+
+    $overviewTargets = @($allProfiles | Where-Object { $_.source -eq "deviceConfigurations" } | Select-Object -First $overviewFetchLimit)
+    $overviewRequests = @()
+    $requestIndex = 0
+    foreach ($overviewItem in $overviewTargets) {
+        if (-not $overviewItem.data.id) { continue }
+        $requestIndex++
+        $requestId = "profileOverview$requestIndex"
+        $overviewBatchMap[[string]$overviewItem.data.id] = $requestId
+        $overviewRequests += [PSCustomObject]@{
+            id  = $requestId
+            uri = "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($overviewItem.data.id)/deviceStatusOverview"
+        }
+    }
+
+    if ($overviewRequests.Count -gt 0) {
+        Write-Host "      Fetching configuration overview data in Graph batches ($($overviewRequests.Count) profiles)..." -ForegroundColor Gray
+        $overviewBatchResults = Invoke-GraphBatchGet -Requests $overviewRequests -OperationName "Configuration profile overview batch"
+    }
+
+    $assignmentTargets = @($allProfiles | Select-Object -First $assignmentFetchLimit)
+    $assignmentRequests = @()
+    $requestIndex = 0
+    foreach ($assignmentItem in $assignmentTargets) {
+        if (-not $assignmentItem.data.id) { continue }
+        $requestIndex++
+        $requestId = "profileAssignments$requestIndex"
+        $assignmentBatchMap[[string]$assignmentItem.data.id] = $requestId
+        $assignmentUri = if ($assignmentItem.source -eq "deviceConfigurations") {
+            "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($assignmentItem.data.id)/assignments"
+        } else {
+            "https://graph.microsoft.com/beta/deviceManagement/configurationPolicies/$($assignmentItem.data.id)/assignments"
+        }
+
+        $assignmentRequests += [PSCustomObject]@{
+            id  = $requestId
+            uri = $assignmentUri
+        }
+    }
+
+    if ($assignmentRequests.Count -gt 0) {
+        Write-Host "      Fetching configuration assignments in Graph batches ($($assignmentRequests.Count) profiles)..." -ForegroundColor Gray
+        $assignmentBatchResults = Invoke-GraphBatchGet -Requests $assignmentRequests -OperationName "Configuration profile assignments batch"
+        $assignmentFetchCount = $assignmentRequests.Count
+    }
 
     foreach ($item in $allProfiles) {
         try {
@@ -527,9 +611,16 @@ try {
                     }
 
                     if ($source -eq "deviceConfigurations") {
-                        $statusOverview = Invoke-MgGraphRequest -Method GET `
-                            -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
-                            -OutputType PSObject
+                        $statusOverview = $null
+                        $overviewRequestId = $overviewBatchMap[[string]$profile.id]
+                        if ($overviewRequestId -and $overviewBatchResults.ContainsKey($overviewRequestId) -and $overviewBatchResults[$overviewRequestId].status -ge 200 -and $overviewBatchResults[$overviewRequestId].status -lt 300) {
+                            $statusOverview = $overviewBatchResults[$overviewRequestId].body
+                        }
+                        elseif ($deepCollection) {
+                            $statusOverview = Invoke-MgGraphRequest -Method GET `
+                                -Uri "https://graph.microsoft.com/v1.0/deviceManagement/deviceConfigurations/$($profile.id)/deviceStatusOverview" `
+                                -OutputType PSObject
+                        }
 
                         $successCount = if ($null -ne $statusOverview.successCount) { [int]$statusOverview.successCount }
                                        elseif ($null -ne $statusOverview.compliantDeviceCount) { [int]$statusOverview.compliantDeviceCount + [int]$statusOverview.remediatedDeviceCount }
@@ -615,7 +706,17 @@ try {
 
             # Get assignments for this profile (only for first N profiles to reduce API calls)
             $assignments = @()
-            if ($canFetchAssignments) {
+            $assignmentRequestId = $assignmentBatchMap[[string]$profile.id]
+            if ($assignmentRequestId -and $assignmentBatchResults.ContainsKey($assignmentRequestId)) {
+                $assignmentResult = $assignmentBatchResults[$assignmentRequestId]
+                if ($assignmentResult.status -ge 200 -and $assignmentResult.status -lt 300) {
+                    foreach ($assignment in @($assignmentResult.body.value)) {
+                        $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
+                        $assignments += $target
+                    }
+                }
+            }
+            elseif ($canFetchAssignments -and $deepCollection) {
                 try {
                     $apiCallCount++
                     if ($apiCallCount % 10 -eq 0) { Start-Sleep -Milliseconds $throttleDelay }
@@ -632,7 +733,6 @@ try {
                         $target = Resolve-AssignmentTarget -Assignment $assignment -GroupNameCache $groupNameCache -ExcludeSuffix " (Excluded)"
                         $assignments += $target
                     }
-                    $assignmentFetchCount++
                 }
                 catch {
                     # Silently continue
@@ -770,6 +870,7 @@ try {
                 notApplicableDevices = $notApplicableCount
                 totalDevices         = $totalDevices
                 successRate          = $successRate
+                statusSource         = $statusSource
                 # Detailed statuses
                 deviceStatuses       = $deviceStatuses
                 settingStatuses      = $settingStatuses

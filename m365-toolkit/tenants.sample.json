@@ -1,0 +1,19 @@
+[
+    {
+        "tenantId": "your-first-tenant-id-guid",
+        "name": "Contoso",
+        "authType": "delegated"
+    },
+    {
+        "tenantId": "your-second-tenant-id-guid",
+        "name": "Fabrikam",
+        "authType": "delegated"
+    },
+    {
+        "tenantId": "your-third-tenant-id-guid",
+        "name": "Northwind",
+        "authType": "app",
+        "clientId": "your-app-registration-client-id",
+        "clientSecret": "your-client-secret-or-use-certificate"
+    }
+]

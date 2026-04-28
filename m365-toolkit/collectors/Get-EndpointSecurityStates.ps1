@@ -115,6 +115,34 @@ try {
     $intents = @()
     if ($intentsResponse.value) { $intents = $intentsResponse.value }
 
+    # PERFORMANCE FIX: Batch fetch device states for all intents instead of N+1 individual calls
+    $deviceStatesMap = @{}
+    if ($intents.Count -gt 0) {
+        Write-Host "      Batch fetching device states for $($intents.Count) intents..." -ForegroundColor Gray
+        $stateRequests = @()
+        foreach ($intent in $intents) {
+            $stateRequests += [PSCustomObject]@{
+                id  = [string]$intent.id
+                uri = "https://graph.microsoft.com/beta/deviceManagement/intents/$($intent.id)/deviceStates"
+            }
+        }
+
+        try {
+            $stateResults = Invoke-GraphBatchGet -Requests $stateRequests -OperationName "Endpoint security device states batch"
+            foreach ($intentId in $stateResults.Keys) {
+                $result = $stateResults[$intentId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $states = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $deviceStatesMap[$intentId] = $states
+                }
+            }
+            Write-Host "      Retrieved device states for $($deviceStatesMap.Count) intents" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch device states fetch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
     $policies = @()
     $deviceMap = @{}
 
@@ -132,8 +160,13 @@ try {
             unknown = 0
         }
 
+        # PERFORMANCE FIX: Lookup pre-fetched device states instead of N+1 API calls
+        $states = @()
+        if ($deviceStatesMap.ContainsKey([string]$policyId)) {
+            $states = $deviceStatesMap[[string]$policyId]
+        }
+
         try {
-            $states = Get-GraphAllPages -Uri "https://graph.microsoft.com/beta/deviceManagement/intents/$policyId/deviceStates" -OperationName "Endpoint security device states"
             foreach ($state in $states) {
                 $deviceId = Get-GraphPropertyValue -Object $state -PropertyNames @("deviceId", "managedDeviceId", "id")
                 if ([string]::IsNullOrWhiteSpace($deviceId)) { continue }

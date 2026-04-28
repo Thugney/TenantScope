@@ -105,6 +105,35 @@ try {
         $errors += "Access review definitions: $($_.Exception.Message)"
     }
 
+    # PERFORMANCE FIX: Batch fetch instances for all definitions instead of N+1 individual calls
+    $instancesMap = @{}
+    if ($definitions.Count -gt 0) {
+        Write-Host "      Batch fetching instances for $($definitions.Count) definitions..." -ForegroundColor Gray
+        $instanceRequests = @()
+        foreach ($definition in $definitions) {
+            if (-not $definition.id) { continue }
+            $instanceRequests += [PSCustomObject]@{
+                id  = [string]$definition.id
+                uri = "https://graph.microsoft.com/v1.0/identityGovernance/accessReviews/definitions/$($definition.id)/instances?`$top=50&`$orderby=startDateTime desc"
+            }
+        }
+
+        try {
+            $instanceResults = Invoke-GraphBatchGet -Requests $instanceRequests -OperationName "Access review instances batch"
+            foreach ($defId in $instanceResults.Keys) {
+                $result = $instanceResults[$defId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $instances = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $instancesMap[$defId] = $instances
+                }
+            }
+            Write-Host "      Retrieved instances for $($instancesMap.Count) definitions" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch instance fetch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
     # -----------------------------------------------------------------------
     # 2. Process each definition and get instances
     # -----------------------------------------------------------------------
@@ -221,23 +250,10 @@ try {
         $reminderNotificationsEnabled = $settings.reminderNotificationsEnabled
         $instanceDurationInDays = $settings.instanceDurationInDays
 
-        # -----------------------------------------------------------------------
-        # 2a. Get instances for this definition
-        # -----------------------------------------------------------------------
+        # PERFORMANCE FIX: Lookup pre-fetched instances instead of N+1 API calls
         $instances = @()
-        try {
-            $instancesResponse = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET `
-                    -Uri "https://graph.microsoft.com/v1.0/identityGovernance/accessReviews/definitions/$defId/instances?`$top=50&`$orderby=startDateTime desc" `
-                    -OutputType PSObject
-            } -OperationName "Instances for review $displayName"
-
-            if ($instancesResponse.value) {
-                $instances = @($instancesResponse.value)
-            }
-        }
-        catch {
-            # Instance retrieval failed - not critical, continue
+        if ($instancesMap.ContainsKey([string]$defId)) {
+            $instances = @($instancesMap[[string]$defId])
         }
 
         $processedInstances = @()

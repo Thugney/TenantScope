@@ -156,7 +156,8 @@ try {
     function Get-GroupMembers {
         param(
             [Parameter(Mandatory)]
-            [string]$GroupId
+            [string]$GroupId,
+            [int]$MaxMembers = 100
         )
 
         $members = @()
@@ -169,9 +170,13 @@ try {
             } -OperationName "Group members retrieval"
 
             if ($response.value) {
-                $members += $response.value
+                foreach ($member in $response.value) {
+                    if ($members.Count -ge $MaxMembers) { break }
+                    $members += $member
+                }
             }
 
+            if ($members.Count -ge $MaxMembers) { break }
             $uri = $response.'@odata.nextLink'
         } while ($uri)
 
@@ -255,6 +260,139 @@ try {
     $siteLinkErrorLogged = $false
     $membersAvailable = $true
     $membersErrorLogged = $false
+    $deepCollection = ($Config.collection -is [hashtable] -and $Config.collection.deepCollection -eq $true)
+    $maxTeamChannelLookups = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    $maxTeamSiteLookups = if ($deepCollection) { [int]::MaxValue } else { 100 }
+    $maxTeamMemberLookups = if ($deepCollection) { [int]::MaxValue } else { 50 }
+    if ($Config.thresholds -is [hashtable]) {
+        if ($Config.thresholds.ContainsKey('maxTeamChannelLookups')) { $maxTeamChannelLookups = [int]$Config.thresholds.maxTeamChannelLookups }
+        if ($Config.thresholds.ContainsKey('maxTeamSiteLookups')) { $maxTeamSiteLookups = [int]$Config.thresholds.maxTeamSiteLookups }
+        if ($Config.thresholds.ContainsKey('maxTeamMemberLookups')) { $maxTeamMemberLookups = [int]$Config.thresholds.maxTeamMemberLookups }
+    }
+    $teamChannelLookups = 0
+    $teamSiteLookups = 0
+    $teamMemberLookups = 0
+    $teamMemberCountMap = @{}
+    $teamCountRequests = @()
+
+    foreach ($group in $teamsGroups) {
+        $groupId = if ($group.id) { $group.id } else { $group.Id }
+        if (-not $groupId) { continue }
+        if ($activityData.ContainsKey($groupId) -and $activityData[$groupId].memberCount -gt 0) { continue }
+
+        $teamCountRequests += [PSCustomObject]@{
+            id      = "teamMembers_$groupId"
+            uri     = "https://graph.microsoft.com/v1.0/groups/$groupId/members/`$count"
+            headers = @{ ConsistencyLevel = "eventual" }
+        }
+    }
+
+    if ($teamCountRequests.Count -gt 0) {
+        Write-Host "      Fetching missing Teams member counts in Graph batches ($($teamCountRequests.Count) teams)..." -ForegroundColor Gray
+        $teamCountResults = Invoke-GraphBatchGet -Requests $teamCountRequests -OperationName "Teams member counts batch"
+        foreach ($request in $teamCountRequests) {
+            if ($teamCountResults.ContainsKey($request.id) -and $teamCountResults[$request.id].status -ge 200 -and $teamCountResults[$request.id].status -lt 300) {
+                $groupId = ([string]$request.id).Substring("teamMembers_".Length)
+                $count = Get-CountFromGraphResponse -Response $teamCountResults[$request.id].body
+                if ($null -ne $count) { $teamMemberCountMap[$groupId] = $count }
+            }
+        }
+    }
+
+    # PERFORMANCE FIX: Batch fetch channel counts and site IDs instead of N+1 individual calls
+    $channelCountsMap = @{}
+    $siteIdsMap = @{}
+
+    # Identify teams that need channel/site lookups
+    $teamsNeedingChannels = @()
+    $teamsNeedingSites = @()
+    foreach ($group in $teamsGroups) {
+        $groupId = if ($group.id) { $group.id } else { $group.Id }
+        if (-not $groupId) { continue }
+
+        $activity = $activityData[$groupId]
+        $guestCount = if ($activity) { $activity.guestCount } else { 0 }
+        $owners = if ($group.owners) { $group.owners } else { @() }
+        $ownerCount = $owners.Count
+        $lastActivityDate = if ($activity) { $activity.lastActivity } else { $null }
+        $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
+        $isInactive = ($null -ne $daysSinceActivity -and $daysSinceActivity -ge $inactiveThreshold) -or ($null -eq $lastActivityDate)
+        $hasNoOwner = ($ownerCount -eq 0)
+        $hasGuests = ($guestCount -gt 0)
+
+        $shouldLookup = $deepCollection -or $hasGuests -or $hasNoOwner -or $isInactive
+        if ($shouldLookup -and $teamsNeedingChannels.Count -lt $maxTeamChannelLookups) {
+            $teamsNeedingChannels += $groupId
+        }
+        if ($shouldLookup -and $teamsNeedingSites.Count -lt $maxTeamSiteLookups) {
+            $teamsNeedingSites += $groupId
+        }
+    }
+
+    # Batch fetch channel counts
+    if ($teamsNeedingChannels.Count -gt 0) {
+        Write-Host "      Batch fetching channel counts for $($teamsNeedingChannels.Count) teams..." -ForegroundColor Gray
+        $channelRequests = @()
+        foreach ($teamId in $teamsNeedingChannels) {
+            $channelRequests += [PSCustomObject]@{
+                id  = [string]$teamId
+                uri = "https://graph.microsoft.com/v1.0/teams/$teamId/channels?`$select=id,membershipType"
+            }
+        }
+
+        try {
+            $channelResults = Invoke-GraphBatchGet -Requests $channelRequests -OperationName "Teams channels batch"
+            foreach ($teamId in $channelResults.Keys) {
+                $result = $channelResults[$teamId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $channels = if ($result.body.value) { @($result.body.value) } else { @() }
+                    $total = $channels.Count
+                    $private = @($channels | Where-Object { $_.membershipType -eq 'private' }).Count
+                    $channelCountsMap[$teamId] = @{ total = $total; private = $private }
+                }
+            }
+            Write-Host "      Retrieved channel counts for $($channelCountsMap.Count) teams" -ForegroundColor Gray
+        }
+        catch {
+            Write-Host "      [!] Batch channel fetch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+        }
+    }
+
+    # Batch fetch SharePoint site IDs
+    if ($teamsNeedingSites.Count -gt 0) {
+        Write-Host "      Batch fetching SharePoint site IDs for $($teamsNeedingSites.Count) teams..." -ForegroundColor Gray
+        $siteRequests = @()
+        foreach ($groupId in $teamsNeedingSites) {
+            $siteRequests += [PSCustomObject]@{
+                id  = [string]$groupId
+                uri = "https://graph.microsoft.com/v1.0/groups/$groupId/sites/root?`$select=id,webUrl"
+            }
+        }
+
+        try {
+            $siteResults = Invoke-GraphBatchGet -Requests $siteRequests -OperationName "Teams SharePoint sites batch"
+            foreach ($groupId in $siteResults.Keys) {
+                $result = $siteResults[$groupId]
+                if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body) {
+                    $siteId = $result.body.id
+                    $siteGuid = $null
+                    if ($siteId -and $siteId -match ',') {
+                        $parts = $siteId -split ','
+                        if ($parts.Count -ge 2) { $siteGuid = $parts[1] }
+                    }
+                    $siteIdsMap[$groupId] = if ($siteGuid) { $siteGuid } else { $siteId }
+                }
+            }
+            Write-Host "      Retrieved site IDs for $($siteIdsMap.Count) teams" -ForegroundColor Gray
+        }
+        catch {
+            if ($_.Exception.Message -match "Forbidden|403|Authorization") {
+                Write-Host "      [!] SharePoint site lookup requires Sites.Read.All permission (skipping)" -ForegroundColor Yellow
+            } else {
+                Write-Host "      [!] Batch site fetch failed: $($_.Exception.Message)" -ForegroundColor Yellow
+            }
+        }
+    }
 
     foreach ($group in $teamsGroups) {
         $groupId = if ($group.id) { $group.id } else { $group.Id }
@@ -268,7 +406,10 @@ try {
         $memberCount = if ($activity -and $activity.memberCount -gt 0) { $activity.memberCount } else { 0 }
 
         # Fallback: Get member count from transitiveMemberCount if report doesn't have it
-        if ($memberCount -eq 0 -and $membersAvailable -and $groupId) {
+        if ($memberCount -eq 0 -and $teamMemberCountMap.ContainsKey([string]$groupId)) {
+            $memberCount = $teamMemberCountMap[[string]$groupId]
+        }
+        elseif ($memberCount -eq 0 -and $membersAvailable -and $groupId -and $deepCollection) {
             try {
                 $memberCountUri = "https://graph.microsoft.com/v1.0/groups/$groupId`?`$select=id&`$count=true"
                 $membersUri = "https://graph.microsoft.com/v1.0/groups/$groupId/members/`$count"
@@ -309,57 +450,32 @@ try {
         }
         $sensitivityLabelName = if ($labelNames.Count -gt 0) { ($labelNames | Sort-Object -Unique) -join ', ' } else { $null }
 
-        $channelCount = $null
-        $privateChannelCount = $null
-        if ($channelsAvailable -and $groupId) {
-            try {
-                $channelCounts = Get-TeamChannelCounts -TeamId $groupId
-                $channelCount = $channelCounts.total
-                $privateChannelCount = $channelCounts.private
-            }
-            catch {
-                if (-not $channelsErrorLogged) {
-                    Write-Host "      [!] Could not fetch channel counts: $($_.Exception.Message)" -ForegroundColor Yellow
-                    $errors += "Channels unavailable: $($_.Exception.Message)"
-                    $channelsErrorLogged = $true
-                }
-                $channelsAvailable = $false
-            }
-        }
-
-        $linkedSharePointSiteId = $null
-        if ($siteLinkAvailable -and $groupId) {
-            try {
-                $siteInfo = Get-LinkedSharePointSiteId -GroupId $groupId
-                $linkedSharePointSiteId = $siteInfo.id
-            }
-            catch {
-                if (-not $siteLinkErrorLogged) {
-                    if ($_.Exception.Message -match "Forbidden|403|Authorization") {
-                        Write-Host "      [!] SharePoint site lookup requires Sites.Read.All permission (skipping)" -ForegroundColor Yellow
-                        $errors += "Linked SharePoint site lookup requires Sites.Read.All permission"
-                    }
-                    else {
-                        Write-Host "      [!] Could not fetch linked SharePoint site IDs: $($_.Exception.Message)" -ForegroundColor Yellow
-                        $errors += "Linked SharePoint site lookup unavailable: $($_.Exception.Message)"
-                    }
-                    $siteLinkErrorLogged = $true
-                }
-                $siteLinkAvailable = $false
-            }
-        }
-
-        # Calculate governance flags
         $daysSinceActivity = Get-DaysSinceDate -DateValue $lastActivityDate
         $isInactive = ($null -ne $daysSinceActivity -and $daysSinceActivity -ge $inactiveThreshold) -or ($null -eq $lastActivityDate)
         $hasNoOwner = ($ownerCount -eq 0)
         $hasGuests = ($guestCount -gt 0)
 
+        # PERFORMANCE FIX: Lookup pre-fetched channel counts instead of N+1 API calls
+        $channelCount = $null
+        $privateChannelCount = $null
+        if ($channelCountsMap.ContainsKey([string]$groupId)) {
+            $channelCounts = $channelCountsMap[[string]$groupId]
+            $channelCount = $channelCounts.total
+            $privateChannelCount = $channelCounts.private
+        }
+
+        # PERFORMANCE FIX: Lookup pre-fetched site ID instead of N+1 API calls
+        $linkedSharePointSiteId = $null
+        if ($siteIdsMap.ContainsKey([string]$groupId)) {
+            $linkedSharePointSiteId = $siteIdsMap[[string]$groupId]
+        }
+
         $externalDomains = @()
         $suggestedOwners = @()
-        if ($membersAvailable -and $groupId -and ($hasGuests -or $hasNoOwner)) {
+        if ($membersAvailable -and $groupId -and ($hasGuests -or $hasNoOwner) -and $teamMemberLookups -lt $maxTeamMemberLookups) {
             try {
-                $members = Get-GroupMembers -GroupId $groupId
+                $teamMemberLookups++
+                $members = Get-GroupMembers -GroupId $groupId -MaxMembers 100
                 foreach ($member in $members) {
                     $userType = $member.userType
                     $upn = if ($member.userPrincipalName) { $member.userPrincipalName } elseif ($member.mail) { $member.mail } else { $null }

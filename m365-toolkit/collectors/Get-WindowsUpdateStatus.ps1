@@ -191,6 +191,7 @@ try {
     $deviceUpdateStateMap = @{}
     $deviceRingAssignments = @{}
     $ringStatusErrorLogged = $false
+    $deepCollection = ($Config.collection -is [hashtable] -and $Config.collection.deepCollection -eq $true)
 
     # ========================================
     # Collect Windows Update Rings
@@ -242,41 +243,46 @@ try {
             }
             catch { }
 
-            # Build device-to-ring assignments from deviceStatuses (best-effort)
-            try {
-                $deviceStatuses = Get-GraphAllPages `
-                    -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/$($ring.id)/deviceStatuses" `
-                    -OperationName "Update ring device status retrieval"
+            # DeviceStatuses can be very large. Use it only when overview counts
+            # are unavailable, or when deepCollection is explicitly enabled.
+            if ($useStatusFallback -or $deepCollection) {
+                try {
+                    $deviceStatuses = Get-GraphAllPages `
+                        -Uri "https://graph.microsoft.com/beta/deviceManagement/deviceConfigurations/$($ring.id)/deviceStatuses" `
+                        -OperationName "Update ring device status retrieval"
 
-                foreach ($status in $deviceStatuses) {
-                    if ($useStatusFallback) {
-                        $state = if ($status.status) { $status.status.ToString().ToLowerInvariant() } else { "" }
-                        switch ($state) {
-                            "compliant" { $successCount++ }
-                            "success" { $successCount++ }
-                            "noncompliant" { $errorCount++ }
-                            "conflict" { $errorCount++ }
-                            "error" { $errorCount++ }
-                            "notapplicable" { $pendingCount++ }
-                            "unknown" { $pendingCount++ }
-                            default { }
+                    foreach ($status in $deviceStatuses) {
+                        if ($useStatusFallback) {
+                            $state = if ($status.status) { $status.status.ToString().ToLowerInvariant() } else { "" }
+                            switch ($state) {
+                                "compliant" { $successCount++ }
+                                "success" { $successCount++ }
+                                "noncompliant" { $errorCount++ }
+                                "conflict" { $errorCount++ }
+                                "error" { $errorCount++ }
+                                "notapplicable" { $pendingCount++ }
+                                "unknown" { $pendingCount++ }
+                                default { }
+                            }
+                        }
+
+                        if ($deepCollection) {
+                            $deviceId = Get-GraphPropertyValue -Object $status -PropertyNames @("deviceId", "managedDeviceId", "id")
+                            if ([string]::IsNullOrWhiteSpace($deviceId)) { continue }
+                            if (-not $deviceRingAssignments.ContainsKey($deviceId)) {
+                                $deviceRingAssignments[$deviceId] = @()
+                            }
+                            if ($deviceRingAssignments[$deviceId] -notcontains $ringName) {
+                                $deviceRingAssignments[$deviceId] += $ringName
+                            }
                         }
                     }
-
-                    $deviceId = Get-GraphPropertyValue -Object $status -PropertyNames @("deviceId", "managedDeviceId", "id")
-                    if ([string]::IsNullOrWhiteSpace($deviceId)) { continue }
-                    if (-not $deviceRingAssignments.ContainsKey($deviceId)) {
-                        $deviceRingAssignments[$deviceId] = @()
-                    }
-                    if ($deviceRingAssignments[$deviceId] -notcontains $ringName) {
-                        $deviceRingAssignments[$deviceId] += $ringName
-                    }
                 }
-            }
-            catch {
-                if (-not $ringStatusErrorLogged) {
-                    $errors += "Update ring device statuses: $($_.Exception.Message)"
-                    $ringStatusErrorLogged = $true
+                catch {
+                    if (-not $ringStatusErrorLogged) {
+                        $errors += "Update ring device statuses: $($_.Exception.Message)"
+                        $ringStatusErrorLogged = $true
+                    }
                 }
             }
 
@@ -528,26 +534,24 @@ try {
                     -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles/$($profile.id)/driverInventories?`$top=100" `
                     -OutputType PSObject
 
-                foreach ($driver in $inventoryResponse.value) {
-                    # Get deployment status for this specific driver
-                    $deployedDevices = 0
-                    $pendingDevices = 0
-                    $failedDevices = 0
+                $profileDeviceStates = @()
+                try {
+                    $deviceStates = Invoke-MgGraphRequest -Method GET `
+                        -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles/$($profile.id)/deviceUpdateStates" `
+                        -OutputType PSObject
 
-                    try {
-                        $deviceStates = Invoke-MgGraphRequest -Method GET `
-                            -Uri "https://graph.microsoft.com/beta/deviceManagement/windowsDriverUpdateProfiles/$($profile.id)/deviceUpdateStates" `
-                            -OutputType PSObject
-
-                        if ($deviceStates.value) {
-                            $deployedDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "installed" -or $_.driverUpdateState -eq "succeeded" }).Count
-                            $pendingDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "pending" -or $_.driverUpdateState -eq "downloading" }).Count
-                            $failedDevices = ($deviceStates.value | Where-Object { $_.driverUpdateState -eq "failed" }).Count
-                            Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $deviceStates.value -StatusPropertyNames @("driverUpdateState", "status", "state")
-                        }
+                    if ($deviceStates.value) {
+                        $profileDeviceStates = @($deviceStates.value)
+                        Add-DeviceUpdateStates -StateMap $deviceUpdateStateMap -States $profileDeviceStates -StatusPropertyNames @("driverUpdateState", "status", "state")
                     }
-                    catch { }
+                }
+                catch { }
 
+                $deployedDevices = ($profileDeviceStates | Where-Object { $_.driverUpdateState -eq "installed" -or $_.driverUpdateState -eq "succeeded" }).Count
+                $pendingDevices = ($profileDeviceStates | Where-Object { $_.driverUpdateState -eq "pending" -or $_.driverUpdateState -eq "downloading" }).Count
+                $failedDevices = ($profileDeviceStates | Where-Object { $_.driverUpdateState -eq "failed" }).Count
+
+                foreach ($driver in $inventoryResponse.value) {
                     # Flatten driver into driverUpdates array (dashboard expects this structure)
                     $updateData.driverUpdates += [PSCustomObject]@{
                         id              = $driver.id

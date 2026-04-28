@@ -121,6 +121,29 @@
         return null;
     }
 
+    function escapeHtml(value) {
+        return String(value || '')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#039;');
+    }
+
+    function renderRuntimeError(error) {
+        const container = document.getElementById('page-container');
+        if (!container) return;
+
+        const message = error && error.message ? error.message : String(error || 'Unknown error');
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="empty-state-icon">&#9888;</div>
+                <div class="empty-state-title">Error Loading Page</div>
+                <div class="empty-state-description">${escapeHtml(message)}</div>
+            </div>
+        `;
+    }
+
     function shouldRedirectUserSearch(pageName) {
         if (pageName !== 'users') return false;
         const params = getHashParams();
@@ -249,13 +272,7 @@
             }
         } catch (error) {
             console.error('App: Error rendering page:', error);
-            container.innerHTML = `
-                <div class="empty-state">
-                    <div class="empty-state-icon">&#9888;</div>
-                    <div class="empty-state-title">Error Loading Page</div>
-                    <div class="empty-state-description">${error.message}</div>
-                </div>
-            `;
+            renderRuntimeError(error);
         }
     }
 
@@ -464,6 +481,16 @@
      */
     async function init() {
         console.log('TenantScope: Initializing...');
+
+        window.addEventListener('error', function(event) {
+            console.error('App: Unhandled runtime error:', event.error || event.message);
+            renderRuntimeError(event.error || event.message);
+        });
+
+        window.addEventListener('unhandledrejection', function(event) {
+            console.error('App: Unhandled promise rejection:', event.reason);
+            renderRuntimeError(event.reason);
+        });
 
         // Setup event handlers
         setupModalHandlers();

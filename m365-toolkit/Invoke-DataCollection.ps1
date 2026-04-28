@@ -39,6 +39,10 @@
     runs all collectors. Valid values include all items in the ValidateSet
     defined for this parameter.
 
+.PARAMETER CollectionProfile
+    Controls collection depth. Full is the default and runs every collector.
+    Fast is an explicit operator choice for quick smoke tests.
+
 .PARAMETER ClientId
     Application (client) ID for app-only authentication.
     Required for unattended/scheduled execution.
@@ -68,6 +72,10 @@
 .EXAMPLE
     .\Invoke-DataCollection.ps1 -CollectorsToRun @("UserData", "LicenseData")
     Runs only the specified collectors.
+
+.EXAMPLE
+    .\Invoke-DataCollection.ps1 -CollectionProfile Full
+    Runs every collector. This is the default behavior.
 
 .EXAMPLE
     .\Invoke-DataCollection.ps1 -ClientId "00000000-0000-0000-0000-000000000000" -CertificateThumbprint "ABC123..."
@@ -112,6 +120,10 @@ param(
                  "DefenderDeviceHealth", "ASRAuditEvents", "EndpointSecurityStates", "LapsCoverage",
                  "DeviceHardening")]
     [string[]]$CollectorsToRun,
+
+    [Parameter()]
+    [ValidateSet("", "Fast", "Full")]
+    [string]$CollectionProfile = "",
 
     # App-only authentication parameters (for scheduled/unattended execution)
     [Parameter()]
@@ -224,16 +236,82 @@ function Get-ConfigValidation {
         }
     }
 
+    if ($Config.tenantId -isnot [string] -or [string]::IsNullOrWhiteSpace($Config.tenantId)) {
+        throw "Configuration field 'tenantId' must be a non-empty string"
+    }
+
+    if ($Config.domains -isnot [hashtable]) {
+        throw "Configuration field 'domains' must be an object"
+    }
+
+    if ($Config.thresholds -isnot [hashtable]) {
+        throw "Configuration field 'thresholds' must be an object"
+    }
+
+    if ($Config.collection -isnot [hashtable]) {
+        throw "Configuration field 'collection' must be an object"
+    }
+
     # Validate nested required fields
     if (-not $Config.domains.employees -or -not $Config.domains.students) {
         throw "Configuration missing required domain mappings (employees/students)"
+    }
+
+    foreach ($domainField in @("employees", "students")) {
+        $domainValue = $Config.domains[$domainField]
+        if ($domainValue -isnot [array] -and $domainValue -isnot [string]) {
+            throw "Configuration field 'domains.$domainField' must be a string or an array"
+        }
     }
 
     if (-not $Config.thresholds.inactiveDays) {
         throw "Configuration missing required threshold: inactiveDays"
     }
 
+    foreach ($thresholdName in @("inactiveDays", "staleDeviceDays")) {
+        if ($Config.thresholds.ContainsKey($thresholdName) -and $null -ne $Config.thresholds[$thresholdName]) {
+            try {
+                [void][int]$Config.thresholds[$thresholdName]
+            }
+            catch {
+                throw "Configuration field 'thresholds.$thresholdName' must be a number"
+            }
+        }
+    }
+
+    if ($Config.thresholds.ContainsKey("gracePeriodAsNoncompliant") -and $null -ne $Config.thresholds.gracePeriodAsNoncompliant -and $Config.thresholds.gracePeriodAsNoncompliant -isnot [bool]) {
+        throw "Configuration field 'thresholds.gracePeriodAsNoncompliant' must be true or false"
+    }
+
+    if ($Config.collection.ContainsKey("profile") -and $null -ne $Config.collection.profile -and [string]$Config.collection.profile -notin @("Fast", "Full")) {
+        throw "Configuration field 'collection.profile' must be Fast or Full"
+    }
+
     return $true
+}
+
+function Test-GraphScopeCoverage {
+    <#
+    .SYNOPSIS
+        Verifies that a delegated Graph session contains the requested scopes.
+    #>
+    param(
+        [Parameter(Mandatory)]
+        $Context,
+
+        [Parameter(Mandatory)]
+        [string[]]$RequiredScopes
+    )
+
+    if (-not $Context -or -not $Context.Scopes) {
+        return
+    }
+
+    $grantedScopes = @($Context.Scopes)
+    $missingScopes = @($RequiredScopes | Where-Object { $_ -notin $grantedScopes })
+    if ($missingScopes.Count -gt 0) {
+        throw "Graph connection is missing required delegated scopes: $($missingScopes -join ', ')"
+    }
 }
 
 function Test-TenantIdFormat {
@@ -337,8 +415,7 @@ function Merge-MfaDataIntoUsers {
             }
         }
 
-        # Write updated users back to file
-        $users | ConvertTo-Json -Depth 10 | Set-Content -Path $UsersPath -Encoding UTF8
+        Save-CollectorData -Data $users -OutputPath $UsersPath | Out-Null
         Write-Host "    [OK] Merged MFA data into users" -ForegroundColor Green
     }
     catch {
@@ -398,8 +475,7 @@ function Merge-AdminRolesIntoUsers {
             }
         }
 
-        # Write updated users back to file
-        $users | ConvertTo-Json -Depth 10 | Set-Content -Path $UsersPath -Encoding UTF8
+        Save-CollectorData -Data $users -OutputPath $UsersPath | Out-Null
         Write-Host "    [OK] Merged admin role data into users" -ForegroundColor Green
     }
     catch {
@@ -420,7 +496,15 @@ $collectionId = "col-{0:yyyy-MM-dd-HHmmss}" -f $collectionStartTime
 
 Write-Host "  Collection ID: $collectionId" -ForegroundColor Gray
 Write-Host "  Started: $($collectionStartTime.ToString('yyyy-MM-dd HH:mm:ss'))" -ForegroundColor Gray
+
+# Initialize persistent logging
+$logsPath = Join-Path $PSScriptRoot "logs"
+$logFilePath = Initialize-CollectionLogging -LogDirectory $logsPath -CollectionId $collectionId
+Write-Host "  Log file: $logFilePath" -ForegroundColor Gray
 Write-Host ""
+
+# Initialize token refresh tracking
+Initialize-TokenRefresh
 
 # ============================================================================
 # STEP 1: Load and validate configuration
@@ -438,6 +522,19 @@ try {
     $configContent = Get-Content $ConfigPath -Raw | ConvertFrom-Json -AsHashtable
     Get-ConfigValidation -Config $configContent | Out-Null
     Test-TenantIdFormat -TenantId $configContent.tenantId | Out-Null
+    if (-not $CollectionProfile) {
+        $configuredProfile = $null
+        if ($configContent.collection -is [hashtable] -and $configContent.collection.ContainsKey("profile")) {
+            $configuredProfile = [string]$configContent.collection.profile
+        }
+
+        if ($configuredProfile -in @("Fast", "Full")) {
+            $CollectionProfile = $configuredProfile
+        }
+        else {
+            $CollectionProfile = "Full"
+        }
+    }
     Write-Host "  [OK] Configuration loaded and validated" -ForegroundColor Green
 }
 catch {
@@ -554,6 +651,8 @@ try {
         throw "Failed to establish Graph connection"
     }
 
+    Test-GraphScopeCoverage -Context $context -RequiredScopes $requiredScopes
+
     if ($authMode -eq "Interactive") {
         Write-Host "  [OK] Connected as: $($context.Account)" -ForegroundColor Green
         if (-not $UseDeviceCode) {
@@ -669,6 +768,8 @@ $collectors = @(
     # AppSignInData reuses SharedData.SignInLogs from SignInLogs
     @{ Name = "Get-AppSignInData";  Script = "Get-AppSignInData.ps1";  Output = "app-signins.json" }
 )
+$allCollectors = @($collectors)
+$allCollectorNames = @($collectors | ForEach-Object { $_.Name })
 
 # Filter collectors if specific ones were requested
 if ($CollectorsToRun) {
@@ -676,6 +777,44 @@ if ($CollectorsToRun) {
         $_.Name -replace "Get-", "" -replace "Data", "" -in ($CollectorsToRun -replace "Data", "")
     }
 }
+elseif ($CollectionProfile -eq "Fast") {
+    $fastCollectorNames = @(
+        "Get-LicenseData",
+        "Get-MFAData",
+        "Get-DeletedUsers",
+        "Get-GroupData",
+        "Get-DeviceData",
+        "Get-UserData",
+        "Get-AdminRoleData",
+        "Get-GuestData",
+        "Get-IdentityRiskData",
+        "Get-SignInData",
+        "Get-SignInLogs",
+        "Get-DefenderData",
+        "Get-SecureScoreData",
+        "Get-ConditionalAccessData",
+        "Get-NamedLocations",
+        "Get-ASRRules",
+        "Get-EnterpriseAppData",
+        "Get-ServicePrincipalSecrets",
+        "Get-OAuthConsentGrants",
+        "Get-CompliancePolicies",
+        "Get-ConfigurationProfiles",
+        "Get-ServiceAnnouncementData",
+        "Get-AppSignInData"
+    )
+
+    $collectors = @($collectors | Where-Object { $_.Name -in $fastCollectorNames })
+}
+
+Write-Host "  Collection profile: $CollectionProfile" -ForegroundColor Gray
+Write-Host "  Collectors selected: $($collectors.Count)" -ForegroundColor Gray
+if ($CollectionProfile -eq "Fast" -and -not $CollectorsToRun) {
+    Write-Host "  Tip: use -CollectionProfile Full for all collectors." -ForegroundColor Gray
+}
+$selectedCollectorNames = @($collectors | ForEach-Object { $_.Name })
+$skippedCollectors = @($allCollectors | Where-Object { $_.Name -notin $selectedCollectorNames })
+$skippedCollectorNames = @($skippedCollectors | ForEach-Object { $_.Name })
 
 # Initialize results tracking
 $collectorResults = @{}
@@ -689,25 +828,105 @@ $collectorResults = @{}
 # CA policies, applications, service principals, groups, and sign-in logs.
 $sharedData = @{}
 
+$runStatusPath = Join-Path $dataPath "_run-status.json"
+$runStatus = [ordered]@{
+    collectionId = $collectionId
+    profile = $CollectionProfile
+    startedAt = $collectionStartTime.ToString("o")
+    updatedAt = (Get-Date).ToString("o")
+    currentCollector = $null
+    completedCollectors = @()
+    failedCollectors = @()
+    skippedCollectors = $skippedCollectorNames
+    collectorsSelected = @($collectors | ForEach-Object { $_.Name })
+}
+
+function Update-RunStatusFile {
+    param(
+        [Parameter(Mandatory)]
+        [object]$Status,
+
+        [Parameter(Mandatory)]
+        [string]$Path
+    )
+
+    $Status.updatedAt = (Get-Date).ToString("o")
+    Save-CollectorData -Data ([PSCustomObject]$Status) -OutputPath $Path | Out-Null
+}
+
+Update-RunStatusFile -Status $runStatus -Path $runStatusPath
+
+if ($CollectionProfile -eq "Fast" -and $skippedCollectors.Count -gt 0) {
+    Write-Host "  Skipping $($skippedCollectors.Count) collectors for Fast profile" -ForegroundColor Gray
+    foreach ($skippedCollector in $skippedCollectors) {
+        $skippedOutputPath = Join-Path $dataPath $skippedCollector.Output
+        Save-CollectorData -Data @() -OutputPath $skippedOutputPath | Out-Null
+    }
+}
+
+# Track progress for time estimation
+$collectorIndex = 0
+$collectorDurations = @()
+$totalCollectors = $collectors.Count
+
 # Run each collector
 foreach ($collector in $collectors) {
+    $collectorIndex++
     $collectorPath = Join-Path $PSScriptRoot "collectors" $collector.Script
     $outputPath = Join-Path $dataPath $collector.Output
 
+    # Calculate progress and ETA
+    $progressPct = [Math]::Round(($collectorIndex - 1) / $totalCollectors * 100)
+    $etaText = ""
+    if ($collectorDurations.Count -gt 0) {
+        $avgDuration = ($collectorDurations | Measure-Object -Average).Average
+        $remainingCollectors = $totalCollectors - $collectorIndex + 1
+        $etaSeconds = [Math]::Round($avgDuration * $remainingCollectors)
+        if ($etaSeconds -ge 60) {
+            $etaText = " | ETA: $([Math]::Floor($etaSeconds / 60))m $($etaSeconds % 60)s"
+        } else {
+            $etaText = " | ETA: ${etaSeconds}s"
+        }
+    }
+
+    Write-Host "  [$collectorIndex/$totalCollectors] $progressPct%$etaText" -ForegroundColor Gray
     Write-Host "  ► $($collector.Name)" -ForegroundColor White
+    Write-CollectionLog -Message "Starting collector: $($collector.Name)" -Level Info -NoConsole
 
     $collectorStart = Get-Date
+    $runStatus.currentCollector = [ordered]@{
+        name = $collector.Name
+        script = $collector.Script
+        output = $collector.Output
+        startedAt = $collectorStart.ToString("o")
+    }
+    Update-RunStatusFile -Status $runStatus -Path $runStatusPath
 
     if (-not (Test-Path $collectorPath)) {
         Write-Host "    [X] Collector script not found: $collectorPath" -ForegroundColor Red
+        Write-CollectionLog -Message "Collector $($collector.Name) NOT FOUND: $collectorPath" -Level Error -NoConsole
         $collectorResults[$collector.Name] = @{
             Success = $false
             Count = 0
             Duration = 0
             Errors = @("Collector script not found")
         }
-        # Create empty JSON file to prevent dashboard errors
-        "[]" | Set-Content -Path $outputPath -Encoding UTF8
+        # ERROR PROPAGATION FIX: Write error marker instead of empty array
+        $errorMarker = @{
+            _collectionError = $true
+            collector = $collector.Name
+            errors = @("Collector script not found: $collectorPath")
+            timestamp = (Get-Date).ToString("o")
+            message = "Collector script missing. Verify installation."
+        }
+        Save-CollectorData -Data $errorMarker -OutputPath $outputPath | Out-Null
+        $runStatus.failedCollectors += [ordered]@{
+            name = $collector.Name
+            durationSeconds = 0
+            error = "Collector script not found"
+        }
+        $runStatus.currentCollector = $null
+        Update-RunStatusFile -Status $runStatus -Path $runStatusPath
         continue
     }
 
@@ -727,32 +946,82 @@ foreach ($collector in $collectors) {
 
         if ($result.Success) {
             Write-Host "    [OK] Collected $($result.Count) items ($("{0:N1}" -f $duration)s)" -ForegroundColor Green
+            Write-CollectionLog -Message "Collector $($collector.Name) completed: $($result.Count) items in $("{0:N1}" -f $duration)s" -Level Info -NoConsole
+            $runStatus.completedCollectors += [ordered]@{
+                name = $collector.Name
+                count = $result.Count
+                durationSeconds = [Math]::Round($duration, 1)
+                completedAt = $collectorEnd.ToString("o")
+            }
+            # Track duration for ETA calculation
+            $collectorDurations += $duration
         }
         else {
-            Write-Host "    [X] Failed: $($result.Errors -join '; ')" -ForegroundColor Red
+            $errorMsg = $result.Errors -join '; '
+            Write-Host "    [X] Failed: $errorMsg" -ForegroundColor Red
+            Write-CollectionLog -Message "Collector $($collector.Name) FAILED: $errorMsg" -Level Error -NoConsole
+
+            # ERROR PROPAGATION FIX: Write error marker file instead of empty array
+            # This makes failures visible to dashboard and downstream tools
+            $errorMarker = @{
+                _collectionError = $true
+                collector = $collector.Name
+                errors = @($result.Errors)
+                timestamp = $collectorEnd.ToString("o")
+                message = "Collection failed. Check logs for details: $logFilePath"
+            }
+            Save-CollectorData -Data $errorMarker -OutputPath $outputPath | Out-Null
+
+            $runStatus.failedCollectors += [ordered]@{
+                name = $collector.Name
+                durationSeconds = [Math]::Round($duration, 1)
+                errors = @($result.Errors)
+                completedAt = $collectorEnd.ToString("o")
+            }
+            # Still track duration for ETA even on failure
+            $collectorDurations += $duration
         }
     }
     catch {
         $collectorEnd = Get-Date
         $duration = ($collectorEnd - $collectorStart).TotalSeconds
+        $errorMsg = $_.Exception.Message
 
-        Write-Host "    [X] Error: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "    [X] Error: $errorMsg" -ForegroundColor Red
+        Write-CollectionLog -Message "Collector $($collector.Name) EXCEPTION: $errorMsg" -Level Error -NoConsole
 
         $collectorResults[$collector.Name] = @{
             Success = $false
             Count = 0
             Duration = $duration
-            Errors = @($_.Exception.Message)
+            Errors = @($errorMsg)
         }
 
-        # Create empty JSON file to prevent dashboard errors
-        "[]" | Set-Content -Path $outputPath -Encoding UTF8
+        # ERROR PROPAGATION FIX: Write error marker file instead of empty array
+        $errorMarker = @{
+            _collectionError = $true
+            collector = $collector.Name
+            errors = @($errorMsg)
+            timestamp = $collectorEnd.ToString("o")
+            message = "Collection failed with exception. Check logs for details: $logFilePath"
+        }
+        Save-CollectorData -Data $errorMarker -OutputPath $outputPath | Out-Null
+
+        $runStatus.failedCollectors += [ordered]@{
+            name = $collector.Name
+            durationSeconds = [Math]::Round($duration, 1)
+            errors = @($errorMsg)
+            completedAt = $collectorEnd.ToString("o")
+        }
+        # Still track duration for ETA
+        $collectorDurations += $duration
     }
 
-    # Brief pause between collectors to avoid Graph API throttling
-    if ($collector -ne $collectors[-1]) {
-        Start-Sleep -Seconds 5
-    }
+    $runStatus.currentCollector = $null
+    Update-RunStatusFile -Status $runStatus -Path $runStatusPath
+
+    # No longer needed - retry logic in CollectorBase handles throttling
+    # Removed 5-second delay that added 3+ minutes to collection time
 }
 
 # ============================================================================
@@ -892,6 +1161,8 @@ $metadata = @{
     durationSeconds = [math]::Round($totalDuration, 0)
     tenantId = $configContent.tenantId
     collectedBy = (Get-MgContext).Account
+    profile = $CollectionProfile
+    skippedCollectors = $skippedCollectorNames
     status = if ($collectorResults.Values | Where-Object { -not $_.Success }) { "partial" } else { "completed" }
     collectors = @()
     summary = $summary
@@ -921,7 +1192,7 @@ foreach ($collector in $collectorResults.GetEnumerator()) {
 
 # Write metadata file
 $metadataPath = Join-Path $dataPath "collection-metadata.json"
-$metadata | ConvertTo-Json -Depth 10 | Set-Content -Path $metadataPath -Encoding UTF8
+Save-CollectorData -Data $metadata -OutputPath $metadataPath | Out-Null
 Write-Host "  [OK] Metadata written to: $metadataPath" -ForegroundColor Green
 
 # ============================================================================
@@ -987,7 +1258,7 @@ try {
         $trendHistory = $trendHistory[($trendHistory.Count - 12)..($trendHistory.Count - 1)]
     }
 
-    $trendHistory | ConvertTo-Json -Depth 5 | Set-Content -Path $trendPath -Encoding UTF8
+    Save-CollectorData -Data $trendHistory -OutputPath $trendPath | Out-Null
     Write-Host "  [OK] Trend snapshot appended ($($trendHistory.Count) entries)" -ForegroundColor Green
 }
 catch {
@@ -999,6 +1270,26 @@ catch {
 # ============================================================================
 
 Write-CollectionSummary -Results $collectorResults -StartTime $collectionStartTime -EndTime $collectionEndTime
+
+# Log final summary
+$successCount = @($collectorResults.Values | Where-Object { $_.Success }).Count
+$failCount = @($collectorResults.Values | Where-Object { -not $_.Success }).Count
+Write-CollectionLog -Message "Collection completed: $successCount succeeded, $failCount failed, $("{0:N1}" -f $totalDuration)s total" -Level Info -NoConsole
+Write-CollectionLog -Message "Log file saved to: $logFilePath" -Level Info -NoConsole
+
+# Add final log separator
+if ($script:LogFilePath -and (Test-Path $script:LogFilePath)) {
+    $footer = @"
+
+================================================================================
+Collection Complete
+Duration: $("{0:N1}" -f $totalDuration) seconds
+Successful Collectors: $successCount
+Failed Collectors: $failCount
+================================================================================
+"@
+    Add-Content -Path $script:LogFilePath -Value $footer -Encoding UTF8
+}
 
 # Disconnect from Graph
 Write-Host "Disconnecting from Microsoft Graph..." -ForegroundColor Cyan

@@ -693,16 +693,17 @@ const PageAppDeployments = (function() {
         html += '<div class="detail-item"><span class="detail-label">Assignments</span><span class="detail-value">' + (app.assignmentCount || 0) + ' assignment(s)</span></div>';
         html += '</div>';
         if (app.description) {
-            html += '<p class="detail-description">' + app.description + '</p>';
+            // XSS FIX: Escape user-controlled description field
+            html += '<p class="detail-description">' + escapeHtml(app.description) + '</p>';
         }
-        // URLs
+        // URLs - XSS FIX: Escape URLs and validate they start with http/https
         if (app.informationUrl || app.privacyInformationUrl) {
             html += '<div class="detail-links">';
-            if (app.informationUrl) {
-                html += '<a href="' + app.informationUrl + '" target="_blank" class="detail-link">App Information</a>';
+            if (app.informationUrl && /^https?:\/\//i.test(app.informationUrl)) {
+                html += '<a href="' + escapeHtml(app.informationUrl) + '" target="_blank" rel="noopener" class="detail-link">App Information</a>';
             }
-            if (app.privacyInformationUrl) {
-                html += '<a href="' + app.privacyInformationUrl + '" target="_blank" class="detail-link">Privacy Policy</a>';
+            if (app.privacyInformationUrl && /^https?:\/\//i.test(app.privacyInformationUrl)) {
+                html += '<a href="' + escapeHtml(app.privacyInformationUrl) + '" target="_blank" rel="noopener" class="detail-link">Privacy Policy</a>';
             }
             html += '</div>';
         }
