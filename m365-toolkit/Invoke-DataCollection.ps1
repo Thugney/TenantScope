@@ -41,7 +41,8 @@
 
 .PARAMETER CollectionProfile
     Controls collection depth. Full is the default and runs every collector.
-    Fast is an explicit operator choice for quick smoke tests.
+    Fast is an explicit operator choice for quick smoke tests. May be passed
+    positionally, for example: .\Invoke-DataCollection.ps1 Full.
 
 .PARAMETER ClientId
     Application (client) ID for app-only authentication.
@@ -78,6 +79,10 @@
     Runs every collector. This is the default behavior.
 
 .EXAMPLE
+    .\Invoke-DataCollection.ps1 Full
+    Runs every collector using positional profile compatibility.
+
+.EXAMPLE
     .\Invoke-DataCollection.ps1 -ClientId "00000000-0000-0000-0000-000000000000" -CertificateThumbprint "ABC123..."
     Runs with certificate-based app-only authentication (for scheduled tasks).
 
@@ -100,8 +105,12 @@
 #Requires -Version 7.0
 #Requires -Modules Microsoft.Graph.Authentication
 
-[CmdletBinding()]
+[CmdletBinding(PositionalBinding = $false)]
 param(
+    [Parameter(Position = 0)]
+    [ValidateSet("", "Fast", "Full")]
+    [string]$CollectionProfile = "",
+
     [Parameter()]
     [string]$ConfigPath = (Join-Path $PSScriptRoot "config.json"),
 
@@ -120,10 +129,6 @@ param(
                  "DefenderDeviceHealth", "ASRAuditEvents", "EndpointSecurityStates", "LapsCoverage",
                  "DeviceHardening")]
     [string[]]$CollectorsToRun,
-
-    [Parameter()]
-    [ValidateSet("", "Fast", "Full")]
-    [string]$CollectionProfile = "",
 
     # App-only authentication parameters (for scheduled/unattended execution)
     [Parameter()]
@@ -236,42 +241,54 @@ function Get-ConfigValidation {
         }
     }
 
-    if ($Config.tenantId -isnot [string] -or [string]::IsNullOrWhiteSpace($Config.tenantId)) {
+    if ($Config["tenantId"] -isnot [string] -or [string]::IsNullOrWhiteSpace($Config["tenantId"])) {
         throw "Configuration field 'tenantId' must be a non-empty string"
     }
 
-    if ($Config.domains -isnot [hashtable]) {
+    $domains = $Config["domains"]
+    $thresholds = $Config["thresholds"]
+    $collection = $Config["collection"]
+
+    if ($domains -isnot [hashtable]) {
         throw "Configuration field 'domains' must be an object"
     }
 
-    if ($Config.thresholds -isnot [hashtable]) {
+    if ($thresholds -isnot [hashtable]) {
         throw "Configuration field 'thresholds' must be an object"
     }
 
-    if ($Config.collection -isnot [hashtable]) {
+    if ($collection -isnot [hashtable]) {
         throw "Configuration field 'collection' must be an object"
     }
 
     # Validate nested required fields
-    if (-not $Config.domains.employees -or -not $Config.domains.students) {
-        throw "Configuration missing required domain mappings (employees/students)"
-    }
-
     foreach ($domainField in @("employees", "students")) {
-        $domainValue = $Config.domains[$domainField]
+        if (-not $domains.ContainsKey($domainField)) {
+            throw "Configuration missing required domain mappings (employees/students)"
+        }
+
+        $domainValue = $domains[$domainField]
         if ($domainValue -isnot [array] -and $domainValue -isnot [string]) {
             throw "Configuration field 'domains.$domainField' must be a string or an array"
         }
+
+        $domainValues = @($domainValue) | Where-Object {
+            $_ -is [string] -and -not [string]::IsNullOrWhiteSpace($_)
+        }
+
+        if ($domainValues.Count -eq 0) {
+            throw "Configuration field 'domains.$domainField' must contain at least one domain"
+        }
     }
 
-    if (-not $Config.thresholds.inactiveDays) {
+    if (-not $thresholds.ContainsKey("inactiveDays") -or $null -eq $thresholds["inactiveDays"] -or [string]::IsNullOrWhiteSpace([string]$thresholds["inactiveDays"])) {
         throw "Configuration missing required threshold: inactiveDays"
     }
 
     foreach ($thresholdName in @("inactiveDays", "staleDeviceDays")) {
-        if ($Config.thresholds.ContainsKey($thresholdName) -and $null -ne $Config.thresholds[$thresholdName]) {
+        if ($thresholds.ContainsKey($thresholdName) -and $null -ne $thresholds[$thresholdName]) {
             try {
-                [void][int]$Config.thresholds[$thresholdName]
+                [void][int]$thresholds[$thresholdName]
             }
             catch {
                 throw "Configuration field 'thresholds.$thresholdName' must be a number"
@@ -279,11 +296,11 @@ function Get-ConfigValidation {
         }
     }
 
-    if ($Config.thresholds.ContainsKey("gracePeriodAsNoncompliant") -and $null -ne $Config.thresholds.gracePeriodAsNoncompliant -and $Config.thresholds.gracePeriodAsNoncompliant -isnot [bool]) {
+    if ($thresholds.ContainsKey("gracePeriodAsNoncompliant") -and $null -ne $thresholds["gracePeriodAsNoncompliant"] -and $thresholds["gracePeriodAsNoncompliant"] -isnot [bool]) {
         throw "Configuration field 'thresholds.gracePeriodAsNoncompliant' must be true or false"
     }
 
-    if ($Config.collection.ContainsKey("profile") -and $null -ne $Config.collection.profile -and [string]$Config.collection.profile -notin @("Fast", "Full")) {
+    if ($collection.ContainsKey("profile") -and $null -ne $collection["profile"] -and [string]$collection["profile"] -notin @("Fast", "Full")) {
         throw "Configuration field 'collection.profile' must be Fast or Full"
     }
 
@@ -521,11 +538,12 @@ if (-not (Test-Path $ConfigPath)) {
 try {
     $configContent = Get-Content $ConfigPath -Raw | ConvertFrom-Json -AsHashtable
     Get-ConfigValidation -Config $configContent | Out-Null
-    Test-TenantIdFormat -TenantId $configContent.tenantId | Out-Null
+    Test-TenantIdFormat -TenantId $configContent["tenantId"] | Out-Null
     if (-not $CollectionProfile) {
         $configuredProfile = $null
-        if ($configContent.collection -is [hashtable] -and $configContent.collection.ContainsKey("profile")) {
-            $configuredProfile = [string]$configContent.collection.profile
+        $configuredCollection = $configContent["collection"]
+        if ($configuredCollection -is [hashtable] -and $configuredCollection.ContainsKey("profile")) {
+            $configuredProfile = [string]$configuredCollection["profile"]
         }
 
         if ($configuredProfile -in @("Fast", "Full")) {
