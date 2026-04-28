@@ -36,5 +36,8 @@ m365-toolkit/config.json
 # TenantScope - collected data at root level
 dashboard/data/
 
+# TenantScope - top-level dashboard directory
+dashboard/
+
 # TenantScope - logs
 m365-toolkit/logs/
