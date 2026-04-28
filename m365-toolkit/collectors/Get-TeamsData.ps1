@@ -219,19 +219,26 @@ try {
     # Phase 2: Get Teams groups with owner counts (single API call with paging)
     # ========================================================================
 
-    Write-Host "      Fetching Teams groups with owners..." -ForegroundColor Gray
+    Write-Host "      Fetching Teams groups..." -ForegroundColor Gray
 
     $teamsGroups = @()
     try {
-        # Use direct API to get groups with expanded owners
-        $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=resourceProvisioningOptions/Any(x:x eq 'Team')&`$select=id,displayName,description,visibility,createdDateTime,mail,assignedLabels&`$expand=owners/microsoft.graph.user(`$select=id,userPrincipalName,mail)"
+        # Avoid brittle filter+expand combinations that return BadRequest in some tenants.
+        # Fetch Microsoft 365 groups first, then keep only those provisioned as Teams.
+        $uri = "https://graph.microsoft.com/v1.0/groups?`$filter=groupTypes/any(c:c eq 'Unified')&`$select=id,displayName,description,visibility,createdDateTime,mail,assignedLabels,resourceProvisioningOptions&`$top=999"
 
         do {
             $response = Invoke-GraphWithRetry -ScriptBlock {
                 Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
             } -OperationName "Teams groups retrieval"
             if ($response.value) {
-                $teamsGroups += $response.value
+                foreach ($group in @($response.value)) {
+                    $provisioningOptions = @()
+                    if ($group.resourceProvisioningOptions) { $provisioningOptions = @($group.resourceProvisioningOptions) }
+                    if ($provisioningOptions -contains 'Team') {
+                        $teamsGroups += $group
+                    }
+                }
             }
             $uri = $response.'@odata.nextLink'
 
@@ -245,6 +252,45 @@ try {
     catch {
         Write-Host "      [!] Could not fetch groups: $($_.Exception.Message)" -ForegroundColor Yellow
         $errors += "Groups fetch error: $($_.Exception.Message)"
+    }
+
+    if ($teamsGroups.Count -gt 0) {
+        Write-Host "      Fetching Teams owners in Graph batches..." -ForegroundColor Gray
+        $ownerRequests = @()
+        foreach ($group in $teamsGroups) {
+            $groupId = if ($group.id) { $group.id } else { $group.Id }
+            if (-not $groupId) { continue }
+            $ownerRequests += [PSCustomObject]@{
+                id  = [string]$groupId
+                uri = "https://graph.microsoft.com/v1.0/groups/$groupId/owners/microsoft.graph.user?`$select=id,userPrincipalName,mail"
+            }
+        }
+
+        try {
+            $ownerResults = Invoke-GraphBatchGet -Requests $ownerRequests -OperationName "Teams owners batch"
+            foreach ($group in $teamsGroups) {
+                $groupId = if ($group.id) { $group.id } else { $group.Id }
+                if (-not $groupId) { continue }
+                $owners = @()
+                if ($ownerResults.ContainsKey([string]$groupId)) {
+                    $result = $ownerResults[[string]$groupId]
+                    if ($result.status -ge 200 -and $result.status -lt 300 -and $result.body -and $result.body.value) {
+                        $owners = @($result.body.value)
+                    }
+                }
+
+                try {
+                    $group | Add-Member -NotePropertyName owners -NotePropertyValue $owners -Force
+                }
+                catch {
+                    # Ignore owner hydration issues for individual groups.
+                }
+            }
+        }
+        catch {
+            Write-Host "      [!] Could not fetch owners in batch: $($_.Exception.Message)" -ForegroundColor Yellow
+            $errors += "Owners fetch unavailable: $($_.Exception.Message)"
+        }
     }
 
     # ========================================================================

@@ -61,6 +61,66 @@ param(
 # ============================================================================
 # (Using shared status mappers from CollectorBase.ps1)
 
+function Get-EndpointAnalyticsOverviewData {
+    <#
+    .SYNOPSIS
+        Retrieves Endpoint Analytics overview, trying both v1.0 and beta.
+    #>
+    $uris = @(
+        "https://graph.microsoft.com/v1.0/deviceManagement/userExperienceAnalyticsOverview",
+        "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsOverview"
+    )
+
+    $lastError = $null
+    foreach ($uri in $uris) {
+        try {
+            $response = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
+            } -OperationName "Endpoint Analytics overview"
+
+            if ($response.value -and $response.value.PSObject) {
+                return $response.value
+            }
+
+            if ($response) {
+                return $response
+            }
+        }
+        catch {
+            $lastError = $_
+        }
+    }
+
+    if ($lastError) { throw $lastError }
+    return $null
+}
+
+function Set-SynthesizedEndpointAnalyticsOverview {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$AnalyticsData
+    )
+
+    $summary = $AnalyticsData.summary
+    $AnalyticsData.overview = [PSCustomObject]@{
+        overallScore                 = $summary.averageEndpointScore
+        startupPerformanceScore      = $summary.averageStartupScore
+        appReliabilityScore          = $summary.averageAppReliabilityScore
+        workFromAnywhereScore        = $summary.averageWorkFromAnywhereScore
+        batteryHealthScore           = $summary.averageBatteryHealthScore
+        bestPracticesScore           = $null
+        resourcePerformanceScore     = $null
+        totalDevices                 = $summary.totalDevices
+        insightsCount                = @($AnalyticsData.insights).Count
+        source                       = "synthesized"
+        baseline                     = [PSCustomObject]@{
+            overallScore             = 50
+            startupPerformanceScore  = 50
+            appReliabilityScore      = 50
+        }
+    }
+}
+
 # ============================================================================
 # MAIN COLLECTION LOGIC
 # ============================================================================
@@ -108,25 +168,22 @@ try {
     }
 
     # ========================================
-    # Get Overview/Baseline
+# Get Overview/Baseline
     # ========================================
     try {
-        $overview = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET `
-                -Uri "https://graph.microsoft.com/beta/deviceManagement/userExperienceAnalyticsOverview" `
-                -OutputType PSObject
-        } -OperationName "Endpoint Analytics overview"
+        $overview = Get-EndpointAnalyticsOverviewData
 
         $analyticsData.overview = [PSCustomObject]@{
             overallScore                 = $overview.overallScore
-            startupPerformanceScore      = $overview.startupPerformanceOverallScore
-            appReliabilityScore          = $overview.appReliabilityOverallScore
+            startupPerformanceScore      = if ($null -ne $overview.startupPerformanceOverallScore) { $overview.startupPerformanceOverallScore } else { $overview.deviceBootPerformanceOverallScore }
+            appReliabilityScore          = if ($null -ne $overview.appReliabilityOverallScore) { $overview.appReliabilityOverallScore } else { $overview.appHealthOverallScore }
             workFromAnywhereScore        = $overview.workFromAnywhereOverallScore
             batteryHealthScore           = $overview.batteryHealthOverallScore
             bestPracticesScore           = $overview.bestPracticesOverallScore
             resourcePerformanceScore     = $overview.resourcePerformanceOverallScore
-            totalDevices                 = $overview.totalDeviceCount
+            totalDevices                 = if ($null -ne $overview.totalDeviceCount) { $overview.totalDeviceCount } else { $overview.totalDevices }
             insightsCount                = if ($overview.insights) { $overview.insights.Count } else { 0 }
+            source                       = "graph"
             baseline                     = [PSCustomObject]@{
                 overallScore             = 50
                 startupPerformanceScore  = 50
@@ -137,7 +194,7 @@ try {
         Write-Host "      Overall Endpoint Score: $($overview.overallScore)" -ForegroundColor Gray
     }
     catch {
-        $errors += "Overview: $($_.Exception.Message)"
+        Write-Host "      Endpoint Analytics overview endpoint unavailable, will synthesize overview from collected metrics" -ForegroundColor Yellow
     }
 
     # ========================================
@@ -746,6 +803,10 @@ try {
     }
     catch {
         $errors += "Insights: $($_.Exception.Message)"
+    }
+
+    if (-not $analyticsData.overview) {
+        Set-SynthesizedEndpointAnalyticsOverview -AnalyticsData $analyticsData
     }
 
     # Sort device scores by score (worst first)

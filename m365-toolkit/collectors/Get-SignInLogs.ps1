@@ -77,11 +77,30 @@ function Get-SignInEvents {
         [string]$Label
     )
 
-    $uri = "https://graph.microsoft.com/beta/auditLogs/signIns?`$filter=$Filter&`$top=500&`$orderby=createdDateTime desc"
+    $encodedFilter = [System.Uri]::EscapeDataString($Filter)
+    $uris = @(
+        "https://graph.microsoft.com/v1.0/auditLogs/signIns?`$filter=$encodedFilter&`$top=500",
+        "https://graph.microsoft.com/beta/auditLogs/signIns?`$filter=$encodedFilter&`$top=500"
+    )
 
-    $signIns = Invoke-GraphWithRetry -ScriptBlock {
-        Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
-    } -OperationName "Sign-in logs retrieval ($Label)"
+    $signIns = $null
+    $lastError = $null
+    foreach ($uri in $uris) {
+        try {
+            $signIns = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $uri -OutputType PSObject
+            } -OperationName "Sign-in logs retrieval ($Label)"
+            if ($signIns) { break }
+        }
+        catch {
+            $lastError = $_
+        }
+    }
+
+    if (-not $signIns) {
+        if ($lastError) { throw $lastError }
+        return @()
+    }
 
     $allSignIns = @($signIns.value)
 
@@ -148,22 +167,19 @@ try {
         }
     }
 
-    Write-Host "      Retrieving interactive sign-ins..." -ForegroundColor Gray
-    $interactiveSignIns = Get-SignInEvents -Filter "$baseFilter and isInteractive eq true" -Label "interactive"
+    Write-Host "      Retrieving sign-ins..." -ForegroundColor Gray
+    $allSignIns = Get-SignInEvents -Filter $baseFilter -Label "all"
 
-    Write-Host "      Retrieving non-interactive sign-ins..." -ForegroundColor Gray
-    $nonInteractiveSignIns = Get-SignInEvents -Filter "$baseFilter and isInteractive eq false" -Label "non-interactive"
-
-    $signInMap = @{}
-    foreach ($signIn in @($interactiveSignIns + $nonInteractiveSignIns)) {
-        if ($signIn.id -and -not $signInMap.ContainsKey($signIn.id)) {
-            $signInMap[$signIn.id] = $signIn
-        }
+    $interactiveCount = 0
+    $nonInteractiveCount = 0
+    foreach ($signIn in @($allSignIns)) {
+        $eventTypes = @()
+        if ($signIn.signInEventTypes) { $eventTypes = @($signIn.signInEventTypes) }
+        if ($eventTypes -contains "nonInteractiveUser" -or $signIn.isInteractive -eq $false) { $nonInteractiveCount++ }
+        else { $interactiveCount++ }
     }
 
-    $allSignIns = @($signInMap.Values)
-
-    Write-Host "      Retrieved $($allSignIns.Count) sign-in events (interactive: $($interactiveSignIns.Count), non-interactive: $($nonInteractiveSignIns.Count))" -ForegroundColor Gray
+    Write-Host "      Retrieved $($allSignIns.Count) sign-in events (interactive: $interactiveCount, non-interactive: $nonInteractiveCount)" -ForegroundColor Gray
 
     $uniqueUsers = @{}
     $uniqueApps = @{}
