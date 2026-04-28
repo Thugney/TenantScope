@@ -1351,16 +1351,20 @@ const PageDevices = (function() {
     }
 
     function showDeviceDetails(device) {
-        // Device details modal - data is from trusted collector scripts
-        var modalTitle = document.getElementById('modal-title');
-        var modalBody = document.getElementById('modal-body');
-        var modalOverlay = document.getElementById('modal-overlay');
-        if (!modalTitle || !modalBody || !modalOverlay) return;
+        try {
+            // Device details modal - data is from trusted collector scripts
+            var modalTitle = document.getElementById('modal-title');
+            var modalBody = document.getElementById('modal-body');
+            var modalOverlay = document.getElementById('modal-overlay');
+            if (!modalTitle || !modalBody || !modalOverlay) {
+                console.error('Modal elements not found');
+                return;
+            }
 
-        modalTitle.textContent = device.deviceName || 'Device Details';
+            modalTitle.textContent = device.deviceName || 'Device Details';
 
-        // Get related data from DataRelationships
-        var profile = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceProfile(device.id) : null;
+            // Get related data from DataRelationships
+            var profile = typeof DataRelationships !== 'undefined' ? DataRelationships.getDeviceProfile(device.id) : null;
         var primaryUser = profile ? profile.primaryUser : null;
         var bitlocker = profile ? profile.bitlocker : { encrypted: device.isEncrypted, status: 'Unknown' };
         var windowsUpdate = profile ? profile.windowsUpdate : { ring: 'Unknown', status: 'Unknown' };
@@ -1988,8 +1992,21 @@ const PageDevices = (function() {
 
         html += '</div>';
 
-        modalBody.innerHTML = html;
-        modalOverlay.classList.add('visible');
+            modalBody.innerHTML = html;
+            modalOverlay.classList.add('visible');
+        } catch (error) {
+            console.error('Error showing device details:', error);
+            var modalBody = document.getElementById('modal-body');
+            var modalOverlay = document.getElementById('modal-overlay');
+            if (modalBody && modalOverlay) {
+                var errorDiv = document.createElement('div');
+                errorDiv.className = 'error-state';
+                errorDiv.innerHTML = '<h4>Error Loading Device Details</h4><p>' + escapeHtml(error.message || 'An unknown error occurred') + '</p><p class="text-muted">Check browser console for details.</p>';
+                modalBody.innerHTML = '';
+                modalBody.appendChild(errorDiv);
+                modalOverlay.classList.add('visible');
+            }
+        }
     }
 
     /**

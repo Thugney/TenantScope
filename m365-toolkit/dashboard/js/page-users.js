@@ -575,8 +575,21 @@ const PageUsers = (function() {
             data: data,
             columns: columns,
             pageSize: 50,
-            onRowClick: showUserDetails
+            onRowClick: navigateToUser360
         });
+    }
+
+    /**
+     * Navigate to user 360 page instead of showing popup.
+     */
+    function navigateToUser360(user) {
+        if (!user) return;
+        // Use ID if available, otherwise fall back to UPN
+        if (user.id) {
+            window.location.hash = '#user-360?id=' + encodeURIComponent(user.id);
+        } else if (user.userPrincipalName) {
+            window.location.hash = '#user-360?upn=' + encodeURIComponent(user.userPrincipalName);
+        }
     }
 
     /**
