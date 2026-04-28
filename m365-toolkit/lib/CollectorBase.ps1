@@ -591,7 +591,7 @@ function Invoke-GraphBatchGet {
     # BUG FIX: Warn if requests failed after max retries (silent data loss prevention)
     if ($pending.Count -gt 0) {
         $failedIds = @($pending | ForEach-Object { $_.id }) -join ', '
-        Write-Warning "$OperationName: $($pending.Count) requests failed after $MaxRetries retries. Failed IDs: $failedIds"
+        Write-Warning "${OperationName}: $($pending.Count) requests failed after $MaxRetries retries. Failed IDs: $failedIds"
     }
 
     return $results
