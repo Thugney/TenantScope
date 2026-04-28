@@ -38,6 +38,13 @@ All styles are organized by component and follow these design principles:
     --color-accent-hover: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
     --color-accent-glow: rgba(37, 99, 235, 0.3);
 
+    /* Alias variables for consistency (used throughout codebase) */
+    --color-primary: #2563eb;
+    --color-primary-hover: #1d4ed8;
+    --color-info: #3b82f6;
+    --color-border: #d1d5db;
+    --color-border-light: #e5e7eb;
+
     /* Status Colors with Enhanced Depth */
     --color-critical: #ef4444;
     --color-critical-bg: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
@@ -856,7 +863,7 @@ table {
 }
 
 .btn-secondary:hover {
-    background-color: #d1d5db;
+    background-color: var(--color-border);
 }
 
 .btn-warning {
@@ -957,7 +964,7 @@ table {
 }
 
 .data-table th:hover {
-    background-color: #d1d5db;
+    background-color: var(--color-border);
 }
 
 .data-table th.sorted-asc::after {
@@ -1145,12 +1152,17 @@ table {
 .badge {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     padding: 4px 12px;
     border-radius: 12px;
     font-size: var(--font-size-xs);
     font-weight: 600;
     text-transform: capitalize;
     letter-spacing: 0.025em;
+    white-space: nowrap;
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
     transition: all var(--transition-fast);
 }
 
@@ -1207,6 +1219,17 @@ table {
 .badge-outline {
     background-color: transparent;
     border: 1px solid currentColor;
+}
+
+.badge-secondary {
+    background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+    color: var(--color-text-inverse);
+    box-shadow: 0 2px 8px rgba(100, 116, 139, 0.3);
+}
+
+.badge-secondary:hover {
+    box-shadow: 0 4px 12px rgba(100, 116, 139, 0.4);
+    transform: scale(1.05);
 }
 
 /* Status dot */
@@ -1360,7 +1383,7 @@ table {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--spacing-md) var(--spacing-lg);
+    padding: var(--spacing-lg);
     border-bottom: 1px solid var(--color-bg-tertiary);
 }
 
