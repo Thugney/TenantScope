@@ -378,7 +378,7 @@ const DataLoader = (function() {
                 // Key aliases - maps expected key to possible alternatives
                 const keyAliases = {
                     devices: ['devices', 'deviceList', 'managedDevices', 'items', 'data', 'value'],
-                    policies: ['policies', 'policyList', 'compliancePolicies', 'items', 'data', 'value'],
+                    policies: ['policies', 'policyList', 'compliancePolicies', 'labels', 'items', 'data', 'value'],
                     profiles: ['profiles', 'configurationProfiles', 'profileList', 'items', 'data', 'value'],
                     apps: ['apps', 'applications', 'appList', 'mobileApps', 'items', 'data', 'value'],
                     users: ['users', 'riskyUsers', 'userList', 'items', 'data', 'value'],
@@ -393,7 +393,7 @@ const DataLoader = (function() {
                     driverUpdates: ['driverUpdates', 'drivers', 'driverUpdateProfiles', 'items', 'data'],
                     deviceCompliance: ['deviceCompliance', 'complianceDevices', 'devices', 'items', 'data'],
                     grants: ['grants', 'oauthGrants', 'consentGrants', 'items', 'data', 'value'],
-                    reviews: ['reviews', 'accessReviews', 'items', 'data', 'value'],
+                    reviews: ['reviews', 'definitions', 'accessReviews', 'items', 'data', 'value'],
                     cases: ['cases', 'ediscoveryCases', 'items', 'data', 'value'],
                     labels: ['labels', 'sensitivityLabels', 'items', 'data', 'value'],
                     rules: ['rules', 'asrRules', 'attackSurfaceReductionRules', 'items', 'data'],
@@ -415,15 +415,35 @@ const DataLoader = (function() {
                         return (k === 'summary' || k === 'overview') ? {} : [];
                     };
 
+                    const isObjectKeyName = (k) => {
+                        return k === 'summary' || k === 'overview' || k === 'metadata';
+                    };
+
+                    const coerceArrayValue = (value) => {
+                        if (Array.isArray(value)) return value;
+                        if (value === null || value === undefined) return [];
+                        if (typeof value === 'object') {
+                            if (value._collectionError === true) return [];
+                            if (Object.keys(value).length === 0) return [];
+                            return [value];
+                        }
+                        return [];
+                    };
+
+                    const coerceObjectValue = (value) => {
+                        if (value && typeof value === 'object' && !Array.isArray(value)) return value;
+                        return {};
+                    };
+
                     // Helper to find array data using aliases
                     const findArrayByAliases = (obj, targetKey) => {
                         const aliases = keyAliases[targetKey] || [targetKey];
                         for (const alias of aliases) {
-                            if (alias in obj && Array.isArray(obj[alias])) {
+                            if (alias in obj && obj[alias] !== undefined && obj[alias] !== null) {
                                 if (alias !== targetKey) {
                                     console.log(`DataLoader: ${key}.${targetKey} found as ${alias}`);
                                 }
-                                return obj[alias];
+                                return coerceArrayValue(obj[alias]);
                             }
                         }
                         return null;
@@ -474,7 +494,7 @@ const DataLoader = (function() {
                         expectedKeys.forEach(k => {
                             if (!(k in data)) {
                                 // Try to find data using aliases
-                                const isObjectKey = (k === 'summary' || k === 'overview');
+                                const isObjectKey = isObjectKeyName(k);
                                 const found = isObjectKey ? findObjectByAliases(data, k) : findArrayByAliases(data, k);
 
                                 if (found !== null) {
@@ -483,11 +503,66 @@ const DataLoader = (function() {
                                     data[k] = getDefault(k);
                                 }
                                 modified = true;
+                            } else if (data[k] === null || data[k] === undefined || (!isObjectKeyName(k) && !Array.isArray(data[k]))) {
+                                data[k] = isObjectKeyName(k) ? coerceObjectValue(data[k]) : coerceArrayValue(data[k]);
+                                modified = true;
                             }
                         });
                         if (modified) {
                             console.log(`DataLoader: ${key} structure normalized`);
                         }
+                    }
+                };
+
+                const synthesizeUsersFromCollectedData = () => {
+                    if (Array.isArray(dataStore.users) && dataStore.users.length > 0) return;
+
+                    const usersByKey = {};
+                    const upsert = (seed) => {
+                        if (!seed) return;
+                        const upn = seed.userPrincipalName || seed.userUpn || seed.upn || seed.mail || seed.emailAddress || seed.principalUpn || seed.user;
+                        const id = seed.userId || seed.id || seed.principalId || upn;
+                        const key = (upn || id || '').toString().trim().toLowerCase();
+                        if (!key) return;
+
+                        if (!usersByKey[key]) {
+                            usersByKey[key] = {
+                                id: id || key,
+                                displayName: seed.userDisplayName || seed.displayName || seed.principalDisplayName || seed.userName || upn || key,
+                                userPrincipalName: upn || key,
+                                mail: seed.mail || upn || null,
+                                accountEnabled: seed.accountEnabled !== false,
+                                userType: seed.userType || 'Unknown',
+                                domain: 'unknown',
+                                department: seed.department || '',
+                                jobTitle: seed.jobTitle || '',
+                                mfaRegistered: null,
+                                isInactive: false,
+                                flags: ['derived-user']
+                            };
+                        }
+
+                        const existing = usersByKey[key];
+                        if (seed.isMfaRegistered !== undefined) {
+                            existing.mfaRegistered = !!seed.isMfaRegistered;
+                            if (!existing.mfaRegistered && existing.flags.indexOf('no-mfa') === -1) {
+                                existing.flags.push('no-mfa');
+                            }
+                        }
+                        if (seed.department && !existing.department) existing.department = seed.department;
+                        if (seed.jobTitle && !existing.jobTitle) existing.jobTitle = seed.jobTitle;
+                    };
+
+                    (Array.isArray(dataStore.mfaStatus) ? dataStore.mfaStatus : []).forEach(upsert);
+                    (Array.isArray(dataStore.riskySignins) ? dataStore.riskySignins : []).forEach(upsert);
+                    const signinLogs = dataStore.signinLogs && Array.isArray(dataStore.signinLogs.signIns) ? dataStore.signinLogs.signIns : [];
+                    signinLogs.forEach(upsert);
+                    (Array.isArray(dataStore.devices) ? dataStore.devices : []).forEach(upsert);
+
+                    const derivedUsers = Object.values(usersByKey);
+                    if (derivedUsers.length > 0) {
+                        dataStore.users = derivedUsers;
+                        console.warn(`DataLoader: users.json was empty; derived ${derivedUsers.length} users from other collected datasets`);
                     }
                 };
 
@@ -511,6 +586,8 @@ const DataLoader = (function() {
                 ensureObjectStructure('retentionData', ['policies', 'summary']);
                 ensureObjectStructure('ediscoveryData', ['cases', 'summary']);
                 ensureObjectStructure('sensitivityLabels', ['labels', 'summary']);
+
+                synthesizeUsersFromCollectedData();
 
                 // Log what was loaded
                 Object.entries(dataStore).forEach(([key, data]) => {

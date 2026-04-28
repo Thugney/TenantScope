@@ -19,7 +19,28 @@ var TimeRangeFilter = (function() {
     var storageKey = 'tenantscope-time-range';
     var indicatorEl = null;
 
-    var applicablePages = null;
+    var applicablePages = {
+        overview: true,
+        security: true,
+        'signin-logs': true,
+        'audit-logs': true,
+        pim: true,
+        'identity-risk': true,
+        'app-usage': true,
+        report: true
+    };
+
+    var timeFilteredTypes = {
+        signinLogs: true,
+        identityRisk: true,
+        serviceAnnouncements: true,
+        defenderAlerts: true,
+        riskySignins: true,
+        auditLogs: true,
+        pimActivity: true,
+        appSignins: true,
+        trendHistory: true
+    };
 
     var defaultDateFields = [
         'createdDateTime',
@@ -207,6 +228,8 @@ var TimeRangeFilter = (function() {
 
     function applyToType(type, data) {
         if (!isActive() || !type) return data;
+        if (!timeFilteredTypes[type]) return data;
+
         var range = getRange();
         if (!range) return data;
 
@@ -262,11 +285,14 @@ var TimeRangeFilter = (function() {
                     ['createdDateTime'],
                     range
                 );
+            case 'trendHistory':
+                return filterArrayByFields(
+                    Array.isArray(data) ? data : [],
+                    ['date', 'collectionDate', 'createdDateTime'],
+                    range
+                );
             default:
-                if (Array.isArray(data)) {
-                    return filterArrayByFields(data, defaultDateFields, range);
-                }
-                return applyToObjectArrays(data, defaultDateFields, range);
+                return data;
         }
     }
 

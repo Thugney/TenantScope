@@ -92,6 +92,22 @@ if (-not (Test-Path $sourceDataPath)) {
     exit 1
 }
 
+$sourceJsonFiles = @(Get-ChildItem -Path $sourceDataPath -Filter *.json -File -ErrorAction SilentlyContinue | Where-Object {
+    $_.Name -ne "_run-status.json"
+})
+if ($sourceJsonFiles.Count -eq 0) {
+    Write-Host "Error: No collected JSON data files found in: $sourceDataPath" -ForegroundColor Red
+    Write-Host ""
+    if ($UseSampleData) {
+        Write-Host "Sample data is missing. Restore sample JSON files or run without -UseSampleData after collection." -ForegroundColor Yellow
+    }
+    else {
+        Write-Host "Run data collection first and confirm files such as users.json or devices.json are created under m365-toolkit\\data." -ForegroundColor Yellow
+        Write-Host "The dashboard was not rebuilt, so existing dashboard data was left untouched." -ForegroundColor Yellow
+    }
+    exit 1
+}
+
 # Check if dashboard exists
 if (-not (Test-Path $dashboardPath)) {
     Write-Host "Error: Dashboard directory not found: $dashboardPath" -ForegroundColor Red

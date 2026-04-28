@@ -29,3 +29,12 @@ desktop.ini
 # Logs
 *.log
 npm-debug.log*
+
+# TenantScope - tenant-specific config (contains tenant ID)
+m365-toolkit/config.json
+
+# TenantScope - collected data at root level
+dashboard/data/
+
+# TenantScope - logs
+m365-toolkit/logs/
