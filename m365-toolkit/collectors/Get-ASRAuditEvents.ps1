@@ -77,8 +77,8 @@ DeviceEvents
     }
     catch {
         $errMsg = $_.Exception.Message
-        if ($errMsg -match "BadRequest|Forbidden|not found|not supported|license") {
-            Write-Host "    [!] Advanced Hunting not available - requires Microsoft 365 Defender license" -ForegroundColor Yellow
+        if ((Test-GraphAccessError -Value $errMsg) -or $errMsg -match "BadRequest|not found|not supported|license") {
+            Write-Host "    [!] Advanced Hunting not available - requires Microsoft 365 Defender license and ThreatHunting.Read.All permission" -ForegroundColor Yellow
 
             $emptyOutput = @{
                 rules = @()
@@ -95,7 +95,7 @@ DeviceEvents
                 reason = "Advanced Hunting requires Microsoft 365 Defender license with ThreatHunting.Read.All permission"
             }
             Save-CollectorData -Data $emptyOutput -OutputPath $OutputPath | Out-Null
-            return New-CollectorResult -Success $true -Count 0 -Errors @("Advanced Hunting not available")
+            return New-CollectorResult -Success $false -Count 0 -Errors @("Advanced Hunting unavailable or unauthorized: $errMsg")
         }
         throw
     }

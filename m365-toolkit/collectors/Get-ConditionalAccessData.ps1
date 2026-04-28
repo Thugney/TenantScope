@@ -57,6 +57,19 @@ param(
 # LOCAL HELPER FUNCTIONS
 # ============================================================================
 
+function Get-CaProperty {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $Object,
+
+        [Parameter(Mandatory)]
+        [string[]]$Names
+    )
+
+    return Get-GraphPropertyValue -Object $Object -PropertyNames $Names
+}
+
 function Get-PolicyTargetSummary {
     <#
     .SYNOPSIS
@@ -82,32 +95,40 @@ function Get-PolicyTargetSummary {
         return $summary
     }
 
+    $includeUsers = Get-CaProperty -Object $Users -Names @("IncludeUsers","includeUsers")
+    $excludeUsers = Get-CaProperty -Object $Users -Names @("ExcludeUsers","excludeUsers")
+    $includeGroups = Get-CaProperty -Object $Users -Names @("IncludeGroups","includeGroups")
+    $excludeGroups = Get-CaProperty -Object $Users -Names @("ExcludeGroups","excludeGroups")
+    $includeRoles = Get-CaProperty -Object $Users -Names @("IncludeRoles","includeRoles")
+    $excludeRoles = Get-CaProperty -Object $Users -Names @("ExcludeRoles","excludeRoles")
+    $includeGuests = Get-CaProperty -Object $Users -Names @("IncludeGuestsOrExternalUsers","includeGuestsOrExternalUsers")
+
     # Check for "All" users
-    if ($Users.IncludeUsers -contains "All") {
+    if ($includeUsers -contains "All") {
         $summary.includesAllUsers = $true
     }
-    if ($Users.IncludeGuestsOrExternalUsers) {
+    if ($includeGuests) {
         $summary.includesAllGuests = $true
     }
 
     # Specific includes/excludes
-    if ($Users.IncludeUsers) {
-        $summary.includedUsers = @($Users.IncludeUsers | Where-Object { $_ -ne "All" -and $_ -ne "None" -and $_ -ne "GuestsOrExternalUsers" })
+    if ($includeUsers) {
+        $summary.includedUsers = @($includeUsers | Where-Object { $_ -ne "All" -and $_ -ne "None" -and $_ -ne "GuestsOrExternalUsers" })
     }
-    if ($Users.ExcludeUsers) {
-        $summary.excludedUsers = @($Users.ExcludeUsers)
+    if ($excludeUsers) {
+        $summary.excludedUsers = @($excludeUsers)
     }
-    if ($Users.IncludeGroups) {
-        $summary.includedGroups = @($Users.IncludeGroups)
+    if ($includeGroups) {
+        $summary.includedGroups = @($includeGroups)
     }
-    if ($Users.ExcludeGroups) {
-        $summary.excludedGroups = @($Users.ExcludeGroups)
+    if ($excludeGroups) {
+        $summary.excludedGroups = @($excludeGroups)
     }
-    if ($Users.IncludeRoles) {
-        $summary.includedRoles = @($Users.IncludeRoles)
+    if ($includeRoles) {
+        $summary.includedRoles = @($includeRoles)
     }
-    if ($Users.ExcludeRoles) {
-        $summary.excludedRoles = @($Users.ExcludeRoles)
+    if ($excludeRoles) {
+        $summary.excludedRoles = @($excludeRoles)
     }
 
     return $summary
@@ -139,7 +160,7 @@ function Get-GrantControlsSummary {
         return $summary
     }
 
-    $builtIn = $GrantControls.BuiltInControls
+    $builtIn = Get-CaProperty -Object $GrantControls -Names @("BuiltInControls","builtInControls")
     if ($builtIn) {
         $summary.requiresMfa = $builtIn -contains "mfa"
         $summary.requiresCompliantDevice = $builtIn -contains "compliantDevice"
@@ -150,12 +171,14 @@ function Get-GrantControlsSummary {
         $summary.blockAccess = $builtIn -contains "block"
     }
 
-    if ($GrantControls.Operator) {
-        $summary.operator = $GrantControls.Operator
+    $operator = Get-CaProperty -Object $GrantControls -Names @("Operator","operator")
+    if ($operator) {
+        $summary.operator = $operator
     }
 
-    if ($GrantControls.CustomAuthenticationFactors) {
-        $summary.customControls = @($GrantControls.CustomAuthenticationFactors)
+    $customFactors = Get-CaProperty -Object $GrantControls -Names @("CustomAuthenticationFactors","customAuthenticationFactors")
+    if ($customFactors) {
+        $summary.customControls = @($customFactors)
     }
 
     return $summary
@@ -182,18 +205,21 @@ function Get-ApplicationsSummary {
         return $summary
     }
 
-    if ($Applications.IncludeApplications -contains "All") {
+    $includeApplications = Get-CaProperty -Object $Applications -Names @("IncludeApplications","includeApplications")
+    $excludeApplications = Get-CaProperty -Object $Applications -Names @("ExcludeApplications","excludeApplications")
+
+    if ($includeApplications -contains "All") {
         $summary.includesAllApps = $true
     }
-    if ($Applications.IncludeApplications -contains "Office365") {
+    if ($includeApplications -contains "Office365") {
         $summary.includesOffice365 = $true
     }
 
-    if ($Applications.IncludeApplications) {
-        $summary.includedApps = @($Applications.IncludeApplications | Where-Object { $_ -ne "All" -and $_ -ne "None" -and $_ -ne "Office365" })
+    if ($includeApplications) {
+        $summary.includedApps = @($includeApplications | Where-Object { $_ -ne "All" -and $_ -ne "None" -and $_ -ne "Office365" })
     }
-    if ($Applications.ExcludeApplications) {
-        $summary.excludedApps = @($Applications.ExcludeApplications)
+    if ($excludeApplications) {
+        $summary.excludedApps = @($excludeApplications)
     }
 
     return $summary
@@ -216,12 +242,13 @@ function Get-PolicyRiskLevel {
     )
 
     # Report-only policies don't enforce anything
-    if ($Policy.State -eq "enabledForReportingButNotEnforced") {
+    $policyState = Get-CaProperty -Object $Policy -Names @("State","state")
+    if ($policyState -eq "enabledForReportingButNotEnforced") {
         return "report-only"
     }
 
     # Disabled policies
-    if ($Policy.State -eq "disabled") {
+    if ($policyState -eq "disabled") {
         return "disabled"
     }
 
@@ -253,10 +280,36 @@ $policyCount = 0
 try {
     Write-Host "    Collecting Conditional Access policies..." -ForegroundColor Gray
 
-    # Retrieve all CA policies
-    $policies = Invoke-GraphWithRetry -ScriptBlock {
-        Get-MgIdentityConditionalAccessPolicy -All
-    } -OperationName "CA policy retrieval"
+    # Retrieve all CA policies. Prefer the SDK cmdlet, then fall back to direct
+    # REST because some tenants return "does not have access to this report"
+    # through the cmdlet even when the same delegated session can read the API.
+    $policies = @()
+    try {
+        $policies = @(Invoke-GraphWithRetry -ScriptBlock {
+            Get-MgIdentityConditionalAccessPolicy -All
+        } -OperationName "CA policy retrieval")
+    }
+    catch {
+        $cmdletError = $_.Exception.Message
+        Write-Host "      [!] CA cmdlet failed, trying direct Graph API: $cmdletError" -ForegroundColor Yellow
+
+        $response = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/identity/conditionalAccess/policies?`$top=100" -OutputType PSObject
+        } -OperationName "CA policy REST retrieval"
+
+        if ($response.value) {
+            $policies = @($response.value)
+        }
+
+        while ($response.'@odata.nextLink') {
+            $response = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
+            } -OperationName "CA policy REST pagination"
+            if ($response.value) {
+                $policies += @($response.value)
+            }
+        }
+    }
 
     Write-Host "      Retrieved $($policies.Count) policies from Graph API" -ForegroundColor Gray
 
@@ -269,19 +322,28 @@ try {
     $processedPolicies = @()
 
     foreach ($policy in $policies) {
+        $conditions = Get-CaProperty -Object $policy -Names @("Conditions","conditions")
+        $usersCondition = Get-CaProperty -Object $conditions -Names @("Users","users")
+        $applicationsCondition = Get-CaProperty -Object $conditions -Names @("Applications","applications")
+        $grantControls = Get-CaProperty -Object $policy -Names @("GrantControls","grantControls")
+        $state = Get-CaProperty -Object $policy -Names @("State","state")
+        $createdDateTime = Get-CaProperty -Object $policy -Names @("CreatedDateTime","createdDateTime")
+        $modifiedDateTime = Get-CaProperty -Object $policy -Names @("ModifiedDateTime","modifiedDateTime")
+
         # Parse conditions
-        $targetSummary = Get-PolicyTargetSummary -Users $policy.Conditions.Users
-        $appSummary = Get-ApplicationsSummary -Applications $policy.Conditions.Applications
-        $grantSummary = Get-GrantControlsSummary -GrantControls $policy.GrantControls
+        $targetSummary = Get-PolicyTargetSummary -Users $usersCondition
+        $appSummary = Get-ApplicationsSummary -Applications $applicationsCondition
+        $grantSummary = Get-GrantControlsSummary -GrantControls $grantControls
 
         # Determine policy classification
         $riskLevel = Get-PolicyRiskLevel -Policy $policy -GrantSummary $grantSummary -TargetSummary $targetSummary
 
         # Check for legacy auth blocking
         $blocksLegacyAuth = $false
-        if ($policy.Conditions.ClientAppTypes) {
+        $clientAppTypes = Get-CaProperty -Object $conditions -Names @("ClientAppTypes","clientAppTypes")
+        if ($clientAppTypes) {
             $legacyTypes = @("exchangeActiveSync", "other")
-            $hasLegacy = $policy.Conditions.ClientAppTypes | Where-Object { $legacyTypes -contains $_ }
+            $hasLegacy = $clientAppTypes | Where-Object { $legacyTypes -contains $_ }
             if ($hasLegacy -and $grantSummary.blockAccess) {
                 $blocksLegacyAuth = $true
             }
@@ -296,11 +358,11 @@ try {
 
         # Build output object
         $processedPolicy = [PSCustomObject]@{
-            id                    = $policy.Id
-            displayName           = $policy.DisplayName
-            state                 = $policy.State
-            createdDateTime       = if ($policy.CreatedDateTime) { $policy.CreatedDateTime.ToString("o") } else { $null }
-            modifiedDateTime      = if ($policy.ModifiedDateTime) { $policy.ModifiedDateTime.ToString("o") } else { $null }
+            id                    = Get-CaProperty -Object $policy -Names @("Id","id")
+            displayName           = Get-CaProperty -Object $policy -Names @("DisplayName","displayName")
+            state                 = $state
+            createdDateTime       = Format-IsoDate -DateValue $createdDateTime
+            modifiedDateTime      = Format-IsoDate -DateValue $modifiedDateTime
             # Target summary
             includesAllUsers      = $targetSummary.includesAllUsers
             includesAllGuests     = $targetSummary.includesAllGuests
@@ -329,10 +391,10 @@ try {
             riskLevel             = $riskLevel
             blocksLegacyAuth      = $blocksLegacyAuth
             # Conditions summary
-            hasLocationCondition  = ($null -ne $policy.Conditions.Locations -and ($policy.Conditions.Locations.IncludeLocations -or $policy.Conditions.Locations.ExcludeLocations))
-            hasPlatformCondition  = ($null -ne $policy.Conditions.Platforms -and ($policy.Conditions.Platforms.IncludePlatforms -or $policy.Conditions.Platforms.ExcludePlatforms))
-            hasRiskCondition      = ($null -ne $policy.Conditions.UserRiskLevels -and $policy.Conditions.UserRiskLevels.Count -gt 0) -or ($null -ne $policy.Conditions.SignInRiskLevels -and $policy.Conditions.SignInRiskLevels.Count -gt 0)
-            hasDeviceCondition    = ($null -ne $policy.Conditions.Devices)
+            hasLocationCondition  = ($null -ne (Get-CaProperty -Object $conditions -Names @("Locations","locations")))
+            hasPlatformCondition  = ($null -ne (Get-CaProperty -Object $conditions -Names @("Platforms","platforms")))
+            hasRiskCondition      = @((Get-CaProperty -Object $conditions -Names @("UserRiskLevels","userRiskLevels"))).Count -gt 0 -or @((Get-CaProperty -Object $conditions -Names @("SignInRiskLevels","signInRiskLevels"))).Count -gt 0
+            hasDeviceCondition    = ($null -ne (Get-CaProperty -Object $conditions -Names @("Devices","devices")))
         }
 
         $processedPolicies += $processedPolicy
@@ -361,7 +423,7 @@ catch {
     $errors += $errorMessage
 
     # Check if this is a licensing/permission issue
-    if ($errorMessage -match "Premium|license|subscription|permission|forbidden|Entra ID P1|P2") {
+    if ((Test-GraphAccessError -Value $errorMessage) -or $errorMessage -match "Premium|license|subscription|Entra ID P1|P2") {
         Write-Host "    [!] CA policy collection requires Entra ID P1/P2 and Policy.Read.All permission" -ForegroundColor Yellow
     }
 

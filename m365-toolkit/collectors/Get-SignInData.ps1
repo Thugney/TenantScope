@@ -95,9 +95,9 @@ try {
     else {
         # Fallback: fetch from API if shared data not available
         try {
-            $riskDetections = Invoke-GraphWithRetry -ScriptBlock {
+            $riskDetections = @(Invoke-GraphWithRetry -ScriptBlock {
                 Get-MgRiskDetection -Filter "detectedDateTime ge $filterDate" -All
-            } -OperationName "Risk detection retrieval"
+            } -OperationName "Risk detection retrieval")
             Write-Host "      Retrieved $($riskDetections.Count) risk detections" -ForegroundColor Gray
         }
         catch {
@@ -115,9 +115,9 @@ try {
         Start-Sleep -Seconds 10
 
         try {
-            $riskyUserList = Invoke-GraphWithRetry -ScriptBlock {
+            $riskyUserList = @(Invoke-GraphWithRetry -ScriptBlock {
                 Get-MgRiskyUser -All
-            } -OperationName "Risky user retrieval"
+            } -OperationName "Risky user retrieval")
             foreach ($ru in $riskyUserList) {
                 $riskyUsers[$ru.Id] = $ru
             }
@@ -167,7 +167,7 @@ try {
     }
 
     # Sort by detected date descending (most recent first)
-    $processedRisks = $processedRisks | Sort-Object -Property detectedDateTime -Descending
+    $processedRisks = @($processedRisks | Sort-Object -Property detectedDateTime -Descending)
 
     # Save data using shared utility
     Save-CollectorData -Data $processedRisks -OutputPath $OutputPath | Out-Null
@@ -187,7 +187,7 @@ catch {
     $errors += $errorMessage
 
     # Check if this is a licensing issue
-    if ($errorMessage -match "license|subscription|P2|Premium|not available|feature") {
+    if ((Test-GraphAccessError -Value $errorMessage) -or $errorMessage -match "license|subscription|P2|Premium|not available|feature") {
         Write-Host "    [!] Identity Protection requires Entra ID P2 license" -ForegroundColor Yellow
     }
 

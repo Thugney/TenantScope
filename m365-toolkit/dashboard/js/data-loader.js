@@ -529,11 +529,22 @@ const DataLoader = (function() {
                     }
                 }
 
-                // Check if any meaningful data was loaded
-                const hasData = dataStore.users.length > 0 ||
-                    dataStore.devices.length > 0 ||
-                    dataStore.guests.length > 0 ||
-                    (dataStore.teams && dataStore.teams.length > 0);
+                // Check if any meaningful data was loaded. This must inspect all
+                // data stores because targeted and partial collections may not
+                // include users/devices/guests/teams, but pages should still render.
+                const hasMeaningfulValue = (value) => {
+                    if (value === null || value === undefined) return false;
+                    if (Array.isArray(value)) return value.length > 0;
+                    if (typeof value !== 'object') return true;
+                    if (value._collectionError === true) return true;
+                    return Object.values(value).some(hasMeaningfulValue);
+                };
+
+                const hasData = Object.entries(dataStore).some(([key, value]) => {
+                    if (key === 'metadata') return false;
+                    return hasMeaningfulValue(value);
+                }) || Object.keys(dataErrors).length > 0 ||
+                    (dataStore.metadata && Array.isArray(dataStore.metadata.collectors) && dataStore.metadata.collectors.length > 0);
 
                 isLoaded = true;
                 loadError = null;

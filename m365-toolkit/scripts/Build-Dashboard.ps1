@@ -175,7 +175,11 @@ foreach ($file in $dataFiles) {
     $destPath = Join-Path $dashboardDataPath $file
 
     if (Test-Path $sourcePath) {
-        Copy-Item -Path $sourcePath -Destination $destPath -Force
+        $resolvedSource = (Resolve-Path -Path $sourcePath).Path
+        $resolvedDestination = if (Test-Path $destPath) { (Resolve-Path -Path $destPath).Path } else { $destPath }
+        if ($resolvedSource -ne $resolvedDestination) {
+            Copy-Item -Path $sourcePath -Destination $destPath -Force
+        }
         Write-Host "  [OK] $file" -ForegroundColor Green
         $copiedCount++
     }
