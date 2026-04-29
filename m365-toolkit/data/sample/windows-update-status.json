@@ -137,7 +137,9 @@
       },
       "assignedGroups": ["All Corporate Devices"],
       "createdDateTime": "2026-01-10T10:00:00Z",
-      "lastModifiedDateTime": "2026-02-05T14:30:00Z"
+      "lastModifiedDateTime": "2026-02-05T14:30:00Z",
+      "statusAvailable": true,
+      "statusSource": "FeatureUpdatePolicyStatusSummary"
     },
     {
       "id": "fu-002",
@@ -159,7 +161,9 @@
       },
       "assignedGroups": ["Windows 10 Devices"],
       "createdDateTime": "2025-10-15T10:00:00Z",
-      "lastModifiedDateTime": "2026-01-28T11:00:00Z"
+      "lastModifiedDateTime": "2026-01-28T11:00:00Z",
+      "statusAvailable": true,
+      "statusSource": "FeatureUpdatePolicyStatusSummary"
     }
   ],
   "qualityUpdates": [
@@ -183,7 +187,9 @@
         "pending": 10,
         "failed": 5
       },
-      "progressPercent": 93
+      "progressPercent": 93,
+      "statusAvailable": true,
+      "statusSource": "deviceUpdateStates"
     },
     {
       "id": "qu-002",
@@ -202,7 +208,9 @@
         "pending": 98,
         "failed": 7
       },
-      "progressPercent": 48
+      "progressPercent": 48,
+      "statusAvailable": true,
+      "statusSource": "deviceUpdateStates"
     },
     {
       "id": "qu-003",
@@ -224,7 +232,9 @@
         "pending": 0,
         "failed": 2
       },
-      "progressPercent": 99
+      "progressPercent": 99,
+      "statusAvailable": true,
+      "statusSource": "deviceUpdateStates"
     }
   ],
   "driverUpdates": [

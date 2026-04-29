@@ -504,6 +504,7 @@ const PageWindowsUpdate = (function() {
             u.pending = state.pending || 0;
             u.failed = state.failed || 0;
             u.total = state.total || (u.succeeded + u.pending + u.failed);
+            u.statusAvailable = hasDeploymentStatus(u);
             u.progress = u.total > 0 ? Math.round((u.succeeded / u.total) * 100) : 0;
             u.isExpedited = u.isExpedited || !!u.expeditedUpdateSettings;
             return u;
@@ -514,10 +515,10 @@ const PageWindowsUpdate = (function() {
             { key: 'releaseDateDisplayName', label: 'Release' },
             { key: 'qualityUpdateClassification', label: 'Classification', formatter: formatClassification },
             { key: 'isExpedited', label: 'Expedited', formatter: function(v) { return SF.formatBoolean(v); }},
-            { key: 'succeeded', label: 'Succeeded', formatter: function(v) { return '<span class="text-success font-bold">' + v + '</span>'; }},
-            { key: 'pending', label: 'Pending', formatter: function(v) { return '<span class="text-warning">' + v + '</span>'; }},
-            { key: 'failed', label: 'Failed', formatter: function(v) { return SF.formatCount(v, { zeroIsGood: true }); }},
-            { key: 'progress', label: 'Progress', formatter: function(v) { return SF.formatComplianceRate(v); }},
+            { key: 'succeeded', label: 'Succeeded', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-success font-bold'); }},
+            { key: 'pending', label: 'Pending', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-warning'); }},
+            { key: 'failed', label: 'Failed', formatter: function(v, row) { return formatDeploymentCount(v, row, 'text-critical'); }},
+            { key: 'progress', label: 'Progress', formatter: function(v, row) { return formatDeploymentProgress(v, row); }},
             { key: 'lastModifiedDateTime', label: 'Last Modified', formatter: function(v) { return SF.formatDate(v); }},
             { key: '_adminLinks', label: 'Admin', formatter: function(v, row) {
                 return '<a href="https://intune.microsoft.com/#view/Microsoft_Intune_DeviceSettings/DevicesWindowsMenu/~/qualityUpdates" target="_blank" rel="noopener" class="admin-link" title="Open in Intune">Intune</a>';
@@ -772,9 +773,10 @@ const PageWindowsUpdate = (function() {
             html += '<dt>Not Applicable</dt><dd>' + (state.notApplicable || 0) + '</dd>';
             var progress = state.total > 0 ? Math.round((state.succeeded / state.total) * 100) : 0;
             html += '<dt>Progress</dt><dd>' + SF.formatComplianceRate(progress) + '</dd>';
+            html += '<dt>Status Source</dt><dd>' + escapeHtml(update.statusSource || 'FeatureUpdatePolicyStatusSummary') + '</dd>';
         } else {
             html += '<dt>Status</dt><dd><span class="badge badge-neutral">Not collected</span></dd>';
-            html += '<dt>Reason</dt><dd>Graph did not return per-policy deployment status for this feature update.</dd>';
+            html += '<dt>Reason</dt><dd>' + escapeHtml(update.statusUnavailableReason || 'Graph did not return per-policy deployment status for this feature update.') + '</dd>';
         }
         html += '</dl></div>';
 
@@ -788,7 +790,7 @@ const PageWindowsUpdate = (function() {
         if (update.assignedGroups && update.assignedGroups.length > 0) {
             html += '<div class="detail-section"><h4>Assigned Groups</h4><ul class="detail-list-simple">';
             update.assignedGroups.forEach(function(g) {
-                html += '<li>' + g + '</li>';
+                html += '<li>' + escapeHtml(g) + '</li>';
             });
             html += '</ul></div>';
         }
@@ -829,13 +831,20 @@ const PageWindowsUpdate = (function() {
 
         // Deployment Status
         html += '<div class="detail-section"><h4>Deployment Status</h4><dl class="detail-list">';
-        var total = state.total || (state.succeeded || 0) + (state.pending || 0) + (state.failed || 0);
-        html += '<dt>Total Devices</dt><dd>' + total + '</dd>';
-        html += '<dt>Succeeded</dt><dd><span class="text-success font-bold">' + (state.succeeded || 0) + '</span></dd>';
-        html += '<dt>Pending</dt><dd><span class="text-warning">' + (state.pending || 0) + '</span></dd>';
-        html += '<dt>Failed</dt><dd>' + SF.formatCount(state.failed, { zeroIsGood: true }) + '</dd>';
-        var progress = total > 0 ? Math.round((state.succeeded / total) * 100) : 0;
-        html += '<dt>Progress</dt><dd>' + SF.formatComplianceRate(progress) + '</dd>';
+        var statusAvailable = hasDeploymentStatus(update);
+        if (statusAvailable) {
+            var total = state.total || (state.succeeded || 0) + (state.pending || 0) + (state.failed || 0);
+            html += '<dt>Total Devices</dt><dd>' + total + '</dd>';
+            html += '<dt>Succeeded</dt><dd><span class="text-success font-bold">' + (state.succeeded || 0) + '</span></dd>';
+            html += '<dt>Pending</dt><dd><span class="text-warning">' + (state.pending || 0) + '</span></dd>';
+            html += '<dt>Failed</dt><dd>' + SF.formatCount(state.failed, { zeroIsGood: true }) + '</dd>';
+            var progress = total > 0 ? Math.round((state.succeeded / total) * 100) : 0;
+            html += '<dt>Progress</dt><dd>' + SF.formatComplianceRate(progress) + '</dd>';
+            html += '<dt>Status Source</dt><dd>' + escapeHtml(update.statusSource || 'deviceUpdateStates') + '</dd>';
+        } else {
+            html += '<dt>Status</dt><dd><span class="badge badge-neutral">Not collected</span></dd>';
+            html += '<dt>Reason</dt><dd>' + escapeHtml(update.statusUnavailableReason || 'Graph did not return deployment status for this quality update.') + '</dd>';
+        }
         html += '</dl></div>';
 
         // Dates
@@ -848,7 +857,7 @@ const PageWindowsUpdate = (function() {
         if (update.assignedGroups && update.assignedGroups.length > 0) {
             html += '<div class="detail-section"><h4>Assigned Groups</h4><ul class="detail-list-simple">';
             update.assignedGroups.forEach(function(g) {
-                html += '<li>' + g + '</li>';
+                html += '<li>' + escapeHtml(g) + '</li>';
             });
             html += '</ul></div>';
         }

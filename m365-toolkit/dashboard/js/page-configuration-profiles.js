@@ -22,6 +22,27 @@ const PageConfigurationProfiles = (function() {
     var colSelector = null;
     var rawData = null;
     var activeTab = 'overview';
+    var REQUIRED_POLICY_TYPES = [
+        'Settings Catalog',
+        'Administrative Templates',
+        'Custom Policies',
+        'Endpoint Protections',
+        'Device Feature',
+        'Device Restriction',
+        'Microsoft Defender for Endpoint',
+        'Device firmware configurations',
+        'VPN Policies',
+        'Wi-Fi',
+        'Trusted Certificate',
+        'SCEP Certificate',
+        'Windows Health Monitoring',
+        'Endpoint Security - Antivirus',
+        'Endpoint Security - Firewall',
+        'Endpoint Security - Attack Surface Reduction',
+        'Endpoint Security - Endpoint Detection and Response',
+        'Endpoint Security - App Control',
+        'Unknown / Unclassified'
+    ];
 
     function toCount(value) {
         if (value === null || value === undefined || value === '') return null;
@@ -42,7 +63,27 @@ const PageConfigurationProfiles = (function() {
             var parsed = toCount(arguments[i]);
             if (parsed !== null) return parsed;
         }
-        return 0;
+        return null;
+    }
+
+    function hasExplicitStatusEvidence(p) {
+        if (typeof p.statusAvailable === 'boolean') return p.statusAvailable;
+        if (p.statusSource === 'missing') return false;
+        if (p.status || p.rawStatusEvidence) return true;
+        if (p.source === 'configurationPolicies' && p.statusSource === 'overview' && toCount(p.totalDevices) === 0) return false;
+        return firstCount(p.totalDevices, p.successDevices, p.successCount, p.errorDevices, p.errorCount) !== null;
+    }
+
+    function formatMissingMarker(profile) {
+        if (!profile || !profile.statusMissing) return '';
+        return ' <span class="text-warning" title="Status data was not collected for this policy">!</span>';
+    }
+
+    function formatStatusCount(value, cls, zeroIsGood) {
+        if (value === null || value === undefined) return '<span class="text-muted">--</span><span class="text-warning" title="Status data missing"> !</span>';
+        if (Number(value) === 0) return '<span class="text-muted">0</span>';
+        var className = cls || (zeroIsGood ? 'text-critical font-bold' : 'text-success');
+        return '<span class="' + className + '">' + Number(value).toLocaleString() + '</span>';
     }
 
     // Extract data from nested structure
@@ -71,21 +112,35 @@ const PageConfigurationProfiles = (function() {
 
     // Map collector field names to display field names
     function mapProfile(p) {
-        var success = firstCount(p.successDevices, p.successCount);
-        var errors = firstCount(p.errorDevices, p.errorCount);
-        var conflicts = firstCount(p.conflictDevices, p.conflictCount);
-        var pending = firstCount(p.pendingDevices, p.pendingCount);
-        var notApplicable = firstCount(p.notApplicableDevices, p.notApplicableCount);
-        var totalDevices = firstCount(p.totalDevices, success + errors + conflicts + pending + notApplicable);
+        var status = p.status || {};
+        var statusAvailable = hasExplicitStatusEvidence(p);
+        var success = statusAvailable ? firstCount(status.success, p.successDevices, p.successCount) : null;
+        var errors = statusAvailable ? firstCount(status.errors, p.errorDevices, p.errorCount) : null;
+        var conflicts = statusAvailable ? firstCount(status.conflicts, p.conflictDevices, p.conflictCount) : null;
+        var pending = statusAvailable ? firstCount(status.pending, p.pendingDevices, p.pendingCount) : null;
+        var notApplicable = statusAvailable ? firstCount(status.notApplicable, p.notApplicableDevices, p.notApplicableCount) : null;
+        var totalDevices = statusAvailable ? firstCount(status.total, p.totalDevices) : null;
+        if (totalDevices === null && [success, errors, conflicts, pending, notApplicable].every(function(v) { return v !== null; })) {
+            totalDevices = success + errors + conflicts + pending + notApplicable;
+        }
+        var successRate = statusAvailable ? firstCount(status.successRate, p.successRate) : null;
+        var policyType = p.type || p.profileType || p.policyBaseTypeName || 'Unknown / Unclassified';
+        var category = p.category || policyType || 'Unknown / Unclassified';
 
         return {
             id: p.id,
             displayName: p.displayName,
             description: p.description,
-            profileType: p.profileType,
+            profileType: policyType,
+            type: policyType,
             platform: p.platform,
-            category: p.category || 'General',
+            category: category,
             source: p.source,
+            policyBaseTypeName: p.policyBaseTypeName,
+            unifiedPolicyType: p.unifiedPolicyType,
+            templateFamily: p.templateFamily,
+            templateDisplayName: p.templateDisplayName,
+            isAssigned: p.isAssigned,
             assignments: p.assignments || [],
             assignmentCount: p.assignmentCount || (p.assignments ? p.assignments.length : 0),
             successCount: success,
@@ -94,7 +149,11 @@ const PageConfigurationProfiles = (function() {
             pendingCount: pending,
             notApplicableCount: notApplicable,
             totalDevices: totalDevices,
-            successRate: p.successRate,
+            successRate: successRate,
+            statusSource: statusAvailable ? p.statusSource : 'missing',
+            rawStatusEvidence: p.rawStatusEvidence || null,
+            collectionWarnings: p.collectionWarnings || [],
+            statusMissing: !statusAvailable,
             deviceStatuses: p.deviceStatuses || [],
             settingStatuses: p.settingStatuses || [],
             createdDateTime: p.createdDateTime,
@@ -196,7 +255,7 @@ const PageConfigurationProfiles = (function() {
                 html += '<td><span class="badge badge-info">' + escapeHtml(pProfile.profileType || 'Unknown') + '</span></td>';
                 html += '<td>' + (SF.formatCount ? SF.formatCount(pProfile.errorCount, { zeroIsGood: true }) : (pProfile.errorCount > 0 ? '<span class="text-critical font-bold">' + pProfile.errorCount + '</span>' : '<span class="text-muted">0</span>')) + '</td>';
                 html += '<td>' + (pProfile.conflictCount > 0 ? '<span class="text-warning font-bold">' + pProfile.conflictCount + '</span>' : '<span class="text-muted">0</span>') + '</td>';
-                html += '<td>' + (SF.formatPercentage ? SF.formatPercentage(pProfile.successRate, { inverse: true }) : formatSuccessRate(pProfile.successRate)) + '</td>';
+                html += '<td>' + formatSuccessRate(pProfile.successRate) + '</td>';
                 html += '</tr>';
             });
 
@@ -220,7 +279,7 @@ const PageConfigurationProfiles = (function() {
     }
 
     function formatSuccessRate(value) {
-        if (value === null || value === undefined || isNaN(Number(value))) return '<span class="text-muted">N/A</span>';
+        if (value === null || value === undefined || isNaN(Number(value))) return '<span class="text-muted">--</span><span class="text-warning" title="Status data missing"> !</span>';
         var numVal = Number(value);
         var cls = numVal >= 90 ? 'text-success' : numVal >= 70 ? 'text-warning' : 'text-critical';
         return '<span class="' + cls + ' font-bold">' + Math.round(numVal) + '%</span>';
@@ -230,6 +289,10 @@ const PageConfigurationProfiles = (function() {
         var profiles = (data.profiles || []).map(mapProfile);
 
         var platforms = {}, types = {}, categories = {};
+        REQUIRED_POLICY_TYPES.forEach(function(t) {
+            types[t] = 1;
+            categories[t] = 1;
+        });
         profiles.forEach(function(p) {
             platforms[p.platform || 'Unknown'] = 1;
             types[p.profileType || 'Unknown'] = 1;
@@ -288,18 +351,24 @@ const PageConfigurationProfiles = (function() {
 
         var filterConfig = {
             search: Filters.getValue('profiles-search'),
-            searchFields: ['displayName', 'description', 'platform', 'profileType', 'category'],
+            searchFields: ['displayName', 'description', 'platform', 'profileType', 'type', 'category', 'templateFamily', 'templateDisplayName'],
             exact: {}
         };
 
         var platformFilter = Filters.getValue('profiles-platform');
         if (platformFilter && platformFilter !== 'all') filterConfig.exact.platform = platformFilter;
-        var typeFilter = Filters.getValue('profiles-type');
-        if (typeFilter && typeFilter !== 'all') filterConfig.exact.profileType = typeFilter;
         var categoryFilter = Filters.getValue('profiles-category');
         if (categoryFilter && categoryFilter !== 'all') filterConfig.exact.category = categoryFilter;
 
-        renderProfilesTable(Filters.apply(profiles, filterConfig));
+        var filtered = Filters.apply(profiles, filterConfig);
+        var typeFilter = Filters.getValue('profiles-type');
+        if (typeFilter && typeFilter !== 'all') {
+            filtered = filtered.filter(function(p) {
+                return p.profileType === typeFilter || p.type === typeFilter || p.category === typeFilter || p.templateFamily === typeFilter || p.templateDisplayName === typeFilter;
+            });
+        }
+
+        renderProfilesTable(filtered);
     }
 
     function renderProfilesTable(data) {
@@ -307,37 +376,37 @@ const PageConfigurationProfiles = (function() {
 
         var allDefs = [
             { key: 'displayName', label: 'Profile Name', formatter: function(v, row) {
-                return '<a href="#" class="profile-link" data-id="' + row.id + '"><strong>' + (v || 'Unnamed') + '</strong></a>';
+                return '<a href="#" class="profile-link" data-id="' + escapeHtml(row.id) + '"><strong>' + escapeHtml(v || 'Unnamed') + '</strong></a>' + formatMissingMarker(row);
             }},
             { key: 'profileType', label: 'Type', formatter: function(v) {
-                return '<span class="badge badge-info">' + (v || 'Unknown') + '</span>';
+                return '<span class="badge badge-info">' + escapeHtml(v || 'Unknown') + '</span>';
             }},
             { key: 'platform', label: 'Platform', formatter: function(v) {
-                return SF.formatPlatform ? SF.formatPlatform(v) : '<span class="badge badge-neutral">' + (v || 'Unknown') + '</span>';
+                return SF.formatPlatform ? SF.formatPlatform(v) : '<span class="badge badge-neutral">' + escapeHtml(v || 'Unknown') + '</span>';
             }},
             { key: 'category', label: 'Category', formatter: function(v) {
-                return '<span class="badge badge-neutral">' + (v || 'General') + '</span>';
+                return '<span class="badge badge-neutral">' + escapeHtml(v || 'Unknown / Unclassified') + '</span>';
             }},
             { key: 'assignmentCount', label: 'Assignments', formatter: function(v) {
                 return SF.formatCount ? SF.formatCount(v) : (v || 0);
             }},
             { key: 'successCount', label: 'Success', formatter: function(v) {
-                return SF.formatCount ? SF.formatCount(v) : '<span class="text-success">' + (v || 0) + '</span>';
+                return formatStatusCount(v, 'text-success');
             }},
             { key: 'errorCount', label: 'Errors', formatter: function(v) {
-                return SF.formatCount ? SF.formatCount(v, { zeroIsGood: true }) : (v ? '<span class="text-critical font-bold">' + v + '</span>' : '<span class="text-muted">0</span>');
+                return formatStatusCount(v, 'text-critical font-bold', true);
             }},
             { key: 'conflictCount', label: 'Conflicts', formatter: function(v) {
-                return v ? '<span class="text-warning font-bold">' + v + '</span>' : '<span class="text-muted">0</span>';
+                return formatStatusCount(v, 'text-warning font-bold', true);
             }},
             { key: 'pendingCount', label: 'Pending', formatter: function(v) {
-                return v ? '<span class="text-info">' + v + '</span>' : '<span class="text-muted">0</span>';
+                return formatStatusCount(v, 'text-info');
             }},
             { key: 'notApplicableCount', label: 'Not Applicable', formatter: function(v) {
-                return v ? '<span class="text-muted">' + v + '</span>' : '<span class="text-muted">0</span>';
+                return formatStatusCount(v, 'text-muted');
             }},
             { key: 'successRate', label: 'Success Rate', formatter: function(v) {
-                return SF.formatPercentage ? SF.formatPercentage(v, { inverse: true }) : formatSuccessRate(v);
+                return formatSuccessRate(v);
             }},
             { key: 'lastModified', label: 'Last Modified', formatter: function(v) {
                 return SF.formatDate ? SF.formatDate(v) : Tables.formatters.date(v);
@@ -525,9 +594,15 @@ const PageConfigurationProfiles = (function() {
 
         // Profile Information
         html += '<div class="detail-section"><h4>Profile Information</h4><dl class="detail-list">';
+        html += '<dt>Policy ID</dt><dd><code>' + escapeHtml(profile.id || '--') + '</code></dd>';
         html += '<dt>Type</dt><dd><span class="badge badge-info">' + (profile.profileType || 'Unknown') + '</span></dd>';
         html += '<dt>Platform</dt><dd>' + (SF.formatPlatform ? SF.formatPlatform(profile.platform) : '<span class="badge badge-neutral">' + (profile.platform || 'Unknown') + '</span>') + '</dd>';
         html += '<dt>Category</dt><dd>' + (profile.category || 'General') + '</dd>';
+        html += '<dt>Policy Source</dt><dd>' + escapeHtml(profile.source || '--') + '</dd>';
+        html += '<dt>Base Type</dt><dd>' + escapeHtml(profile.policyBaseTypeName || '--') + '</dd>';
+        html += '<dt>Unified Type</dt><dd>' + escapeHtml(profile.unifiedPolicyType || '--') + '</dd>';
+        html += '<dt>Template Family</dt><dd>' + escapeHtml(profile.templateFamily || '--') + '</dd>';
+        html += '<dt>Template</dt><dd>' + escapeHtml(profile.templateDisplayName || '--') + '</dd>';
         html += '<dt>Assignments</dt><dd>' + (profile.assignmentCount || 0) + '</dd>';
         if (profile.description) {
             // XSS FIX: Escape user-controlled description field
@@ -537,12 +612,18 @@ const PageConfigurationProfiles = (function() {
 
         // Deployment Status
         html += '<div class="detail-section"><h4>Deployment Status</h4><dl class="detail-list">';
-        html += '<dt>Success</dt><dd><span class="text-success font-bold">' + (profile.successCount || 0) + '</span></dd>';
-        html += '<dt>Errors</dt><dd>' + (SF.formatCount ? SF.formatCount(profile.errorCount, { zeroIsGood: true }) : (profile.errorCount > 0 ? '<span class="text-critical font-bold">' + profile.errorCount + '</span>' : '0')) + '</dd>';
-        html += '<dt>Conflicts</dt><dd>' + (profile.conflictCount > 0 ? '<span class="text-warning font-bold">' + profile.conflictCount + '</span>' : '0') + '</dd>';
-        html += '<dt>Pending</dt><dd>' + (profile.pendingCount || 0) + '</dd>';
-        html += '<dt>Not Applicable</dt><dd>' + (profile.notApplicableCount || 0) + '</dd>';
-        html += '<dt>Success Rate</dt><dd>' + (SF.formatPercentage ? SF.formatPercentage(profile.successRate, { inverse: true }) : formatSuccessRate(profile.successRate)) + '</dd>';
+        html += '<dt>Status Source</dt><dd>' + escapeHtml(profile.statusSource || '--') + '</dd>';
+        html += '<dt>Report ID</dt><dd>' + escapeHtml(profile.rawStatusEvidence && profile.rawStatusEvidence.reportId ? profile.rawStatusEvidence.reportId : '--') + '</dd>';
+        html += '<dt>Raw Evidence Rows</dt><dd>' + escapeHtml(profile.rawStatusEvidence && profile.rawStatusEvidence.rawRows !== undefined ? profile.rawStatusEvidence.rawRows : '--') + '</dd>';
+        html += '<dt>Success</dt><dd>' + formatStatusCount(profile.successCount, 'text-success') + '</dd>';
+        html += '<dt>Errors</dt><dd>' + formatStatusCount(profile.errorCount, 'text-critical font-bold', true) + '</dd>';
+        html += '<dt>Conflicts</dt><dd>' + formatStatusCount(profile.conflictCount, 'text-warning font-bold', true) + '</dd>';
+        html += '<dt>Pending</dt><dd>' + formatStatusCount(profile.pendingCount, 'text-info') + '</dd>';
+        html += '<dt>Not Applicable</dt><dd>' + formatStatusCount(profile.notApplicableCount, 'text-muted') + '</dd>';
+        html += '<dt>Success Rate</dt><dd>' + formatSuccessRate(profile.successRate) + '</dd>';
+        if (profile.collectionWarnings && profile.collectionWarnings.length > 0) {
+            html += '<dt>Collection Warning</dt><dd><span class="text-warning">' + escapeHtml(profile.collectionWarnings.join('; ')) + '</span></dd>';
+        }
         html += '</dl></div>';
 
         // Timestamps
@@ -691,12 +772,15 @@ const PageConfigurationProfiles = (function() {
 
         var summary = rawData.summary || {};
         var profiles = rawData.profiles || [];
+        var mappedProfiles = profiles.map(mapProfile);
+        var profilesWithStatus = mappedProfiles.filter(function(p) { return !p.statusMissing; });
         var totalProfiles = summary.totalProfiles || profiles.length;
-        var totalSuccess = summary.successDevices || 0;
-        var totalErrors = summary.errorDevices || 0;
-        var totalConflicts = summary.conflictDevices || 0;
-        var overallSuccessRate = summary.overallSuccessRate || 0;
-        var rateClass = overallSuccessRate >= 90 ? 'text-success' : overallSuccessRate >= 70 ? 'text-warning' : 'text-critical';
+        var totalSuccess = profilesWithStatus.length > 0 ? profilesWithStatus.reduce(function(sum, p) { return sum + (p.successCount || 0); }, 0) : null;
+        var totalErrors = profilesWithStatus.length > 0 ? profilesWithStatus.reduce(function(sum, p) { return sum + (p.errorCount || 0); }, 0) : null;
+        var totalConflicts = profilesWithStatus.length > 0 ? profilesWithStatus.reduce(function(sum, p) { return sum + (p.conflictCount || 0); }, 0) : null;
+        var totalStatusDevices = profilesWithStatus.reduce(function(sum, p) { return sum + (p.totalDevices || 0); }, 0);
+        var overallSuccessRate = totalStatusDevices > 0 ? Math.round((totalSuccess / totalStatusDevices) * 1000) / 10 : null;
+        var rateClass = overallSuccessRate === null ? 'text-muted' : overallSuccessRate >= 90 ? 'text-success' : overallSuccessRate >= 70 ? 'text-warning' : 'text-critical';
 
         var failedDevicesCount = (rawData.failedDevices || []).length;
         var settingFailuresCount = (rawData.settingFailures || []).length;
@@ -706,10 +790,10 @@ const PageConfigurationProfiles = (function() {
         // Summary Cards
         html += '<div class="summary-cards">';
         html += '<div class="summary-card"><div class="summary-value">' + totalProfiles + '</div><div class="summary-label">Total Profiles</div></div>';
-        html += '<div class="summary-card card-success"><div class="summary-value">' + totalSuccess.toLocaleString() + '</div><div class="summary-label">Successful</div></div>';
-        html += '<div class="summary-card' + (totalErrors > 0 ? ' card-danger' : '') + '"><div class="summary-value">' + totalErrors.toLocaleString() + '</div><div class="summary-label">Errors</div></div>';
-        html += '<div class="summary-card' + (totalConflicts > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + totalConflicts.toLocaleString() + '</div><div class="summary-label">Conflicts</div></div>';
-        html += '<div class="summary-card"><div class="summary-value ' + rateClass + '">' + Math.round(overallSuccessRate) + '%</div><div class="summary-label">Success Rate</div></div>';
+        html += '<div class="summary-card card-success"><div class="summary-value">' + (totalSuccess === null ? '--' : totalSuccess.toLocaleString()) + '</div><div class="summary-label">Successful</div></div>';
+        html += '<div class="summary-card' + (totalErrors > 0 ? ' card-danger' : '') + '"><div class="summary-value">' + (totalErrors === null ? '--' : totalErrors.toLocaleString()) + '</div><div class="summary-label">Errors</div></div>';
+        html += '<div class="summary-card' + (totalConflicts > 0 ? ' card-warning' : '') + '"><div class="summary-value">' + (totalConflicts === null ? '--' : totalConflicts.toLocaleString()) + '</div><div class="summary-label">Conflicts</div></div>';
+        html += '<div class="summary-card"><div class="summary-value ' + rateClass + '">' + (overallSuccessRate === null ? '--' : Math.round(overallSuccessRate) + '%') + '</div><div class="summary-label">Success Rate</div></div>';
         html += '</div>';
 
         // Tab bar
@@ -764,7 +848,11 @@ const PageConfigurationProfiles = (function() {
     return {
         render: render,
         showProfileDetail: showProfileDetail,
-        closeModal: closeModal
+        closeModal: closeModal,
+        _test: {
+            mapProfile: mapProfile,
+            formatSuccessRate: formatSuccessRate
+        }
     };
 })();
 

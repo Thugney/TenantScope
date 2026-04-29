@@ -726,6 +726,9 @@ try {
             }
             catch { }
 
+            $totalDevices = $deployedDevices + $pendingDevices + $failedDevices
+            $statusAvailable = ($totalDevices -gt 0)
+
             $updateData.qualityUpdates += [PSCustomObject]@{
                 id                      = $policy.id
                 displayName             = $displayName
@@ -738,12 +741,20 @@ try {
                 lastModifiedDateTime    = Format-IsoDate -DateValue $policy.lastModifiedDateTime
                 assignedGroups          = $assignedGroups
                 deploymentState         = @{
-                    total     = $deployedDevices + $pendingDevices + $failedDevices
+                    total     = $totalDevices
                     succeeded = $deployedDevices
                     pending   = $pendingDevices
                     failed    = $failedDevices
                 }
                 progressPercent         = $progressPercent
+                statusAvailable         = $statusAvailable
+                statusSource            = if ($statusAvailable) { "deviceUpdateStates" } else { "unavailable" }
+                statusUnavailableReason = if ($statusAvailable) {
+                    $null
+                }
+                else {
+                    "Quality update deployment status was not returned by Graph for this policy."
+                }
             }
 
             $totalItems++

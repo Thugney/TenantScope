@@ -1359,7 +1359,7 @@ table {
     backdrop-filter: blur(20px);
     border-radius: var(--border-radius-lg);
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.2), 0 0 0 1px rgba(255, 255, 255, 0.5);
-    max-width: 700px;
+    max-width: 920px;
     width: 90%;
     max-height: 85vh;
     overflow: hidden;
@@ -1547,8 +1547,18 @@ table {
 /* Modal detail list */
 .detail-list {
     display: grid;
-    grid-template-columns: auto 1fr;
+    grid-template-columns: minmax(96px, max-content) minmax(0, 1fr);
     gap: var(--spacing-sm) var(--spacing-md);
+}
+
+.detail-list dt,
+.detail-list dd {
+    min-width: 0;
+}
+
+.detail-list dd {
+    overflow-wrap: anywhere;
+    word-break: break-word;
 }
 
 .detail-label {
@@ -4566,6 +4576,11 @@ table {
     margin-top: var(--spacing-xs);
     font-size: var(--font-size-xs);
     color: var(--color-text-muted);
+}
+
+.modal .detail-grid {
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--spacing-lg);
 }
 
 .detail-label {
