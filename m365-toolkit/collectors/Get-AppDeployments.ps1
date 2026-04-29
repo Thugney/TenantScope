@@ -909,10 +909,14 @@ try {
     $assignmentBatchMap = @{}
 
     if (-not $deepCollection -and $aggregateInstallReportMap.Count -eq 0 -and $installReportMap.Count -eq 0) {
-        Write-Host "      Aggregate app status reports unavailable. Expanding per-app fallbacks for this run..." -ForegroundColor Yellow
-        $maxPerAppInstallSummaryFallbacks = [Math]::Max($maxPerAppInstallSummaryFallbacks, $allApps.Count)
-        $maxPerAppReportFallbacks = [Math]::Max($maxPerAppReportFallbacks, $allApps.Count)
-        $maxDeviceStatusApps = [Math]::Max($maxDeviceStatusApps, [Math]::Min($allApps.Count, 50))
+        # PERFORMANCE FIX: Do NOT expand to all apps - this causes massive throttling (339+ API calls)
+        # Keep limits low and mark remaining apps as "status unavailable" instead
+        # Users who need full status can enable deepCollection in config
+        Write-Host "      Aggregate app status reports unavailable. Using limited fallbacks (max 50 apps) to avoid throttling." -ForegroundColor Yellow
+        Write-Host "      Tip: Enable deepCollection in config.json for full app status (slower)." -ForegroundColor Gray
+        $maxPerAppInstallSummaryFallbacks = [Math]::Min(50, $allApps.Count)
+        $maxPerAppReportFallbacks = [Math]::Min(25, $allApps.Count)
+        $maxDeviceStatusApps = [Math]::Min(10, $allApps.Count)
     }
 
     if ($maxAssignmentFetches -gt 0) {
