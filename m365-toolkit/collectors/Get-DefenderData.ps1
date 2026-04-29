@@ -78,27 +78,39 @@ try {
     Write-Host "      Filtering to last $daysBack days" -ForegroundColor Gray
 
     # Try multiple methods to get alerts
+    # Note: Get-MgSecurityAlert cmdlet uses deprecated /security/alerts endpoint (returns 400)
+    # So we go directly to alerts_v2 API
     $alerts = @()
 
-    # Method 1: Try Get-MgSecurityAlert (v2 alerts)
+    # Method 1: Try direct API call to alerts_v2 (preferred - modern unified alerts)
     try {
-        $alerts = Invoke-GraphWithRetry -ScriptBlock {
-            Get-MgSecurityAlert -Filter "createdDateTime ge $filterDate" -All
-        } -OperationName "Security alert retrieval"
-        Write-Host "      Retrieved $($alerts.Count) alerts via Get-MgSecurityAlert" -ForegroundColor Gray
+        $response = Invoke-GraphWithRetry -ScriptBlock {
+            Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/security/alerts_v2?`$filter=createdDateTime ge $filterDate" -OutputType PSObject
+        } -OperationName "Security alert retrieval (v2 API)"
+
+        if ($response.value) {
+            $alerts = $response.value
+            # Handle pagination
+            while ($response.'@odata.nextLink') {
+                $response = Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
+                if ($response.value) {
+                    $alerts += $response.value
+                }
+            }
+        }
+        Write-Host "      Retrieved $($alerts.Count) alerts via alerts_v2 API" -ForegroundColor Gray
     }
     catch {
-        Write-Host "      Get-MgSecurityAlert not available, trying alternative..." -ForegroundColor Gray
+        Write-Host "      alerts_v2 API not available, trying beta..." -ForegroundColor Gray
 
-        # Method 2: Try direct API call to alerts_v2
+        # Method 2: Try beta alerts_v2 endpoint
         try {
             $response = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/security/alerts_v2?`$filter=createdDateTime ge $filterDate" -OutputType PSObject
-            } -OperationName "Security alert retrieval (v2 API)"
+                Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/beta/security/alerts_v2?`$filter=createdDateTime ge $filterDate" -OutputType PSObject
+            } -OperationName "Security alert retrieval (beta v2 API)"
 
             if ($response.value) {
                 $alerts = $response.value
-                # Handle pagination
                 while ($response.'@odata.nextLink') {
                     $response = Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
                     if ($response.value) {
@@ -106,23 +118,12 @@ try {
                     }
                 }
             }
-            Write-Host "      Retrieved $($alerts.Count) alerts via alerts_v2 API" -ForegroundColor Gray
+            Write-Host "      Retrieved $($alerts.Count) alerts via beta alerts_v2 API" -ForegroundColor Gray
         }
         catch {
-            # Method 3: Try legacy alerts endpoint
-            try {
-                $response = Invoke-GraphWithRetry -ScriptBlock {
-                    Invoke-MgGraphRequest -Method GET -Uri "https://graph.microsoft.com/v1.0/security/alerts?`$filter=createdDateTime ge $filterDate" -OutputType PSObject
-                } -OperationName "Security alert retrieval (legacy API)"
-
-                if ($response.value) {
-                    $alerts = $response.value
-                }
-                Write-Host "      Retrieved $($alerts.Count) alerts via legacy API" -ForegroundColor Gray
-            }
-            catch {
-                throw "Unable to retrieve security alerts: $($_.Exception.Message)"
-            }
+            # Method 3: Tenant may not have Defender/security license - this is OK
+            Write-Host "      [!] Security alerts not available (license or permission)" -ForegroundColor Yellow
+            $errors += "Security alerts: Tenant may not have required license or SecurityEvents.Read.All permission"
         }
     }
 

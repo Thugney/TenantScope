@@ -204,46 +204,56 @@ $autopilotCount = 0
 try {
     Write-Host "    Collecting Windows Autopilot devices..." -ForegroundColor Gray
 
-    # Use beta API for full property set including deploymentProfileAssignmentStatus.
-    # Prefer expanding the related deploymentProfile so the dashboard can show profile names.
+    # Reuse Autopilot devices from SharedData if Get-DeviceData already fetched them
     $autopilotDevices = @()
-    $apiUri = $null
-    $response = $null
-    foreach ($candidateUri in @(
-        "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities?`$expand=deploymentProfile",
-        "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities"
-    )) {
-        try {
-            $response = Invoke-GraphWithRetry -ScriptBlock {
-                Invoke-MgGraphRequest -Method GET -Uri $candidateUri -OutputType PSObject
-            } -OperationName "Autopilot device retrieval"
-            $apiUri = $candidateUri
-            break
-        }
-        catch {
-            if ($candidateUri -eq "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities") {
-                throw
+    $reusedFromSharedData = $false
+
+    if ($SharedData -and $SharedData.ContainsKey('AutopilotDevices') -and $SharedData['AutopilotDevices'].Count -gt 0) {
+        $autopilotDevices = @($SharedData['AutopilotDevices'])
+        $reusedFromSharedData = $true
+        Write-Host "      Reusing $($autopilotDevices.Count) Autopilot devices from Get-DeviceData (no extra API call)" -ForegroundColor Gray
+    }
+    else {
+        # Use beta API for full property set including deploymentProfileAssignmentStatus.
+        # Prefer expanding the related deploymentProfile so the dashboard can show profile names.
+        $apiUri = $null
+        $response = $null
+        foreach ($candidateUri in @(
+            "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities?`$expand=deploymentProfile",
+            "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities"
+        )) {
+            try {
+                $response = Invoke-GraphWithRetry -ScriptBlock {
+                    Invoke-MgGraphRequest -Method GET -Uri $candidateUri -OutputType PSObject
+                } -OperationName "Autopilot device retrieval"
+                $apiUri = $candidateUri
+                break
+            }
+            catch {
+                if ($candidateUri -eq "https://graph.microsoft.com/beta/deviceManagement/windowsAutopilotDeviceIdentities") {
+                    throw
+                }
             }
         }
-    }
 
-    if ($response.value) {
-        $autopilotDevices = @($response.value)
-    }
-
-    # Handle pagination
-    while ($response.'@odata.nextLink') {
-        $response = Invoke-GraphWithRetry -ScriptBlock {
-            Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
-        } -OperationName "Autopilot device pagination"
         if ($response.value) {
-            $autopilotDevices += $response.value
+            $autopilotDevices = @($response.value)
         }
-    }
 
-    Write-Host "      Retrieved $($autopilotDevices.Count) Autopilot devices" -ForegroundColor Gray
-    if ($apiUri -match "\$expand=deploymentProfile") {
-        Write-Host "      Deployment profiles resolved inline from Graph" -ForegroundColor Gray
+        # Handle pagination
+        while ($response.'@odata.nextLink') {
+            $response = Invoke-GraphWithRetry -ScriptBlock {
+                Invoke-MgGraphRequest -Method GET -Uri $response.'@odata.nextLink' -OutputType PSObject
+            } -OperationName "Autopilot device pagination"
+            if ($response.value) {
+                $autopilotDevices += $response.value
+            }
+        }
+
+        Write-Host "      Retrieved $($autopilotDevices.Count) Autopilot devices" -ForegroundColor Gray
+        if ($apiUri -match "\$expand=deploymentProfile") {
+            Write-Host "      Deployment profiles resolved inline from Graph" -ForegroundColor Gray
+        }
     }
 
     # Debug: Show sample of available properties and values from first device

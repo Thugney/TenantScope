@@ -479,6 +479,11 @@ try {
         }
         $statusSummary = ($statusCounts.GetEnumerator() | ForEach-Object { "$($_.Key): $($_.Value)" }) -join ", "
         Write-Host "      Autopilot profile status breakdown: $statusSummary" -ForegroundColor Gray
+
+        # Share Autopilot devices with downstream Get-AutopilotData collector to avoid duplicate API call
+        if ($SharedData -is [hashtable]) {
+            $SharedData['AutopilotDevices'] = $autopilotDevices
+        }
     }
     catch {
         Write-Host "      [!] Could not retrieve Autopilot devices: $($_.Exception.Message)" -ForegroundColor Yellow
