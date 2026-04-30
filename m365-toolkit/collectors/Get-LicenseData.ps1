@@ -7,15 +7,18 @@
 
 <#
 .SYNOPSIS
-    Collects license SKU data from Microsoft 365 tenant via Graph API.
+    Collects tenant license inventory from Microsoft Graph subscribedSkus.
 
 .DESCRIPTION
-    Retrieves all subscribed SKUs in the tenant and cross-references with
-    user data to calculate utilization metrics including waste analysis
-    (licenses assigned to disabled or inactive users).
+    Retrieves live subscribed SKU capacity and service plan data from
+    Microsoft Graph v1.0 /subscribedSkus using the Microsoft Graph PowerShell
+    SDK. The collector writes a stable normalized object to license-skus.json
+    and keeps legacy per-SKU fields inside each license row for dashboard
+    compatibility.
 
-    Graph API endpoint: GET /subscribedSkus
-    Required scope: Directory.Read.All
+    Required app permission: LicenseAssignment.Read.All.
+    Existing app registrations that already use Organization.Read.All or
+    Directory.Read.All can continue to use those broader permissions.
 
 .PARAMETER Config
     The configuration hashtable loaded from config.json.
@@ -24,13 +27,8 @@
     Full path where the resulting JSON file will be saved.
 
 .OUTPUTS
-    Writes license-skus.json to the specified output path. Returns a hashtable with:
-    - Success: [bool] whether collection completed
-    - Count: [int] number of SKUs collected
-    - Errors: [array] any errors encountered
-
-.EXAMPLE
-    $result = & .\collectors\Get-LicenseData.ps1 -Config $config -OutputPath ".\data\license-skus.json"
+    Writes license-skus.json to the specified output path. Returns a hashtable
+    with Success, Count, and Errors for the main collector pipeline.
 #>
 
 #Requires -Version 7.0
@@ -47,385 +45,443 @@ param(
     [hashtable]$SharedData = @{}
 )
 
-# ============================================================================
-# SKU FRIENDLY NAME MAPPING
-# Maps SKU part numbers to human-readable license names
-# ============================================================================
-
-$skuNameMap = @{
-    "SPE_E3"                    = "Microsoft 365 E3"
-    "SPE_E5"                    = "Microsoft 365 E5"
-    "SPE_F1"                    = "Microsoft 365 F1"
-    "ENTERPRISEPACK"            = "Office 365 E3"
-    "ENTERPRISEPREMIUM"         = "Office 365 E5"
-    "M365EDU_A1"                = "Microsoft 365 A1 for students"
-    "M365EDU_A3_STUUSEBNFT"     = "Microsoft 365 A3 for students"
-    "M365EDU_A3_FACULTY"        = "Microsoft 365 A3 for faculty"
-    "M365EDU_A5_STUUSEBNFT"     = "Microsoft 365 A5 for students"
-    "M365EDU_A5_FACULTY"        = "Microsoft 365 A5 for faculty"
-    "STANDARDWOFFPACK_STUDENT"  = "Office 365 A1 for students"
-    "STANDARDWOFFPACK_FACULTY"  = "Office 365 A1 for faculty"
-    "OFFICESUBSCRIPTION_STUDENT"= "Office 365 ProPlus for students"
-    "EXCHANGESTANDARD"          = "Exchange Online Plan 1"
-    "EXCHANGEENTERPRISE"        = "Exchange Online Plan 2"
-    "POWER_BI_PRO"              = "Power BI Pro"
-    "POWER_BI_PREMIUM_PER_USER" = "Power BI Premium Per User"
-    "TEAMS_EXPLORATORY"         = "Microsoft Teams Exploratory"
-    "FLOW_FREE"                 = "Power Automate Free"
-    "POWERAPPS_VIRAL"           = "Power Apps Trial"
-    "PROJECTPREMIUM"            = "Project Plan 5"
-    "PROJECTPROFESSIONAL"       = "Project Plan 3"
-    "VISIOCLIENT"               = "Visio Plan 2"
-    "WIN10_PRO_ENT_SUB"         = "Windows 10/11 Enterprise E3"
-    "WIN10_VDA_E5"              = "Windows 10/11 Enterprise E5"
-    "MDATP_XPLAT"               = "Microsoft Defender for Endpoint P2"
-    "ATP_ENTERPRISE"            = "Microsoft Defender for Office 365 P1"
-    "THREAT_INTELLIGENCE"       = "Microsoft Defender for Office 365 P2"
-    "INTUNE_A"                  = "Microsoft Intune Plan 1"
-    "AAD_PREMIUM"               = "Entra ID P1"
-    "AAD_PREMIUM_P2"            = "Entra ID P2"
-    "EMSPREMIUM"                = "Enterprise Mobility + Security E5"
-    "EMS"                       = "Enterprise Mobility + Security E3"
-    "DESKLESSPACK"              = "Office 365 F3"
-    "SMB_BUSINESS_PREMIUM"      = "Microsoft 365 Business Premium"
-    "SMB_BUSINESS"              = "Microsoft 365 Apps for Business"
-    "O365_BUSINESS_ESSENTIALS"  = "Microsoft 365 Business Basic"
-    "STREAM"                    = "Microsoft Stream"
-    "MCOEV"                     = "Microsoft Teams Phone Standard"
-    "PHONESYSTEM_VIRTUALUSER"   = "Microsoft Teams Phone Resource Account"
-    "MEETING_ROOM"              = "Microsoft Teams Rooms Standard"
-    "RIGHTSMANAGEMENT"          = "Azure Information Protection Plan 1"
-    "RIGHTSMANAGEMENT_ADHOC"    = "Rights Management Adhoc"
-    "MCOPSTN1"                  = "Microsoft 365 Domestic Calling Plan"
-    "MCOPSTN2"                  = "Microsoft 365 Domestic and International Calling Plan"
-    "MCOMEETADV"                = "Microsoft 365 Audio Conferencing"
-    "WINDOWS_STORE"             = "Windows Store for Business"
-    "POWERAPPS_PER_USER"        = "Power Apps per user plan"
-    "FLOW_PER_USER"             = "Power Automate per user plan"
-    "CDS_DB_CAPACITY"           = "Common Data Service Database Capacity"
-    "CDS_LOG_CAPACITY"          = "Common Data Service Log Capacity"
-    "MICROSOFT_BUSINESS_CENTER" = "Microsoft Business Center"
-    "FORMS_PRO"                 = "Dynamics 365 Customer Voice"
-}
-
-# ============================================================================
-# IMPORT SHARED UTILITIES
-# ============================================================================
-
 . "$PSScriptRoot\..\lib\CollectorBase.ps1"
 
-# ============================================================================
-# LOCAL HELPER FUNCTIONS
-# ============================================================================
-
-function Get-FriendlySkuName {
-    <#
-    .SYNOPSIS
-        Returns a friendly name for a SKU part number.
-
-    .PARAMETER SkuPartNumber
-        The SKU part number from Graph API.
-
-    .OUTPUTS
-        Friendly name if found in mapping, otherwise returns the part number.
-    #>
+function Write-LicenseLog {
     param(
         [Parameter(Mandatory)]
-        [string]$SkuPartNumber
+        [string]$Message,
+
+        [Parameter()]
+        [ValidateSet("Debug", "Info", "Warning", "Error")]
+        [string]$Level = "Info"
     )
 
-    if ($skuNameMap.ContainsKey($SkuPartNumber)) {
-        return $skuNameMap[$SkuPartNumber]
+    if (Get-Command -Name Write-CollectionLog -ErrorAction SilentlyContinue) {
+        Write-CollectionLog -Message "License collector: $Message" -Level $Level -NoConsole
     }
-    else {
-        # Return the part number itself as fallback
-        return $SkuPartNumber
+
+    $color = switch ($Level) {
+        "Warning" { "Yellow" }
+        "Error"   { "Red" }
+        "Debug"   { "Gray" }
+        default   { "Gray" }
+    }
+    Write-Host "      $Message" -ForegroundColor $color
+}
+
+function Get-ConfigValue {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $Source,
+
+        [Parameter(Mandatory)]
+        [string[]]$Names
+    )
+
+    if ($null -eq $Source) { return $null }
+
+    foreach ($name in $Names) {
+        if ($Source -is [hashtable]) {
+            foreach ($key in $Source.Keys) {
+                if ([string]::Equals([string]$key, $name, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    return $Source[$key]
+                }
+            }
+        }
+        else {
+            $prop = $Source.PSObject.Properties[$name]
+            if ($prop) { return $prop.Value }
+        }
+    }
+
+    return $null
+}
+
+function Get-ConfigBool {
+    param(
+        [Parameter()]
+        [AllowNull()]
+        $Source,
+
+        [Parameter(Mandatory)]
+        [string[]]$Names,
+
+        [Parameter()]
+        [bool]$Default = $false
+    )
+
+    $value = Get-ConfigValue -Source $Source -Names $Names
+    if ($null -eq $value) { return $Default }
+    if ($value -is [bool]) { return $value }
+    if ($value -is [string]) {
+        return $value -match '^(?i:true|1|yes|on)$'
+    }
+    return [bool]$value
+}
+
+function ConvertTo-SafeInt {
+    param([AllowNull()]$Value)
+
+    if ($null -eq $Value) { return 0 }
+    try { return [int]$Value } catch { return 0 }
+}
+
+function New-LicenseSummary {
+    param([array]$Licenses)
+
+    $enabled = 0
+    $consumed = 0
+    $available = 0
+    $zeroAvailable = 0
+    $warningOrSuspended = 0
+
+    foreach ($license in @($Licenses)) {
+        $enabled += ConvertTo-SafeInt $license.enabledUnits
+        $consumed += ConvertTo-SafeInt $license.consumedUnits
+        $available += ConvertTo-SafeInt $license.availableUnits
+        if ((ConvertTo-SafeInt $license.availableUnits) -le 0) { $zeroAvailable++ }
+        if ((ConvertTo-SafeInt $license.warningUnits) -gt 0 -or (ConvertTo-SafeInt $license.suspendedUnits) -gt 0) {
+            $warningOrSuspended++
+        }
+    }
+
+    return [PSCustomObject]@{
+        skuCount                       = @($Licenses).Count
+        totalEnabledUnits              = $enabled
+        totalConsumedUnits             = $consumed
+        totalAvailableUnits            = $available
+        zeroAvailableSkuCount          = $zeroAvailable
+        warningOrSuspendedSkuCount     = $warningOrSuspended
     }
 }
 
-# ============================================================================
-# MAIN COLLECTION LOGIC
-# ============================================================================
+function New-LicenseInventoryPayload {
+    param(
+        [Parameter(Mandatory)]
+        [string]$Status,
 
-$errors = @()
-$skuCount = 0
+        [Parameter()]
+        [array]$Licenses = @(),
 
-try {
-    Write-Host "    Collecting license SKUs from tenant..." -ForegroundColor Gray
+        [Parameter()]
+        [array]$Errors = @(),
 
-    # Retrieve all subscribed SKUs
+        [Parameter()]
+        [array]$Warnings = @()
+    )
+
+    $summary = New-LicenseSummary -Licenses $Licenses
+
+    return [PSCustomObject]@{
+        collectedAtUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+        source         = "MicrosoftGraph:/subscribedSkus"
+        status         = $Status
+        summary        = $summary
+        validation     = [PSCustomObject]@{
+            totalLicenseSkus             = $summary.skuCount
+            totalEnabledSeats            = $summary.totalEnabledUnits
+            totalConsumedSeats           = $summary.totalConsumedUnits
+            totalAvailableSeats          = $summary.totalAvailableUnits
+            zeroAvailableSkus            = @($Licenses | Where-Object { (ConvertTo-SafeInt $_.availableUnits) -le 0 } | Select-Object -ExpandProperty skuPartNumber)
+            warningOrSuspendedSkus       = @($Licenses | Where-Object {
+                (ConvertTo-SafeInt $_.warningUnits) -gt 0 -or (ConvertTo-SafeInt $_.suspendedUnits) -gt 0
+            } | Select-Object -ExpandProperty skuPartNumber)
+        }
+        licenses       = @($Licenses)
+        errors         = @($Errors)
+        warnings       = @($Warnings)
+    }
+}
+
+function Get-TenantLicenseInventory {
+    param(
+        [Parameter(Mandatory)]
+        [hashtable]$Config,
+
+        [Parameter(Mandatory)]
+        [string]$OutputPath
+    )
+
+    Write-LicenseLog -Message "collector start"
+
+    $context = Get-MgContext
+    if ($null -eq $context) {
+        throw "No active Microsoft Graph context. Connect-MgGraph must run before license collection."
+    }
+
+    Write-LicenseLog -Message "calling Microsoft Graph v1.0 /subscribedSkus"
     $subscribedSkus = Invoke-GraphWithRetry -ScriptBlock {
-        Get-MgSubscribedSku -All
-    } -OperationName "License SKU retrieval"
+        Get-MgSubscribedSku -All -ErrorAction Stop
+    } -OperationName "Tenant license subscribedSkus retrieval"
 
-    Write-Host "      Retrieved $($subscribedSkus.Count) SKUs from Graph API" -ForegroundColor Gray
+    $subscribedSkus = @($subscribedSkus)
+    if ($subscribedSkus.Count -eq 0) {
+        return New-LicenseInventoryPayload -Status "warning" -Warnings @([PSCustomObject]@{
+            code    = "empty_subscribedSkus_response"
+            message = "Microsoft Graph returned no subscribed SKUs for this tenant."
+        })
+    }
 
-    # Load user data to calculate waste metrics
     $usersPath = Join-Path (Split-Path $OutputPath -Parent) "users.json"
     $users = @()
-
     if (Test-Path $usersPath) {
-        $users = Get-Content $usersPath -Raw | ConvertFrom-Json
-        Write-Host "      Loaded $($users.Count) users for cross-reference" -ForegroundColor Gray
+        try {
+            $usersData = Get-Content $usersPath -Raw | ConvertFrom-Json
+            if ($usersData -and $usersData.users) {
+                $users = @($usersData.users)
+            }
+            else {
+                $users = @($usersData)
+            }
+            Write-LicenseLog -Message "loaded $($users.Count) users for license waste cross-reference"
+        }
+        catch {
+            Write-LicenseLog -Message "users.json could not be read for waste analysis: $($_.Exception.Message)" -Level Warning
+        }
     }
     else {
-        Write-Host "      [!] Users data not found - waste calculations will be incomplete" -ForegroundColor Yellow
+        Write-LicenseLog -Message "users.json not found; waste analysis fields will be zero" -Level Warning
     }
 
-    # Build lookup of user license assignments
-    # Key: SKU ID, Value: hashtable with disabled/inactive/enabled user counts
     $skuUserMap = @{}
+    foreach ($user in @($users)) {
+        foreach ($skuId in @($user.assignedSkuIds)) {
+            if ([string]::IsNullOrWhiteSpace([string]$skuId)) { continue }
+            $key = [string]$skuId
+            if (-not $skuUserMap.ContainsKey($key)) {
+                $skuUserMap[$key] = @{
+                    disabled = 0
+                    inactive = 0
+                    enabled  = 0
+                    total    = 0
+                }
+            }
 
-    foreach ($user in $users) {
-        if ($user.assignedSkuIds) {
-            foreach ($skuId in $user.assignedSkuIds) {
-                if (-not $skuUserMap.ContainsKey($skuId)) {
-                    $skuUserMap[$skuId] = @{
-                        disabled = 0
-                        inactive = 0
-                        enabled  = 0
-                        total    = 0
-                        users    = @()
-                    }
-                }
-
-                $skuUserMap[$skuId].total++
-
-                if (-not $user.accountEnabled) {
-                    $skuUserMap[$skuId].disabled++
-                }
-                elseif ($user.isInactive) {
-                    $skuUserMap[$skuId].inactive++
-                }
-                else {
-                    $skuUserMap[$skuId].enabled++
-                }
+            $skuUserMap[$key].total++
+            if ($user.accountEnabled -eq $false) {
+                $skuUserMap[$key].disabled++
+            }
+            elseif ($user.isInactive -eq $true) {
+                $skuUserMap[$key].inactive++
+            }
+            else {
+                $skuUserMap[$key].enabled++
             }
         }
     }
 
-    Write-Host "      Built per-SKU user assignment map for accurate waste calculation" -ForegroundColor Gray
+    $currencyCode = "NOK"
+    $currencyConfig = Get-ConfigValue -Source $Config -Names @("currency")
+    $configuredCurrency = Get-ConfigValue -Source $currencyConfig -Names @("code")
+    if (-not [string]::IsNullOrWhiteSpace([string]$configuredCurrency)) {
+        $currencyCode = [string]$configuredCurrency
+    }
 
-    # Process each SKU
+    $licensePricing = Get-ConfigValue -Source $Config -Names @("licensePricing")
     $processedSkus = @()
+    $warnings = @()
 
-    foreach ($sku in $subscribedSkus) {
-        # Get friendly name
-        $friendlyName = Get-FriendlySkuName -SkuPartNumber $sku.SkuPartNumber
+    foreach ($sku in ($subscribedSkus | Sort-Object -Property SkuPartNumber)) {
+        $skuPartNumber = [string]$sku.SkuPartNumber
+        $skuId = [string]$sku.SkuId
+        $prepaidUnits = $sku.PrepaidUnits
 
-        # Calculate basic metrics from SKU
-        $totalPurchased = $sku.PrepaidUnits.Enabled + $sku.PrepaidUnits.Warning
-        $totalAssigned = $sku.ConsumedUnits
-        $available = $totalPurchased - $totalAssigned
-
-        # Use ACTUAL per-SKU waste calculation from user license assignments
-        # This is accurate because we count real users with this specific SKU
-        $assignedToEnabled = $totalAssigned
-        $assignedToDisabled = 0
-        $assignedToInactive = 0
-
-        if ($skuUserMap.ContainsKey($sku.SkuId)) {
-            # Use actual counts from our per-SKU user map
-            $skuStats = $skuUserMap[$sku.SkuId]
-            $assignedToDisabled = $skuStats.disabled
-            $assignedToInactive = $skuStats.inactive
-            $assignedToEnabled = $skuStats.enabled
-        }
-        elseif ($users.Count -gt 0) {
-            # Fallback to estimation only if no users.json data for this SKU
-            $totalUsers = $users.Count
-            $disabledCount = ($users | Where-Object { -not $_.accountEnabled }).Count
-            $inactiveCount = ($users | Where-Object { $_.isInactive -and $_.accountEnabled }).Count
-
-            if ($totalUsers -gt 0) {
-                $disabledRatio = $disabledCount / $totalUsers
-                $inactiveRatio = $inactiveCount / $totalUsers
-
-                $assignedToDisabled = [Math]::Floor($totalAssigned * $disabledRatio)
-                $assignedToInactive = [Math]::Floor($totalAssigned * $inactiveRatio)
-                $assignedToEnabled = $totalAssigned - $assignedToDisabled - $assignedToInactive
+        if ($null -eq $prepaidUnits) {
+            $warnings += [PSCustomObject]@{
+                code          = "missing_prepaidUnits"
+                skuId         = $skuId
+                skuPartNumber = $skuPartNumber
+                message       = "Graph returned this subscribed SKU without a PrepaidUnits object; capacity fields were normalized to zero."
             }
         }
 
-        # Calculate waste and utilization
+        $enabledUnits = ConvertTo-SafeInt $prepaidUnits.Enabled
+        $suspendedUnits = ConvertTo-SafeInt $prepaidUnits.Suspended
+        $warningUnits = ConvertTo-SafeInt $prepaidUnits.Warning
+        $consumedUnits = ConvertTo-SafeInt $sku.ConsumedUnits
+        $availableUnits = $enabledUnits - $consumedUnits
+
+        $skuStats = if ($skuUserMap.ContainsKey($skuId)) { $skuUserMap[$skuId] } else { $null }
+        $assignedToEnabled = if ($skuStats) { ConvertTo-SafeInt $skuStats.enabled } else { $consumedUnits }
+        $assignedToDisabled = if ($skuStats) { ConvertTo-SafeInt $skuStats.disabled } else { 0 }
+        $assignedToInactive = if ($skuStats) { ConvertTo-SafeInt $skuStats.inactive } else { 0 }
         $wasteCount = $assignedToDisabled + $assignedToInactive
-        $utilizationPercent = 0
-        if ($totalPurchased -gt 0) {
-            $utilizationPercent = [Math]::Round(($assignedToEnabled / $totalPurchased) * 100)
-        }
 
-        # Cost calculation from config pricing
         $monthlyCostPerLicense = 0
-        $currencyCode = "NOK"
-        if ($Config.licensePricing -and $Config.licensePricing.ContainsKey($sku.SkuPartNumber)) {
-            $monthlyCostPerLicense = [double]$Config.licensePricing[$sku.SkuPartNumber]
-        }
-        if ($Config.currency -and $Config.currency.code) {
-            $currencyCode = $Config.currency.code
+        if ($licensePricing) {
+            $configuredPrice = Get-ConfigValue -Source $licensePricing -Names @($skuPartNumber)
+            if ($null -ne $configuredPrice) {
+                try { $monthlyCostPerLicense = [double]$configuredPrice } catch { $monthlyCostPerLicense = 0 }
+            }
         }
 
-        $estimatedMonthlyCost = [Math]::Round($totalAssigned * $monthlyCostPerLicense)
+        $estimatedMonthlyCost = [Math]::Round($consumedUnits * $monthlyCostPerLicense)
         $wasteMonthlyCost = [Math]::Round($wasteCount * $monthlyCostPerLicense)
+        $billedUsers = if ($monthlyCostPerLicense -gt 0) { $consumedUnits } else { 0 }
+        $averageCostPerUser = if ($billedUsers -gt 0) { [Math]::Round($estimatedMonthlyCost / $billedUsers) } else { 0 }
+        $utilizationPercent = if ($enabledUnits -gt 0) { [Math]::Round(($consumedUnits / $enabledUnits) * 100) } else { 0 }
 
-        # Billed users: exclude free SKUs (cost = 0)
-        $billedUsers = 0
-        if ($monthlyCostPerLicense -gt 0) {
-            $billedUsers = $totalAssigned
-        }
+        $servicePlans = @($sku.ServicePlans | ForEach-Object {
+            [PSCustomObject]@{
+                servicePlanId      = [string]$_.ServicePlanId
+                servicePlanName    = [string]$_.ServicePlanName
+                provisioningStatus = [string]$_.ProvisioningStatus
+                appliesTo          = [string]$_.AppliesTo
+            }
+        } | Sort-Object -Property servicePlanName)
 
-        # Average cost per user
-        $averageCostPerUser = 0
-        if ($billedUsers -gt 0) {
-            $averageCostPerUser = [Math]::Round($estimatedMonthlyCost / $billedUsers)
-        }
+        $processedSkus += [PSCustomObject]@{
+            skuId                   = $skuId
+            skuPartNumber           = $skuPartNumber
+            appliesTo               = [string]$sku.AppliesTo
+            capabilityStatus        = [string]$sku.CapabilityStatus
+            consumedUnits           = $consumedUnits
+            enabledUnits            = $enabledUnits
+            suspendedUnits          = $suspendedUnits
+            warningUnits            = $warningUnits
+            availableUnits          = $availableUnits
+            servicePlans            = $servicePlans
 
-        # Extract service plans included in this SKU
-        $servicePlans = @()
-        if ($sku.ServicePlans) {
-            $servicePlans = @($sku.ServicePlans | ForEach-Object {
-                [PSCustomObject]@{
-                    servicePlanId      = $_.ServicePlanId
-                    servicePlanName    = $_.ServicePlanName
-                    provisioningStatus = $_.ProvisioningStatus
-                    appliesTo          = $_.AppliesTo
-                }
-            })
-        }
-
-        # Annual cost calculations
-        $estimatedAnnualCost = $estimatedMonthlyCost * 12
-        $wasteAnnualCost = $wasteMonthlyCost * 12
-
-        # Build output object with full Graph API properties
-        $processedSku = [PSCustomObject]@{
-            # Core identification
-            skuId               = $sku.SkuId
-            skuName             = $friendlyName
-            skuPartNumber       = $sku.SkuPartNumber
-
-            # Subscription status (from Graph API)
-            capabilityStatus    = $sku.CapabilityStatus
-            appliesTo           = $sku.AppliesTo
-
-            # Capacity metrics
-            totalPurchased      = $totalPurchased
-            totalAssigned       = $totalAssigned
-            available           = [Math]::Max(0, $available)
-
-            # Detailed prepaid units breakdown
-            prepaidEnabled      = $sku.PrepaidUnits.Enabled
-            prepaidWarning      = $sku.PrepaidUnits.Warning
-            prepaidSuspended    = $sku.PrepaidUnits.Suspended
-            prepaidLockedOut    = $sku.PrepaidUnits.LockedOut
-
-            # Waste analysis (now using actual per-SKU data)
-            assignedToEnabled   = $assignedToEnabled
-            assignedToDisabled  = $assignedToDisabled
-            assignedToInactive  = $assignedToInactive
-            wasteCount          = $wasteCount
-            utilizationPercent  = $utilizationPercent
-
-            # Cost analysis
-            monthlyCostPerLicense = $monthlyCostPerLicense
-            estimatedMonthlyCost  = $estimatedMonthlyCost
-            estimatedAnnualCost   = $estimatedAnnualCost
-            wasteMonthlyCost      = $wasteMonthlyCost
-            wasteAnnualCost       = $wasteAnnualCost
-            billedUsers           = $billedUsers
-            averageCostPerUser    = $averageCostPerUser
-            currency              = $currencyCode
-
-            # Overlap analysis
-            overlapCount          = 0
-            overlapSkuName        = $null
+            # Backwards-compatible dashboard fields. These are derived from
+            # live Graph inventory, not from a static SKU definition map.
+            skuName                 = $skuPartNumber
+            totalPurchased          = $enabledUnits
+            totalAssigned           = $consumedUnits
+            available               = $availableUnits
+            prepaidEnabled          = $enabledUnits
+            prepaidWarning          = $warningUnits
+            prepaidSuspended        = $suspendedUnits
+            prepaidLockedOut        = ConvertTo-SafeInt $prepaidUnits.LockedOut
+            assignedToEnabled       = $assignedToEnabled
+            assignedToDisabled      = $assignedToDisabled
+            assignedToInactive      = $assignedToInactive
+            wasteCount              = $wasteCount
+            utilizationPercent      = $utilizationPercent
+            monthlyCostPerLicense   = $monthlyCostPerLicense
+            estimatedMonthlyCost    = $estimatedMonthlyCost
+            estimatedAnnualCost     = $estimatedMonthlyCost * 12
+            wasteMonthlyCost        = $wasteMonthlyCost
+            wasteAnnualCost         = $wasteMonthlyCost * 12
+            billedUsers             = $billedUsers
+            averageCostPerUser      = $averageCostPerUser
+            currency                = $currencyCode
+            overlapCount            = 0
+            overlapSkuName          = $null
             potentialSavingsPercent = 0
-
-            # Service plans included in this SKU
-            servicePlans          = $servicePlans
-            servicePlanCount      = $servicePlans.Count
+            servicePlanCount        = $servicePlans.Count
         }
-
-        $processedSkus += $processedSku
-        $skuCount++
     }
 
-    # ========================================================================
-    # OVERLAP DETECTION
-    # Uses overlap rules from config to find users with redundant licenses
-    # ========================================================================
-
-    $overlapRules = @()
-    if ($Config.licenseOverlapRules) {
-        $overlapRules = $Config.licenseOverlapRules
-    }
-
+    $overlapRules = @(Get-ConfigValue -Source $Config -Names @("licenseOverlapRules"))
     if ($overlapRules.Count -gt 0 -and $users.Count -gt 0) {
-        Write-Host "      Checking $($overlapRules.Count) overlap rules..." -ForegroundColor Gray
-
-        # Build SKU part number to ID lookup
         $partToId = @{}
-        foreach ($s in $processedSkus) {
-            $partToId[$s.skuPartNumber] = $s.skuId
+        foreach ($license in $processedSkus) {
+            $partToId[$license.skuPartNumber] = $license.skuId
         }
 
         foreach ($rule in $overlapRules) {
-            $higherSkuId = $partToId[$rule.higherSku]
-            $lowerSkuId = $partToId[$rule.lowerSku]
+            $higherSku = Get-ConfigValue -Source $rule -Names @("higherSku")
+            $lowerSku = Get-ConfigValue -Source $rule -Names @("lowerSku")
+            if ([string]::IsNullOrWhiteSpace([string]$higherSku) -or [string]::IsNullOrWhiteSpace([string]$lowerSku)) { continue }
 
-            if (-not $higherSkuId -or -not $lowerSkuId) {
-                continue
-            }
+            $higherSkuId = $partToId[[string]$higherSku]
+            $lowerSkuId = $partToId[[string]$lowerSku]
+            if (-not $higherSkuId -or -not $lowerSkuId) { continue }
 
-            # Count users who have both SKUs assigned
             $overlapCount = 0
-            foreach ($u in $users) {
-                $skuIds = $u.assignedSkuIds
-                if ($skuIds -and ($skuIds -contains $higherSkuId) -and ($skuIds -contains $lowerSkuId)) {
+            foreach ($user in $users) {
+                $skuIds = @($user.assignedSkuIds)
+                if (($skuIds -contains $higherSkuId) -and ($skuIds -contains $lowerSkuId)) {
                     $overlapCount++
                 }
             }
 
             if ($overlapCount -gt 0) {
-                # Update the lower SKU with overlap info
-                $lowerSkuObj = $processedSkus | Where-Object { $_.skuPartNumber -eq $rule.lowerSku }
-                if ($lowerSkuObj) {
-                    $lowerSkuObj.overlapCount = $overlapCount
-                    $lowerSkuObj.overlapSkuName = (Get-FriendlySkuName -SkuPartNumber $rule.higherSku)
-                    if ($lowerSkuObj.estimatedMonthlyCost -gt 0) {
-                        $lowerSkuObj.potentialSavingsPercent = [Math]::Round(($overlapCount * $lowerSkuObj.monthlyCostPerLicense) / $lowerSkuObj.estimatedMonthlyCost * 100)
+                foreach ($license in @($processedSkus | Where-Object { $_.skuPartNumber -eq [string]$lowerSku })) {
+                    $license.overlapCount = $overlapCount
+                    $license.overlapSkuName = [string]$higherSku
+                    if ($license.estimatedMonthlyCost -gt 0) {
+                        $license.potentialSavingsPercent = [Math]::Round(($overlapCount * $license.monthlyCostPerLicense) / $license.estimatedMonthlyCost * 100)
                     }
                 }
-
-                # Also update the higher SKU with overlap info (bidirectional)
-                $higherSkuObj = $processedSkus | Where-Object { $_.skuPartNumber -eq $rule.higherSku }
-                if ($higherSkuObj) {
-                    $higherSkuObj.overlapCount = $overlapCount
-                    $higherSkuObj.overlapSkuName = (Get-FriendlySkuName -SkuPartNumber $rule.lowerSku)
+                foreach ($license in @($processedSkus | Where-Object { $_.skuPartNumber -eq [string]$higherSku })) {
+                    $license.overlapCount = $overlapCount
+                    $license.overlapSkuName = [string]$lowerSku
                 }
-
-                Write-Host "      Found $overlapCount users with both $($rule.lowerSku) and $($rule.higherSku)" -ForegroundColor Gray
             }
         }
     }
 
-    # Sort by total purchased descending for easier reading
-    $processedSkus = $processedSkus | Sort-Object -Property totalPurchased -Descending
+    $processedSkus = @($processedSkus | Sort-Object -Property skuPartNumber)
+    Write-LicenseLog -Message "number of SKUs collected: $($processedSkus.Count)"
 
-    # Save data using shared utility
-    Save-CollectorData -Data $processedSkus -OutputPath $OutputPath | Out-Null
+    return New-LicenseInventoryPayload -Status "success" -Licenses $processedSkus -Warnings $warnings
+}
 
-    Write-Host "    [OK] Collected $skuCount license SKUs" -ForegroundColor Green
+$errors = @()
 
-    return New-CollectorResult -Success $true -Count $skuCount -Errors $errors
+try {
+    $collectionConfig = Get-ConfigValue -Source $Config -Names @("collection")
+    $enableCollection = Get-ConfigBool -Source $Config -Names @("EnableLicenseCollection", "enableLicenseCollection") -Default $true
+    if ($collectionConfig) {
+        $enableCollection = Get-ConfigBool -Source $collectionConfig -Names @("EnableLicenseCollection", "enableLicenseCollection") -Default $enableCollection
+    }
+
+    if (-not $enableCollection) {
+        $payload = New-LicenseInventoryPayload -Status "disabled" -Warnings @([PSCustomObject]@{
+            code    = "license_collection_disabled"
+            message = "License collection is disabled by EnableLicenseCollection=false."
+        })
+        Save-CollectorData -Data $payload -OutputPath $OutputPath | Out-Null
+        Write-LicenseLog -Message "output file path: $OutputPath"
+        return New-CollectorResult -Success $true -Count 0 -Errors @("License collection disabled by configuration.")
+    }
+
+    $payload = Get-TenantLicenseInventory -Config $Config -OutputPath $OutputPath
+    Save-CollectorData -Data $payload -OutputPath $OutputPath | Out-Null
+    Write-LicenseLog -Message "output file path: $OutputPath"
+
+    foreach ($warning in @($payload.warnings)) {
+        if ($warning.message) { $errors += [string]$warning.message }
+    }
+
+    Write-Host "    [OK] Collected $($payload.summary.skuCount) license SKUs" -ForegroundColor Green
+    return New-CollectorResult -Success $true -Count $payload.summary.skuCount -Errors $errors
 }
 catch {
     $errorMessage = $_.Exception.Message
+    $errorCode = if (Test-GraphAccessError -Value $_) {
+        "permission_or_auth_failure"
+    }
+    elseif ($errorMessage -match "429|throttl|TooManyRequests|500|502|503|504|ServiceUnavailable|GatewayTimeout|BadGateway|InternalServerError") {
+        "graph_retryable_failure"
+    }
+    else {
+        "license_collection_failed"
+    }
+
     $errors += $errorMessage
-    Write-Host "    [X] Failed: $errorMessage" -ForegroundColor Red
 
-    # Write empty array to prevent dashboard errors
-    Save-CollectorData -Data @() -OutputPath $OutputPath | Out-Null
+    if ($errorCode -eq "permission_or_auth_failure") {
+        Write-LicenseLog -Message "permission/auth failure: $errorMessage" -Level Error
+    }
+    else {
+        Write-LicenseLog -Message "live Graph license collection failed: $errorMessage" -Level Warning
+    }
 
-    return New-CollectorResult -Success $false -Count 0 -Errors $errors
+    $payload = New-LicenseInventoryPayload -Status "warning" -Errors @([PSCustomObject]@{
+        code    = $errorCode
+        message = $errorMessage
+        hint    = "Grant LicenseAssignment.Read.All application permission, or use existing Organization.Read.All/Directory.Read.All consent if already approved."
+    }) -Warnings @([PSCustomObject]@{
+        code    = "static_fallback_not_used"
+        message = "Static hard-coded SKU inventory was not reused. Configure AllowStaticLicenseFallback only if a future static fallback source is explicitly added."
+    })
+
+    Save-CollectorData -Data $payload -OutputPath $OutputPath | Out-Null
+    Write-LicenseLog -Message "output file path: $OutputPath"
+
+    return New-CollectorResult -Success $true -Count 0 -Errors $errors
 }
-

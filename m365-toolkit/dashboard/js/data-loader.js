@@ -147,6 +147,7 @@ const DataLoader = (function() {
     /** Track loading state */
     let isLoaded = false;
     let loadError = null;
+    let licenseInventory = null;
 
     // ========================================================================
     // PRIVATE METHODS
@@ -365,6 +366,10 @@ const DataLoader = (function() {
                 };
 
                 // Normalize all expected array data stores (extract arrays from wrapper objects)
+                if (dataStore.licenseSkus && !Array.isArray(dataStore.licenseSkus) && Array.isArray(dataStore.licenseSkus.licenses)) {
+                    licenseInventory = dataStore.licenseSkus;
+                }
+                normalizeDataArray('licenseSkus', 'licenses');
                 normalizeDataArray('teams', 'teams');
                 normalizeDataArray('users', 'users');
                 normalizeDataArray('devices', 'devices');
@@ -694,6 +699,9 @@ const DataLoader = (function() {
          * @returns {any} Raw data
          */
         getRawData(type) {
+            if (type === 'licenseInventory') {
+                return licenseInventory || null;
+            }
             return dataStore[type] || [];
         },
 

@@ -566,6 +566,7 @@ const PageLicenses = (function() {
      */
     function render(container) {
         var licenses = DataLoader.getData('licenseSkus');
+        var licenseInventory = (typeof DataLoader.getRawData === 'function') ? DataLoader.getRawData('licenseInventory') : null;
 
         // Calculate totals
         var totals = licenses.reduce(function(acc, sku) {
@@ -608,15 +609,34 @@ const PageLicenses = (function() {
         // Page header
         var pageHeader = el('div', 'page-header');
         pageHeader.appendChild(el('h2', 'page-title', 'Licenses'));
-        pageHeader.appendChild(el('p', 'page-description', 'License allocation, waste analysis, overlap detection, and cost impact'));
+        pageHeader.appendChild(el('p', 'page-description', 'Live Microsoft Graph license capacity, waste analysis, overlap detection, and cost impact'));
         container.appendChild(pageHeader);
+
+        if (licenseInventory && licenseInventory.status && licenseInventory.status !== 'success') {
+            var warning = el('div', 'insight-card insight-warning');
+            var warningHeader = el('div', 'insight-header');
+            warningHeader.appendChild(el('span', 'badge badge-warning', String(licenseInventory.status).toUpperCase()));
+            warningHeader.appendChild(el('span', 'insight-category', 'License Collection'));
+            warning.appendChild(warningHeader);
+            var messages = [];
+            (licenseInventory.errors || []).forEach(function(err) {
+                messages.push(err.message || String(err));
+            });
+            (licenseInventory.warnings || []).forEach(function(item) {
+                messages.push(item.message || String(item));
+            });
+            warning.appendChild(el('p', 'insight-description', messages.length > 0 ? messages.join(' ') : 'License inventory did not complete successfully.'));
+            container.appendChild(warning);
+        }
 
         // Summary cards
         var cardsGrid = el('div', 'summary-cards');
         cardsGrid.appendChild(createSummaryCard('Total SKUs', licenses.length, null, null));
+        cardsGrid.appendChild(createSummaryCard('Enabled Seats', totals.purchased.toLocaleString(), null, null));
+        cardsGrid.appendChild(createSummaryCard('Consumed Seats', totals.assigned.toLocaleString(), null, null));
+        cardsGrid.appendChild(createSummaryCard('Available Seats', (totals.purchased - totals.assigned).toLocaleString(), (totals.purchased - totals.assigned) <= 0 ? 'warning' : 'success', (totals.purchased - totals.assigned) <= 0 ? 'card-warning' : 'card-success'));
         cardsGrid.appendChild(createSummaryCard('Avg Utilization', avgUtilization + '%', avgUtilization < 70 ? 'warning' : 'success', avgUtilization < 70 ? 'card-warning' : 'card-success'));
         cardsGrid.appendChild(createSummaryCard('Monthly Waste', formatCurrency(totals.wasteCost, currency), totals.wasteCost > 0 ? 'critical' : null, totals.wasteCost > 0 ? 'card-critical' : null));
-        cardsGrid.appendChild(createSummaryCard('Annual Waste', formatCurrency(annualWasteCost, currency), annualWasteCost > 0 ? 'critical' : null, annualWasteCost > 0 ? 'card-critical' : null));
         container.appendChild(cardsGrid);
 
         // Tab bar

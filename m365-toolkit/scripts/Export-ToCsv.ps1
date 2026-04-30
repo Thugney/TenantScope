@@ -118,6 +118,10 @@ function Export-JsonToCsv {
             return $false
         }
 
+        if ($data.licenses -and $JsonPath -like "*license-skus.json") {
+            $data = @($data.licenses)
+        }
+
         if ($null -eq $data -or $data.Count -eq 0) {
             Write-Host "  [!] No data to export" -ForegroundColor Yellow
             return $false
@@ -273,14 +277,14 @@ function Export-Licenses {
         [PSCustomObject]@{
             SkuId = $sku.skuId
             SkuPartNumber = $sku.skuPartNumber
-            DisplayName = $sku.displayName
-            TotalLicenses = $sku.prepaidUnitsEnabled
+            DisplayName = $sku.skuName
+            TotalLicenses = $sku.enabledUnits
             ConsumedLicenses = $sku.consumedUnits
             AvailableLicenses = $sku.availableUnits
-            UtilizationPct = $sku.utilizationPct
-            WastedLicenses = $sku.wastedLicenses
+            UtilizationPct = $sku.utilizationPercent
+            WastedLicenses = $sku.wasteCount
             WasteMonthlyCost = $sku.wasteMonthlyCost
-            Status = $sku.status
+            Status = $sku.capabilityStatus
         }
     }
 }

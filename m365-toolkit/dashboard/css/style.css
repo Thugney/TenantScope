@@ -181,8 +181,17 @@ table {
 
 .header-brand {
     display: flex;
-    align-items: baseline;
+    align-items: center;
     gap: var(--spacing-md);
+    min-width: 0;
+}
+
+.header-logo {
+    width: 36px;
+    height: 36px;
+    object-fit: contain;
+    flex: 0 0 auto;
+    border-radius: 8px;
 }
 
 .header-title {

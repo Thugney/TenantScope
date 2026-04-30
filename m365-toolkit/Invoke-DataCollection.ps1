@@ -658,6 +658,7 @@ Write-Host "[2/6] Connecting to Microsoft Graph..." -ForegroundColor Cyan
 # Define all required scopes for the collectors
     $requiredScopes = @(
         "User.Read.All",
+        "LicenseAssignment.Read.All",
         "Directory.Read.All",
         "AuditLog.Read.All",
         "Reports.Read.All",
@@ -1337,7 +1338,8 @@ try {
     $licensePath = Join-Path $dataPath "license-skus.json"
     if (Test-Path $licensePath) {
         $licenseData = Get-Content $licensePath -Raw | ConvertFrom-Json
-        foreach ($sku in $licenseData) {
+        $licenseRows = if ($licenseData -and $licenseData.licenses) { @($licenseData.licenses) } else { @($licenseData) }
+        foreach ($sku in $licenseRows) {
             $totalWasteMonthlyCost += ($sku.wasteMonthlyCost -as [int])
         }
     }

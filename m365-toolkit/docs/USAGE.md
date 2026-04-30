@@ -311,6 +311,8 @@ $dataPath = Join-Path $PSScriptRoot "data"
 .\collectors\Get-AppSignInData.ps1 -Config $config -OutputPath "$dataPath\app-signins.json"
 ```
 
+License inventory is collected live from Microsoft Graph `/subscribedSkus`. See `docs\LICENSE-COLLECTION.md` for required permissions and manual validation with `Get-MgSubscribedSku -All`.
+
 ### Advanced Collection Options
 
 ```powershell
@@ -330,7 +332,7 @@ $dataPath = Join-Path $PSScriptRoot "data"
 
 **Generated Files:**
 - `users.json` - User accounts with activity status
-- `license-skus.json` - License allocation data
+- `license-skus.json` - Live Graph license inventory, capacity, service plans, and validation summary
 - `guests.json` - External user accounts
 - `mfa-status.json` - MFA registration status
 - `admin-roles.json` - Directory role assignments

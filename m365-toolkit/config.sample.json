@@ -3,6 +3,8 @@
   "clientId": "",
   "clientSecret": "",
   "certificateThumbprint": "",
+  "EnableLicenseCollection": true,
+  "AllowStaticLicenseFallback": false,
 
   "domains": {
     "employees": "@contoso.com",
