@@ -120,6 +120,10 @@ const PageLicenses = (function() {
     function renderOverviewTab(container) {
         container.textContent = '';
         var data = licensesState;
+        var overConsumedSkus = data.licenses.filter(function(l) { return Number(l.availableUnits !== undefined ? l.availableUnits : l.available) < 0; });
+        var overConsumedSeats = overConsumedSkus.reduce(function(sum, l) {
+            return sum + Math.abs(Number(l.availableUnits !== undefined ? l.availableUnits : l.available) || 0);
+        }, 0);
 
         // Calculate healthy percentage
         var utilizationPct = data.avgUtilization;
@@ -137,10 +141,10 @@ const PageLicenses = (function() {
 
         var circumference = 2 * Math.PI * 40;
         var activeUse = data.totals.assigned - data.totals.waste;
-        var total = data.totals.purchased || 1;
+        var total = Math.max(data.totals.purchased, data.totals.assigned, 1);
         var activePct = Math.round((activeUse / total) * 100);
         var wastedPct = Math.round((data.totals.waste / total) * 100);
-        var availablePct = 100 - activePct - wastedPct;
+        var availablePct = Math.max(0, 100 - activePct - wastedPct);
 
         var activeDash = (activePct / 100) * circumference;
         var wasteDash = (wastedPct / 100) * circumference;
@@ -216,7 +220,7 @@ const PageLicenses = (function() {
         var legendItems = [
             { cls: 'bg-success', label: 'Active Use', value: activeUse.toLocaleString() },
             { cls: 'bg-critical', label: 'Wasted', value: data.totals.waste.toLocaleString() },
-            { cls: 'bg-warning', label: 'Available', value: (data.totals.purchased - data.totals.assigned).toLocaleString() }
+            { cls: 'bg-warning', label: 'Available', value: Math.max(0, data.totals.purchased - data.totals.assigned).toLocaleString() }
         ];
         legendItems.forEach(function(item) {
             var legendItem = el('div', 'legend-item');
@@ -255,7 +259,8 @@ const PageLicenses = (function() {
         analyticsGrid.appendChild(createPlatformCard('SKU Status', [
             { name: 'Total SKUs', count: data.licenses.length, pct: 100, cls: 'bg-info', showCount: true },
             { name: 'SKUs with Waste', count: skusWithWaste, pct: data.licenses.length > 0 ? Math.round((skusWithWaste / data.licenses.length) * 100) : 0, cls: 'bg-warning', showCount: true },
-            { name: 'SKUs with Overlap', count: skusWithOverlap, pct: data.licenses.length > 0 ? Math.round((skusWithOverlap / data.licenses.length) * 100) : 0, cls: 'bg-critical', showCount: true }
+            { name: 'SKUs with Overlap', count: skusWithOverlap, pct: data.licenses.length > 0 ? Math.round((skusWithOverlap / data.licenses.length) * 100) : 0, cls: 'bg-critical', showCount: true },
+            { name: 'Over-consumed SKUs', count: overConsumedSkus.length, pct: data.licenses.length > 0 ? Math.round((overConsumedSkus.length / data.licenses.length) * 100) : 0, cls: overConsumedSkus.length > 0 ? 'bg-critical' : 'bg-success', showCount: true }
         ]));
 
         // Top Wasted SKUs card
@@ -282,6 +287,13 @@ const PageLicenses = (function() {
             insightsList.appendChild(createInsightCard('critical', 'OVERLAP', 'License Overlaps',
                 data.totals.overlapCount + ' users have overlapping licenses. Consider consolidating to higher-tier licenses.',
                 'Review the License Analysis page for detailed overlap detection.'));
+        }
+
+        // Over-consumed entitlement insight
+        if (overConsumedSkus.length > 0) {
+            insightsList.appendChild(createInsightCard('critical', 'OVER-CONSUMED', 'License Entitlement Mismatch',
+                overConsumedSkus.length + ' SKU' + (overConsumedSkus.length !== 1 ? 's are' : ' is') + ' over-consumed by ' + overConsumedSeats.toLocaleString() + ' seats based on Graph enabled minus consumed units.',
+                'Review the subscription state in Microsoft 365 admin center. TenantScope is preserving the Graph-reported values.'));
         }
 
         // Low utilization insight
@@ -339,7 +351,7 @@ const PageLicenses = (function() {
             { key: 'skuPartNumber', label: 'Part Number', className: 'cell-truncate' },
             { key: 'totalPurchased', label: 'Purchased', className: 'cell-right' },
             { key: 'totalAssigned', label: 'Assigned', className: 'cell-right' },
-            { key: 'available', label: 'Available', className: 'cell-right' },
+            { key: 'available', label: 'Available', className: 'cell-right', formatter: formatAvailableCell },
             { key: 'assignedToDisabled', label: 'Disabled', className: 'cell-right', formatter: formatWasteCell },
             { key: 'assignedToInactive', label: 'Inactive', className: 'cell-right', formatter: formatWasteCell },
             { key: 'wasteCount', label: 'Total Waste', className: 'cell-right', formatter: formatWasteCell },
@@ -378,6 +390,17 @@ const PageLicenses = (function() {
         var numVal = Number(value);
         if (!value || isNaN(numVal) || numVal === 0) return '<span class="text-muted">0</span>';
         return '<span class="text-warning font-bold">' + numVal + '</span>';
+    }
+
+    function formatAvailableCell(value, row) {
+        var rawValue = row && row.availableUnits !== undefined ? row.availableUnits : value;
+        var numVal = Number(rawValue);
+        if (isNaN(numVal)) return '<span class="text-muted">--</span>';
+        if (numVal < 0) {
+            return '<span class="text-critical font-bold" title="Graph reports consumed units above enabled/prepaid units">Over-consumed ' + Math.abs(numVal).toLocaleString() + '</span>';
+        }
+        if (numVal === 0) return '<span class="text-warning font-bold">0</span>';
+        return numVal.toLocaleString();
     }
 
     function formatOverlapCell(value) {
@@ -427,7 +450,8 @@ const PageLicenses = (function() {
         var allocList = el('div', 'detail-list');
         appendDetailRow(allocList, 'Total Purchased:', sku.totalPurchased);
         appendDetailRow(allocList, 'Total Assigned:', sku.totalAssigned);
-        appendDetailRow(allocList, 'Available:', sku.available);
+        var availableValue = sku.availableUnits !== undefined ? sku.availableUnits : sku.available;
+        appendDetailRow(allocList, availableValue < 0 ? 'Over-consumed By:' : 'Available:', availableValue < 0 ? Math.abs(availableValue) : availableValue, availableValue < 0 ? 'text-critical font-bold' : '');
         appendDetailRow(allocList, 'Utilization:', sku.utilizationPercent + '%');
         body.appendChild(allocList);
 
@@ -579,6 +603,12 @@ const PageLicenses = (function() {
             acc.billedUsers += (sku.billedUsers || 0);
             return acc;
         }, { purchased: 0, assigned: 0, waste: 0, wasteCost: 0, totalCost: 0, overlapCount: 0, billedUsers: 0 });
+        var overConsumedSkus = licenses.filter(function(l) {
+            return Number(l.availableUnits !== undefined ? l.availableUnits : l.available) < 0;
+        });
+        var overConsumedSeats = overConsumedSkus.reduce(function(sum, l) {
+            return sum + Math.abs(Number(l.availableUnits !== undefined ? l.availableUnits : l.available) || 0);
+        }, 0);
 
         var currency = (licenses.find(function(l) { return l.currency; }) || {}).currency || 'NOK';
         var annualWasteCost = totals.wasteCost * 12;
@@ -634,7 +664,8 @@ const PageLicenses = (function() {
         cardsGrid.appendChild(createSummaryCard('Total SKUs', licenses.length, null, null));
         cardsGrid.appendChild(createSummaryCard('Enabled Seats', totals.purchased.toLocaleString(), null, null));
         cardsGrid.appendChild(createSummaryCard('Consumed Seats', totals.assigned.toLocaleString(), null, null));
-        cardsGrid.appendChild(createSummaryCard('Available Seats', (totals.purchased - totals.assigned).toLocaleString(), (totals.purchased - totals.assigned) <= 0 ? 'warning' : 'success', (totals.purchased - totals.assigned) <= 0 ? 'card-warning' : 'card-success'));
+        cardsGrid.appendChild(createSummaryCard('Available Seats', Math.max(0, totals.purchased - totals.assigned).toLocaleString(), (totals.purchased - totals.assigned) <= 0 ? 'warning' : 'success', (totals.purchased - totals.assigned) <= 0 ? 'card-warning' : 'card-success'));
+        cardsGrid.appendChild(createSummaryCard('Over-consumed', overConsumedSeats.toLocaleString(), overConsumedSeats > 0 ? 'critical' : 'success', overConsumedSeats > 0 ? 'card-critical' : 'card-success'));
         cardsGrid.appendChild(createSummaryCard('Avg Utilization', avgUtilization + '%', avgUtilization < 70 ? 'warning' : 'success', avgUtilization < 70 ? 'card-warning' : 'card-success'));
         cardsGrid.appendChild(createSummaryCard('Monthly Waste', formatCurrency(totals.wasteCost, currency), totals.wasteCost > 0 ? 'critical' : null, totals.wasteCost > 0 ? 'card-critical' : null));
         container.appendChild(cardsGrid);
