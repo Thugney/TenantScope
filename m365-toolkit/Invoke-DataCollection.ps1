@@ -156,15 +156,53 @@ function Write-CollectionHeader {
     .SYNOPSIS
         Displays the collection header with toolkit branding.
     #>
-    $header = @"
-
-╔══════════════════════════════════════════════════════════════════════════════╗
-║                         TENANTSCOPE                                  ║
-║                         Data Collection Engine                               ║
-╚══════════════════════════════════════════════════════════════════════════════╝
-
-"@
-    Write-Host $header -ForegroundColor Cyan
+    Write-Host ""
+    Write-Host "    ┌─────────────────────────────────────────────────────────────┐" -ForegroundColor DarkCyan
+    Write-Host "    │                                                             │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "                                                     " -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "    ╔╦╗┌─┐┌┐┌┌─┐┌┐┌┌┬┐╔═╗┌─┐┌─┐┌─┐┌─┐" -ForegroundColor White -NoNewline
+    Write-Host "          ▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "     ║ ├┤ │││├─┤│││ │ ╚═╗│  │ │├─┘├┤ " -ForegroundColor White -NoNewline
+    Write-Host "          ▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "     ╩ └─┘┘└┘┴ ┴┘└┘ ┴ ╚═╝└─┘└─┘┴  └─┘" -ForegroundColor White -NoNewline
+    Write-Host "          ▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "                                                     " -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "    M365 Tenant Posture Collection Engine" -ForegroundColor Gray -NoNewline
+    Write-Host "            ▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "                                          by Thugney " -ForegroundColor DarkGray -NoNewline
+    Write-Host "▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │   " -ForegroundColor DarkCyan -NoNewline
+    Write-Host "▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓▓" -ForegroundColor Cyan -NoNewline
+    Write-Host "   │" -ForegroundColor DarkCyan
+    Write-Host "    │                                                             │" -ForegroundColor DarkCyan
+    Write-Host "    └─────────────────────────────────────────────────────────────┘" -ForegroundColor DarkCyan
+    Write-Host ""
 }
 
 function Write-CollectionSummary {
